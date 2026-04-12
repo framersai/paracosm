@@ -192,6 +192,8 @@
   <div class="stat"><span id="s-v-tools" class="stat-num" style="color:var(--vis)">0</span><span class="stat-vs">/</span><span id="s-e-tools" class="stat-num" style="color:var(--eng)">0</span><div class="stat-label">Tools Forged</div></div>
 </div>
 
+<!-- Content area (flex:1, holds all swappable panels) -->
+<div style="flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden">
 <!-- Main columns -->
 <div class="main" id="main-view">
   <div class="col" id="col-v">
@@ -265,6 +267,7 @@
   <button id="tab-about" onclick="switchTab('about')">About</button>
 </div>
 <div class="debug" id="debug" style="display:none"><span class="dim">[Mars Genesis] Connecting...</span></div>
+</div><!-- end content area -->
 
 <div class="footer">
   <div>Built with <a href="https://agentos.sh">AgentOS</a> · <code style="color:var(--rust);font-family:var(--mono);font-size:10px">npm i @framers/agentos</code></div>
@@ -278,12 +281,15 @@ const log = (cls, msg) => { const d = $('debug'); d.innerHTML += `<br><span clas
 function switchTab(tab) {
   const mainView = $('main-view'), tlView = $('tl-view'), debug = $('debug'), about = $('about-panel');
   document.querySelectorAll('.tab-bar button').forEach(b => b.classList.remove('active'));
-  mainView.style.display = 'none'; tlView.style.display = 'none'; debug.style.display = 'none'; about.style.display = 'none';
+  // Hide all content panels
+  mainView.style.display = 'none'; tlView.style.display = 'none';
+  debug.style.display = 'none'; debug.style.flex = ''; debug.style.maxHeight = '';
+  about.style.display = 'none'; about.style.flex = '';
   if (tab === 'log') {
-    debug.style.display = 'block'; debug.style.flex = '1'; debug.style.maxHeight = 'none'; debug.style.padding = '10px 16px';
+    debug.style.display = 'block'; debug.style.flex = '1'; debug.style.maxHeight = 'none'; debug.style.overflow = 'auto'; debug.style.padding = '10px 16px';
     $('tab-log').classList.add('active');
   } else if (tab === 'about') {
-    about.style.display = 'block'; about.style.flex = '1';
+    about.style.display = 'block'; about.style.flex = '1'; about.style.overflow = 'auto';
     $('tab-about').classList.add('active');
   } else {
     mainView.style.display = 'flex'; tlView.style.display = 'flex';
