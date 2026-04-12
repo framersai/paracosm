@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mars Genesis — AgentOS Live Simulation</title>
+<style>
+  :root {
+    --bg-deep: #0a0806;
+    --bg-panel: #12100d;
+    --bg-card: #1a1714;
+    --bg-input: #0e0c0a;
+    --border: #2a2520;
+    --border-highlight: #4a3f30;
+    --text-primary: #e8dcc8;
+    --text-secondary: #a89880;
+    --text-muted: #6b5f50;
+    --accent-rust: #c45a2c;
+    --accent-rust-dim: #8b3d1e;
+    --accent-amber: #d4a04a;
+    --accent-amber-dim: #8b6a2e;
+    --accent-teal: #3d8b8b;
+    --accent-teal-dim: #2a5f5f;
+    --vis-primary: #d4a04a;
+    --vis-dim: #8b6a2e;
+    --eng-primary: #3d8b8b;
+    --eng-dim: #2a5f5f;
+    --success: #5a8b3d;
+    --danger: #c45a2c;
+    --warn: #d4a04a;
+    --font: 'SF Mono', Menlo, 'Cascadia Code', 'JetBrains Mono', monospace;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg-deep); color:var(--text-primary); font-family:var(--font); height:100vh; width:100vw; display:flex; flex-direction:column; overflow:hidden; }
+  a { color:var(--accent-amber); text-decoration:none; }
+
+  @keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.4; } }
+  @keyframes barGrow { from { width:0; } }
+  @keyframes glowPulse { 0%,100% { box-shadow:0 0 0 rgba(196,90,44,0); } 50% { box-shadow:0 0 12px rgba(196,90,44,.3); } }
+  .af { animation:fadeUp .5s ease both; }
+
+  /* ── Top Bar ── */
+  .top { display:flex; justify-content:space-between; align-items:center; padding:8px 20px; background:var(--bg-panel); border-bottom:1px solid var(--border); }
+  .logo { display:flex; align-items:center; gap:10px; }
+  .logo svg { width:26px; height:26px; }
+  .logo-text { font-weight:800; font-size:16px; color:var(--text-primary); letter-spacing:-.5px; }
+  .logo-sub { font-size:10px; color:var(--accent-rust); font-weight:700; letter-spacing:1px; }
+  .top-center { text-align:center; }
+  .top-title { font-weight:700; color:var(--accent-amber); font-size:13px; letter-spacing:.5px; }
+  .top-desc { color:var(--text-muted); font-size:10px; margin-top:1px; }
+  .meta { display:flex; gap:16px; font-size:12px; color:var(--text-muted); }
+  .meta b { color:var(--text-primary); font-size:14px; }
+  .live { color:var(--success); animation:pulse 2s infinite; }
+
+  /* ── Leader Strip ── */
+  .leaders { display:flex; gap:1px; background:var(--border); }
+  .ldr { flex:1; padding:8px 14px; background:var(--bg-panel); display:flex; gap:12px; align-items:center; }
+  .ldr-info { flex:1; min-width:0; }
+  .ldr-name { font-size:15px; font-weight:800; }
+  .ldr-name.v { color:var(--vis-primary); }
+  .ldr-name.e { color:var(--eng-primary); }
+  .ldr-sub { color:var(--text-muted); font-size:9px; margin-top:1px; }
+  .ldr-quote { color:var(--text-secondary); font-size:9px; font-style:italic; margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .traits { font-size:9px; color:var(--text-muted); white-space:pre; line-height:1.3; flex-shrink:0; }
+  .traits .hi { font-weight:700; }
+  .traits .v { color:var(--vis-primary); }
+  .traits .e { color:var(--eng-primary); }
+  .sparks { flex-shrink:0; font-size:9px; text-align:right; }
+  .sp-label { color:var(--text-muted); font-size:7px; text-transform:uppercase; letter-spacing:.5px; }
+  .arch { font-size:9px; padding:3px 8px; border-radius:3px; font-weight:800; flex-shrink:0; letter-spacing:.5px; }
+  .arch.v { color:var(--vis-primary); background:rgba(212,160,74,.1); border:1px solid var(--vis-dim); }
+  .arch.e { color:var(--eng-primary); background:rgba(61,139,139,.1); border:1px solid var(--eng-dim); }
+
+  /* ── Crisis ── */
+  .crisis { padding:6px 20px; background:linear-gradient(90deg,rgba(196,90,44,.15),rgba(196,90,44,.08),rgba(196,90,44,.15)); border-bottom:1px solid var(--accent-rust-dim); text-align:center; font-size:12px; }
+  .crisis b { color:var(--accent-rust); font-size:13px; }
+  .crisis span { color:var(--text-secondary); margin-left:8px; font-size:11px; }
+
+  /* ── Stats ── */
+  .stats { display:flex; justify-content:center; gap:28px; padding:8px 20px; background:var(--bg-panel); border-bottom:1px solid var(--border); }
+  .st { text-align:center; }
+  .st-v { font-size:22px; font-weight:800; line-height:1; }
+  .st-v.v { color:var(--vis-primary); }
+  .st-v.e { color:var(--eng-primary); }
+  .st-v.vs { color:var(--text-muted); font-size:12px; padding:0 4px; }
+  .st-l { font-size:8px; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-top:2px; }
+
+  /* ── Divergence ── */
+  .divbar { text-align:center; padding:4px 20px; background:var(--bg-deep); border-bottom:1px solid var(--border); font-size:10px; color:var(--text-muted); letter-spacing:1px; }
+  .divbar .v { color:var(--vis-primary); }
+  .divbar .e { color:var(--eng-primary); }
+  .divbar .c { color:var(--accent-rust); }
+
+  /* ── Main Columns ── */
+  .main { display:flex; gap:1px; background:var(--border); flex:1; min-height:0; }
+  .col { flex:1; background:var(--bg-deep); display:flex; flex-direction:column; overflow:hidden; }
+
+  .col-h { display:flex; justify-content:space-between; align-items:center; padding:6px 12px; background:var(--bg-panel); border-bottom:1px solid var(--border); }
+  .cn { font-weight:800; font-size:14px; }
+  .cn.v { color:var(--vis-primary); }
+  .cn.e { color:var(--eng-primary); }
+  .cl { color:var(--text-muted); font-size:10px; margin-left:6px; }
+
+  /* Scrollable content area */
+  .col-body { flex:1; overflow-y:auto; padding:8px 12px; display:flex; flex-direction:column; gap:8px; }
+  .col-body::-webkit-scrollbar { width:4px; }
+  .col-body::-webkit-scrollbar-track { background:var(--bg-deep); }
+  .col-body::-webkit-scrollbar-thumb { background:var(--border-highlight); border-radius:2px; }
+
+  /* Gauges */
+  .gauges { display:flex; gap:6px; }
+  .g { flex:1; background:var(--bg-card); padding:6px 8px; border-radius:4px; border:1px solid var(--border); }
+  .gl { color:var(--text-muted); font-size:8px; text-transform:uppercase; letter-spacing:.5px; }
+  .gv { font-size:20px; font-weight:800; line-height:1.2; }
+  .gb { height:3px; background:var(--bg-deep); margin-top:4px; border-radius:2px; overflow:hidden; }
+  .gf { height:100%; border-radius:2px; animation:barGrow .8s ease both; }
+
+  /* Colonist Quote */
+  .quote-strip { background:var(--bg-card); border:1px solid var(--border); border-radius:4px; padding:6px 10px; font-size:10px; }
+  .quote-strip .q-name { font-weight:700; font-size:10px; }
+  .quote-strip .q-name.v { color:var(--vis-primary); }
+  .quote-strip .q-name.e { color:var(--eng-primary); }
+  .quote-strip .q-text { color:var(--text-secondary); font-style:italic; margin-top:2px; line-height:1.4; }
+  .quote-strip .q-meta { color:var(--text-muted); font-size:8px; margin-top:2px; }
+
+  /* Dept */
+  .dept { background:var(--bg-card); border:1px solid var(--border); border-radius:4px; padding:8px 10px; font-size:11px; }
+  .dh { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+  .dn { font-weight:700; font-size:12px; color:var(--accent-amber); }
+  .dhx { font-size:9px; color:var(--text-muted); background:var(--bg-deep); padding:2px 6px; border-radius:3px; }
+  .dt { color:var(--text-secondary); line-height:1.5; }
+  .risk { margin-top:4px; font-size:10px; font-weight:600; display:flex; align-items:center; gap:5px; }
+  .rd { width:8px; height:8px; border-radius:50%; }
+  .rd.cr { background:var(--danger); }
+  .rd.lo { background:var(--success); }
+
+  /* Forge */
+  .forge { border-radius:4px; padding:6px 10px; font-size:10px; display:flex; align-items:center; gap:8px; }
+  .forge.ok { background:rgba(90,139,61,.08); border:1px solid rgba(90,139,61,.3); }
+  .forge.no { background:rgba(196,90,44,.05); border:1px solid rgba(196,90,44,.2); opacity:.6; }
+  .fi { flex:1; }
+  .fn { font-weight:700; font-size:11px; }
+  .fn.v { color:var(--vis-primary); }
+  .fn.e { color:var(--eng-primary); }
+  .fm { color:var(--text-muted); font-size:9px; margin-top:1px; }
+  .jb { padding:2px 8px; border-radius:3px; font-size:9px; font-weight:800; white-space:nowrap; }
+  .jb.p { background:rgba(90,139,61,.2); color:var(--success); border:1px solid rgba(90,139,61,.4); }
+  .jb.f { background:rgba(196,90,44,.15); color:var(--danger); border:1px solid rgba(196,90,44,.3); }
+
+  /* Decision */
+  .dec { border-radius:4px; padding:8px 10px; font-size:11px; }
+  .dec.v { background:rgba(212,160,74,.06); border:1px solid var(--vis-dim); }
+  .dec.e { background:rgba(61,139,139,.06); border:1px solid var(--eng-dim); }
+  .dl { font-weight:800; font-size:12px; margin-bottom:3px; }
+  .dl.v { color:var(--vis-primary); }
+  .dl.e { color:var(--eng-primary); }
+  .ddt { color:var(--text-secondary); line-height:1.5; }
+  .out { margin-top:6px; display:flex; align-items:center; gap:8px; }
+  .ob { padding:3px 8px; border-radius:3px; font-size:10px; font-weight:800; }
+  .rs { background:rgba(212,160,74,.15); color:var(--vis-primary); border:1px solid var(--vis-dim); }
+  .rf { background:rgba(196,90,44,.15); color:var(--danger); border:1px solid var(--accent-rust-dim); }
+  .cs { background:rgba(90,139,61,.15); color:var(--success); border:1px solid rgba(90,139,61,.3); }
+
+  /* Drift */
+  .drift { background:var(--bg-card); border-radius:4px; padding:6px 10px; font-size:10px; color:var(--text-secondary); border:1px solid var(--border); }
+  .drift b { color:var(--text-muted); }
+
+  /* Code — scrollable */
+  .code-wrap { background:var(--bg-input); border:1px solid var(--border); border-radius:4px; max-height:70px; overflow-y:auto; }
+  .code-wrap::-webkit-scrollbar { width:3px; }
+  .code-wrap::-webkit-scrollbar-thumb { background:var(--border-highlight); border-radius:2px; }
+  .code { padding:6px 10px; font-size:10px; line-height:1.6; }
+  .code-l { color:var(--text-muted); font-size:8px; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:2px; }
+  .kw { color:#c084fc; }
+  .str { color:var(--accent-amber); }
+  .err { color:var(--danger); }
+  .okk { color:var(--success); }
+  .cm { color:var(--text-muted); }
+
+  /* Citations — scrollable */
+  .cite-wrap { background:var(--bg-input); border:1px solid var(--border); border-radius:4px; max-height:50px; overflow-y:auto; }
+  .cite-wrap::-webkit-scrollbar { width:3px; }
+  .cite-wrap::-webkit-scrollbar-thumb { background:var(--border-highlight); border-radius:2px; }
+  .cites { padding:4px 10px; font-size:10px; }
+  .cites-l { color:var(--text-muted); font-size:8px; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:2px; }
+  .ci { color:var(--success); margin-bottom:2px; }
+  .ci-s { color:var(--text-muted); font-size:9px; }
+
+  /* ── Timeline — scrollable ── */
+  .tl { border-top:2px solid var(--border); background:var(--bg-panel); display:flex; gap:1px; max-height:140px; overflow:hidden; }
+  .tl-col { flex:1; background:var(--bg-panel); padding:6px 10px; overflow-y:auto; }
+  .tl-col::-webkit-scrollbar { width:3px; }
+  .tl-col::-webkit-scrollbar-thumb { background:var(--border-highlight); border-radius:2px; }
+  .tl-label { font-size:9px; font-weight:700; padding:3px 8px; border-radius:3px; margin-bottom:4px; display:inline-block; }
+  .tl-label.v { color:var(--vis-primary); background:rgba(212,160,74,.1); }
+  .tl-label.e { color:var(--eng-primary); background:rgba(61,139,139,.1); }
+  .tr { padding:4px 8px; background:var(--bg-card); border:1px solid var(--border); border-radius:3px; display:flex; justify-content:space-between; align-items:center; font-size:10px; margin-bottom:3px; }
+  .tr.now { animation:glowPulse 2s infinite; }
+  .tr.now.v { border-color:var(--vis-dim); background:rgba(212,160,74,.06); }
+  .tr.now.e { border-color:var(--eng-dim); background:rgba(61,139,139,.06); }
+  .ty { font-weight:800; min-width:34px; }
+  .ty.v { color:var(--vis-primary); }
+  .ty.e { color:var(--eng-primary); }
+  .tt { flex:1; margin:0 8px; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ob2 { font-size:8px; padding:1px 5px; }
+
+  /* ── Footer ── */
+  .footer { padding:4px 20px; background:var(--bg-panel); border-top:1px solid var(--border); display:flex; justify-content:space-between; font-size:9px; color:var(--text-muted); }
+  .fl { display:flex; gap:14px; }
+  .fl a { color:var(--accent-rust); font-weight:600; }
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div class="logo">
+    <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#c45a2c"/><stop offset="50%" style="stop-color:#d4a04a"/><stop offset="100%" style="stop-color:#3d8b8b"/></linearGradient></defs><circle cx="32" cy="32" r="8" fill="url(#g)"/><circle cx="32" cy="12" r="4" fill="#c45a2c" opacity=".9"/><circle cx="48" cy="20" r="4" fill="#d4a04a" opacity=".9"/><circle cx="48" cy="44" r="4" fill="#3d8b8b" opacity=".9"/><circle cx="32" cy="52" r="4" fill="#3d8b8b" opacity=".9"/><circle cx="16" cy="44" r="4" fill="#d4a04a" opacity=".9"/><circle cx="16" cy="20" r="4" fill="#c45a2c" opacity=".9"/><path d="M32 32L32 12M32 32L48 20M32 32L48 44M32 32L32 52M32 32L16 44M32 32L16 20" stroke="url(#g)" stroke-width="1.5" opacity=".5"/></svg>
+    <div><div class="logo-text">AgentOS</div><div class="logo-sub">MARS GENESIS</div></div>
+  </div>
+  <div class="top-center"><div class="top-title">Live Emergent Agent Simulation</div><div class="top-desc">Runtime tool forging · HEXACO personality evolution · Deterministic kernel</div></div>
+  <div class="meta"><span>Turn <b>5</b>/12</span><span>Year <b>2046</b></span><span>Seed <b>950</b></span><span class="live">● Live</span></div>
+</div>
+
+<div class="leaders">
+  <div class="ldr af">
+    <div class="ldr-info"><div class="ldr-name v">Aria Chen</div><div class="ldr-sub">Commander · Ares Horizon</div><div class="ldr-quote">"We didn't cross 55 million kilometers to play it safe."</div></div>
+    <div class="traits"><span class="v hi">O</span><span class="v">████████░░</span><span class="v hi"> .95</span>  <span class="v">C</span><span class="v">███░░░░░░░</span> <span class="v">.35</span>
+<span class="v">E</span><span class="v">████████░░</span> <span class="v">.85</span>  <span class="v">A</span><span class="v">█████░░░░░</span> <span class="v">.55</span></div>
+    <div class="sparks"><div class="sp-label">Pop</div><span style="color:var(--vis-primary);font-size:12px">▁▂▃▅▇</span> <span style="color:var(--success);font-size:8px">+187%</span><br><div class="sp-label">Morale</div><span style="color:var(--warn);font-size:12px">█▇▆▅▅</span> <span style="color:var(--danger);font-size:8px">-14%</span></div>
+    <span class="arch v">VISIONARY</span>
+  </div>
+  <div class="ldr af" style="animation-delay:.05s">
+    <div class="ldr-info"><div class="ldr-name e">Dietrich Voss</div><div class="ldr-sub">Commander · Meridian Base</div><div class="ldr-quote">"Every gram of oxygen is accounted for."</div></div>
+    <div class="traits"><span class="e">O</span><span class="e">██░░░░░░░░</span> <span class="e">.25</span>  <span class="e hi">C</span><span class="e">█████████░</span><span class="e hi"> .97</span>
+<span class="e">E</span><span class="e">███░░░░░░░</span> <span class="e">.30</span>  <span class="e hi">H</span><span class="e">█████████░</span><span class="e hi"> .90</span></div>
+    <div class="sparks"><div class="sp-label">Pop</div><span style="color:var(--eng-primary);font-size:12px">▁▁▂▂▃</span> <span style="color:var(--success);font-size:8px">+42%</span><br><div class="sp-label">Morale</div><span style="color:var(--success);font-size:12px">█▇▇▇█</span> <span style="color:var(--success);font-size:8px">-2%</span></div>
+    <span class="arch e">ENGINEER</span>
+  </div>
+</div>
+
+<div class="crisis af"><b>⚡ Solar Particle Event</b><span>CME in 4h · No magnetosphere · 100-500 mSv unshielded</span></div>
+
+<div class="stats af" style="animation-delay:.1s">
+  <div class="st"><div><span class="st-v v">287</span><span class="st-v vs">vs</span><span class="st-v e">142</span></div><div class="st-l">Population</div></div>
+  <div class="st"><div><span class="st-v" style="color:var(--warn)">71%</span><span class="st-v vs">vs</span><span class="st-v" style="color:var(--success)">83%</span></div><div class="st-l">Morale</div></div>
+  <div class="st"><div><span class="st-v" style="color:var(--danger)">8</span><span class="st-v vs">vs</span><span class="st-v" style="color:var(--success)">0</span></div><div class="st-l">Deaths</div></div>
+  <div class="st"><div><span class="st-v v">7</span><span class="st-v vs">/</span><span class="st-v e">5</span></div><div class="st-l">Tools Forged</div></div>
+  <div class="st"><div><span class="st-v" style="color:var(--warn)">2</span><span class="st-v vs">/</span><span class="st-v" style="color:var(--success)">0</span></div><div class="st-l">Rejected</div></div>
+</div>
+
+<div class="divbar"><span class="v">RISK ◄</span> ════════<span class="c">╬</span>══════════════ <span class="e">► SAFETY</span> · 5/5 divergent</div>
+
+<div class="main">
+  <!-- LEFT: VISIONARY -->
+  <div class="col">
+    <div class="col-h"><div><span class="cn v">ARES HORIZON</span><span class="cl">Aria Chen</span></div><span class="arch v" style="font-size:8px">VISIONARY</span></div>
+    <div class="col-body">
+      <div class="gauges af">
+        <div class="g"><span class="gl">Pop</span><span class="gv" style="color:var(--text-primary)">287</span><div class="gb"><div class="gf" style="width:72%;background:var(--vis-primary)"></div></div></div>
+        <div class="g"><span class="gl">Morale</span><span class="gv" style="color:var(--warn)">71%</span><div class="gb"><div class="gf" style="width:71%;background:var(--warn)"></div></div></div>
+        <div class="g"><span class="gl">Food</span><span class="gv" style="color:var(--success)">14mo</span></div>
+        <div class="g"><span class="gl">Deaths</span><span class="gv" style="color:var(--danger)">8</span></div>
+      </div>
+
+      <div class="quote-strip af" style="animation-delay:.2s">
+        <div><span class="q-name v">Dr. Idris Cruz</span> <span style="color:var(--text-muted);font-size:9px">Medical · O:0.71</span></div>
+        <div class="q-text">"Those 12 people in the perimeter knew the risks. We all did. That's what it means to build something bigger than survival."</div>
+        <div class="q-meta">After Solar Particle Event · Turn 5</div>
+      </div>
+
+      <div class="dept af" style="animation-delay:.25s"><div class="dh"><span class="dn">🏥 Dr. Idris Cruz</span><span class="dhx">O:0.71 C:0.65</span></div><div class="dt">"12 colonists in perimeter modules. Exposure 150-300 mSv. Triage protocol needed."</div><div class="risk"><span class="rd cr"></span> CRITICAL: 12 above acute threshold</div></div>
+
+      <div class="forge ok af" style="animation-delay:.3s"><span style="font-size:14px">🔧</span><div class="fi"><div class="fn v">radiation_triage_protocol</div><div class="fm">compose · locator → estimator → priority</div></div><span class="jb p">✓ 0.82</span></div>
+      <div class="forge no"><span style="font-size:14px">🔧</span><div class="fi"><div style="color:var(--text-muted);text-decoration:line-through;font-size:11px">exposure_predictor</div><div class="fm">sandbox · NaN edge cases</div></div><span class="jb f">✗ REJ</span></div>
+
+      <div class="dec v af" style="animation-delay:.35s"><div class="dl v">⚡ DECISION</div><div class="ddt">"Accept casualties. Expansion cannot stop. Pull who we can but do not abandon the perimeter."</div><div class="out"><span class="ob rf">⚠ RISKY FAILURE</span><span style="color:var(--danger);font-size:10px">12 at 200+ mSv</span></div></div>
+
+      <div class="drift af" style="animation-delay:.4s"><b>DRIFT:</b> Cruz <span style="color:var(--vis-primary)">O:0.71↑</span> <span style="color:var(--warn)">C:0.65↓</span> · Bakker <span style="color:var(--vis-primary)">O:0.42↑</span></div>
+
+      <div class="code-wrap af" style="animation-delay:.45s"><div class="code"><div class="code-l">Code Executing</div><code><span class="kw">const</span> outcome = classifyOutcome(decision, <span class="str">"expansion"</span>, 0.40, colony, rng);</code><br><code>kernel.applyDrift(aria.hexaco, <span class="err">"risky_failure"</span>, 3);</code><br><code class="cm">// Cruz: O 0.68→0.71 (leader +0.03) → 0.67 (failure -0.04)</code></div></div>
+
+      <div class="cite-wrap af" style="animation-delay:.5s"><div class="cites"><div class="cites-l">Citations</div><div class="ci">📚 Cucinotta et al. 2010 <span class="ci-s">NASA radiation risk · DOI:10.1667/RR2397.1</span></div><div class="ci">📚 Acuña et al. 1999 <span class="ci-s">Mars magnetosphere loss · Science 284:5415</span></div><div class="ci">📚 Guo et al. 2018 <span class="ci-s">Curiosity CME · DOI:10.1029/2018GL077731</span></div></div></div>
+    </div>
+  </div>
+
+  <!-- RIGHT: ENGINEER -->
+  <div class="col">
+    <div class="col-h"><div><span class="cn e">MERIDIAN BASE</span><span class="cl">Dietrich Voss</span></div><span class="arch e" style="font-size:8px">ENGINEER</span></div>
+    <div class="col-body">
+      <div class="gauges af">
+        <div class="g"><span class="gl">Pop</span><span class="gv" style="color:var(--text-primary)">142</span><div class="gb"><div class="gf" style="width:36%;background:var(--eng-primary)"></div></div></div>
+        <div class="g"><span class="gl">Morale</span><span class="gv" style="color:var(--success)">83%</span><div class="gb"><div class="gf" style="width:83%;background:var(--success)"></div></div></div>
+        <div class="g"><span class="gl">Food</span><span class="gv" style="color:var(--success)">22mo</span></div>
+        <div class="g"><span class="gl">Deaths</span><span class="gv" style="color:var(--success)">0</span></div>
+      </div>
+
+      <div class="quote-strip af" style="animation-delay:.2s">
+        <div><span class="q-name e">Dr. Yuki Tanaka</span> <span style="color:var(--text-muted);font-size:9px">Medical · O:0.38</span></div>
+        <div class="q-text">"Protocol 5C worked exactly as designed. Every drill, every simulation, every redundancy. That's why we're all still here."</div>
+        <div class="q-meta">After Solar Particle Event · Turn 5</div>
+      </div>
+
+      <div class="dept af" style="animation-delay:.25s"><div class="dh"><span class="dn">🏥 Dr. Yuki Tanaka</span><span class="dhx">O:0.38 C:0.88</span></div><div class="dt">"All personnel secured in core 3h before impact. Zero exposure. Protocol 5C activated."</div><div class="risk"><span class="rd lo"></span> LOW: minor confinement stress</div></div>
+
+      <div class="forge ok af" style="animation-delay:.3s"><span style="font-size:14px">🔧</span><div class="fi"><div class="fn e">radiation_dose_calculator</div><div class="fm">sandbox · mSv per colonist by location + shielding</div></div><span class="jb p">✓ 0.94</span></div>
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:6px 10px;font-size:9px;color:var(--text-muted);text-align:center">First-try approval · 0 rejections this turn</div>
+
+      <div class="dec e af" style="animation-delay:.35s"><div class="dl e">⚡ DECISION</div><div class="ddt">"All personnel to reinforced core. Zero exposure. Protocol 5C executed as designed."</div><div class="out"><span class="ob cs">✓ CONSERVATIVE SUCCESS</span><span style="color:var(--success);font-size:10px">0 exposed</span></div></div>
+
+      <div class="drift af" style="animation-delay:.4s"><b>DRIFT:</b> Tanaka <span style="color:var(--eng-primary)">O:0.38↓</span> <span style="color:var(--success)">C:0.88↑</span> · Lindqvist <span style="color:var(--eng-primary)">O:0.28↓</span></div>
+
+      <div class="code-wrap af" style="animation-delay:.45s"><div class="code"><div class="code-l">Code Executing</div><code><span class="kw">const</span> outcome = classifyOutcome(decision, <span class="str">"expansion"</span>, 0.40, colony, rng);</code><br><code>kernel.applyDrift(dietrich.hexaco, <span class="okk">"conservative_success"</span>, 3);</code><br><code class="cm">// Tanaka: O 0.40→0.38 (leader -0.02) C 0.86→0.88 (role +0.02)</code></div></div>
+
+      <div class="cite-wrap af" style="animation-delay:.5s"><div class="cites"><div class="cites-l">Citations</div><div class="ci">📚 Cucinotta et al. 2010 <span class="ci-s">NASA radiation risk · DOI:10.1667/RR2397.1</span></div><div class="ci">📚 Acuña et al. 1999 <span class="ci-s">Mars magnetosphere loss · Science 284:5415</span></div><div class="ci">📚 Hassler et al. 2014 <span class="ci-s">RAD surface dose · DOI:10.1126/science.1244797</span></div></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Timeline -->
+<div class="tl">
+  <div class="tl-col">
+    <div class="tl-label v">ARES HORIZON</div>
+    <div class="tr"><span class="ty v">2035</span><span class="tt">Valles Marineris</span><span class="ob rs ob2">✓ risky</span></div>
+    <div class="tr"><span class="ty v">2037</span><span class="tt">Deep drill</span><span class="ob rs ob2">✓ risky</span></div>
+    <div class="tr"><span class="ty v">2040</span><span class="tt">Bioremediation</span><span class="ob rf ob2">⚠ fail</span></div>
+    <div class="tr"><span class="ty v">2043</span><span class="tt">All 200</span><span class="ob rf ob2">⚠ fail</span></div>
+    <div class="tr now v"><span class="ty v">2046◄</span><span class="tt" style="color:var(--danger)">12 exposed</span><span class="ob rf ob2">⚠ fail</span></div>
+  </div>
+  <div class="tl-col">
+    <div class="tl-label e">MERIDIAN BASE</div>
+    <div class="tr"><span class="ty e">2035</span><span class="tt">Arcadia Planitia</span><span class="ob cs ob2">✓ safe</span></div>
+    <div class="tr"><span class="ty e">2037</span><span class="tt">WAVAR system</span><span class="ob cs ob2">✓ safe</span></div>
+    <div class="tr"><span class="ty e">2040</span><span class="tt">Hydroponics</span><span class="ob cs ob2">✓ safe</span></div>
+    <div class="tr"><span class="ty e">2043</span><span class="tt">Accept 50</span><span class="ob cs ob2">✓ safe</span></div>
+    <div class="tr now e"><span class="ty e">2046◄</span><span class="tt" style="color:var(--success)">0 exposed</span><span class="ob cs ob2">✓ safe</span></div>
+  </div>
+</div>
+
+<div class="footer">
+  <div>Built with <a href="https://agentos.sh">AgentOS</a> · <code style="color:var(--accent-rust)">npm i @framers/agentos</code></div>
+  <div class="fl"><a href="https://agentos.sh">agentos.sh</a><a href="https://docs.agentos.sh">docs</a><a href="https://github.com/framersai/agentos">github</a><a href="https://discord.gg/VXXC4SJMKh">discord</a></div>
+</div>
+
+</body>
+</html>
