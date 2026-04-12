@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/framersai/agentos/master/logos/agentos-primary-transparent-2x.png" alt="AgentOS" height="48" />
+  <img src="assets/agentos-logo.png" alt="AgentOS" height="48" />
 </p>
 
 <h1 align="center">Mars Genesis Simulation</h1>
@@ -159,5 +159,5 @@ Output is written to `output/` as JSON artifacts.
 MIT. Built by [Manic Agency](https://manic.agency) / [Frame.dev](https://frame.dev).
 
 <p align="center">
-  <a href="https://agentos.sh"><img src="https://raw.githubusercontent.com/framersai/agentos/master/logos/agentos-primary-transparent-2x.png" alt="AgentOS" height="32" /></a>
+  <a href="https://agentos.sh"><img src="assets/agentos-logo.png" alt="AgentOS" height="32" /></a>
 </p>
