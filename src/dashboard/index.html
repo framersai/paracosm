@@ -343,5 +343,179 @@
   <div class="fl"><a href="https://agentos.sh">agentos.sh</a><a href="https://docs.agentos.sh">docs</a><a href="https://github.com/framersai/agentos">github</a><a href="https://discord.gg/VXXC4SJMKh">discord</a></div>
 </div>
 
+<script>
+// Mars Genesis Dashboard — Live SSE Client
+// Connects to /events when served by serve.ts. Falls back to static content.
+
+const state = {
+  visionary: { turn: 0, colony: {}, reports: [], decisions: [], timeline: [], drift: {}, tools: [] },
+  engineer: { turn: 0, colony: {}, reports: [], decisions: [], timeline: [], drift: {}, tools: [] },
+  currentLeader: null,
+};
+
+function getCol(leader) {
+  if (leader === 'Aria Chen') return { side: 'visionary', col: document.querySelectorAll('.col')[0] };
+  if (leader === 'Dietrich Voss') return { side: 'engineer', col: document.querySelectorAll('.col')[1] };
+  return null;
+}
+
+function addTimelineItem(side, year, text, outcomeClass, outcomeBadge) {
+  const tlCols = document.querySelectorAll('.tl-col');
+  const tlCol = side === 'visionary' ? tlCols[0] : tlCols[1];
+  if (!tlCol) return;
+  const div = document.createElement('div');
+  div.className = 'tr now ' + (side === 'visionary' ? 'v' : 'e');
+  div.innerHTML = `<span class="ty ${side === 'visionary' ? 'v' : 'e'}">${year}◄</span><span class="tt">${text}</span><span class="ob ${outcomeClass} ob2">${outcomeBadge}</span>`;
+  // Remove "now" from previous items
+  tlCol.querySelectorAll('.tr.now').forEach(el => el.classList.remove('now'));
+  tlCol.appendChild(div);
+  tlCol.scrollTop = tlCol.scrollHeight;
+}
+
+function updateGauges(col, colony) {
+  const gauges = col.querySelectorAll('.g');
+  if (gauges[0]) { gauges[0].querySelector('.gv').textContent = colony.population ?? '—'; const bar = gauges[0].querySelector('.gf'); if (bar) { bar.style.width = Math.min(100, (colony.population || 100) / 4) + '%'; } }
+  if (gauges[1]) { const m = Math.round((colony.morale ?? 0.8) * 100); gauges[1].querySelector('.gv').textContent = m + '%'; const bar = gauges[1].querySelector('.gf'); if (bar) bar.style.width = m + '%'; gauges[1].querySelector('.gv').style.color = m > 70 ? 'var(--success)' : 'var(--warn)'; }
+  if (gauges[2]) gauges[2].querySelector('.gv').textContent = (colony.foodMonthsReserve ?? 0).toFixed(0) + 'mo';
+}
+
+function updateStats(vColony, eColony) {
+  const stats = document.querySelectorAll('.st');
+  if (stats[0]) { const vals = stats[0].querySelectorAll('.st-v'); if (vals[0]) vals[0].textContent = vColony.population ?? '—'; if (vals[2]) vals[2].textContent = eColony.population ?? '—'; }
+  if (stats[1]) { const vals = stats[1].querySelectorAll('.st-v'); if (vals[0]) vals[0].textContent = Math.round((vColony.morale ?? 0) * 100) + '%'; if (vals[2]) vals[2].textContent = Math.round((eColony.morale ?? 0) * 100) + '%'; }
+}
+
+function addDeptReport(col, dept, summary, risks, forgedTools, side) {
+  const body = col.querySelector('.col-body');
+  if (!body) return;
+  // Add department card
+  const card = document.createElement('div');
+  card.className = 'dept af';
+  const riskHtml = risks?.length ? risks.map(r => `<div class="risk"><span class="rd ${r.severity === 'critical' ? 'cr' : 'lo'}"></span> ${r.severity.toUpperCase()}: ${r.description}</div>`).join('') : '';
+  card.innerHTML = `<div class="dh"><span class="dn">📋 ${dept}</span></div><div class="dt">${summary}</div>${riskHtml}`;
+  body.appendChild(card);
+  // Add forge cards
+  for (const t of (forgedTools || [])) {
+    const forge = document.createElement('div');
+    forge.className = 'forge ok af';
+    forge.innerHTML = `<span style="font-size:14px">🔧</span><div class="fi"><div class="fn ${side === 'visionary' ? 'v' : 'e'}">${t.name || 'unnamed'}</div><div class="fm">${t.mode || 'sandbox'}</div></div><span class="jb p">✓ ${(t.confidence || 0.85).toFixed(2)}</span>`;
+    body.appendChild(forge);
+  }
+  body.scrollTop = body.scrollHeight;
+}
+
+function addDecision(col, decision, outcome, side) {
+  const body = col.querySelector('.col-body');
+  if (!body) return;
+  const dec = document.createElement('div');
+  const badgeClass = outcome === 'risky_success' ? 'rs' : outcome === 'risky_failure' ? 'rf' : outcome === 'conservative_success' ? 'cs' : 'rf';
+  const badgeText = outcome === 'risky_success' ? '✓ RISKY SUCCESS' : outcome === 'risky_failure' ? '⚠ RISKY FAILURE' : outcome === 'conservative_success' ? '✓ CONSERVATIVE SUCCESS' : '✗ CONSERVATIVE FAILURE';
+  dec.className = `dec ${side === 'visionary' ? 'v' : 'e'} af`;
+  dec.innerHTML = `<div class="dl ${side === 'visionary' ? 'v' : 'e'}">⚡ DECISION</div><div class="ddt">${decision}</div><div class="out"><span class="ob ${badgeClass}">${badgeText}</span></div>`;
+  body.appendChild(dec);
+  body.scrollTop = body.scrollHeight;
+}
+
+function addDrift(col, driftData, side) {
+  const body = col.querySelector('.col-body');
+  if (!body) return;
+  const entries = Object.values(driftData || {});
+  if (!entries.length) return;
+  const text = entries.map(d => `${d.name} <span style="color:var(--${side === 'visionary' ? 'vis' : 'eng'}-primary)">O:${d.hexaco?.O ?? '?'}</span> C:${d.hexaco?.C ?? '?'}`).join(' · ');
+  const div = document.createElement('div');
+  div.className = 'drift af';
+  div.innerHTML = `<b>DRIFT:</b> ${text}`;
+  body.appendChild(div);
+}
+
+// Update turn/year in top bar
+function updateMeta(turn, year) {
+  const meta = document.querySelectorAll('.meta span');
+  if (meta[0]) meta[0].innerHTML = `Turn <b>${turn}</b>/12`;
+  if (meta[1]) meta[1].innerHTML = `Year <b>${year}</b>`;
+}
+
+// Update crisis banner
+function updateCrisis(title, description) {
+  const crisis = document.querySelector('.crisis');
+  if (crisis) crisis.innerHTML = `<b>⚡ ${title}</b><span>${description || ''}</span>`;
+}
+
+// SSE connection (injected by serve.ts, but also try to connect if loaded standalone)
+if (typeof EventSource !== 'undefined') {
+  try {
+    const es = new EventSource('/events');
+    es.addEventListener('sim', (e) => {
+      const data = JSON.parse(e.data);
+      const info = getCol(data.leader);
+      if (!info) return;
+      const { side, col } = info;
+
+      switch (data.type) {
+        case 'turn_start':
+          updateMeta(data.data?.turn, data.data?.year);
+          updateCrisis(data.data?.title || '', data.data?.crisis || '');
+          if (data.data?.colony) {
+            state[side].colony = data.data.colony;
+            updateGauges(col, data.data.colony);
+          }
+          // Clear previous turn content in column body
+          const body = col.querySelector('.col-body');
+          if (body) {
+            // Keep gauges (first child), clear the rest
+            const gauges = body.querySelector('.gauges');
+            body.innerHTML = '';
+            if (gauges) body.appendChild(gauges);
+          }
+          break;
+        case 'dept_done':
+          addDeptReport(col, data.data?.department, data.data?.summary, data.data?.risks, data.data?.forgedTools, side);
+          break;
+        case 'commander_decided':
+          // Wait for outcome to add decision
+          state[side].pendingDecision = data.data?.decision;
+          break;
+        case 'outcome':
+          addDecision(col, state[side].pendingDecision || '', data.data?.outcome, side);
+          const outcomeClass = data.data?.outcome?.includes('success') ? 'cs' : 'rf';
+          const outcomeBadge = data.data?.outcome?.includes('success') ? '✓' : '⚠';
+          addTimelineItem(side, data.data?.year, (state[side].pendingDecision || '').slice(0, 30), outcomeClass, outcomeBadge);
+          break;
+        case 'drift':
+          addDrift(col, data.data?.colonists, side);
+          break;
+        case 'turn_done':
+          if (data.data?.colony) {
+            state[side].colony = data.data.colony;
+            updateGauges(col, data.data.colony);
+            updateStats(state.visionary.colony, state.engineer.colony);
+          }
+          break;
+        case 'promotion':
+          const promoBody = col.querySelector('.col-body');
+          if (promoBody) {
+            const div = document.createElement('div');
+            div.className = 'quote-strip af';
+            div.innerHTML = `<div><span class="q-name ${side === 'visionary' ? 'v' : 'e'}">✦ PROMOTED: ${data.data?.colonistId}</span></div><div class="q-text">${data.data?.role} — ${data.data?.reason || ''}</div>`;
+            promoBody.appendChild(div);
+          }
+          break;
+      }
+    });
+    es.addEventListener('status', (e) => {
+      const data = JSON.parse(e.data);
+      state.currentLeader = data.leader || data.phase;
+      console.log('[Mars Genesis]', data.phase, data.leader || '');
+    });
+    es.addEventListener('complete', () => {
+      const live = document.querySelector('.live');
+      if (live) { live.textContent = '● Complete'; live.style.color = 'var(--accent-amber)'; live.style.animation = 'none'; }
+    });
+    es.onerror = () => {};
+  } catch (e) {
+    // Static mode — no SSE server available
+  }
+}
+</script>
 </body>
 </html>

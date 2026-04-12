@@ -106,19 +106,21 @@ async function runSimulations() {
     { name: 'Carlos Fernandez', department: 'science' as const, role: 'Chief Scientist', specialization: 'Geology', age: 50, featured: true },
   ];
 
+  const onEvent = (event: any) => broadcast('sim', event);
+
   // Run sequentially (parallel would double API costs)
   broadcast('status', { phase: 'visionary', leader: 'Aria Chen' });
   try {
-    const vResult = await runSimulation(VISIONARY, KEY_PERSONNEL, { maxTurns });
-    broadcast('result', { leader: 'visionary', ...vResult });
+    const vResult = await runSimulation(VISIONARY, KEY_PERSONNEL, { maxTurns, onEvent });
+    broadcast('result', { leader: 'visionary', summary: { population: vResult.finalState?.colony?.population, morale: vResult.finalState?.colony?.morale, toolsForged: vResult.totalToolsForged, citations: vResult.totalCitations } });
   } catch (err) {
     broadcast('error', { leader: 'visionary', error: String(err) });
   }
 
   broadcast('status', { phase: 'engineer', leader: 'Dietrich Voss' });
   try {
-    const eResult = await runSimulation(ENGINEER, KEY_PERSONNEL, { maxTurns });
-    broadcast('result', { leader: 'engineer', ...eResult });
+    const eResult = await runSimulation(ENGINEER, KEY_PERSONNEL, { maxTurns, onEvent });
+    broadcast('result', { leader: 'engineer', summary: { population: eResult.finalState?.colony?.population, morale: eResult.finalState?.colony?.morale, toolsForged: eResult.totalToolsForged, citations: eResult.totalCitations } });
   } catch (err) {
     broadcast('error', { leader: 'engineer', error: String(err) });
   }

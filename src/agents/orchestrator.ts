@@ -181,12 +181,27 @@ function decisionToPolicy(decision: CommanderDecision, reports: DepartmentReport
 // Main
 // ---------------------------------------------------------------------------
 
-export interface RunOptions { maxTurns?: number; liveSearch?: boolean; }
+export type SimEvent = {
+  type: 'turn_start' | 'dept_start' | 'dept_done' | 'forge_attempt' | 'commander_deciding' | 'commander_decided' | 'outcome' | 'drift' | 'turn_done' | 'promotion';
+  leader: string;
+  turn?: number;
+  year?: number;
+  data?: Record<string, unknown>;
+};
+
+export interface RunOptions {
+  maxTurns?: number;
+  liveSearch?: boolean;
+  onEvent?: (event: SimEvent) => void;
+}
 
 export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPersonnel[], opts: RunOptions = {}) {
   const { agent } = await import('@framers/agentos');
   const maxTurns = opts.maxTurns ?? 12;
   const sid = `mars-v2-${leader.archetype.toLowerCase().replace(/\s+/g, '-')}`;
+  const emit = (type: SimEvent['type'], data?: Record<string, unknown>) => {
+    opts.onEvent?.({ type, leader: leader.name, data });
+  };
 
   console.log(`\n${'═'.repeat(60)}`);
   console.log(`  MARS GENESIS v2`);
@@ -239,6 +254,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
         try {
           kernel.promoteColonist(p.colonistId, p.department, p.role, leader.name);
           console.log(`  ✦ ${p.colonistId} → ${p.role}: ${p.reason?.slice(0, 80)}`);
+          emit('promotion', { colonistId: p.colonistId, department: p.department, role: p.role, reason: p.reason?.slice(0, 120) });
         } catch (err) { console.log(`  ✦ Promotion failed: ${err}`); }
       }
     } catch { /* fallback below */ }
@@ -286,6 +302,8 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     const deaths = state.eventLog.filter(e => e.turn === turn && e.type === 'death').length;
     console.log(`  Kernel: +${births} births, -${deaths} deaths → pop ${state.colony.population}`);
 
+    emit('turn_start', { turn, year: scenario.year, title: scenario.title, crisis: scenario.crisis.slice(0, 200), births, deaths, colony: state.colony });
+
     const packet = getResearchPacket(turn);
     const depts = getDepartmentsForTurn(turn);
     console.log(`  Departments: ${depts.join(', ')}`);
@@ -296,11 +314,13 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
       if (!sess) continue;
       const ctx = buildDepartmentContext(dept, state, scenario, packet);
       console.log(`  [${dept}] Analyzing...`);
+      emit('dept_start', { turn, year: scenario.year, department: dept });
       try {
         const r = await sess.send(ctx);
         const report = parseDeptReport(r.text, dept);
         reports.push(report);
         console.log(`  [${dept}] Done: ${report.citations.length} citations, ${report.risks.length} risks, ${report.forgedToolsUsed.length} tools`);
+        emit('dept_done', { turn, year: scenario.year, department: dept, summary: report.summary.slice(0, 200), citations: report.citations.length, risks: report.risks, forgedTools: report.forgedToolsUsed.map(t => ({ name: t.name, mode: t.mode, confidence: t.confidence })) });
         if (report.forgedToolsUsed.length) {
           const names = report.forgedToolsUsed.map(t => t?.name || t?.description || 'unnamed').filter(Boolean);
           if (names.length) toolRegs[dept] = [...(toolRegs[dept] || []), ...names];
@@ -315,9 +335,11 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     const cmdPrompt = `TURN ${turn} — ${scenario.year}: ${scenario.title}\n\nDEPARTMENT REPORTS:\n${summaries}\n\nColony: Pop ${state.colony.population} | Morale ${Math.round(state.colony.morale * 100)}% | Food ${state.colony.foodMonthsReserve.toFixed(1)}mo\n\nDecide. Return JSON.`;
 
     console.log(`  [commander] Deciding...`);
+    emit('commander_deciding', { turn, year: scenario.year });
     const cmdR = await cmdSess.send(cmdPrompt);
     const decision = parseCmdDecision(cmdR.text, depts);
     console.log(`  [commander] ${decision.decision.slice(0, 120)}...`);
+    emit('commander_decided', { turn, year: scenario.year, decision: decision.decision.slice(0, 300), rationale: decision.rationale.slice(0, 200), selectedPolicies: decision.selectedPolicies });
 
     kernel.applyPolicy(decisionToPolicy(decision, reports, turn, scenario.year));
 
@@ -332,13 +354,17 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     kernel.applyDrift(leader.hexaco, outcome, Math.max(1, yearDelta));
     outcomeLog.push({ turn, year: scenario.year, outcome });
     console.log(`  [outcome] ${outcome} (risky: "${scenario.riskyOption}")`);
+    emit('outcome', { turn, year: scenario.year, outcome, riskyOption: scenario.riskyOption });
 
     // Log drift for promoted colonists
     const drifted = kernel.getState().colonists.filter(c => c.promotion && c.health.alive);
-    for (const p of drifted.slice(0, 3)) {
+    const driftData: Record<string, { name: string; hexaco: any }> = {};
+    for (const p of drifted.slice(0, 4)) {
       const h = p.hexaco;
       console.log(`  [drift] ${p.core.name}: O:${h.openness.toFixed(2)} C:${h.conscientiousness.toFixed(2)}`);
+      driftData[p.core.id] = { name: p.core.name, hexaco: { O: +h.openness.toFixed(2), C: +h.conscientiousness.toFixed(2), E: +h.extraversion.toFixed(2), A: +h.agreeableness.toFixed(2) } };
     }
+    emit('drift', { turn, year: scenario.year, colonists: driftData });
 
     const after = kernel.getState();
 
@@ -353,6 +379,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
       },
     });
     console.log(`  State: Pop ${after.colony.population} | Morale ${Math.round(after.colony.morale * 100)}% | Food ${after.colony.foodMonthsReserve.toFixed(1)}mo`);
+    emit('turn_done', { turn, year: scenario.year, colony: after.colony, toolsForged: Object.values(toolRegs).flat().length });
   }
 
   const final = kernel.export();
