@@ -43,10 +43,11 @@
   .ldr-name{font-size:13px;font-weight:800}.ldr-name.v{color:var(--vis)}.ldr-name.e{color:var(--eng)}
   .ldr-sub{color:var(--text-3);font-size:10px}
   .ldr-quote{color:var(--text-2);font-size:10px;font-style:italic}
-  .traits{font-size:9px;color:var(--text-2);white-space:pre;line-height:1.3;flex-shrink:0;font-family:var(--mono)}
+  .traits{font-size:9px;color:var(--text-2);white-space:pre;line-height:1.2;flex-shrink:0;font-family:var(--mono);letter-spacing:.5px}
   .traits .hi{font-weight:700}.traits .v{color:var(--vis)}.traits .e{color:var(--eng)}
-  .sparks{flex-shrink:0;text-align:right;font-family:var(--mono);font-size:11px}
-  .sp-l{color:var(--text-3);font-size:8px;text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+  .tl-sep{color:var(--text-3);opacity:.4}
+  .sparks{flex-shrink:0;text-align:right;font-family:var(--mono);font-size:10px;line-height:1.4}
+  .sp-l{color:var(--text-3);font-size:8px;text-transform:uppercase;letter-spacing:.5px;font-weight:600;display:inline}
   .arch{font-size:9px;padding:2px 8px;border-radius:3px;font-weight:800;flex-shrink:0;font-family:var(--mono)}
   .arch.v{color:var(--vis);background:rgba(232,180,74,.1);border:1px solid var(--amber-dim)}
   .arch.e{color:var(--eng);background:rgba(76,168,168,.1);border:1px solid var(--teal-dim)}
@@ -161,22 +162,22 @@
     <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" style="width:20px;height:20px"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#e06530"/><stop offset="50%" style="stop-color:#e8b44a"/><stop offset="100%" style="stop-color:#4ca8a8"/></linearGradient></defs><circle cx="32" cy="32" r="8" fill="url(#g)"/><circle cx="32" cy="12" r="4" fill="#e06530" opacity=".9"/><circle cx="48" cy="20" r="4" fill="#e8b44a" opacity=".9"/><circle cx="48" cy="44" r="4" fill="#4ca8a8" opacity=".9"/><circle cx="32" cy="52" r="4" fill="#4ca8a8" opacity=".9"/><circle cx="16" cy="44" r="4" fill="#e8b44a" opacity=".9"/><circle cx="16" cy="20" r="4" fill="#e06530" opacity=".9"/><path d="M32 32L32 12M32 32L48 20M32 32L48 44M32 32L32 52M32 32L16 44M32 32L16 20" stroke="url(#g)" stroke-width="1.5" opacity=".5"/></svg>
     <span class="logo-text">AgentOS</span><span class="logo-sub">MARS GENESIS</span>
   </div>
-  <span class="top-c">Live Emergent Simulation · Tool Forging · Personality Evolution · Deterministic Kernel</span>
-  <div class="meta"><span>Turn <b id="m-turn">—</b>/12</span><span>Year <b id="m-year">—</b></span><span>Seed <b>950</b></span><span class="live" id="m-status">● Waiting</span></div>
+  <span class="top-c">Same colony, same crises, two different leaders. 12 turns spanning 50 years on Mars.</span>
+  <div class="meta"><span title="Each turn is a crisis event the colony must respond to">Turn <b id="m-turn">—</b>/12</span><span title="Simulation year on Mars">Year <b id="m-year">—</b></span><span title="Deterministic seed: same seed = same colonist roster">Seed <b>950</b></span><span class="live" id="m-status">● Waiting</span></div>
 </div>
 
-<!-- Leaders: compact side-by-side -->
+<!-- Leaders: compact 2-row max -->
 <div class="leaders">
   <div class="ldr">
-    <div class="ldr-info"><span class="ldr-name v">Aria Chen</span> <span class="ldr-sub">· Ares Horizon</span><div class="ldr-quote">"We didn't cross 55 million km to play it safe."</div></div>
-    <div class="traits"><span class="v hi">O</span><span class="v">█████░</span><span class="v">.95</span> <span class="v">C</span><span class="v">██░░░</span><span class="v">.35</span> <span class="v">E</span><span class="v">████░</span><span class="v">.85</span> <span class="v">A</span><span class="v">███░░</span><span class="v">.55</span></div>
-    <div class="sparks"><div class="sp-l">Pop</div><span id="spark-v-pop" style="color:var(--vis)">—</span><br><div class="sp-l">Morale</div><span id="spark-v-morale" style="color:var(--amber)">—</span></div>
+    <div class="ldr-info"><span class="ldr-name v">Aria Chen</span> <span class="ldr-sub">· Ares Horizon</span> <span class="ldr-quote">"We didn't cross 55M km to play it safe."</span></div>
+    <div class="traits"><span class="v hi">O </span><span class="v">█████░ </span><span class="v hi">.95</span>  <span class="v">C </span><span class="v">██░░░ </span><span class="v">.35</span>  <span class="v">E </span><span class="v">████░ </span><span class="v">.85</span>  <span class="v">A </span><span class="v">███░░ </span><span class="v">.55</span></div>
+    <div class="sparks"><span class="sp-l" style="color:var(--vis)">Pop</span> <span id="spark-v-pop" style="color:var(--vis)">—</span>  <span class="sp-l" style="color:var(--amber)">Morale</span> <span id="spark-v-morale" style="color:var(--amber)">—</span></div>
     <span class="arch v">VISIONARY</span>
   </div>
   <div class="ldr">
-    <div class="ldr-info"><span class="ldr-name e">Dietrich Voss</span> <span class="ldr-sub">· Meridian Base</span><div class="ldr-quote">"Every gram of oxygen is accounted for."</div></div>
-    <div class="traits"><span class="e">O</span><span class="e">█░░░░</span><span class="e">.25</span> <span class="e hi">C</span><span class="e">█████</span><span class="e hi">.97</span> <span class="e">E</span><span class="e">██░░░</span><span class="e">.30</span> <span class="e hi">H</span><span class="e">████░</span><span class="e hi">.90</span></div>
-    <div class="sparks"><div class="sp-l">Pop</div><span id="spark-e-pop" style="color:var(--eng)">—</span><br><div class="sp-l">Morale</div><span id="spark-e-morale" style="color:var(--green)">—</span></div>
+    <div class="ldr-info"><span class="ldr-name e">Dietrich Voss</span> <span class="ldr-sub">· Meridian Base</span> <span class="ldr-quote">"Every gram of oxygen is accounted for."</span></div>
+    <div class="traits"><span class="e">O </span><span class="e">█░░░░ </span><span class="e">.25</span>  <span class="e hi">C </span><span class="e">█████ </span><span class="e hi">.97</span>  <span class="e">E </span><span class="e">██░░░ </span><span class="e">.30</span>  <span class="e hi">H </span><span class="e">████░ </span><span class="e hi">.90</span></div>
+    <div class="sparks"><span class="sp-l" style="color:var(--eng)">Pop</span> <span id="spark-e-pop" style="color:var(--eng)">—</span>  <span class="sp-l" style="color:var(--green)">Morale</span> <span id="spark-e-morale" style="color:var(--green)">—</span></div>
     <span class="arch e">ENGINEER</span>
   </div>
 </div>
