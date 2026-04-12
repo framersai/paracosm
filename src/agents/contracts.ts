@@ -1,6 +1,13 @@
 import type { Department, Colonist } from '../kernel/state.js';
 import type { ColonyPatch } from '../kernel/kernel.js';
 
+export interface CrisisOption {
+  id: string;
+  label: string;
+  description: string;
+  isRisky: boolean;
+}
+
 export interface Citation {
   text: string;
   url: string;
@@ -47,9 +54,12 @@ export interface DepartmentReport {
   featuredColonistUpdates: FeaturedColonistUpdate[];
   confidence: number;
   openQuestions: string[];
+  recommendedEffects?: TypedPolicyEffect[];
 }
 
 export interface CommanderDecision {
+  selectedOptionId?: string;
+  selectedEffectIds?: string[];
   decision: string;
   rationale: string;
   departmentsConsulted: Department[];
@@ -89,5 +99,34 @@ export interface PromotionDecision {
     department: Department;
     role: string;
     reason: string;
+  }>;
+}
+
+export type PolicyEffectType =
+  | 'resource_shift'
+  | 'capacity_expansion'
+  | 'population_intake'
+  | 'risk_mitigation'
+  | 'governance_change'
+  | 'social_investment'
+  | 'research_bet';
+
+export interface TypedPolicyEffect {
+  id: string;
+  type: PolicyEffectType;
+  description: string;
+  colonyDelta?: Partial<{
+    powerKw: number;
+    foodMonthsReserve: number;
+    waterLitersPerDay: number;
+    pressurizedVolumeM3: number;
+    lifeSupportCapacity: number;
+    infrastructureModules: number;
+    scienceOutput: number;
+    morale: number;
+  }>;
+  politicsDelta?: Partial<{
+    earthDependencyPct: number;
+    independencePressure: number;
   }>;
 }

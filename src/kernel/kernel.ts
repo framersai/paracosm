@@ -111,17 +111,17 @@ export class SimulationKernel {
   }
 
   /** Advance to the next turn. Runs between-turn progression. */
-  advanceTurn(nextTurn: number): SimulationState {
-    const scenario = this.getScenario(nextTurn);
-    if (!scenario) throw new Error(`No scenario for turn ${nextTurn}`);
-
-    const yearDelta = scenario.year - this.state.metadata.currentYear;
+  advanceTurn(nextTurn: number, nextYear: number): SimulationState {
+    const prevYear = this.state.metadata.currentYear;
+    const yearDelta = nextYear - prevYear;
     const turnRng = this.rng.turnSeed(nextTurn);
+
+    // Update metadata FIRST so progression stamps events correctly
+    this.state.metadata.currentYear = nextYear;
+    this.state.metadata.currentTurn = nextTurn;
 
     const { state: progressed, events } = progressBetweenTurns(this.state, yearDelta, turnRng);
     this.state = progressed;
-    this.state.metadata.currentYear = scenario.year;
-    this.state.metadata.currentTurn = nextTurn;
     this.state.colony.population = this.getAliveCount();
     this.updateFeaturedColonists(events);
 
@@ -185,6 +185,38 @@ export class SimulationKernel {
       this.state.colonists, commanderHexaco, outcome, yearDelta,
       this.state.metadata.currentTurn, this.state.metadata.currentYear,
     );
+  }
+
+  /** Apply featured colonist updates from department reports. */
+  applyColonistUpdates(updates: Array<{ colonistId: string; health?: Partial<Colonist['health']>; career?: Partial<Colonist['career']>; narrativeEvent?: string }>): void {
+    for (const u of updates) {
+      const col = this.state.colonists.find(c => c.core.id === u.colonistId);
+      if (!col || !col.health.alive) continue;
+
+      if (u.health) {
+        if (u.health.psychScore !== undefined) {
+          col.health.psychScore = Math.max(0, Math.min(1, u.health.psychScore));
+        }
+        if (u.health.conditions) {
+          col.health.conditions = u.health.conditions;
+        }
+      }
+      if (u.career) {
+        if (u.career.achievements) {
+          col.career.achievements = [...col.career.achievements, ...u.career.achievements];
+        }
+        if (u.career.currentProject !== undefined) {
+          col.career.currentProject = u.career.currentProject;
+        }
+      }
+      if (u.narrativeEvent) {
+        col.narrative.lifeEvents.push({
+          year: this.state.metadata.currentYear,
+          event: u.narrativeEvent,
+          source: col.core.department,
+        });
+      }
+    }
   }
 
   export(): SimulationState { return structuredClone(this.state); }

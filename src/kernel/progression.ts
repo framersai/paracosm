@@ -94,6 +94,34 @@ export function classifyOutcome(
 }
 
 /**
+ * Classify turn outcome using structured option ID.
+ * Preferred over text-based classifyOutcome.
+ */
+export function classifyOutcomeById(
+  selectedOptionId: string,
+  options: Array<{ id: string; isRisky: boolean }>,
+  riskSuccessProbability: number,
+  colony: ColonySystems,
+  rng: SeededRng,
+): TurnOutcome {
+  const selected = options.find(o => o.id === selectedOptionId);
+  const isRisky = selected?.isRisky ?? false;
+
+  let prob = riskSuccessProbability;
+  if (colony.morale > 0.7) prob += 0.1;
+  if (colony.foodMonthsReserve > 12) prob += 0.05;
+  if (colony.population > 150) prob -= 0.05;
+  prob = Math.max(0.1, Math.min(0.9, prob));
+
+  const success = rng.chance(prob);
+
+  if (isRisky && success) return 'risky_success';
+  if (isRisky && !success) return 'risky_failure';
+  if (!isRisky && success) return 'conservative_success';
+  return 'conservative_failure';
+}
+
+/**
  * Run all between-turn progression: aging, mortality, births, careers,
  * health degradation, resource production. All deterministic from seed.
  */

@@ -31,7 +31,7 @@ const KEY_PERSONNEL = [
 const maxTurns = process.argv[2] ? parseInt(process.argv[2], 10) : undefined;
 const liveSearch = process.argv.includes('--live');
 
-runSimulation(VISIONARY, KEY_PERSONNEL, { maxTurns, liveSearch }).catch((err) => {
+runSimulation(VISIONARY, KEY_PERSONNEL, { maxTurns, liveSearch, seed: 950 }).catch((err) => {
   console.error('Simulation failed:', err);
   process.exitCode = 1;
 });

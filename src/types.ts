@@ -1,11 +1,5 @@
-export interface HexacoProfile {
-  openness: number;
-  conscientiousness: number;
-  extraversion: number;
-  agreeableness: number;
-  emotionality: number;
-  honestyHumility: number;
-}
+import type { HexacoProfile } from './kernel/state.js';
+export type { HexacoProfile };
 
 export interface LeaderConfig {
   name: string;
@@ -81,4 +75,5 @@ export interface Scenario {
   snapshotHints: Partial<ColonySnapshot>;
   riskyOption: string;
   riskSuccessProbability: number;
+  options?: import('./agents/contracts.js').CrisisOption[];
 }
