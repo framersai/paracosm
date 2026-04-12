@@ -141,6 +141,10 @@ function wrapForgeTool(raw: ForgeToolMetaTool, agentId: string, sessionId: strin
 // Parsing
 // ---------------------------------------------------------------------------
 
+function humanizeToolName(name: string): string {
+  return name.replace(/_v\d+$/, '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
 function cleanSummary(raw: string): string {
   // Extract first actionable sentence, skip preamble
   const s = raw.replace(/^(Based on|After|I recommend|My analysis|The data|Looking at|Given)\s/i, '');
@@ -335,7 +339,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
         console.log(`  [${dept}] Done: ${report.citations.length} citations, ${report.risks.length} risks, ${report.forgedToolsUsed.length} tools`);
         const validTools = report.forgedToolsUsed
           .filter(t => t && (t.name || t.description))
-          .map(t => ({ name: t.name || t.description || 'tool', mode: t.mode || 'sandbox', confidence: t.confidence ?? 0.85 }));
+          .map(t => ({ name: t.name || t.description || 'tool', mode: t.mode || 'sandbox', confidence: t.confidence ?? 0.85, description: t.description || humanizeToolName(t.name || '') }));
         emit('dept_done', { turn, year: scenario.year, department: dept, summary: report.summary, citations: report.citations.length, risks: report.risks, forgedTools: validTools, recommendedActions: report.recommendedActions?.slice(0, 2) });
         if (report.forgedToolsUsed.length) {
           const names = report.forgedToolsUsed.map(t => t?.name || t?.description || 'unnamed').filter(Boolean);

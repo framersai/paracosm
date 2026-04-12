@@ -108,22 +108,20 @@ async function runSimulations() {
 
   const onEvent = (event: any) => broadcast('sim', event);
 
-  // Run sequentially (parallel would double API costs)
-  broadcast('status', { phase: 'visionary', leader: 'Aria Chen' });
-  try {
-    const vResult = await runSimulation(VISIONARY, KEY_PERSONNEL, { maxTurns, onEvent });
-    broadcast('result', { leader: 'visionary', summary: { population: vResult.finalState?.colony?.population, morale: vResult.finalState?.colony?.morale, toolsForged: vResult.totalToolsForged, citations: vResult.totalCitations } });
-  } catch (err) {
-    broadcast('error', { leader: 'visionary', error: String(err) });
-  }
+  // Run BOTH simulations in parallel so turns appear side-by-side
+  broadcast('status', { phase: 'parallel', leaders: ['Aria Chen', 'Dietrich Voss'] });
 
-  broadcast('status', { phase: 'engineer', leader: 'Dietrich Voss' });
-  try {
-    const eResult = await runSimulation(ENGINEER, KEY_PERSONNEL, { maxTurns, onEvent });
-    broadcast('result', { leader: 'engineer', summary: { population: eResult.finalState?.colony?.population, morale: eResult.finalState?.colony?.morale, toolsForged: eResult.totalToolsForged, citations: eResult.totalCitations } });
-  } catch (err) {
-    broadcast('error', { leader: 'engineer', error: String(err) });
-  }
+  const visionaryPromise = runSimulation(VISIONARY, KEY_PERSONNEL, { maxTurns, onEvent }).then(
+    r => { broadcast('result', { leader: 'visionary', summary: { population: r.finalState?.colony?.population, morale: r.finalState?.colony?.morale, toolsForged: r.totalToolsForged, citations: r.totalCitations } }); },
+    err => { broadcast('error', { leader: 'visionary', error: String(err) }); },
+  );
+
+  const engineerPromise = runSimulation(ENGINEER, KEY_PERSONNEL, { maxTurns, onEvent }).then(
+    r => { broadcast('result', { leader: 'engineer', summary: { population: r.finalState?.colony?.population, morale: r.finalState?.colony?.morale, toolsForged: r.totalToolsForged, citations: r.totalCitations } }); },
+    err => { broadcast('error', { leader: 'engineer', error: String(err) }); },
+  );
+
+  await Promise.all([visionaryPromise, engineerPromise]);
 
   broadcast('complete', { timestamp: new Date().toISOString() });
   console.log('\n  Simulations complete. Dashboard still serving at http://localhost:' + PORT);

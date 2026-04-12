@@ -71,9 +71,9 @@
   .gb{height:3px;background:var(--bg-deep);margin-top:3px;border-radius:2px;overflow:hidden}
   .gf{height:100%;border-radius:2px;animation:barGrow .8s ease both;transition:width .5s ease}
 
-  .card{background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:6px 9px;font-size:10px}
+  .card{background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:8px 12px;font-size:12px}
   .card-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px}
-  .card-title{font-weight:700;font-size:11px;color:var(--amber)}
+  .card-title{font-weight:700;font-size:13px;color:var(--amber)}
   .card-badge{font-size:8px;color:var(--text-3);background:var(--bg-deep);padding:1px 5px;border-radius:2px}
   .card-text{color:var(--text-2);line-height:1.5}
   .risk{margin-top:3px;font-size:9px;font-weight:600;display:flex;align-items:center;gap:4px}
@@ -149,16 +149,17 @@
   </div>
 </div>
 
-<div class="crisis" id="crisis"><b>⚡ Waiting for simulation...</b></div>
-
-<div class="stats">
-  <div class="st"><div><span class="st-v v" id="s-v-pop">—</span><span class="st-v vs">vs</span><span class="st-v e" id="s-e-pop">—</span></div><div class="st-l">Population</div></div>
-  <div class="st"><div><span class="st-v" id="s-v-morale" style="color:var(--amber)">—</span><span class="st-v vs">vs</span><span class="st-v" id="s-e-morale" style="color:var(--green)">—</span></div><div class="st-l">Morale</div></div>
-  <div class="st"><div><span class="st-v" id="s-v-deaths" style="color:var(--rust)">—</span><span class="st-v vs">vs</span><span class="st-v" id="s-e-deaths" style="color:var(--green)">—</span></div><div class="st-l">Deaths</div></div>
-  <div class="st"><div><span class="st-v v" id="s-v-tools">0</span><span class="st-v vs">/</span><span class="st-v e" id="s-e-tools">0</span></div><div class="st-l">Tools</div></div>
+<!-- Consolidated status bar: crisis + stats + divergence in one row -->
+<div style="display:flex;align-items:center;padding:4px 16px;background:var(--bg-panel);border-bottom:1px solid var(--border);gap:16px;flex-wrap:nowrap;overflow:hidden">
+  <div id="crisis" style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11px"><b style="color:var(--rust)">⚡ Waiting...</b></div>
+  <div style="display:flex;gap:12px;flex-shrink:0;font-size:11px">
+    <span><span class="st-v v" id="s-v-pop" style="font-size:16px;font-weight:800">—</span><span style="color:var(--text-3);font-size:9px"> vs </span><span class="st-v e" id="s-e-pop" style="font-size:16px;font-weight:800">—</span> <span style="color:var(--text-3);font-size:8px">POP</span></span>
+    <span><span id="s-v-morale" style="font-size:16px;font-weight:800;color:var(--amber)">—</span><span style="color:var(--text-3);font-size:9px"> vs </span><span id="s-e-morale" style="font-size:16px;font-weight:800;color:var(--green)">—</span> <span style="color:var(--text-3);font-size:8px">MORALE</span></span>
+    <span><span id="s-v-deaths" style="font-size:16px;font-weight:800;color:var(--rust)">—</span><span style="color:var(--text-3);font-size:9px"> vs </span><span id="s-e-deaths" style="font-size:16px;font-weight:800;color:var(--green)">—</span> <span style="color:var(--text-3);font-size:8px">DEATHS</span></span>
+    <span><span class="st-v v" id="s-v-tools" style="font-size:16px;font-weight:800">0</span><span style="color:var(--text-3);font-size:9px">/</span><span class="st-v e" id="s-e-tools" style="font-size:16px;font-weight:800">0</span> <span style="color:var(--text-3);font-size:8px">TOOLS</span></span>
+  </div>
+  <div id="div-count" style="flex-shrink:0;font-size:9px;color:var(--text-3)">Waiting</div>
 </div>
-
-<div class="divbar"><span class="v">RISK ◄</span> ═══════<span class="c">╬</span>═══════ <span class="e">► SAFETY</span> · <span id="div-count">Waiting</span></div>
 
 <div class="main">
   <!-- LEFT: VISIONARY -->
@@ -195,8 +196,13 @@
   <div class="tl-col" id="tl-e"><div class="tl-label e">MERIDIAN BASE</div></div>
 </div>
 
-<!-- Debug Log -->
-<div class="debug" id="debug"><span class="dim">[Mars Genesis] Dashboard loaded. Connecting to SSE...</span></div>
+<!-- Tab bar -->
+<div style="display:flex;background:var(--bg-panel);border-top:1px solid var(--border)">
+  <button id="tab-sim" onclick="switchTab('sim')" style="flex:1;padding:4px;background:var(--bg-card);color:var(--amber);border:none;border-bottom:2px solid var(--amber);font-family:var(--font);font-size:10px;font-weight:700;cursor:pointer">SIMULATION</button>
+  <button id="tab-log" onclick="switchTab('log')" style="flex:1;padding:4px;background:var(--bg-panel);color:var(--text-3);border:none;border-bottom:2px solid transparent;font-family:var(--font);font-size:10px;font-weight:700;cursor:pointer">DEBUG LOG</button>
+</div>
+<!-- Debug Log (hidden by default, shown when Debug tab active) -->
+<div class="debug" id="debug" style="display:none"><span class="dim">[Mars Genesis] Dashboard loaded. Connecting to SSE...</span></div>
 
 <div class="footer">
   <div>Built with <a href="https://agentos.sh">AgentOS</a> · <code style="color:var(--rust)">npm i @framers/agentos</code></div>
@@ -206,6 +212,29 @@
 <script>
 const $ = id => document.getElementById(id);
 const log = (cls, msg) => { const d = $('debug'); d.innerHTML += `<br><span class="${cls}">${msg}</span>`; d.scrollTop = d.scrollHeight; };
+
+function switchTab(tab) {
+  const simElements = [document.querySelector('.main'), document.querySelector('.tl')];
+  const debug = $('debug');
+  const tabSim = $('tab-sim');
+  const tabLog = $('tab-log');
+  if (tab === 'log') {
+    simElements.forEach(el => { if (el) el.style.display = 'none'; });
+    debug.style.display = 'block';
+    debug.style.flex = '1';
+    debug.style.maxHeight = 'none';
+    debug.style.fontSize = '12px';
+    debug.style.lineHeight = '1.8';
+    debug.style.padding = '12px 20px';
+    tabLog.style.background = 'var(--bg-card)'; tabLog.style.color = 'var(--amber)'; tabLog.style.borderBottom = '2px solid var(--amber)';
+    tabSim.style.background = 'var(--bg-panel)'; tabSim.style.color = 'var(--text-3)'; tabSim.style.borderBottom = '2px solid transparent';
+  } else {
+    simElements.forEach(el => { if (el) el.style.display = 'flex'; });
+    debug.style.display = 'none';
+    tabSim.style.background = 'var(--bg-card)'; tabSim.style.color = 'var(--amber)'; tabSim.style.borderBottom = '2px solid var(--amber)';
+    tabLog.style.background = 'var(--bg-panel)'; tabLog.style.color = 'var(--text-3)'; tabLog.style.borderBottom = '2px solid transparent';
+  }
+}
 const side = leader => leader === 'Aria Chen' ? 'v' : leader === 'Dietrich Voss' ? 'e' : null;
 
 const state = { v: { pop: [], morale: [], deaths: 0, tools: 0 }, e: { pop: [], morale: [], deaths: 0, tools: 0 } };
@@ -307,7 +336,8 @@ try {
         addToBody(s, `<div class="card"><div class="card-h"><span class="card-title">${deptIcon} ${deptName}</span><span class="card-badge">${dd.citations || 0} cites</span></div><div class="card-text">${summary}</div>${risks}${recsHtml}</div>`);
         for (const t of (dd.forgedTools || [])) {
           if (!t.name || t.name === 'unnamed') continue;
-          addToBody(s, `<div class="forge ok"><span style="font-size:12px">🔧</span><div style="flex:1"><div class="fn ${s === 'v' ? 'v' : 'e'}">${t.name}</div><div class="fm">${t.mode || 'sandbox'}</div></div><span class="jb p">✓ ${(t.confidence || .85).toFixed(2)}</span></div>`);
+          const desc = t.description || t.name.replace(/_v\d+$/, '').replace(/_/g, ' ');
+          addToBody(s, `<div class="forge ok"><span style="font-size:14px">🔧</span><div style="flex:1"><div class="fn ${s === 'v' ? 'v' : 'e'}">${t.name}</div><div class="fm">${desc} · ${t.mode || 'sandbox'}</div></div><span class="jb p">✓ ${(t.confidence || .85).toFixed(2)}</span></div>`);
           state[s].tools++;
           $(`s-${s}-tools`).textContent = state[s].tools;
         }
