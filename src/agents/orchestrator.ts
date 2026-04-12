@@ -492,11 +492,11 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
 
     // Apply featured colonist updates
     const colonistUpdates = reports.flatMap(r =>
-      r.featuredColonistUpdates.map(u => ({
+      (r.featuredColonistUpdates || []).filter(u => u && u.colonistId && u.updates).map(u => ({
         colonistId: u.colonistId,
-        health: u.updates.health,
-        career: u.updates.career,
-        narrativeEvent: u.updates.narrative?.event,
+        health: u.updates?.health,
+        career: u.updates?.career,
+        narrativeEvent: u.updates?.narrative?.event,
       }))
     );
     if (colonistUpdates.length) kernel.applyColonistUpdates(colonistUpdates);
