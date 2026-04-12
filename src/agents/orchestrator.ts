@@ -146,21 +146,41 @@ function humanizeToolName(name: string): string {
 }
 
 function cleanSummary(raw: string): string {
-  // Extract first actionable sentence, skip preamble
-  const s = raw.replace(/^(Based on|After|I recommend|My analysis|The data|Looking at|Given)\s/i, '');
-  const firstSentence = s.match(/^[^.!?]+[.!?]/)?.[0] || s.slice(0, 150);
-  return firstSentence.slice(0, 150);
+  // Strip LLM cruft: "Decision:", "I recommend", "**Option A**", markdown
+  let s = raw
+    .replace(/\*\*/g, '')
+    .replace(/^(Decision:|Recommendation:|Summary:|Analysis:|I recommend|My analysis|Based on|After careful|Given the|Looking at|The data)\s*/gi, '')
+    .replace(/^(choose |select |go with |opt for )/i, '')
+    .replace(/^Option [A-C][.:,]\s*/i, '')
+    .trim();
+  // Take first complete sentence
+  const match = s.match(/^[^.!?]{10,}[.!?]/);
+  return (match?.[0] || s.slice(0, 120)).slice(0, 120);
 }
 
 function parseDeptReport(text: string, dept: Department): DepartmentReport {
+  // Try to extract JSON from the response
   const jsonMatch = text.match(/\{[\s\S]*"department"[\s\S]*\}/);
   if (jsonMatch) {
     try {
-      const parsed = { ...emptyReport(dept), ...JSON.parse(jsonMatch[0]), department: dept };
-      parsed.summary = cleanSummary(parsed.summary);
-      return parsed;
+      const raw = JSON.parse(jsonMatch[0]);
+      const report = { ...emptyReport(dept), ...raw, department: dept };
+      // Use 'summary' or 'decision' or 'recommendation' field
+      const summaryText = raw.summary || raw.decision || raw.recommendation || raw.analysis || '';
+      // If summary looks like raw JSON or is too short, build one from other fields
+      if (!summaryText || summaryText.length < 10 || summaryText.startsWith('{')) {
+        const recs = (raw.recommendedActions || []).join('. ');
+        const risks = (raw.risks || []).map((r: any) => r.description).join('. ');
+        report.summary = cleanSummary(recs || risks || `${dept} analysis complete.`);
+      } else {
+        report.summary = cleanSummary(summaryText);
+      }
+      // Ensure confidence is readable
+      if (typeof report.confidence !== 'number' || report.confidence < 0.1) report.confidence = 0.8;
+      return report;
     } catch {}
   }
+  // Fallback: extract from free text
   const cites: DepartmentReport['citations'] = [];
   let m; const re = /\[([^\]]+)\]\(([^)]+)\)/g;
   while ((m = re.exec(text))) if (m[2].startsWith('http')) cites.push({ text: m[1], url: m[2], context: m[1] });
