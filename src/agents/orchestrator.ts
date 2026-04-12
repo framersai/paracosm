@@ -428,7 +428,10 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     const packet = milestone ? getResearchPacket(turn) : getResearchForCategory(crisis.category, crisis.researchKeywords);
 
     // Departments: from director for emergent, from schedule for milestones
-    const depts = milestone ? getDepartmentsForTurn(turn) : crisis.relevantDepartments;
+    const validDepts: Department[] = ['medical', 'engineering', 'agriculture', 'psychology', 'governance'];
+    const rawDepts = milestone ? getDepartmentsForTurn(turn) : crisis.relevantDepartments;
+    const depts = rawDepts.filter(d => validDepts.includes(d));
+    if (!depts.length) depts.push('medical', 'engineering');
     console.log(`  Departments: ${depts.join(', ')}`);
 
     // Build a Scenario-compatible object for department context builder

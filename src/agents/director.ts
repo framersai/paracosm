@@ -84,6 +84,15 @@ CRISIS CATEGORIES:
 - social: births, education, cultural identity, intergenerational conflict
 - technological: equipment failure, communication, AI systems
 
+AVAILABLE DEPARTMENTS (use ONLY these exact names in relevantDepartments):
+- medical
+- engineering
+- agriculture
+- psychology
+- governance
+
+Do NOT use any other department names. Pick 2-4 from this list.
+
 Return ONLY valid JSON:
 {"title":"Crisis Title","crisis":"Full description with specific colony numbers...","options":[{"id":"option_a","label":"Option Label","description":"What this option does","isRisky":false},{"id":"option_b","label":"Risky Option","description":"Higher upside, higher risk","isRisky":true}],"riskyOptionId":"option_b","riskSuccessProbability":0.55,"category":"environmental","researchKeywords":["mars dust storm","habitat pressure"],"relevantDepartments":["engineering","medical"],"turnSummary":"One sentence: why this crisis emerged from prior events"}`;
 
@@ -196,8 +205,6 @@ const FALLBACK_CRISES: DirectorCrisis[] = [
 ];
 
 export class CrisisDirector {
-  private sessions = new Map<string, any>();
-
   /**
    * Generate a crisis for a specific timeline. Uses AgentOS agent() if available,
    * falls back to generateText() for simpler integration.
