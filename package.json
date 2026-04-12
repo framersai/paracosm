@@ -7,7 +7,9 @@
     "visionary": "npx tsx src/run-visionary.ts",
     "engineer": "npx tsx src/run-engineer.ts",
     "smoke": "npx tsx src/run-visionary.ts 3",
-    "compare": "npx tsx src/run-visionary.ts && npx tsx src/run-engineer.ts"
+    "compare": "npx tsx src/run-visionary.ts && npx tsx src/run-engineer.ts",
+    "dashboard": "npx tsx src/serve.ts",
+    "dashboard:smoke": "npx tsx src/serve.ts 3"
   },
   "dependencies": {
     "@framers/agentos": "^0.1.211"

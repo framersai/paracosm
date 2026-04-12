@@ -1,0 +1,128 @@
+/**
+ * SSE server for the Mars Genesis dashboard.
+ *
+ * Runs both simulations (Visionary + Engineer) in parallel and streams
+ * turn events to connected browsers via Server-Sent Events.
+ *
+ * Usage:
+ *   OPENAI_API_KEY=... npx tsx src/serve.ts [turns]
+ *   Open http://localhost:3456 in browser
+ */
+
+import { createServer } from 'node:http';
+import { readFileSync } from 'node:fs';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const PORT = parseInt(process.env.PORT || '3456', 10);
+const maxTurns = process.argv[2] ? parseInt(process.argv[2], 10) : 3;
+
+// SSE clients
+const clients: Set<import('node:http').ServerResponse> = new Set();
+
+function broadcast(event: string, data: unknown) {
+  const msg = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+  for (const res of clients) {
+    try { res.write(msg); } catch { clients.delete(res); }
+  }
+}
+
+// HTTP server
+const server = createServer((req, res) => {
+  if (req.url === '/events') {
+    // SSE endpoint
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'Access-Control-Allow-Origin': '*',
+    });
+    res.write('event: connected\ndata: {}\n\n');
+    clients.add(res);
+    req.on('close', () => clients.delete(res));
+    return;
+  }
+
+  if (req.url === '/' || req.url === '/index.html') {
+    // Serve dashboard with SSE client script injected
+    const html = readFileSync(resolve(__dirname, 'dashboard/index.html'), 'utf-8');
+    const sseScript = `
+<script>
+  const es = new EventSource('/events');
+  es.addEventListener('turn', (e) => {
+    const data = JSON.parse(e.data);
+    console.log('[Mars Genesis] Turn event:', data);
+    // Future: update DOM elements with live data
+  });
+  es.addEventListener('status', (e) => {
+    const data = JSON.parse(e.data);
+    console.log('[Mars Genesis] Status:', data);
+  });
+  es.addEventListener('complete', (e) => {
+    console.log('[Mars Genesis] Simulation complete');
+  });
+  es.onerror = () => console.log('[Mars Genesis] SSE connection lost, retrying...');
+</script>`;
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    res.end(html.replace('</body>', sseScript + '\n</body>'));
+    return;
+  }
+
+  res.writeHead(404);
+  res.end('Not found');
+});
+
+server.listen(PORT, () => {
+  console.log(`\n  Mars Genesis Dashboard: http://localhost:${PORT}`);
+  console.log(`  SSE endpoint: http://localhost:${PORT}/events`);
+  console.log(`  Turns: ${maxTurns}\n`);
+  runSimulations();
+});
+
+async function runSimulations() {
+  broadcast('status', { phase: 'starting', maxTurns });
+
+  // Import orchestrator
+  const { runSimulation } = await import('./agents/orchestrator.js');
+
+  const VISIONARY = {
+    name: 'Aria Chen', archetype: 'The Visionary', colony: 'Ares Horizon',
+    hexaco: { openness: 0.95, conscientiousness: 0.35, extraversion: 0.85, agreeableness: 0.55, emotionality: 0.3, honestyHumility: 0.65 },
+    instructions: 'You are Commander Aria Chen. Bold expansion, calculated risks. Favor higher upside. Respond with JSON.',
+  };
+
+  const ENGINEER = {
+    name: 'Dietrich Voss', archetype: 'The Engineer', colony: 'Meridian Base',
+    hexaco: { openness: 0.25, conscientiousness: 0.97, extraversion: 0.3, agreeableness: 0.45, emotionality: 0.7, honestyHumility: 0.9 },
+    instructions: 'You are Commander Dietrich Voss. Engineering discipline, safety margins. Favor lower risk. Respond with JSON.',
+  };
+
+  const KEY_PERSONNEL = [
+    { name: 'Dr. Yuki Tanaka', department: 'medical' as const, role: 'Chief Medical Officer', specialization: 'Radiation Medicine', age: 38, featured: true },
+    { name: 'Erik Lindqvist', department: 'engineering' as const, role: 'Chief Engineer', specialization: 'Structural Engineering', age: 45, featured: true },
+    { name: 'Amara Osei', department: 'agriculture' as const, role: 'Head of Agriculture', specialization: 'Hydroponics', age: 34, featured: true },
+    { name: 'Dr. Priya Singh', department: 'psychology' as const, role: 'Colony Psychologist', specialization: 'Clinical Psychology', age: 41, featured: true },
+    { name: 'Carlos Fernandez', department: 'science' as const, role: 'Chief Scientist', specialization: 'Geology', age: 50, featured: true },
+  ];
+
+  // Run sequentially (parallel would double API costs)
+  broadcast('status', { phase: 'visionary', leader: 'Aria Chen' });
+  try {
+    const vResult = await runSimulation(VISIONARY, KEY_PERSONNEL, { maxTurns });
+    broadcast('result', { leader: 'visionary', ...vResult });
+  } catch (err) {
+    broadcast('error', { leader: 'visionary', error: String(err) });
+  }
+
+  broadcast('status', { phase: 'engineer', leader: 'Dietrich Voss' });
+  try {
+    const eResult = await runSimulation(ENGINEER, KEY_PERSONNEL, { maxTurns });
+    broadcast('result', { leader: 'engineer', ...eResult });
+  } catch (err) {
+    broadcast('error', { leader: 'engineer', error: String(err) });
+  }
+
+  broadcast('complete', { timestamp: new Date().toISOString() });
+  console.log('\n  Simulations complete. Dashboard still serving at http://localhost:' + PORT);
+}
