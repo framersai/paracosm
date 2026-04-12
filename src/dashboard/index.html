@@ -36,11 +36,14 @@
   .meta{display:flex;gap:12px;font-size:11px;color:var(--text-2);flex-shrink:0}.meta b{color:var(--text-1);font-family:var(--mono)}
   .live{color:var(--green);animation:pulse 2s infinite;font-weight:700}
 
-  /* Leaders - single compact row each */
+  /* Leaders - two rows: name+traits, quote+sparklines */
   .leaders{display:flex;gap:1px;background:var(--border)}
-  .ldr{flex:1;padding:3px 10px;background:var(--bg-panel);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-  .ldr-name{font-size:12px;font-weight:800;white-space:nowrap}.ldr-name.v{color:var(--vis)}.ldr-name.e{color:var(--eng)}
-  .ldr-quote{color:var(--text-3);font-size:9px;font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ldr{flex:1;padding:5px 10px;background:var(--bg-panel)}
+  .ldr-row1{display:flex;align-items:center;gap:8px}
+  .ldr-row2{display:flex;align-items:center;gap:10px;margin-top:2px}
+  .ldr-name{font-size:13px;font-weight:800;white-space:nowrap}.ldr-name.v{color:var(--vis)}.ldr-name.e{color:var(--eng)}
+  .ldr-sep{color:var(--border);margin:0 2px}
+  .ldr-quote{color:var(--text-3);font-size:9px;font-style:italic;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .traits{font-size:9px;color:var(--text-2);white-space:nowrap;font-family:var(--mono);letter-spacing:.3px}
   .traits .hi{font-weight:700}.traits .v{color:var(--vis)}.traits .e{color:var(--eng)}
   .sparks{font-family:var(--mono);font-size:9px;white-space:nowrap}
@@ -50,13 +53,13 @@
   .arch.e{color:var(--eng);background:rgba(76,168,168,.1);border:1px solid var(--teal-dim)}
 
   /* Crisis + Stats - single merged row */
-  .crisis-stats{display:flex;align-items:center;padding:4px 16px;background:var(--bg-panel);border-bottom:1px solid var(--border);gap:24px}
-  .crisis-text{flex-shrink:0;font-size:12px;font-weight:700;color:var(--rust);white-space:nowrap}
-  .stats-row{display:flex;gap:20px;flex:1;justify-content:center}
-  .stat{display:flex;align-items:center;gap:4px}
-  .stat-num{font-size:16px;font-weight:800;font-family:var(--mono)}
-  .stat-vs{color:var(--text-3);font-size:10px;margin:0 3px}
-  .stat-label{font-size:8px;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-left:4px}
+  .crisis-stats{display:flex;align-items:center;padding:5px 16px;background:var(--bg-panel);border-bottom:1px solid var(--border);gap:20px}
+  .crisis-text{flex-shrink:0;font-size:13px;font-weight:700;color:var(--rust);white-space:nowrap}
+  .stats-row{display:flex;gap:24px;flex:1;justify-content:center}
+  .stat{display:flex;align-items:baseline;gap:3px}
+  .stat-num{font-size:20px;font-weight:800;font-family:var(--mono)}
+  .stat-vs{color:var(--text-3);font-size:11px;margin:0 2px}
+  .stat-label{font-size:9px;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-left:4px}
 
   /* Main columns */
   .main{display:flex;gap:1px;background:var(--border);flex:1;min-height:0}
@@ -139,7 +142,7 @@
   .fl{display:flex;gap:12px}.fl a{color:var(--rust);font-weight:600}
 
   /* Settings panel */
-  .settings-panel{display:none;flex:1;overflow-y:auto;padding:16px 20px;background:var(--bg-deep)}
+  .settings-panel{display:none;flex:1;overflow-y:auto;overflow-x:hidden;padding:16px 20px;background:var(--bg-deep);max-width:100%}
   .settings-panel h2{font-size:14px;color:var(--amber);margin:16px 0 6px 0;font-family:var(--mono)}
   .settings-panel h2:first-child{margin-top:0}
   .srow{display:flex;gap:8px;margin-bottom:6px}
@@ -148,7 +151,7 @@
   .sf input,.sf textarea,.sf select{width:100%;background:var(--bg-card);color:var(--text-1);border:1px solid var(--border);padding:4px 8px;border-radius:4px;font-family:var(--sans);font-size:11px}
   .sf textarea{min-height:36px;resize:vertical;font-size:10px}
   .sf input:focus,.sf textarea:focus{outline:none;border-color:var(--amber)}
-  .s-leaders{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .s-leaders{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:100%;overflow:hidden}
   .s-ldr{background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:10px 12px}
   .s-ldr h3{font-size:12px;font-family:var(--mono);margin-bottom:8px}
   .s-ldr h3.v{color:var(--vis)}.s-ldr h3.e{color:var(--eng)}
@@ -159,16 +162,16 @@
   .s-sr .sv{font-size:10px;font-family:var(--mono);min-width:28px;text-align:right;color:var(--text-1)}
   .s-sr.va input[type=range]{accent-color:var(--vis)}
   .s-sr.vb input[type=range]{accent-color:var(--eng)}
-  .s-grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .s-grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;max-width:100%;overflow:hidden}
   .s-section{background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:10px 12px}
   .s-section h3{font-size:11px;font-family:var(--mono);color:var(--text-2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
   .s-personnel{margin-top:4px}
-  .s-person{display:flex;gap:4px;margin-bottom:3px;align-items:center;font-size:10px}
-  .s-person input{background:var(--bg-card);color:var(--text-1);border:1px solid var(--border);padding:2px 6px;border-radius:3px;font-size:10px}
-  .s-person input:first-child{width:130px}
-  .s-person input:nth-child(2){width:100px}
-  .s-person input:nth-child(3){width:50px}
-  .s-person select{background:var(--bg-card);color:var(--text-1);border:1px solid var(--border);padding:2px 4px;border-radius:3px;font-size:10px;width:90px}
+  .s-person{display:flex;gap:3px;margin-bottom:3px;align-items:center;font-size:10px;max-width:100%}
+  .s-person input{background:var(--bg-card);color:var(--text-1);border:1px solid var(--border);padding:2px 4px;border-radius:3px;font-size:9px;min-width:0}
+  .s-person input:first-child{flex:3}
+  .s-person input:nth-child(2){flex:3}
+  .s-person input:nth-child(3){flex:1;max-width:36px}
+  .s-person select{background:var(--bg-card);color:var(--text-1);border:1px solid var(--border);padding:2px 3px;border-radius:3px;font-size:9px;flex:2;min-width:0}
   .s-evrow{display:flex;gap:4px;margin-bottom:3px;align-items:center}
   .s-evrow input{background:var(--bg-card);color:var(--text-1);border:1px solid var(--border);padding:2px 6px;border-radius:3px;font-size:10px}
   .s-evrow input:first-child{width:40px}
@@ -187,7 +190,7 @@
   .s-io{display:flex;gap:6px}
   .s-io-btn{background:var(--bg-card);color:var(--text-2);border:1px solid var(--border);padding:3px 10px;border-radius:3px;font-size:10px;cursor:pointer}
   .s-io-btn:hover{border-color:var(--amber);color:var(--text-1)}
-  .s-tooltip{color:var(--text-3);font-size:9px;font-style:italic;margin-top:2px}
+  .s-tooltip{color:var(--text-3);font-size:8px;font-style:italic;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .s-resources{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px}
 
   /* About */
@@ -214,21 +217,31 @@
   <div class="meta"><span title="Each turn is a crisis event the colony must respond to">Turn <b id="m-turn">—</b>/<b id="m-max-turns">12</b></span><span title="Simulation year on Mars">Year <b id="m-year">—</b></span><span title="Deterministic seed: same seed = same colonist roster">Seed <b>950</b></span><span class="live" id="m-status">● Waiting</span></div>
 </div>
 
-<!-- Leaders: single row each -->
+<!-- Leaders: two clean rows each -->
 <div class="leaders">
   <div class="ldr">
-    <span class="arch v">VIS</span>
-    <span class="ldr-name v">Aria Chen</span>
-    <span class="traits"><span class="v">O</span><span class="v">█████░</span><span class="v hi">.95</span> <span class="v">C</span><span class="v">██░░░</span><span class="v">.35</span> <span class="v">E</span><span class="v">████░</span><span class="v">.85</span> <span class="v">A</span><span class="v">███░░</span><span class="v">.55</span></span>
-    <span class="sparks"><span class="sp-l" style="color:var(--vis)">Pop</span> <span id="spark-v-pop" style="color:var(--vis)">—</span> <span class="sp-l" style="color:var(--amber)">Mor</span> <span id="spark-v-morale" style="color:var(--amber)">—</span></span>
-    <span class="ldr-quote">"We didn't cross 55M km to play it safe."</span>
+    <div class="ldr-row1">
+      <span class="arch v">VIS</span>
+      <span class="ldr-name v">Aria Chen</span>
+      <span class="ldr-sep">|</span>
+      <span class="traits"><span class="v">O </span><span class="v">█████░ </span><span class="v hi">.95</span> &nbsp;<span class="v">C </span><span class="v">██░░░ </span><span class="v">.35</span> &nbsp;<span class="v">E </span><span class="v">████░ </span><span class="v">.85</span> &nbsp;<span class="v">A </span><span class="v">███░░ </span><span class="v">.55</span></span>
+    </div>
+    <div class="ldr-row2">
+      <span class="ldr-quote">"We didn't cross 55M km to play it safe."</span>
+      <span class="sparks"><span class="sp-l" style="color:var(--vis)">Pop</span> <span id="spark-v-pop" style="color:var(--vis)">—</span> &nbsp;<span class="sp-l" style="color:var(--amber)">Morale</span> <span id="spark-v-morale" style="color:var(--amber)">—</span></span>
+    </div>
   </div>
   <div class="ldr">
-    <span class="arch e">ENG</span>
-    <span class="ldr-name e">Dietrich Voss</span>
-    <span class="traits"><span class="e">O</span><span class="e">█░░░░</span><span class="e">.25</span> <span class="e hi">C</span><span class="e">█████</span><span class="e hi">.97</span> <span class="e">E</span><span class="e">██░░░</span><span class="e">.30</span> <span class="e hi">H</span><span class="e">████░</span><span class="e hi">.90</span></span>
-    <span class="sparks"><span class="sp-l" style="color:var(--eng)">Pop</span> <span id="spark-e-pop" style="color:var(--eng)">—</span> <span class="sp-l" style="color:var(--green)">Mor</span> <span id="spark-e-morale" style="color:var(--green)">—</span></span>
-    <span class="ldr-quote">"Every gram of oxygen is accounted for."</span>
+    <div class="ldr-row1">
+      <span class="arch e">ENG</span>
+      <span class="ldr-name e">Dietrich Voss</span>
+      <span class="ldr-sep">|</span>
+      <span class="traits"><span class="e">O </span><span class="e">█░░░░ </span><span class="e">.25</span> &nbsp;<span class="e hi">C </span><span class="e">█████ </span><span class="e hi">.97</span> &nbsp;<span class="e">E </span><span class="e">██░░░ </span><span class="e">.30</span> &nbsp;<span class="e hi">H </span><span class="e">████░ </span><span class="e hi">.90</span></span>
+    </div>
+    <div class="ldr-row2">
+      <span class="ldr-quote">"Every gram of oxygen is accounted for."</span>
+      <span class="sparks"><span class="sp-l" style="color:var(--eng)">Pop</span> <span id="spark-e-pop" style="color:var(--eng)">—</span> &nbsp;<span class="sp-l" style="color:var(--green)">Morale</span> <span id="spark-e-morale" style="color:var(--green)">—</span></span>
+    </div>
   </div>
 </div>
 
@@ -281,24 +294,19 @@
 
 <!-- Settings Panel -->
 <div class="settings-panel" id="settings-panel">
-  <div style="display:flex;justify-content:space-between;align-items:center">
-    <h2 style="margin:0">Simulation Setup</h2>
-    <div style="display:flex;gap:6px;align-items:center">
-      <div class="s-preset">
-        <label>Preset:</label>
-        <select id="s-preset" onchange="applySetupPreset(this.value)">
-          <option value="default">Default (Visionary vs Engineer)</option>
-          <option value="balanced">Balanced Founders</option>
-          <option value="extreme">High Risk vs Ultra Cautious</option>
-          <option value="custom">Custom</option>
-        </select>
-      </div>
-      <div class="s-io">
-        <button class="s-io-btn" onclick="exportSetup()">Export</button>
-        <button class="s-io-btn" onclick="document.getElementById('s-imp').click()">Import</button>
-        <input type="file" id="s-imp" accept=".json" style="display:none" onchange="importSetup(event)">
-      </div>
-    </div>
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+    <h2 style="margin:0;flex-shrink:0">Setup</h2>
+    <span style="flex:1"></span>
+    <label style="font-size:10px;color:var(--text-3);font-weight:600">Preset:</label>
+    <select id="s-preset" onchange="applySetupPreset(this.value)" style="background:var(--bg-card);color:var(--text-1);border:1px solid var(--border);padding:3px 8px;border-radius:3px;font-size:11px">
+      <option value="default">Default (Visionary vs Engineer)</option>
+      <option value="balanced">Balanced Founders</option>
+      <option value="extreme">High Risk vs Ultra Cautious</option>
+      <option value="custom">Custom</option>
+    </select>
+    <button class="s-io-btn" onclick="exportSetup()">Export</button>
+    <button class="s-io-btn" onclick="document.getElementById('s-imp').click()">Import</button>
+    <input type="file" id="s-imp" accept=".json" style="display:none" onchange="importSetup(event)">
   </div>
 
   <!-- Leaders -->
@@ -417,15 +425,16 @@
   <p style="margin-top:16px;color:var(--text-3);font-size:11px">Built by <a href="https://manic.agency">Manic Agency</a> / <a href="https://frame.dev">Frame.dev</a></p>
 </div>
 
-<!-- Tabs -->
+<div class="debug" id="debug" style="display:none"><span class="dim">[Mars Genesis] Connecting...</span></div>
+</div><!-- end content area -->
+
+<!-- Tabs: OUTSIDE content area so they stay fixed -->
 <div class="tab-bar">
   <button id="tab-sim" class="active" onclick="switchTab('sim')">Simulation</button>
   <button id="tab-log" onclick="switchTab('log')">Debug Log</button>
   <button id="tab-settings" onclick="switchTab('settings')">Settings</button>
   <button id="tab-about" onclick="switchTab('about')">About</button>
 </div>
-<div class="debug" id="debug" style="display:none"><span class="dim">[Mars Genesis] Connecting...</span></div>
-</div><!-- end content area -->
 
 <div class="footer">
   <div>Built with <a href="https://agentos.sh">AgentOS</a> · <code style="color:var(--rust);font-family:var(--mono);font-size:10px">npm i @framers/agentos</code></div>
