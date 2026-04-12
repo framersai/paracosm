@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = parseInt(process.env.PORT || '3456', 10);
-const maxTurns = process.argv[2] ? parseInt(process.argv[2], 10) : 3;
+const maxTurns = process.argv[2] ? parseInt(process.argv[2], 10) : 12;
 
 // SSE clients
 const clients: Set<import('node:http').ServerResponse> = new Set();
@@ -52,27 +52,9 @@ const server = createServer((req, res) => {
   }
 
   if (req.url === '/' || req.url === '/index.html') {
-    // Serve dashboard with SSE client script injected
     const html = readFileSync(resolve(__dirname, 'dashboard/index.html'), 'utf-8');
-    const sseScript = `
-<script>
-  const es = new EventSource('/events');
-  es.addEventListener('turn', (e) => {
-    const data = JSON.parse(e.data);
-    console.log('[Mars Genesis] Turn event:', data);
-    // Future: update DOM elements with live data
-  });
-  es.addEventListener('status', (e) => {
-    const data = JSON.parse(e.data);
-    console.log('[Mars Genesis] Status:', data);
-  });
-  es.addEventListener('complete', (e) => {
-    console.log('[Mars Genesis] Simulation complete');
-  });
-  es.onerror = () => console.log('[Mars Genesis] SSE connection lost, retrying...');
-</script>`;
     res.writeHead(200, { 'Content-Type': 'text/html' });
-    res.end(html.replace('</body>', sseScript + '\n</body>'));
+    res.end(html);
     return;
   }
 
@@ -113,19 +95,20 @@ async function runSimulations() {
     { name: 'Carlos Fernandez', department: 'science' as const, role: 'Chief Scientist', specialization: 'Geology', age: 50, featured: true },
   ];
 
+  const SHARED_SEED = 950;
   const onEvent = (event: any) => broadcast('sim', event);
 
   // Run BOTH simulations in parallel so turns appear side-by-side
   broadcast('status', { phase: 'parallel', leaders: ['Aria Chen', 'Dietrich Voss'] });
 
-  const visionaryPromise = runSimulation(VISIONARY, KEY_PERSONNEL, { maxTurns, onEvent }).then(
+  const visionaryPromise = runSimulation(VISIONARY, KEY_PERSONNEL, { maxTurns, seed: SHARED_SEED, onEvent }).then(
     r => { broadcast('result', { leader: 'visionary', summary: { population: r.finalState?.colony?.population, morale: r.finalState?.colony?.morale, toolsForged: r.totalToolsForged, citations: r.totalCitations } }); },
-    err => { broadcast('error', { leader: 'visionary', error: String(err) }); },
+    err => { broadcast('sim_error', { leader: 'visionary', error: String(err) }); },
   );
 
-  const engineerPromise = runSimulation(ENGINEER, KEY_PERSONNEL, { maxTurns, onEvent }).then(
+  const engineerPromise = runSimulation(ENGINEER, KEY_PERSONNEL, { maxTurns, seed: SHARED_SEED, onEvent }).then(
     r => { broadcast('result', { leader: 'engineer', summary: { population: r.finalState?.colony?.population, morale: r.finalState?.colony?.morale, toolsForged: r.totalToolsForged, citations: r.totalCitations } }); },
-    err => { broadcast('error', { leader: 'engineer', error: String(err) }); },
+    err => { broadcast('sim_error', { leader: 'engineer', error: String(err) }); },
   );
 
   await Promise.all([visionaryPromise, engineerPromise]);

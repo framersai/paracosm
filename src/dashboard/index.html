@@ -321,8 +321,13 @@ try {
       case 'turn_start':
         $('m-turn').textContent = dd.turn;
         $('m-year').textContent = dd.year;
-        $('crisis').innerHTML = `<b>⚡ ${dd.title || 'Crisis'}</b><span>${(dd.crisis || '').slice(0, 120)}...</span>`;
+        $('crisis').innerHTML = `<b style="color:var(--rust)">⚡ Turn ${dd.turn} — ${dd.year}: ${dd.title || 'Crisis'}</b>`;
         if (dd.colony) updateGauges(s, dd.colony);
+        if (dd.deaths) {
+          state[s].deaths += dd.deaths;
+          $(`gv-${s}-deaths`).textContent = state[s].deaths;
+          $(`s-${s}-deaths`).textContent = state[s].deaths;
+        }
         log('info', `[${d.leader}] Turn ${dd.turn} — ${dd.year}: ${dd.title}`);
         if (dd.births) log('ok', `  +${dd.births} births`);
         if (dd.deaths) log('no', `  -${dd.deaths} deaths`);
@@ -411,7 +416,6 @@ try {
 
       case 'turn_done':
         if (dd.colony) updateGauges(s, dd.colony);
-        $(`gv-${s}-deaths`).textContent = state[s].deaths = (dd.colony?.population ? 100 + state[s].pop.reduce((a,b,i) => i === 0 ? 0 : a, 0) : 0) - (dd.colony?.population || 0);
         log('dim', `[${d.leader}] Turn complete. Pop: ${dd.colony?.population}`);
         break;
     }
@@ -430,12 +434,18 @@ try {
     $('div-count').textContent = 'Complete';
   });
 
-  es.addEventListener('error', e => {
-    const d = JSON.parse(e.data);
-    log('no', `✗ Error: ${d.error}`);
+  es.addEventListener('sim_error', e => {
+    try {
+      const d = JSON.parse(e.data);
+      log('no', `✗ Error: ${d.error}`);
+    } catch {
+      log('no', '✗ Unknown error');
+    }
   });
 
-  es.onerror = () => {};
+  es.onerror = () => {
+    log('dim', 'SSE connection lost, retrying...');
+  };
 } catch (e) {
   log('dim', 'Static mode — no SSE server');
 }

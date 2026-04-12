@@ -18,6 +18,10 @@ Research the real science of Mars landing site selection and make your decision.
     snapshotHints: {},
     riskyOption: "Valles Marineris",
     riskSuccessProbability: 0.65,
+    options: [
+      { id: 'option_a', label: 'Arcadia Planitia', description: 'Flat basalt plains, safe, ice access', isRisky: false },
+      { id: 'option_b', label: 'Valles Marineris rim', description: 'Canyon rim, mineral rich, hazardous terrain', isRisky: true },
+    ],
   },
   {
     turn: 2,
@@ -34,6 +38,10 @@ Current water situation: {waterLitersPerDay} L/day production, 1000 L/day needed
     snapshotHints: { waterLitersPerDay: 800 },
     riskyOption: "experimental",
     riskSuccessProbability: 0.55,
+    options: [
+      { id: 'option_a', label: 'Deep experimental drill', description: 'High power drill to deeper aquifers, risk of contamination', isRisky: true },
+      { id: 'option_b', label: 'Atmospheric water extraction', description: 'WAVAR-type system, proven technology, slower', isRisky: false },
+    ],
   },
   {
     turn: 3,
@@ -50,6 +58,10 @@ Research the real science of Mars perchlorate contamination and decide.`,
     snapshotHints: { foodMonthsReserve: 14 },
     riskyOption: "bioremediation",
     riskSuccessProbability: 0.50,
+    options: [
+      { id: 'option_a', label: 'Full hydroponic conversion', description: 'Abandon soil, sealed hydroponic bays, more power needed', isRisky: false },
+      { id: 'option_b', label: 'Perchlorate bioremediation', description: 'Engineer bacteria, 2-year R&D, could enable soil farming', isRisky: true },
+    ],
   },
   {
     turn: 4,
