@@ -478,6 +478,7 @@ async function launchFromSettings() {
       gameData.startedAt = new Date().toISOString();
       gameData.completedAt = null;
       resetSimulationView(cfg);
+      const pf = $('progress-fill'); if (pf) pf.style.width = '0';
       st.textContent = 'Running...';
       switchTab('sim');
     }
@@ -654,6 +655,7 @@ try {
   });
   es.addEventListener('complete', () => {
     $('m-status').textContent = '\u25CF Complete'; $('m-status').style.color = 'var(--amber)'; $('m-status').style.animation = 'none';
+    const pf = $('progress-fill'); if (pf) pf.style.width = '100%';
     gameData.completedAt = new Date().toISOString();
     $('save-game-btn').style.display = 'inline-block';
     const launchBtn = $('s-launch-btn'); if (launchBtn) launchBtn.disabled = false;
@@ -677,9 +679,13 @@ function handleSimEvent(d) {
   const dd = d.data || {};
 
   switch (d.type) {
-    case 'turn_start':
+    case 'turn_start': {
       $('m-turn').textContent = dd.turn; $('m-year').textContent = dd.year;
       $('crisis').textContent = `\u26A1 T${dd.turn} \u2014 ${dd.year}: ${dd.title || 'Crisis'}`;
+      // Progress bar
+      const maxT = parseInt($('m-max-turns')?.textContent || '12');
+      const pct = Math.round((dd.turn / maxT) * 100);
+      const pf = $('progress-fill'); if (pf) pf.style.width = pct + '%';
       // Per-column crisis header
       const crisisEl = $(`crisis-${s}`);
       if (crisisEl && dd.title && dd.title !== 'Director generating...') {
@@ -693,6 +699,7 @@ function handleSimEvent(d) {
       if (dd.deaths) { state[s].deaths += dd.deaths; $(`s-${s}-deaths`).textContent = state[s].deaths; }
       log('info', `[${d.leader}] Turn ${dd.turn} \u2014 ${dd.year}: ${dd.title}${dd.emergent ? ' [EMERGENT]' : ''}`);
       break;
+    }
 
     case 'promotion':
       addToBody(s, `<div class="card"><div class="card-h"><span class="card-title">\u2726 Promoted</span></div><div class="card-text"><b>${dd.colonistId}</b> \u2192 ${dd.role}<br><span style="color:var(--text-2);font-size:11px">${(dd.reason || '').slice(0, 120)}</span></div></div>`);
