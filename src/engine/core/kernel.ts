@@ -3,7 +3,6 @@ import type { ColonySystems, ColonyPolitics } from './state.js';
 import { SeededRng } from './rng.js';
 import { generateInitialPopulation, type KeyPersonnel } from './colonist-generator.js';
 import { progressBetweenTurns, applyPersonalityDrift, ROLE_ACTIVATIONS } from './progression.js';
-import { SCENARIOS } from '../../runtime/research/scenarios.js';
 
 export interface ColonyPatch {
   colony?: Partial<ColonySystems>;
@@ -66,7 +65,7 @@ export class SimulationKernel {
 
   getState(): SimulationState { return structuredClone(this.state); }
 
-  getScenario(turn: number) { return SCENARIOS[turn - 1] ?? null; }
+
 
   getFeaturedColonists(): Colonist[] {
     return this.state.colonists.filter(c => c.narrative.featured && c.health.alive);
