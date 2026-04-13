@@ -339,6 +339,9 @@ Respond in character as this person. Be direct, personal, emotional. Reference y
     res.end('Not found');
   }) as MarsServer;
 
+  // Clean up rate limiter on server close
+  (server as Server).on('close', () => { if (rateLimiter) rateLimiter.destroy(); });
+
   const marsServer = Object.assign(server, {
     async startWithConfig(config: NormalizedSimulationConfig) {
       // Clear previous run data

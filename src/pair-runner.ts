@@ -24,7 +24,7 @@ export async function runPairSimulations(
   console.log(`  Running: ${leaders[0].name} vs ${leaders[1].name} | ${turns} turns | seed ${seed}\n`);
 
   const promises = leaders.map((leader, index) => {
-    const tag = index === 0 ? 'visionary' : 'engineer';
+    const tag = leader.archetype.toLowerCase().replace(/^the\s+/, '').replace(/\s+/g, '-') || `leader-${index}`;
     return runSimulation(leader, simConfig.keyPersonnel ?? DEFAULT_KEY_PERSONNEL, {
       maxTurns: turns,
       seed,

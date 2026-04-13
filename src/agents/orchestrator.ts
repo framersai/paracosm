@@ -513,7 +513,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
       packet = getResearchPacket(turn);
     } else {
       // Try research memory first (semantic recall from ingested DOI citations)
-      const memPacket = await recallResearch(crisis.title + ' ' + crisis.crisis.slice(0, 100), crisis.researchKeywords);
+      const memPacket = await recallResearch(crisis.title + ' ' + crisis.crisis.slice(0, 100), crisis.researchKeywords, crisis.category);
       if (memPacket.canonicalFacts.length >= 2) {
         packet = memPacket;
         console.log(`  [research] Memory recall: ${packet.canonicalFacts.length} citations`);
@@ -796,8 +796,8 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
           marsborn: r.marsborn, age: r.age,
           post: r.quote.length > 140 ? r.quote.slice(0, 137) + '...' : r.quote,
           mood: r.mood, intensity: r.intensity,
-          likes: Math.floor(r.intensity * 20 + Math.random() * 10),
-          replies: Math.floor(r.intensity * 5 + Math.random() * 3),
+          likes: Math.floor(r.intensity * 20 + outcomeEffectRng.next() * 10),
+          replies: Math.floor(r.intensity * 5 + outcomeEffectRng.next() * 3),
         }));
         emit('bulletin', { turn, year, posts: bulletinPosts });
       }

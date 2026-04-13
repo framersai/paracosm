@@ -20,12 +20,21 @@
     "@framers/agentos": "^0.1.211"
   },
   "devDependencies": {
+    "@types/node": "^25.6.0",
     "tsx": "^4.21.0",
     "typescript": "^5.4.0"
   },
   "keywords": [
-    "agentos", "ai-agents", "simulation", "mars", "emergent-behavior",
-    "tool-forging", "hexaco", "personality", "multi-agent", "typescript"
+    "agentos",
+    "ai-agents",
+    "simulation",
+    "mars",
+    "emergent-behavior",
+    "tool-forging",
+    "hexaco",
+    "personality",
+    "multi-agent",
+    "typescript"
   ],
   "author": "Manic Agency LLC <team@frame.dev>",
   "license": "MIT",

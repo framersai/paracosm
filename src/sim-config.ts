@@ -57,7 +57,7 @@ export interface SimulationSetupPayload {
   }>;
   startingPolitics?: Partial<StartingPolitics>;
   execution?: Partial<SimulationExecutionConfig>;
-  models?: Partial<Omit<SimulationModelConfig, 'director'>>;
+  models?: Partial<SimulationModelConfig>;
   apiKey?: string;
   anthropicKey?: string;
   serperKey?: string;
@@ -145,7 +145,7 @@ export function resolveSimulationModels(
     commander: normalizeModel(models?.commander, defaults.commander),
     departments: normalizeModel(models?.departments, defaults.departments),
     judge: normalizeModel(models?.judge, defaults.judge),
-    director: normalizeModel(models?.commander, defaults.director),
+    director: normalizeModel(models?.director ?? models?.commander, defaults.director),
   };
 }
 

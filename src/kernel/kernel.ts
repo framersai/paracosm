@@ -39,7 +39,7 @@ export class SimulationKernel {
 
     this.state = {
       metadata: {
-        simulationId: `mars-genesis-${seed}-${Date.now()}`,
+        simulationId: `sim-${seed}-${leaderId.toLowerCase().replace(/\s+/g, '-')}`,
         leaderId, seed,
         startYear, currentYear: startYear, currentTurn: 0,
       },

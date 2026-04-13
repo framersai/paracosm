@@ -128,11 +128,11 @@ export async function initResearchMemory(): Promise<boolean> {
 }
 
 /** Recall research relevant to a crisis query */
-export async function recallResearch(query: string, keywords: string[] = []): Promise<CrisisResearchPacket> {
+export async function recallResearch(query: string, keywords: string[] = [], category: string = 'infrastructure'): Promise<CrisisResearchPacket> {
   if (!_memory || !_initialized) {
-    // Fallback to static
+    // Fallback to static with the actual crisis category
     const { getResearchForCategory } = await import('./knowledge-base.js');
-    return getResearchForCategory('infrastructure', keywords);
+    return getResearchForCategory(category, keywords);
   }
 
   const searchQuery = [query, ...keywords.slice(0, 3)].join(' ');
