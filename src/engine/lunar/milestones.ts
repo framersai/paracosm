@@ -1,18 +1,6 @@
-import type { CrisisOption } from '../../runtime/contracts.js';
+import type { MilestoneCrisisDef } from '../types.js';
 
-export interface MilestoneCrisis {
-  title: string;
-  crisis: string;
-  options: CrisisOption[];
-  riskyOptionId: string;
-  riskSuccessProbability: number;
-  category: string;
-  researchKeywords: string[];
-  relevantDepartments: string[];
-  turnSummary: string;
-}
-
-const LANDING: MilestoneCrisis = {
+const LANDING: MilestoneCrisisDef = {
   title: 'Lunar Arrival',
   crisis: `Your crew module has entered lunar orbit. You must choose a base location for the permanent outpost. Two candidates:
 
@@ -33,7 +21,7 @@ Both sites offer access to regolith for ISRU construction. Communication with Ea
   turnSummary: 'Crew in orbit. Solar-powered crater rim or radiation-shielded lava tube: the first decision defines everything.',
 };
 
-const STATUS_REPORT: MilestoneCrisis = {
+const STATUS_REPORT: MilestoneCrisisDef = {
   title: 'Mission Review',
   crisis: `Earth space agencies request a comprehensive status report on your outpost:
 
@@ -57,7 +45,7 @@ Be direct. Your assessment shapes the next decade of lunar policy.`,
   turnSummary: 'Earth agencies demand a full status report. The commander must decide: honest assessment or bold expansion pitch.',
 };
 
-export function getLunarMilestoneCrisis(turn: number, maxTurns: number): MilestoneCrisis | null {
+export function getLunarMilestoneCrisis(turn: number, maxTurns: number): MilestoneCrisisDef | null {
   if (turn === 1) return LANDING;
   if (turn === maxTurns) return STATUS_REPORT;
   return null;

@@ -1,4 +1,5 @@
-type TurnOutcome = 'risky_success' | 'risky_failure' | 'conservative_success' | 'conservative_failure';
+/** Possible outcome classifications for a simulation turn. */
+export type TurnOutcome = 'risky_success' | 'risky_failure' | 'conservative_success' | 'conservative_failure';
 
 const OUTCOME_MULTIPLIERS: Record<TurnOutcome, number> = {
   risky_success: 2.5,

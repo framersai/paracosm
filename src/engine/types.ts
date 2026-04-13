@@ -1,26 +1,41 @@
-import type { HexacoProfile } from './core/state.js';
+/**
+ * @module types
+ * Core type definitions for the Paracosm simulation engine.
+ * All types needed to define a ScenarioPackage and interact with the engine.
+ */
+
+import type { HexacoProfile, Colonist, SimulationState } from './core/state.js';
 
 // ---------------------------------------------------------------------------
 // Primitive value types
 // ---------------------------------------------------------------------------
 
+/** Possible field values for agent/colonist custom fields. */
 export type AgentFieldValue = number | string | boolean | string[];
 
 // ---------------------------------------------------------------------------
 // Scenario labels and theme
 // ---------------------------------------------------------------------------
 
+/** Human-readable labels for a scenario, used in UI and output naming. */
 export interface ScenarioLabels {
+  /** Full display name (e.g., "Mars Genesis") */
   name: string;
+  /** Short identifier used in file names and localStorage keys */
   shortName: string;
+  /** What to call population members (e.g., "colonists", "crew members") */
   populationNoun: string;
+  /** What to call the settlement (e.g., "colony", "outpost") */
   settlementNoun: string;
+  /** Currency unit (e.g., "credits") */
   currency: string;
 }
 
+/** Visual theme for a scenario. Applied to the dashboard via CSS custom properties. */
 export interface ScenarioTheme {
   primaryColor: string;
   accentColor: string;
+  /** CSS custom properties injected into :root on scenario load */
   cssVariables: Record<string, string>;
 }
 
@@ -28,11 +43,13 @@ export interface ScenarioTheme {
 // Setup schema
 // ---------------------------------------------------------------------------
 
+/** Default values for the simulation setup form. */
 export interface ScenarioSetupSchema {
   defaultTurns: number;
   defaultSeed: number;
   defaultStartYear: number;
   defaultPopulation: number;
+  /** Which setup form sections to expose in the dashboard */
   configurableSections: Array<'leaders' | 'personnel' | 'resources' | 'departments' | 'events' | 'models' | 'advanced'>;
 }
 
@@ -40,6 +57,7 @@ export interface ScenarioSetupSchema {
 // World state schema
 // ---------------------------------------------------------------------------
 
+/** Schema for a single world metric, capacity, status, or political variable. */
 export interface WorldMetricSchema {
   id: string;
   label: string;
@@ -51,6 +69,7 @@ export interface WorldMetricSchema {
   category: 'metric' | 'capacity' | 'status' | 'politic' | 'environment';
 }
 
+/** Declares all world state variables for a scenario. */
 export interface ScenarioWorldSchema {
   metrics: Record<string, WorldMetricSchema>;
   capacities: Record<string, WorldMetricSchema>;
@@ -59,11 +78,17 @@ export interface ScenarioWorldSchema {
   environment: Record<string, WorldMetricSchema>;
 }
 
+/** Runtime world state with typed record bags. Not everything is a flat numeric resource. */
 export interface WorldState {
+  /** Numeric gauges: food, power, water, population, morale */
   metrics: Record<string, number>;
+  /** Capacity constraints: life support, housing */
   capacities: Record<string, number>;
+  /** Categorical state: governance status, faction alignment */
   statuses: Record<string, string | boolean>;
+  /** Political/social pressures */
   politics: Record<string, number | string | boolean>;
+  /** Environment conditions */
   environment: Record<string, number | string | boolean>;
 }
 
@@ -71,6 +96,7 @@ export interface WorldState {
 // Agent field definitions
 // ---------------------------------------------------------------------------
 
+/** Defines a custom field on agents/colonists for a scenario. */
 export interface AgentFieldDefinition {
   id: string;
   label: string;
@@ -88,6 +114,7 @@ export interface AgentFieldDefinition {
 // Department definitions
 // ---------------------------------------------------------------------------
 
+/** Defines a department (analysis group) in the scenario. */
 export interface DepartmentDefinition {
   id: string;
   label: string;
@@ -101,6 +128,7 @@ export interface DepartmentDefinition {
 // Metrics, effects, events
 // ---------------------------------------------------------------------------
 
+/** Defines a derived metric displayed in the dashboard header. */
 export interface MetricDefinition {
   id: string;
   label: string;
@@ -108,13 +136,16 @@ export interface MetricDefinition {
   format: 'number' | 'percent' | 'currency' | 'duration';
 }
 
+/** Defines an effect category with base deltas applied on crisis outcomes. */
 export interface EffectDefinition {
   id: string;
   type: string;
   label: string;
+  /** Maps crisis category to base colony system deltas */
   categoryDefaults: Record<string, Record<string, number>>;
 }
 
+/** Defines an event type with render metadata for the dashboard. */
 export interface EventDefinition {
   id: string;
   label: string;
@@ -126,6 +157,7 @@ export interface EventDefinition {
 // UI schema
 // ---------------------------------------------------------------------------
 
+/** Tells the dashboard how to render scenario-specific UI elements. */
 export interface ScenarioUiDefinition {
   headerMetrics: Array<{ id: string; format: 'number' | 'percent' | 'currency' | 'duration' }>;
   tooltipFields: string[];
@@ -139,6 +171,7 @@ export interface ScenarioUiDefinition {
 // Knowledge bundle
 // ---------------------------------------------------------------------------
 
+/** A single research citation with optional DOI. */
 export interface KnowledgeCitation {
   claim: string;
   source: string;
@@ -146,14 +179,17 @@ export interface KnowledgeCitation {
   doi?: string;
 }
 
+/** A research topic with facts, counterpoints, and department-specific notes. */
 export interface KnowledgeTopic {
   canonicalFacts: KnowledgeCitation[];
   counterpoints: Array<{ claim: string; source: string; url: string }>;
   departmentNotes: Record<string, string>;
 }
 
+/** Scenario-owned research knowledge organized by topic with crisis category mapping. */
 export interface KnowledgeBundle {
   topics: Record<string, KnowledgeTopic>;
+  /** Maps crisis category to relevant topic IDs */
   categoryMapping: Record<string, string[]>;
 }
 
@@ -161,6 +197,7 @@ export interface KnowledgeBundle {
 // Policies
 // ---------------------------------------------------------------------------
 
+/** Feature policies controlling what capabilities are enabled for a scenario. */
 export interface ScenarioPolicies {
   toolForging: { enabled: boolean; requiredPerDepartment?: boolean };
   liveSearch: { enabled: boolean; mode: 'off' | 'manual' | 'auto' };
@@ -173,6 +210,7 @@ export interface ScenarioPolicies {
 // Presets
 // ---------------------------------------------------------------------------
 
+/** A product-level preset with pre-configured leaders, personnel, and starting state. */
 export interface ScenarioPreset {
   id: string;
   label: string;
@@ -185,37 +223,57 @@ export interface ScenarioPreset {
 // Hooks
 // ---------------------------------------------------------------------------
 
+/** Context passed to the scenario progression hook during between-turn advancement. */
 export interface ProgressionHookContext {
-  colonists: any[];
+  /** All colonists (mutable: the hook modifies health fields in place) */
+  colonists: Colonist[];
   yearDelta: number;
   year: number;
   turn: number;
   startYear: number;
-  rng: any;
+  /** Seeded RNG for deterministic random operations */
+  rng: { chance(probability: number): boolean; next(): number; pick<T>(arr: readonly T[]): T; int(min: number, max: number): number };
 }
 
+/** Context passed to the scenario department prompt hook. */
 export interface PromptHookContext {
   department: string;
-  state: any;
-  scenario: any;
-  researchPacket: any;
+  state: SimulationState;
+  scenario: Scenario;
+  researchPacket: { canonicalFacts: Array<{ claim: string; source: string; url: string }>; counterpoints: Array<{ claim: string; source: string; url: string }>; departmentNotes: Record<string, string> };
 }
 
+/** Outcome classification for a turn. */
+export type TurnOutcomeType = 'risky_success' | 'risky_failure' | 'conservative_success' | 'conservative_failure';
+
+/**
+ * Lifecycle hooks that a scenario provides to inject domain-specific behavior
+ * into the generic engine. All hooks are optional.
+ */
 export interface ScenarioHooks {
+  /** Called during between-turn progression for scenario-specific health/field changes (e.g., radiation, bone density) */
   progressionHook?: (ctx: ProgressionHookContext) => void;
+  /** Builds department-specific prompt context lines for LLM department agents */
   departmentPromptHook?: (ctx: PromptHookContext) => string[];
+  /** Returns the Crisis Director's system instructions for this scenario */
   directorInstructions?: () => string;
-  directorPromptHook?: (ctx: any) => string;
-  reactionContextHook?: (colonist: any, ctx: any) => string;
-  fingerprintHook?: (finalState: any, outcomeLog: any[], leader: any, toolRegs: Record<string, string[]>, maxTurns: number) => Record<string, string>;
-  getMilestoneCrisis?: (turn: number, maxTurns: number) => any | null;
+  /** Builds the Crisis Director's per-turn context prompt */
+  directorPromptHook?: (ctx: Record<string, unknown>) => string;
+  /** Returns location/identity/health phrasing for colonist reaction prompts */
+  reactionContextHook?: (colonist: Colonist, ctx: { year: number; turn: number }) => string;
+  /** Computes a timeline fingerprint classification from final simulation state */
+  fingerprintHook?: (finalState: SimulationState, outcomeLog: Array<{ turn: number; year: number; outcome: string }>, leader: LeaderConfig, toolRegs: Record<string, string[]>, maxTurns: number) => Record<string, string>;
+  /** Returns a milestone crisis for narrative anchor turns (turn 1, final turn) */
+  getMilestoneCrisis?: (turn: number, maxTurns: number) => MilestoneCrisisDef | null;
+  /** Returns politics deltas for political/social crises, null if not applicable */
   politicsHook?: (category: string, outcome: string) => Record<string, number> | null;
 }
 
 // ---------------------------------------------------------------------------
-// Scenario (legacy turn-based, used by static SCENARIOS and department context)
+// Crisis definitions
 // ---------------------------------------------------------------------------
 
+/** A crisis option presented to the commander. */
 export interface CrisisOptionDef {
   id: string;
   label: string;
@@ -223,6 +281,20 @@ export interface CrisisOptionDef {
   isRisky: boolean;
 }
 
+/** A milestone crisis (fixed narrative anchor, e.g., turn 1 landing or final assessment). */
+export interface MilestoneCrisisDef {
+  title: string;
+  crisis: string;
+  options: CrisisOptionDef[];
+  riskyOptionId: string;
+  riskSuccessProbability: number;
+  category: string;
+  researchKeywords: string[];
+  relevantDepartments: string[];
+  turnSummary: string;
+}
+
+/** Legacy turn-based scenario (used by static SCENARIOS array and department context). */
 export interface Scenario {
   turn: number;
   year: number;
@@ -236,9 +308,10 @@ export interface Scenario {
 }
 
 // ---------------------------------------------------------------------------
-// Leader config (shared by engine, runtime, and cli)
+// Leader config
 // ---------------------------------------------------------------------------
 
+/** Configuration for a simulation leader/commander. */
 export interface LeaderConfig {
   name: string;
   archetype: string;
@@ -248,11 +321,13 @@ export interface LeaderConfig {
 }
 
 // ---------------------------------------------------------------------------
-// LLM provider types (shared by runtime and cli)
+// LLM provider types
 // ---------------------------------------------------------------------------
 
+/** Supported LLM provider. */
 export type LlmProvider = 'openai' | 'anthropic';
 
+/** Model assignments for different simulation roles. */
 export interface SimulationModelConfig {
   commander: string;
   departments: string;
@@ -265,9 +340,26 @@ export interface SimulationModelConfig {
 // ScenarioPackage (top-level)
 // ---------------------------------------------------------------------------
 
+/**
+ * The top-level contract for a Paracosm scenario.
+ * Defines everything the engine needs to run a closed-state, turn-based
+ * settlement simulation: world schema, departments, effects, UI metadata,
+ * research knowledge, policies, presets, and lifecycle hooks.
+ *
+ * @example
+ * ```typescript
+ * import type { ScenarioPackage } from 'paracosm';
+ * import { marsScenario } from 'paracosm/mars';
+ *
+ * const myScenario: ScenarioPackage = { ... };
+ * ```
+ */
 export interface ScenarioPackage {
+  /** Unique scenario identifier (e.g., "mars-genesis", "lunar-outpost") */
   id: string;
+  /** Semantic version of this scenario definition */
   version: string;
+  /** Engine archetype this scenario targets */
   engineArchetype: 'closed_turn_based_settlement';
 
   labels: ScenarioLabels;
