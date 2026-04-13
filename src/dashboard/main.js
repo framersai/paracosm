@@ -28,8 +28,8 @@ function side(leader) {
   return null;
 }
 const state = {
-  v: { pop: [], morale: [], deaths: 0, tools: 0, crisis: null, decision: null, outcome: null, prevColony: null },
-  e: { pop: [], morale: [], deaths: 0, tools: 0, crisis: null, decision: null, outcome: null, prevColony: null }
+  v: { pop: [], morale: [], deaths: 0, tools: 0, crisis: null, decision: null, outcome: null, prevColony: null, prevDrift: {} },
+  e: { pop: [], morale: [], deaths: 0, tools: 0, crisis: null, decision: null, outcome: null, prevColony: null, prevDrift: {} }
 };
 const sparkChars = '\u2581\u2582\u2583\u2584\u2585\u2586\u2587\u2588';
 const spark = arr => arr.map(v => sparkChars[Math.min(7, Math.floor(v / (Math.max(...arr) || 1) * 7.99))]).join('');
@@ -137,8 +137,8 @@ function loadGame(e) {
     try {
       const saved = JSON.parse(reader.result);
       if (!saved.events || !saved.events.length) { alert('No game events found in file'); return; }
-      state.v = { pop: [], morale: [], deaths: 0, tools: 0, crisis: null, decision: null, outcome: null };
-      state.e = { pop: [], morale: [], deaths: 0, tools: 0, crisis: null, decision: null, outcome: null };
+      state.v = { pop: [], morale: [], deaths: 0, tools: 0, crisis: null, decision: null, outcome: null, prevColony: null, prevDrift: {} };
+      state.e = { pop: [], morale: [], deaths: 0, tools: 0, crisis: null, decision: null, outcome: null, prevColony: null, prevDrift: {} };
       $('body-v').innerHTML = '<div class="gauges" id="gauges-v"><div class="g"><span class="gl">Pop</span><span class="gv" id="gv-v-pop">···</span><div class="gb"><div class="gf" id="gf-v-pop" style="width:0;background:var(--vis)"></div></div></div><div class="g"><span class="gl">Morale</span><span class="gv" id="gv-v-morale">···</span><div class="gb"><div class="gf" id="gf-v-morale" style="width:0;background:var(--amber)"></div></div></div><div class="g"><span class="gl">Food</span><span class="gv" id="gv-v-food">···</span></div><div class="g"><span class="gl">Deaths</span><span class="gv" id="gv-v-deaths">0</span></div></div>';
       $('body-e').innerHTML = '<div class="gauges" id="gauges-e"><div class="g"><span class="gl">Pop</span><span class="gv" id="gv-e-pop">···</span><div class="gb"><div class="gf" id="gf-e-pop" style="width:0;background:var(--eng)"></div></div></div><div class="g"><span class="gl">Morale</span><span class="gv" id="gv-e-morale">···</span><div class="gb"><div class="gf" id="gf-e-morale" style="width:0;background:var(--green)"></div></div></div><div class="g"><span class="gl">Food</span><span class="gv" id="gv-e-food">···</span></div><div class="g"><span class="gl">Deaths</span><span class="gv" id="gv-e-deaths">0</span></div></div>';
       switchTab('sim');
@@ -247,6 +247,8 @@ async function launchFromSettings() {
 function generateReport() {
   if (!gameData.events.length) { alert('No simulation data. Run a simulation first or load a saved game.'); return; }
   const content = $('rpt-content');
+  // Auto-switch to reports tab
+  switchTab('reports');
 
   // Group events by turn and side
   const turns = {};
@@ -303,8 +305,52 @@ function generateReport() {
     html += `</div>`;
   }
 
+  // Replay controls
+  const turnNums = Object.keys(turns).sort((a, b) => Number(a) - Number(b));
+  html += `<div style="margin-top:10px;padding:10px 14px;background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;display:flex;align-items:center;gap:10px">
+    <b style="font-size:11px;color:var(--text-2);font-family:var(--mono)">REPLAY</b>
+    <input type="range" id="rpt-scrubber" min="0" max="${turnNums.length - 1}" value="${turnNums.length - 1}" style="flex:1;accent-color:var(--amber)" oninput="scrubToTurn(this.value)">
+    <span id="rpt-scrub-label" style="font-size:11px;color:var(--text-1);font-family:var(--mono);min-width:60px">Turn ${turnNums[turnNums.length - 1] || '?'}</span>
+    <button class="act-btn" onclick="replayInSim()">Replay in Sim</button>
+  </div>`;
+
   content.innerHTML = html || '<div class="rpt-empty">No turn data found.</div>';
+
+  // Store turn data for scrubber
+  window._rptTurns = turns;
+  window._rptTurnNums = turnNums;
 }
+
+function scrubToTurn(idx) {
+  const turns = window._rptTurns;
+  const turnNums = window._rptTurnNums;
+  if (!turns || !turnNums) return;
+  const turnNum = turnNums[idx];
+  $('rpt-scrub-label').textContent = 'Turn ' + turnNum;
+
+  // Highlight the selected turn, dim others
+  document.querySelectorAll('.rpt-turn').forEach((el, i) => {
+    el.style.opacity = i <= idx ? '1' : '0.3';
+  });
+}
+
+function replayInSim() {
+  if (!gameData.events.length) return;
+  // Reset state and replay
+  state.v = { pop: [], morale: [], deaths: 0, tools: 0, crisis: null, decision: null, outcome: null, prevColony: null, prevDrift: {} };
+  state.e = { pop: [], morale: [], deaths: 0, tools: 0, crisis: null, decision: null, outcome: null, prevColony: null, prevDrift: {} };
+  Object.keys(leaderMap).forEach(k => delete leaderMap[k]);
+  $('body-v').innerHTML = '<div class="gauges" id="gauges-v"><div class="g"><span class="gl">Pop</span><span class="gv" id="gv-v-pop">...</span><div class="gb"><div class="gf" id="gf-v-pop" style="width:0;background:var(--vis)"></div></div></div><div class="g"><span class="gl">Morale</span><span class="gv" id="gv-v-morale">...</span><div class="gb"><div class="gf" id="gf-v-morale" style="width:0;background:var(--amber)"></div></div></div><div class="g"><span class="gl">Food</span><span class="gv" id="gv-v-food">...</span></div><div class="g"><span class="gl">Deaths</span><span class="gv" id="gv-v-deaths">0</span></div></div>';
+  $('body-e').innerHTML = '<div class="gauges" id="gauges-e"><div class="g"><span class="gl">Pop</span><span class="gv" id="gv-e-pop">...</span><div class="gb"><div class="gf" id="gf-e-pop" style="width:0;background:var(--eng)"></div></div></div><div class="g"><span class="gl">Morale</span><span class="gv" id="gv-e-morale">...</span><div class="gb"><div class="gf" id="gf-e-morale" style="width:0;background:var(--green)"></div></div></div><div class="g"><span class="gl">Food</span><span class="gv" id="gv-e-food">...</span></div><div class="g"><span class="gl">Deaths</span><span class="gv" id="gv-e-deaths">0</span></div></div>';
+  switchTab('sim');
+  let i = 0;
+  function next() {
+    if (i >= gameData.events.length) { $('m-status').textContent = '\u25CF Replay Complete'; $('m-status').style.color = 'var(--amber)'; return; }
+    handleSimEvent(gameData.events[i++]);
+    setTimeout(next, 80);
+  }
+  $('m-status').textContent = '\u25CF Replaying...'; $('m-status').style.color = 'var(--vis)';
+  next();
 
 function loadGameForReport(e) {
   const file = e.target.files[0]; if (!file) return;
@@ -470,10 +516,34 @@ function handleSimEvent(d) {
     case 'drift': {
       const entries = Object.values(dd.colonists || {});
       if (entries.length) {
+        // Inline drift in decision card
         const slot = $(`drift-slot-${s}-${dd.turn}`);
         if (slot) {
           slot.innerHTML = `<b>Personality Drift</b><br>` + entries.map(c => `${c.name}: <span style="color:var(--${s === 'v' ? 'vis' : 'eng'})">O${c.hexaco?.O ?? '?'} C${c.hexaco?.C ?? '?'} E${c.hexaco?.E ?? '?'} A${c.hexaco?.A ?? '?'}</span>`).join(' \u00B7 ');
           slot.style.display = 'block';
+        }
+        // Featured colonist card: pick the one with most dramatic change
+        const prev = state[s].prevDrift || {};
+        let featured = null, maxDelta = 0;
+        for (const c of entries) {
+          if (!c.hexaco) continue;
+          const p = prev[c.name];
+          if (p) {
+            const d = Math.abs((c.hexaco.O||0)-(p.O||0)) + Math.abs((c.hexaco.C||0)-(p.C||0)) + Math.abs((c.hexaco.E||0)-(p.E||0)) + Math.abs((c.hexaco.A||0)-(p.A||0));
+            if (d > maxDelta) { maxDelta = d; featured = c; }
+          } else if (!featured) { featured = c; }
+        }
+        // Store current drift for next comparison
+        state[s].prevDrift = {};
+        for (const c of entries) { if (c.hexaco) state[s].prevDrift[c.name] = c.hexaco; }
+
+        if (featured && featured.hexaco) {
+          const h = featured.hexaco;
+          const pf = prev[featured.name];
+          const dO = pf ? (h.O - pf.O).toFixed(2) : ''; const dC = pf ? (h.C - pf.C).toFixed(2) : '';
+          const deltaStr = pf ? `O ${dO > 0 ? '+' : ''}${dO}, C ${dC > 0 ? '+' : ''}${dC}` : `O ${h.O}, C ${h.C}, E ${h.E}, A ${h.A}`;
+          const color = s === 'v' ? 'vis' : 'eng';
+          addToBody(s, `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:6px 10px;font-size:11px;display:flex;align-items:center;gap:8px"><span style="font-size:16px">\uD83D\uDC64</span><div style="flex:1"><div style="font-weight:700;color:var(--${color})">${featured.name}</div><div style="color:var(--text-2);font-size:10px">HEXACO shift: <span style="font-family:var(--mono);color:var(--text-1)">${deltaStr}</span></div></div><span style="font-size:9px;color:var(--text-3);font-family:var(--mono)">FEATURED</span></div>`);
         }
       }
       break;
