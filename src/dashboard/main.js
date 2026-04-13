@@ -468,6 +468,41 @@ async function testApiKey() {
   btn.disabled = false;
 }
 
+function saveSettingsToStorage() {
+  const cfg = buildSetupConfig();
+  try {
+    localStorage.setItem('mars-settings', JSON.stringify(cfg));
+    const st = $('s-launch-status');
+    if (st) { st.textContent = 'Settings saved.'; setTimeout(() => { st.textContent = ''; }, 2000); }
+  } catch (err) { alert('Failed to save: ' + err); }
+}
+
+function resetSettingsToDefaults() {
+  applySetupPreset('default');
+  localStorage.removeItem('mars-settings');
+  const st = $('s-launch-status');
+  if (st) { st.textContent = 'Reset to defaults.'; setTimeout(() => { st.textContent = ''; }, 2000); }
+}
+
+// Restore saved settings on load
+function restoreSettings() {
+  try {
+    const saved = localStorage.getItem('mars-settings');
+    if (!saved) return;
+    const cfg = JSON.parse(saved);
+    if (cfg.leaders?.length >= 2) {
+      const a = cfg.leaders[0], b = cfg.leaders[1];
+      $('sa-name').value = a.name || ''; $('sa-arch').value = a.archetype || ''; $('sa-colony').value = a.colony || ''; $('sa-instr').value = a.instructions || '';
+      if (a.hexaco) setSHex('a', a.hexaco);
+      $('sb-name').value = b.name || ''; $('sb-arch').value = b.archetype || ''; $('sb-colony').value = b.colony || ''; $('sb-instr').value = b.instructions || '';
+      if (b.hexaco) setSHex('b', b.hexaco);
+    }
+    if (cfg.turns) $('s-turns').value = cfg.turns;
+    if (cfg.seed) $('s-seed').value = cfg.seed;
+    $('s-preset').value = 'custom';
+  } catch {}
+}
+
 async function launchFromSettings() {
   const btn = $('s-launch-btn'), st = $('s-launch-status');
   btn.disabled = true; st.textContent = 'Starting...';
@@ -938,6 +973,7 @@ if (loadFromParams()) {
   switchTab('settings');
 } else {
   syncProviderDefaults();
+  restoreSettings();
   // Try restoring cached game data
   restoreFromCache();
 }
