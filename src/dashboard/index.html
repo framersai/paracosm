@@ -285,29 +285,31 @@
   <div class="meta"><span title="Each turn is a crisis event the colony must respond to">Turn <b id="m-turn">—</b>/<b id="m-max-turns">12</b></span><span title="Simulation year on Mars">Year <b id="m-year">—</b></span><span title="Deterministic seed: same seed = same colonist roster">Seed <b>950</b></span><span class="live" id="m-status">● Waiting</span></div>
 </div>
 
-<!-- Leaders: two clean rows each -->
+<!-- Leaders: dynamic, populated from SSE/settings -->
 <div class="leaders">
-  <div class="ldr">
+  <div class="ldr" id="ldr-v">
     <div class="ldr-row1">
-      <span class="arch v">VIS</span>
-      <span class="ldr-name v">Aria Chen</span>
+      <span class="arch v" id="ldr-v-arch">VISIONARY</span>
+      <span class="ldr-name v" id="ldr-v-name">Leader A</span>
+      <span style="color:var(--text-3);font-size:10px" id="ldr-v-colony"></span>
       <span class="ldr-sep">|</span>
-      <span class="traits" title="O.95 = Highly creative, explores novel solutions. C.35 = Loose, fast, acts on intuition. E.85 = Charismatic, rallies people. A.55 = Moderate cooperation."><span class="v tx">O</span><span class="v">████░</span><span class="v tv">.95</span><span class="v tx">C</span><span class="v">█░░░</span><span class="v tv">.35</span><span class="v tx">E</span><span class="v">████░</span><span class="v tv">.85</span><span class="v tx">A</span><span class="v">██░░</span><span class="v tv">.55</span></span>
+      <span class="traits" id="ldr-v-traits"></span>
     </div>
     <div class="ldr-row2">
-      <span class="ldr-quote">"We didn't cross 55M km to play it safe."</span>
+      <span class="ldr-quote" id="ldr-v-quote"></span>
       <span class="sparks"><span class="sp-l" style="color:var(--vis)">Pop</span> <span id="spark-v-pop" style="color:var(--vis)">—</span> &nbsp;<span class="sp-l" style="color:var(--amber)">Morale</span> <span id="spark-v-morale" style="color:var(--amber)">—</span></span>
     </div>
   </div>
-  <div class="ldr">
+  <div class="ldr" id="ldr-e">
     <div class="ldr-row1">
-      <span class="arch e">ENG</span>
-      <span class="ldr-name e">Dietrich Voss</span>
+      <span class="arch e" id="ldr-e-arch">ENGINEER</span>
+      <span class="ldr-name e" id="ldr-e-name">Leader B</span>
+      <span style="color:var(--text-3);font-size:10px" id="ldr-e-colony"></span>
       <span class="ldr-sep">|</span>
-      <span class="traits" title="O.25 = Proven methods only, low risk tolerance. C.97 = Extremely disciplined, precise. E.30 = Quiet, protocol-driven. H.90 = Shares bad news immediately, high integrity."><span class="e tx">O</span><span class="e">█░░░</span><span class="e tv">.25</span><span class="e hi tx">C</span><span class="e">████░</span><span class="e hi tv">.97</span><span class="e tx">E</span><span class="e">█░░░</span><span class="e tv">.30</span><span class="e hi tx">H</span><span class="e">████░</span><span class="e hi tv">.90</span></span>
+      <span class="traits" id="ldr-e-traits"></span>
     </div>
     <div class="ldr-row2">
-      <span class="ldr-quote">"Every gram of oxygen is accounted for."</span>
+      <span class="ldr-quote" id="ldr-e-quote"></span>
       <span class="sparks"><span class="sp-l" style="color:var(--eng)">Pop</span> <span id="spark-e-pop" style="color:var(--eng)">—</span> &nbsp;<span class="sp-l" style="color:var(--green)">Morale</span> <span id="spark-e-morale" style="color:var(--green)">—</span></span>
     </div>
   </div>
@@ -457,7 +459,7 @@
       <div class="sf" style="margin-top:4px"><label>Serper (web search)</label><input id="s-serper" type="password" placeholder="optional"></div>
       <div style="margin-top:4px"><button class="s-add" onclick="testApiKey()" id="s-test-btn">Test</button> <span id="s-test-status" style="font-size:10px;color:var(--text-3)"></span></div>
       <h3 style="margin-top:8px">Provider & Models</h3>
-      <div class="sf"><label>Provider</label><select id="s-provider"><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option></select></div>
+      <div class="sf"><label>Provider</label><select id="s-provider" onchange="syncProviderDefaults(true)"><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option></select></div>
       <div class="srow" style="margin-top:4px"><div class="sf"><label>Commander</label><select id="s-model-cmd"><optgroup label="OpenAI"><option value="gpt-5.4">gpt-5.4</option><option value="gpt-4o">gpt-4o</option><option value="o4-mini">o4-mini</option></optgroup><optgroup label="Anthropic"><option value="claude-opus-4-6">Opus 4.6</option><option value="claude-sonnet-4-6">Sonnet 4.6</option></optgroup></select></div><div class="sf"><label>Dept</label><select id="s-model-dept"><optgroup label="OpenAI"><option value="gpt-5.4-mini">gpt-5.4-mini</option><option value="gpt-4o-mini">gpt-4o-mini</option></optgroup><optgroup label="Anthropic"><option value="claude-sonnet-4-6">Sonnet 4.6</option><option value="claude-haiku-4-5-20251001">Haiku 4.5</option></optgroup></select></div></div>
       <div class="srow"><div class="sf"><label>Judge</label><select id="s-model-judge"><optgroup label="OpenAI"><option value="gpt-5.4">gpt-5.4</option><option value="gpt-4o">gpt-4o</option></optgroup><optgroup label="Anthropic"><option value="claude-opus-4-6">Opus 4.6</option><option value="claude-sonnet-4-6">Sonnet 4.6</option></optgroup></select></div><div class="sf"><label>Search</label><select id="s-search"><option value="false">Off</option><option value="true">On</option></select></div></div>
       <h3 style="margin-top:8px">Generation</h3>

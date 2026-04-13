@@ -58,6 +58,34 @@ function updateGauges(s, colony) {
   state[s].prevColony = { ...colony };
 }
 
+function hexacoBar(val) {
+  const filled = Math.round(val * 5);
+  return '\u2588'.repeat(filled) + '\u2591'.repeat(5 - filled);
+}
+
+function populateLeader(s, ldr) {
+  const color = s === 'v' ? 'v' : 'e';
+  const archEl = $(`ldr-${s}-arch`);
+  const nameEl = $(`ldr-${s}-name`);
+  const colonyEl = $(`ldr-${s}-colony`);
+  const traitsEl = $(`ldr-${s}-traits`);
+  if (archEl) {
+    archEl.textContent = (ldr.archetype || '').toUpperCase().replace('THE ', '');
+    const h = ldr.hexaco || {};
+    const bio = `${ldr.archetype}: O=${h.openness} (${h.openness > 0.7 ? 'creative, experimental' : h.openness > 0.4 ? 'moderate' : 'proven methods'}), C=${h.conscientiousness} (${h.conscientiousness > 0.7 ? 'disciplined, thorough' : h.conscientiousness > 0.4 ? 'moderate' : 'loose, intuitive'}), E=${h.extraversion} (${h.extraversion > 0.7 ? 'charismatic' : h.extraversion > 0.4 ? 'moderate' : 'quiet, reserved'}), HH=${h.honestyHumility} (${h.honestyHumility > 0.7 ? 'transparent, fair' : 'spins setbacks'})`;
+    archEl.title = bio;
+  }
+  if (nameEl) nameEl.textContent = ldr.name || '';
+  if (colonyEl) colonyEl.textContent = ldr.colony || '';
+  if (traitsEl && ldr.hexaco) {
+    const h = ldr.hexaco;
+    traitsEl.innerHTML = ['O','C','E','A','Em','HH'].map((t, i) => {
+      const val = [h.openness, h.conscientiousness, h.extraversion, h.agreeableness, h.emotionality, h.honestyHumility][i];
+      return `<span class="${color} tx">${t}</span><span class="${color}">${hexacoBar(val)}</span><span class="${color} tv">${Number(val).toFixed(2)}</span>`;
+    }).join('');
+  }
+}
+
 function clearWaiting(s) { const w = $(`body-${s}`).querySelector('.waiting'); if (w) w.remove(); }
 function addToBody(s, html) {
   clearWaiting(s);
@@ -171,11 +199,35 @@ const SETUP_PRESETS = {
   extreme:{a:{name:'Zara Okafor',arch:'The Gambler',colony:'Frontier Prime',hexaco:{openness:.99,conscientiousness:.15,extraversion:.9,agreeableness:.3,emotionality:.1,honestyHumility:.4},instr:'You are Commander Zara Okafor. Maximum risk, maximum reward. Respond with JSON.'},b:{name:'Heinrich Weber',arch:'The Fortress',colony:'Bastion Colony',hexaco:{openness:.05,conscientiousness:.99,extraversion:.1,agreeableness:.6,emotionality:.95,honestyHumility:.95},instr:'You are Commander Heinrich Weber. Zero tolerance for risk. Respond with JSON.'},turns:12,seed:950},
 };
 
+const PROVIDER_DEFAULT_MODELS = {
+  openai: { commander: 'gpt-5.4', departments: 'gpt-5.4-mini', judge: 'gpt-5.4' },
+  anthropic: { commander: 'claude-sonnet-4-6', departments: 'claude-haiku-4-5-20251001', judge: 'claude-sonnet-4-6' },
+};
+
 function applySetupPreset(name) {
   const p = SETUP_PRESETS[name]; if (!p) return;
   $('sa-name').value = p.a.name; $('sa-arch').value = p.a.arch; $('sa-colony').value = p.a.colony; $('sa-instr').value = p.a.instr; setSHex('a', p.a.hexaco);
   $('sb-name').value = p.b.name; $('sb-arch').value = p.b.arch; $('sb-colony').value = p.b.colony; $('sb-instr').value = p.b.instr; setSHex('b', p.b.hexaco);
   $('s-turns').value = p.turns; $('s-seed').value = p.seed;
+}
+
+function syncProviderDefaults(force = false) {
+  const provider = $('s-provider')?.value || 'openai';
+  const defaults = PROVIDER_DEFAULT_MODELS[provider] || PROVIDER_DEFAULT_MODELS.openai;
+
+  if (force || $('s-model-cmd').value === '' || $('s-model-cmd').dataset.provider !== provider) {
+    $('s-model-cmd').value = defaults.commander;
+  }
+  if (force || $('s-model-dept').value === '' || $('s-model-dept').dataset.provider !== provider) {
+    $('s-model-dept').value = defaults.departments;
+  }
+  if (force || $('s-model-judge').value === '' || $('s-model-judge').dataset.provider !== provider) {
+    $('s-model-judge').value = defaults.judge;
+  }
+
+  $('s-model-cmd').dataset.provider = provider;
+  $('s-model-dept').dataset.provider = provider;
+  $('s-model-judge').dataset.provider = provider;
 }
 
 let sec = 0;
@@ -197,6 +249,7 @@ function buildSetupConfig() {
       { name: $('sa-name').value, archetype: $('sa-arch').value, colony: $('sa-colony').value, hexaco: getSHex('a'), instructions: $('sa-instr').value },
       { name: $('sb-name').value, archetype: $('sb-arch').value, colony: $('sb-colony').value, hexaco: getSHex('b'), instructions: $('sb-instr').value },
     ],
+    provider: $('s-provider').value,
     turns: parseInt($('s-turns').value) || 12, seed: parseInt($('s-seed').value) || 950,
     startYear: parseInt($('s-year').value) || 2035,
     population: parseInt($('s-pop').value) || 100,
@@ -222,6 +275,7 @@ function importSetup(e) {
     if (cfg.turns) $('s-turns').value = cfg.turns;
     if (cfg.seed) $('s-seed').value = cfg.seed;
     if (cfg.startYear) $('s-year').value = cfg.startYear;
+    if (cfg.provider) $('s-provider').value = cfg.provider;
     if (cfg.population) $('s-pop').value = cfg.population;
     if (cfg.startingResources) {
       if (cfg.startingResources.food) $('s-food').value = cfg.startingResources.food;
@@ -245,17 +299,25 @@ function importSetup(e) {
         if (inputs?.[2]) inputs[2].value = event.description || '';
       });
     }
+    syncProviderDefaults();
     $('s-preset').value = 'custom';
   } catch (err) { alert('Invalid config file'); } }; r.readAsText(file);
 }
 
 async function testApiKey() {
   const st = $('s-test-status'), btn = $('s-test-btn');
-  const key = $('s-apikey').value;
+  const provider = $('s-provider').value;
+  const key = provider === 'anthropic' ? $('s-anthropic').value : $('s-apikey').value;
   if (!key || key.includes('...')) { st.textContent = 'Enter a full API key first'; st.style.color = 'var(--rust)'; return; }
   btn.disabled = true; st.textContent = 'Testing...'; st.style.color = 'var(--text-3)';
   try {
-    const res = await fetch('https://api.openai.com/v1/models', { headers: { 'Authorization': `Bearer ${key}` } });
+    const res = provider === 'anthropic'
+      ? await fetch('https://api.anthropic.com/v1/models', {
+          headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+        })
+      : await fetch('https://api.openai.com/v1/models', {
+          headers: { 'Authorization': `Bearer ${key}` },
+        });
     if (res.ok) { st.textContent = 'Connected.'; st.style.color = 'var(--green)'; }
     else { const d = await res.json().catch(() => ({})); st.textContent = 'Failed: ' + (d.error?.message || res.status); st.style.color = 'var(--rust)'; }
   } catch (err) { st.textContent = 'Network error: ' + err; st.style.color = 'var(--rust)'; }
@@ -426,7 +488,13 @@ try {
     if (Array.isArray(d.customEvents) && d.customEvents.length) {
       log('info', `Custom events: ${d.customEvents.map(event => event.title).join(', ')}`);
     }
-    if (d.phase === 'parallel') { $('m-status').textContent = '● Running'; $('m-status').style.color = 'var(--green)'; }
+    if (d.phase === 'parallel') {
+      $('m-status').textContent = '\u25CF Running'; $('m-status').style.color = 'var(--green)';
+      if (d.leaders && d.leaders.length >= 2) {
+        populateLeader('v', d.leaders[0]);
+        populateLeader('e', d.leaders[1]);
+      }
+    }
   });
 
   es.addEventListener('sim', e => {
@@ -608,7 +676,11 @@ if (localStorage.getItem('mars-intro-dismissed') === '1') {
 
 // Load config from URL params on startup
 if (loadFromParams()) {
+  syncProviderDefaults();
   switchTab('settings');
 } else if (window.location.hash === '#settings') {
+  syncProviderDefaults();
   switchTab('settings');
+} else {
+  syncProviderDefaults();
 }
