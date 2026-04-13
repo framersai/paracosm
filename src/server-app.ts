@@ -112,6 +112,17 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       return;
     }
 
+    if (req.url === '/favicon.png' || req.url === '/favicon.ico') {
+      try {
+        const icon = readFileSync(resolve(__dirname, '..', 'assets', 'agentos-icon.png'));
+        res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=86400' });
+        res.end(icon);
+      } catch {
+        res.writeHead(404); res.end();
+      }
+      return;
+    }
+
     if (req.url === '/main.js') {
       const js = readFileSync(resolve(__dirname, 'dashboard/main.js'), 'utf-8');
       res.writeHead(200, { 'Content-Type': 'application/javascript' });
