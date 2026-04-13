@@ -56,22 +56,23 @@
   .meta{display:flex;gap:12px;font-size:11px;color:var(--text-2);flex-shrink:0}.meta b{color:var(--text-1);font-family:var(--mono)}
   .live{color:var(--green);animation:pulse 2s infinite;font-weight:700}
 
-  /* Leaders - two rows: name+traits, quote+sparklines */
+  /* Leaders */
   .leaders{display:flex;gap:1px;background:var(--border)}
-  .ldr{flex:1;padding:5px 10px;background:var(--bg-panel)}
-  .ldr-row1{display:flex;align-items:center;gap:8px}
-  .ldr-row2{display:flex;align-items:center;gap:10px;margin-top:2px}
-  .ldr-name{font-size:13px;font-weight:800;white-space:nowrap}.ldr-name.v{color:var(--vis)}.ldr-name.e{color:var(--eng)}
-  .ldr-sep{color:var(--border);margin:0 2px}
+  .ldr{flex:1;padding:4px 12px;background:var(--bg-panel)}
+  .ldr-row1{display:flex;align-items:center;gap:6px}
+  .ldr-row2{display:flex;align-items:center;gap:8px;margin-top:3px}
+  .ldr-name{font-size:14px;font-weight:800;white-space:nowrap}.ldr-name.v{color:var(--vis)}.ldr-name.e{color:var(--eng)}
+  .ldr-colony{color:var(--text-3);font-size:10px;white-space:nowrap;margin-right:4px}
+  .ldr-sep{color:var(--border);margin:0 4px;font-size:12px}
   .ldr-quote{color:var(--text-2);font-size:11px;font-style:italic;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .traits{font-size:9px;color:var(--text-2);white-space:nowrap;font-family:var(--mono);letter-spacing:0;overflow:hidden;text-overflow:ellipsis}
   .traits .hi{font-weight:700}.traits .v{color:var(--vis)}.traits .e{color:var(--eng)}
-  .traits .tx{margin-right:3px;margin-left:6px}.traits .tx:first-child{margin-left:0}.traits .tv{margin-right:0}
-  .sparks{font-family:var(--mono);font-size:9px;white-space:nowrap}
+  .traits .tx{margin-right:2px;margin-left:5px}.traits .tx:first-child{margin-left:0}.traits .tv{margin-right:0}
+  .sparks{font-family:var(--mono);font-size:10px;white-space:nowrap;flex-shrink:0}
   .sp-l{color:var(--text-3);font-size:8px;text-transform:uppercase;letter-spacing:.3px;font-weight:600}
-  .arch{font-size:8px;padding:1px 6px;border-radius:3px;font-weight:800;flex-shrink:0;font-family:var(--mono)}
-  .arch.v{color:var(--vis);background:rgba(232,180,74,.1);border:1px solid var(--amber-dim)}
-  .arch.e{color:var(--eng);background:rgba(76,168,168,.1);border:1px solid var(--teal-dim)}
+  .arch{font-size:9px;padding:2px 8px;border-radius:3px;font-weight:800;flex-shrink:0;font-family:var(--mono)}
+  .arch.v{color:var(--vis);background:rgba(232,180,74,.12);border:1px solid var(--amber-dim)}
+  .arch.e{color:var(--eng);background:rgba(76,168,168,.12);border:1px solid var(--teal-dim)}
 
   /* Crisis + Stats - single merged row */
   .crisis-stats{display:flex;align-items:center;padding:5px 16px;background:var(--bg-panel);border-bottom:1px solid var(--border);gap:20px}
@@ -296,7 +297,7 @@
     <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" style="width:20px;height:20px"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#e06530"/><stop offset="50%" style="stop-color:#e8b44a"/><stop offset="100%" style="stop-color:#4ca8a8"/></linearGradient></defs><circle cx="32" cy="32" r="8" fill="url(#g)"/><circle cx="32" cy="12" r="4" fill="#e06530" opacity=".9"/><circle cx="48" cy="20" r="4" fill="#e8b44a" opacity=".9"/><circle cx="48" cy="44" r="4" fill="#4ca8a8" opacity=".9"/><circle cx="32" cy="52" r="4" fill="#4ca8a8" opacity=".9"/><circle cx="16" cy="44" r="4" fill="#e8b44a" opacity=".9"/><circle cx="16" cy="20" r="4" fill="#e06530" opacity=".9"/><path d="M32 32L32 12M32 32L48 20M32 32L48 44M32 32L32 52M32 32L16 44M32 32L16 20" stroke="url(#g)" stroke-width="1.5" opacity=".5"/></svg>
     <span class="logo-text">AgentOS</span><span class="logo-sub">MARS GENESIS</span>
   </div>
-  <span class="top-c">Same colony, same crises, two different leaders. 12 turns spanning 50 years on Mars.</span>
+  <span class="top-c" id="top-tagline">Same colony, two different leaders. Watch emergent civilizations diverge on Mars.</span>
   <div class="meta"><span title="Each turn is a crisis event the colony must respond to">Turn <b id="m-turn">—</b>/<b id="m-max-turns">12</b></span><span title="Simulation year on Mars">Year <b id="m-year">—</b></span><span title="Deterministic seed: same seed = same colonist roster">Seed <b id="m-seed">950</b></span><span class="live" id="m-status">● Waiting</span></div>
 </div>
 
@@ -307,7 +308,7 @@
       <span class="arch v" id="ldr-v-arch">VISIONARY</span>
       <span class="tip-wrap">
         <span class="ldr-name v" id="ldr-v-name">Aria Chen</span>
-        <span style="color:var(--text-3);font-size:10px" id="ldr-v-colony">Ares Horizon</span>
+        <span class="ldr-colony" id="ldr-v-colony">Ares Horizon</span>
         <span class="tip-icon">&#9432;</span>
         <div class="tip-pop">
           <b style="color:var(--vis)">The Visionary: Aria Chen</b>

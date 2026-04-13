@@ -625,7 +625,12 @@ try {
   es.addEventListener('status', e => {
     const d = JSON.parse(e.data);
     log('info', `Phase: ${d.phase}`);
-    if (d.maxTurns) $('m-max-turns').textContent = d.maxTurns;
+    if (d.maxTurns) {
+      $('m-max-turns').textContent = d.maxTurns;
+      // Update tagline dynamically
+      const tag = $('top-tagline');
+      if (tag) tag.textContent = `Same colony, two different leaders. ${d.maxTurns} turns on Mars.`;
+    }
     if (Array.isArray(d.customEvents) && d.customEvents.length) {
       log('info', `Custom events: ${d.customEvents.map(event => event.title).join(', ')}`);
     }
@@ -634,6 +639,10 @@ try {
       if (d.leaders && d.leaders.length >= 2) {
         populateLeader('v', d.leaders[0]);
         populateLeader('e', d.leaders[1]);
+        // Update tagline with leader names
+        const tag = $('top-tagline');
+        const maxT = $('m-max-turns')?.textContent || '12';
+        if (tag) tag.textContent = `${d.leaders[0].name} vs ${d.leaders[1].name}. ${maxT} turns on Mars.`;
       }
     }
   });
