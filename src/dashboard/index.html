@@ -99,11 +99,11 @@
   .tip-wrap{position:relative;display:inline-flex;align-items:center;cursor:help}
   .tip-icon{font-size:9px;color:var(--text-3);margin-left:4px;opacity:.5;transition:all .2s;background:var(--border);width:14px;height:14px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-family:var(--sans);flex-shrink:0}
   .tip-wrap:hover .tip-icon{opacity:1;color:var(--bg-deep);background:var(--amber)}
-  .tip-pop{display:none;position:absolute;top:100%;left:0;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:10px 12px;font-size:11px;color:var(--text-2);line-height:1.6;width:280px;box-shadow:0 4px 20px rgba(0,0,0,.5);pointer-events:none;white-space:normal}
-  .tip-wrap:hover .tip-pop{display:block}
-  .tip-pop b{color:var(--text-1);display:block;margin-bottom:4px;font-size:12px}
-  .tip-pop .tip-trait{display:flex;justify-content:space-between;font-size:10px;font-family:var(--mono);padding:1px 0}
-  .tip-pop .tip-trait span:first-child{color:var(--text-3)}
+  .tip-pop{display:none;position:fixed;z-index:9999;background:#14110e;border:3px solid var(--amber);border-radius:14px;padding:28px 32px;font-size:18px;color:#f5f0e4;line-height:2;width:640px;max-width:96vw;max-height:80vh;overflow-y:auto;box-shadow:0 16px 80px rgba(0,0,0,.98);pointer-events:none;white-space:normal}
+  /* JS handles show/hide for tip-pop too */
+  .tip-pop b{color:#f5f0e4;display:block;margin-bottom:10px;font-size:22px}
+  .tip-pop .tip-trait{display:flex;justify-content:space-between;font-size:17px;font-family:var(--mono);padding:4px 0}
+  .tip-pop .tip-trait span:first-child{color:#d8ccb0}
 
   /* Inline hover popovers for cards */
   .hover-tip{position:relative;cursor:help}

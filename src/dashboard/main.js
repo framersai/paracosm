@@ -112,7 +112,7 @@ function addTimeline(s, year, text, badgeCls, badge) {
   tl.querySelectorAll('.tr.now').forEach(el => el.classList.remove('now'));
   const div = document.createElement('div');
   div.className = 'tr now hover-tip';
-  div.innerHTML = `<span class="ty ${s}">${year}</span><span class="tt">${text}</span><span class="ob ${badgeCls}" style="font-size:9px;padding:1px 5px">${badge}</span><div class="htip" style="bottom:100%;top:auto;width:280px"><b>Year ${year}</b><div style="margin-top:3px;color:var(--text-1);line-height:1.5">${text}</div></div>`;
+  div.innerHTML = `<span class="ty ${s}">${year}</span><span class="tt">${text}</span><span class="ob ${badgeCls}" style="font-size:9px;padding:1px 5px">${badge}</span><div class="htip"><b>Year ${year}</b><div style="margin-top:6px">${text}</div></div>`;
   tl.appendChild(div);
   tl.scrollTo({ top: tl.scrollHeight, behavior: 'smooth' });
 }
@@ -1025,34 +1025,37 @@ function handleSimEvent(d) {
   }
 }
 
-// Position fixed tooltips near hovered element
-document.addEventListener('mouseover', e => {
-  const tip = e.target.closest('.hover-tip');
-  if (!tip) return;
-  const htip = tip.querySelector('.htip');
-  if (!htip) return;
-  const rect = tip.getBoundingClientRect();
-  // Position off-screen to measure without disrupting layout
-  htip.style.left = '-9999px';
-  htip.style.top = '-9999px';
-  htip.style.display = 'block';
-  const tipH = htip.offsetHeight || 200;
-  const tipW = htip.offsetWidth || 360;
+// Position ALL fixed tooltips (.htip and .tip-pop) near hovered element
+function positionTooltip(trigger, popup) {
+  popup.style.left = '-9999px';
+  popup.style.top = '-9999px';
+  popup.style.display = 'block';
+  const rect = trigger.getBoundingClientRect();
+  const tipH = popup.offsetHeight || 300;
+  const tipW = popup.offsetWidth || 640;
   let left = rect.left;
-  let top = rect.top - tipH - 8;
-  if (top < 10) top = rect.bottom + 8;
+  let top = rect.top - tipH - 12;
+  if (top < 10) top = rect.bottom + 12;
   if (left + tipW > window.innerWidth - 10) left = window.innerWidth - tipW - 10;
   if (left < 10) left = 10;
   if (top + tipH > window.innerHeight - 10) top = window.innerHeight - tipH - 10;
   if (top < 10) top = 10;
-  htip.style.left = left + 'px';
-  htip.style.top = top + 'px';
+  popup.style.left = left + 'px';
+  popup.style.top = top + 'px';
+}
+document.addEventListener('mouseover', e => {
+  // .hover-tip + .htip
+  const ht = e.target.closest('.hover-tip');
+  if (ht) { const p = ht.querySelector('.htip'); if (p) positionTooltip(ht, p); }
+  // .tip-wrap + .tip-pop
+  const tw = e.target.closest('.tip-wrap');
+  if (tw) { const p = tw.querySelector('.tip-pop'); if (p) positionTooltip(tw, p); }
 });
 document.addEventListener('mouseout', e => {
-  const tip = e.target.closest('.hover-tip');
-  if (!tip) return;
-  const htip = tip.querySelector('.htip');
-  if (htip) htip.style.display = 'none';
+  const ht = e.target.closest('.hover-tip');
+  if (ht) { const p = ht.querySelector('.htip'); if (p) p.style.display = 'none'; }
+  const tw = e.target.closest('.tip-wrap');
+  if (tw) { const p = tw.querySelector('.tip-pop'); if (p) p.style.display = 'none'; }
 });
 
 // Dismiss intro if previously dismissed
