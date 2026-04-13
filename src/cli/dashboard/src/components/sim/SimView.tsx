@@ -65,7 +65,7 @@ export function SimView({ state }: SimViewProps) {
   return (
     <div className="flex flex-col h-full">
       <DivergenceRail state={state} />
-      <div className="flex flex-1 gap-px overflow-hidden" style={{ background: 'var(--border-primary)' }}>
+      <div className="flex flex-col md:flex-row flex-1 gap-px overflow-hidden md:overflow-hidden" style={{ background: 'var(--border-primary)' }}>
         <SideColumn side="a" sideState={state.a} state={state} />
         <SideColumn side="b" sideState={state.b} state={state} />
       </div>

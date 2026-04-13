@@ -11,6 +11,8 @@ import { SimView } from './components/sim/SimView';
 import { SettingsPanel } from './components/settings/SettingsPanel';
 import { ReportView } from './components/reports/ReportView';
 import { ChatPanel } from './components/chat/ChatPanel';
+import { AboutPage } from './components/about/AboutPage';
+import { Footer } from './components/layout/Footer';
 import { ToastProvider, useToast } from './components/shared/Toast';
 import { Analytics } from './components/shared/Analytics';
 
@@ -88,70 +90,9 @@ function AppContent() {
             </div>
           )}
 
-          {activeTab === 'about' && (
-            <div className="flex-1 overflow-y-auto p-6">
-              <div className="max-w-3xl mx-auto">
-                <h2 className="text-xl font-bold mb-4">About {scenario.labels.name}</h2>
-                <p className="leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                  Paracosm is a scenario-driven multi-agent simulation engine built on <a href="https://agentos.sh" target="_blank" rel="noopener" style={{ color: 'var(--accent-primary)' }}>AgentOS</a>.
-                  Two AI commanders with distinct HEXACO personalities lead the same settlement through emergent crises.
-                  Department agents forge computational tools at runtime, an LLM-as-judge reviews them for safety and correctness,
-                  and a Crisis Director generates unique scenarios per timeline based on colony state, decision history, and tool intelligence.
-                </p>
-
-                {/* Enterprise banner */}
-                <div
-                  className="mt-8 rounded-xl p-6"
-                  style={{
-                    background: 'linear-gradient(135deg, var(--bg-card), var(--bg-elevated))',
-                    border: '1px solid var(--border-interactive)',
-                    boxShadow: '0 0 30px rgba(99, 102, 241, 0.1)',
-                  }}
-                >
-                  <div className="text-[10px] font-extrabold tracking-[0.2em] uppercase mb-3" style={{ color: 'var(--accent-primary)' }}>
-                    Coming Soon
-                  </div>
-                  <h3 className="text-lg font-bold mb-3" style={{ color: 'var(--text-primary)' }}>
-                    Paracosm Enterprise
-                  </h3>
-                  <p className="text-sm leading-relaxed mb-4" style={{ color: 'var(--text-secondary)' }}>
-                    An enterprise-grade backend and advanced administrative UI designed to support hundreds of concurrent simulations
-                    with analytics dashboards, cost tracking, and reproducible experiment manifests. Advanced scenario presets for
-                    geopolitical conflict, government policy, technology markets, economic forecasting, business acquisition modeling,
-                    consumer behavior prediction, and more.
-                  </p>
-                  <p className="text-sm leading-relaxed mb-5" style={{ color: 'var(--text-secondary)' }}>
-                    Run batch experiments across scenario variants. Compare outcomes with statistical rigor.
-                    Export structured data for downstream analysis. Full API access for programmatic integration.
-                  </p>
-                  <a
-                    href="mailto:team@frame.dev?subject=Paracosm Enterprise Inquiry"
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all"
-                    style={{
-                      background: 'var(--accent-primary)',
-                      color: 'var(--text-contrast)',
-                    }}
-                  >
-                    Contact team@frame.dev for collaborations and early access
-                  </a>
-                </div>
-
-                <div className="mt-8 flex gap-4 text-sm">
-                  <a href="https://agentos.sh" target="_blank" rel="noopener" style={{ color: 'var(--accent-primary)' }}>agentos.sh</a>
-                  <a href="https://github.com/framersai/paracosm" target="_blank" rel="noopener" style={{ color: 'var(--accent-primary)' }}>GitHub</a>
-                  <a href="https://www.npmjs.com/package/paracosm" target="_blank" rel="noopener" style={{ color: 'var(--accent-primary)' }}>npm</a>
-                  <a href="https://frame.dev" target="_blank" rel="noopener" style={{ color: 'var(--accent-primary)' }}>Frame.dev</a>
-                  <a href="https://wilds.ai/discord" target="_blank" rel="noopener" style={{ color: 'var(--accent-primary)' }}>Discord</a>
-                </div>
-
-                <div className="mt-8 pt-6 text-xs" style={{ borderTop: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }}>
-                  Built by <a href="https://manic.agency" target="_blank" rel="noopener" style={{ color: 'var(--text-secondary)' }}>Manic Agency LLC</a> / <a href="https://frame.dev" target="_blank" rel="noopener" style={{ color: 'var(--text-secondary)' }}>Frame.dev</a>.
-                  Apache-2.0 licensed.
-                </div>
-              </div>
-            </div>
-          )}
+          {activeTab === 'about' && <AboutPage />}
         </div>
+        <Footer />
       </div>
     </ScenarioContext.Provider>
   );
