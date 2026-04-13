@@ -61,6 +61,9 @@ export interface SimulationSetupPayload {
   apiKey?: string;
   anthropicKey?: string;
   serperKey?: string;
+  firecrawlKey?: string;
+  tavilyKey?: string;
+  cohereKey?: string;
 }
 
 export interface NormalizedSimulationConfig {
@@ -81,6 +84,9 @@ export interface NormalizedSimulationConfig {
   apiKey?: string;
   anthropicKey?: string;
   serperKey?: string;
+  firecrawlKey?: string;
+  tavilyKey?: string;
+  cohereKey?: string;
 }
 
 export const DEFAULT_KEY_PERSONNEL: KeyPersonnel[] = [
@@ -219,5 +225,8 @@ export function normalizeSimulationConfig(input: SimulationSetupPayload): Normal
     apiKey: input.apiKey,
     anthropicKey: input.anthropicKey,
     serperKey: input.serperKey,
+    firecrawlKey: input.firecrawlKey,
+    tavilyKey: input.tavilyKey,
+    cohereKey: input.cohereKey,
   };
 }

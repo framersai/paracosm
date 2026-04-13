@@ -507,7 +507,9 @@
     <div class="s-section">
       <h3>API Keys</h3>
       <div class="srow"><div class="sf"><label>OpenAI</label><input id="s-apikey" type="password" placeholder="sk-..." value=""></div><div class="sf"><label>Anthropic</label><input id="s-anthropic" type="password" placeholder="sk-ant-..." value=""></div></div>
-      <div class="sf" style="margin-top:4px"><label>Serper (web search)</label><input id="s-serper" type="password" placeholder="optional"></div>
+      <h3 style="margin-top:6px">Research & Citations <span style="font-size:8px;color:var(--text-3);font-weight:400">(all optional, more = richer citations)</span></h3>
+      <div class="srow"><div class="sf"><label>Serper</label><input id="s-serper" type="password" placeholder="Google search"></div><div class="sf"><label>Tavily</label><input id="s-tavily" type="password" placeholder="AI search"></div></div>
+      <div class="srow"><div class="sf"><label>Firecrawl</label><input id="s-firecrawl" type="password" placeholder="web scraping"></div><div class="sf"><label>Cohere</label><input id="s-cohere" type="password" placeholder="neural reranking"></div></div>
       <div style="margin-top:4px"><button class="s-add" onclick="testApiKey()" id="s-test-btn">Test</button> <span id="s-test-status" style="font-size:10px;color:var(--text-3)"></span></div>
       <h3 style="margin-top:8px">Provider & Models</h3>
       <div class="sf"><label>Provider</label><select id="s-provider" onchange="syncProviderDefaults(true)"><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option></select></div>
