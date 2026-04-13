@@ -3,18 +3,46 @@
   "version": "0.1.0",
   "description": "Multi-agent simulation engine with emergent behavior, personality-driven divergence, and runtime tool forging. Built on AgentOS.",
   "type": "module",
+  "main": "dist/engine/index.js",
+  "types": "dist/engine/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/engine/index.js",
+      "types": "./dist/engine/index.d.ts"
+    },
+    "./mars": {
+      "import": "./dist/engine/mars/index.js",
+      "types": "./dist/engine/mars/index.d.ts"
+    },
+    "./runtime": {
+      "import": "./dist/runtime/index.js",
+      "types": "./dist/runtime/index.d.ts"
+    },
+    "./core": {
+      "import": "./dist/engine/core/state.js",
+      "types": "./dist/engine/core/state.d.ts"
+    }
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
-    "run": "npx tsx src/run.ts",
-    "run:a": "npx tsx src/run-a.ts",
-    "run:b": "npx tsx src/run-b.ts",
-    "smoke": "npx tsx src/run-a.ts 3",
-    "compare": "npx tsx src/run-a.ts && npx tsx src/run-b.ts",
-    "dashboard": "npx tsx src/serve.ts",
-    "dashboard:smoke": "npx tsx src/serve.ts 3",
-    "check:dashboard": "node --check src/dashboard/main.js",
-    "test": "node --import tsx --test src/*.test.ts src/**/*.test.ts",
-    "leader:a": "npx tsx src/run-a.ts",
-    "leader:b": "npx tsx src/run-b.ts"
+    "build": "tsc -p tsconfig.build.json",
+    "run": "npx tsx src/cli/run.ts",
+    "run:a": "npx tsx src/cli/run-a.ts",
+    "run:b": "npx tsx src/cli/run-b.ts",
+    "smoke": "npx tsx src/cli/run-a.ts 3",
+    "compare": "npx tsx src/cli/run-a.ts && npx tsx src/cli/run-b.ts",
+    "dashboard": "npx tsx src/cli/serve.ts",
+    "dashboard:smoke": "npx tsx src/cli/serve.ts 3",
+    "check:dashboard": "node --check src/cli/dashboard/main.js",
+    "test": "node --import tsx --test src/**/*.test.ts",
+    "docs": "typedoc",
+    "prepublishOnly": "npm run build",
+    "leader:a": "npx tsx src/cli/run-a.ts",
+    "leader:b": "npx tsx src/cli/run-b.ts"
   },
   "dependencies": {
     "@framers/agentos": "^0.1.211"
@@ -22,22 +50,23 @@
   "devDependencies": {
     "@types/node": "^25.6.0",
     "tsx": "^4.21.0",
+    "typedoc": "^0.28.0",
     "typescript": "^5.4.0"
   },
   "keywords": [
-    "agentos",
-    "ai-agents",
+    "paracosm",
     "simulation",
-    "mars",
+    "multi-agent",
+    "ai-agents",
     "emergent-behavior",
     "tool-forging",
     "hexaco",
     "personality",
-    "multi-agent",
+    "agentos",
     "typescript"
   ],
   "author": "Manic Agency LLC <team@frame.dev>",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/framersai/paracosm"

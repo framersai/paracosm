@@ -1,5 +1,5 @@
 import { DEFAULT_KEY_PERSONNEL, type NormalizedSimulationConfig } from './sim-config.js';
-import { marsScenario } from './engine/mars/index.js';
+import { marsScenario } from '../engine/mars/index.js';
 
 export type BroadcastFn = (event: string, data: unknown) => void;
 
@@ -10,7 +10,7 @@ export async function runPairSimulations(
   const { leaders, turns, seed, startYear, liveSearch, customEvents } = simConfig;
   broadcast('status', { phase: 'starting', maxTurns: turns, customEvents });
 
-  const { runSimulation } = await import('./agents/orchestrator.js');
+  const { runSimulation } = await import('../runtime/orchestrator.js');
   const onEvent = (event: unknown) => broadcast('sim', event);
   broadcast('status', {
     phase: 'parallel',

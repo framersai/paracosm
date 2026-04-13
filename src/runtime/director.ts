@@ -5,10 +5,10 @@
  * (Legacy Assessment) remain fixed milestones for narrative anchoring.
  */
 
-import type { Department, HexacoProfile, TurnOutcome } from '../kernel/state.js';
+import type { Department, HexacoProfile, TurnOutcome } from '../engine/core/state.js';
 import type { CrisisOption } from './contracts.js';
-import type { LlmProvider } from '../sim-config.js';
-import { SCENARIOS } from '../research/scenarios.js';
+import type { LlmProvider } from '../cli/sim-config.js';
+import { SCENARIOS } from './research/scenarios.js';
 
 export type CrisisCategory =
   | 'environmental' | 'resource' | 'medical' | 'psychological'

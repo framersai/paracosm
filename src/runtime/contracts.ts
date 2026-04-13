@@ -1,5 +1,5 @@
-import type { Department, Colonist } from '../kernel/state.js';
-import type { ColonyPatch } from '../kernel/kernel.js';
+import type { Department, Colonist } from '../engine/core/state.js';
+import type { ColonyPatch } from '../engine/core/kernel.js';
 
 export interface CrisisOption {
   id: string;

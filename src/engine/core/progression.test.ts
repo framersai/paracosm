@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SeededRng } from './rng.js';
 import { progressBetweenTurns } from './progression.js';
-import { marsProgressionHook } from '../engine/mars/progression-hooks.js';
+import { marsProgressionHook } from '../mars/progression-hooks.js';
 
 const makeState = (overrides: any = {}) => ({
   metadata: {

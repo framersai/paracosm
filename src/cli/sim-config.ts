@@ -1,5 +1,5 @@
-import type { KeyPersonnel } from './kernel/colonist-generator.js';
-import type { Department } from './kernel/state.js';
+import type { KeyPersonnel } from '../engine/core/colonist-generator.js';
+import type { Department } from '../engine/core/state.js';
 import type { LeaderConfig } from './types.js';
 
 export interface SimulationModelConfig {

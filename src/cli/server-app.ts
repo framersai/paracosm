@@ -4,8 +4,8 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { normalizeSimulationConfig, type NormalizedSimulationConfig } from './sim-config.js';
 import { runPairSimulations, type BroadcastFn } from './pair-runner.js';
-import { marsScenario } from './engine/mars/index.js';
-import type { ScenarioPackage } from './engine/types.js';
+import { marsScenario } from '../engine/mars/index.js';
+import type { ScenarioPackage } from '../engine/types.js';
 
 function projectScenarioForClient(sc: ScenarioPackage) {
   return {
@@ -331,8 +331,8 @@ Respond in character as this person. Be direct, personal, emotional. Reference y
 
     if (req.url === '/favicon.svg' || req.url === '/favicon.png' || req.url === '/favicon.ico') {
       try {
-        const svgPath = resolve(__dirname, '..', 'assets', 'mars-genesis-icon.svg');
-        const pngPath = resolve(__dirname, '..', 'assets', 'agentos-icon.png');
+        const svgPath = resolve(__dirname, '..', '..', 'assets', 'mars-genesis-icon.svg');
+        const pngPath = resolve(__dirname, '..', '..', 'assets', 'agentos-icon.png');
         if (existsSync(svgPath)) {
           const svg = readFileSync(svgPath, 'utf-8');
           res.writeHead(200, { 'Content-Type': 'image/svg+xml', 'Cache-Control': 'public, max-age=86400' });

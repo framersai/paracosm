@@ -6,7 +6,7 @@
  * research is pulled contextually.
  */
 
-import type { CrisisResearchPacket } from '../agents/contracts.js';
+import type { CrisisResearchPacket } from '../contracts.js';
 
 export type ResearchTopic =
   | 'radiation' | 'water' | 'food' | 'perchlorate' | 'life-support'

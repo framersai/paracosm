@@ -17,7 +17,7 @@ import type { LeaderConfig } from './types.js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = parseInt(process.env.PORT || '3456', 10);
 
-const envPath = resolve(__dirname, '..', '.env');
+const envPath = resolve(__dirname, '..', '..', '.env');
 if (existsSync(envPath)) {
   for (const line of readFileSync(envPath, 'utf-8').split('\n')) {
     const match = line.match(/^\s*([^#=]+?)\s*=\s*(.+?)\s*$/);
@@ -40,7 +40,7 @@ server.listen(PORT, async () => {
   }
 
   // Load leaders from leaders.json
-  const leadersPath = resolve(__dirname, '..', 'leaders.json');
+  const leadersPath = resolve(__dirname, '..', '..', 'leaders.json');
   let leaders: LeaderConfig[];
   if (existsSync(leadersPath)) {
     leaders = JSON.parse(readFileSync(leadersPath, 'utf-8')).leaders;

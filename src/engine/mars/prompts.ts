@@ -1,4 +1,4 @@
-import type { SimulationState } from '../../kernel/state.js';
+import type { SimulationState } from '../core/state.js';
 
 /**
  * Mars-specific department prompt context lines.

@@ -1,4 +1,4 @@
-import type { HexacoProfile } from './kernel/state.js';
+import type { HexacoProfile } from '../engine/core/state.js';
 export type { HexacoProfile };
 
 export interface LeaderConfig {
@@ -75,5 +75,5 @@ export interface Scenario {
   snapshotHints: Partial<ColonySnapshot>;
   riskyOption: string;
   riskSuccessProbability: number;
-  options?: import('./agents/contracts.js').CrisisOption[];
+  options?: import('../runtime/contracts.js').CrisisOption[];
 }
