@@ -104,18 +104,86 @@ function addTimeline(s, year, text, badgeCls, badge) {
 // --- Game data ---
 const gameData = { config: null, events: [], results: [], startedAt: new Date().toISOString(), completedAt: null };
 
+const DEFAULT_SETUP_PERSONNEL = [
+  { name: 'Dr. Yuki Tanaka', specialization: 'Radiation Medicine', age: 38, department: 'medical' },
+  { name: 'Erik Lindqvist', specialization: 'Structural Engineering', age: 45, department: 'engineering' },
+  { name: 'Amara Osei', specialization: 'Hydroponics', age: 34, department: 'agriculture' },
+  { name: 'Dr. Priya Singh', specialization: 'Clinical Psychology', age: 41, department: 'psychology' },
+  { name: 'Carlos Fernandez', specialization: 'Geology', age: 50, department: 'science' },
+];
+
+function defaultSideState() {
+  return { pop: [], morale: [], deaths: 0, tools: 0, crisis: null, decision: null, outcome: null, prevColony: null, prevDrift: {} };
+}
+
+function updateTimelineLabels(config = gameData.config) {
+  const leaders = config?.leaders || [];
+  $('tl-v-label').textContent = (leaders[0]?.colony || 'ARES HORIZON').toUpperCase();
+  $('tl-e-label').textContent = (leaders[1]?.colony || 'MERIDIAN BASE').toUpperCase();
+}
+
+function resetSimulationView(config = gameData.config) {
+  state.v = defaultSideState();
+  state.e = defaultSideState();
+  Object.keys(leaderMap).forEach(k => delete leaderMap[k]);
+  $('body-v').innerHTML = `<div class="waiting"><span class="spinner">◉</span> Waiting for ${config?.leaders?.[0]?.name || 'Visionary'}...</div>`;
+  $('body-e').innerHTML = `<div class="waiting"><span class="spinner">◉</span> Waiting for ${config?.leaders?.[1]?.name || 'Engineer'}...</div>`;
+  $('tl-v').innerHTML = '<div class="tl-label v" id="tl-v-label">ARES HORIZON</div>';
+  $('tl-e').innerHTML = '<div class="tl-label e" id="tl-e-label">MERIDIAN BASE</div>';
+  $('crisis-v').style.display = 'none';
+  $('crisis-e').style.display = 'none';
+  $('crisis-v-title').textContent = '';
+  $('crisis-v-cat').textContent = '';
+  $('crisis-v-summary').textContent = '';
+  $('crisis-e-title').textContent = '';
+  $('crisis-e-cat').textContent = '';
+  $('crisis-e-summary').textContent = '';
+  $('diverge-rail').style.display = 'none';
+  $('diverge-rail').innerHTML = '';
+  $('crisis').textContent = '⚡ Waiting...';
+  $('m-turn').textContent = '—';
+  $('m-year').textContent = '—';
+  $('m-max-turns').textContent = String(config?.turns || 12);
+  $('m-seed').textContent = String(config?.seed || 950);
+  $('m-status').textContent = '● Waiting';
+  $('m-status').style.color = '';
+  $('m-status').style.animation = '';
+  $('s-v-pop').textContent = '—';
+  $('s-e-pop').textContent = '—';
+  $('s-v-morale').textContent = '—';
+  $('s-e-morale').textContent = '—';
+  $('s-v-deaths').textContent = '—';
+  $('s-e-deaths').textContent = '—';
+  $('s-v-tools').textContent = '0';
+  $('s-e-tools').textContent = '0';
+  $('spark-v-pop').textContent = '—';
+  $('spark-e-pop').textContent = '—';
+  $('spark-v-morale').textContent = '—';
+  $('spark-e-morale').textContent = '—';
+  $('save-game-btn').style.display = 'none';
+  $('debug').innerHTML = '';
+  updateTimelineLabels(config);
+}
+
+function encodeSharedConfig(config) {
+  const bytes = new TextEncoder().encode(JSON.stringify(config));
+  let binary = '';
+  bytes.forEach(byte => { binary += String.fromCharCode(byte); });
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+function decodeSharedConfig(value) {
+  const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = normalized + '='.repeat((4 - normalized.length % 4) % 4);
+  const binary = atob(padded);
+  const bytes = Uint8Array.from(binary, ch => ch.charCodeAt(0));
+  return JSON.parse(new TextDecoder().decode(bytes));
+}
+
 function shareConfig() {
   const cfg = buildSetupConfig();
   const p = new URLSearchParams();
-  p.set('seed', cfg.seed); p.set('turns', cfg.turns);
-  p.set('a_name', cfg.leaders[0].name); p.set('a_arch', cfg.leaders[0].archetype); p.set('a_colony', cfg.leaders[0].colony);
-  const ha = cfg.leaders[0].hexaco;
-  p.set('a_o', ha.openness); p.set('a_c', ha.conscientiousness); p.set('a_e', ha.extraversion);
-  p.set('a_a', ha.agreeableness); p.set('a_em', ha.emotionality); p.set('a_hh', ha.honestyHumility);
-  p.set('b_name', cfg.leaders[1].name); p.set('b_arch', cfg.leaders[1].archetype); p.set('b_colony', cfg.leaders[1].colony);
-  const hb = cfg.leaders[1].hexaco;
-  p.set('b_o', hb.openness); p.set('b_c', hb.conscientiousness); p.set('b_e', hb.extraversion);
-  p.set('b_a', hb.agreeableness); p.set('b_em', hb.emotionality); p.set('b_hh', hb.honestyHumility);
+  p.set('cfg', encodeSharedConfig(cfg));
   const url = window.location.origin + window.location.pathname + '?' + p.toString() + '#settings';
   navigator.clipboard.writeText(url).then(() => {
     $('s-launch-status').textContent = 'Config URL copied to clipboard!';
@@ -123,8 +191,77 @@ function shareConfig() {
   }).catch(() => { prompt('Share this URL:', url); });
 }
 
+function addPersonnelRow(person = {}) {
+  const row = document.createElement('div');
+  row.className = 's-person';
+  row.innerHTML = `<input value="${person.name || ''}"><input value="${person.specialization || ''}"><input value="${person.age ?? 35}" type="number"><select><option value="medical">Medical</option><option value="engineering">Engineering</option><option value="agriculture">Agriculture</option><option value="psychology">Psychology</option><option value="science">Science</option></select>`;
+  row.querySelector('select').value = person.department || 'science';
+  $('s-personnel').appendChild(row);
+}
+
+function setSetupPersonnel(personnel = DEFAULT_SETUP_PERSONNEL) {
+  $('s-personnel').innerHTML = '';
+  (personnel.length ? personnel : DEFAULT_SETUP_PERSONNEL).forEach(person => addPersonnelRow(person));
+}
+
+function applySetupConfig(cfg) {
+  if (cfg.leaders?.length >= 2) {
+    const a = cfg.leaders[0], b = cfg.leaders[1];
+    $('sa-name').value = a.name || '';
+    $('sa-arch').value = a.archetype || '';
+    $('sa-colony').value = a.colony || '';
+    $('sa-instr').value = a.instructions || '';
+    if (a.hexaco) setSHex('a', a.hexaco);
+    $('sb-name').value = b.name || '';
+    $('sb-arch').value = b.archetype || '';
+    $('sb-colony').value = b.colony || '';
+    $('sb-instr').value = b.instructions || '';
+    if (b.hexaco) setSHex('b', b.hexaco);
+  }
+  if (cfg.turns != null) $('s-turns').value = cfg.turns;
+  if (cfg.seed != null) $('s-seed').value = cfg.seed;
+  if (cfg.startYear != null) $('s-year').value = cfg.startYear;
+  if (cfg.provider) $('s-provider').value = cfg.provider;
+  if (cfg.population != null) $('s-pop').value = cfg.population;
+  if (cfg.startingResources) {
+    if (cfg.startingResources.food != null) $('s-food').value = cfg.startingResources.food;
+    if (cfg.startingResources.water != null) $('s-water').value = cfg.startingResources.water;
+    if (cfg.startingResources.power != null) $('s-power').value = cfg.startingResources.power;
+    if (cfg.startingResources.morale != null) $('s-morale').value = cfg.startingResources.morale;
+    if (cfg.startingResources.lifeSupportCapacity != null) $('s-lifesup').value = cfg.startingResources.lifeSupportCapacity;
+    if (cfg.startingResources.infrastructureModules != null) $('s-infra').value = cfg.startingResources.infrastructureModules;
+    if (cfg.startingResources.pressurizedVolumeM3 != null) $('s-volume').value = cfg.startingResources.pressurizedVolumeM3;
+  }
+  if (cfg.startingPolitics?.earthDependencyPct != null) $('s-earthdep').value = cfg.startingPolitics.earthDependencyPct;
+  if (cfg.execution) {
+    if (cfg.execution.commanderMaxSteps != null) $('s-cmd-steps').value = cfg.execution.commanderMaxSteps;
+    if (cfg.execution.departmentMaxSteps != null) $('s-dept-steps').value = cfg.execution.departmentMaxSteps;
+    if (cfg.execution.sandboxTimeoutMs != null) $('s-sandbox-timeout').value = cfg.execution.sandboxTimeoutMs;
+    if (cfg.execution.sandboxMemoryMB != null) $('s-sandbox-mem').value = cfg.execution.sandboxMemoryMB;
+  }
+  if (typeof cfg.liveSearch === 'boolean') $('s-search').value = String(cfg.liveSearch);
+  $('s-events').innerHTML = '';
+  sec = 0;
+  (cfg.customEvents || []).forEach(event => addSetupEvent(event.turn, event.title));
+  Array.from(document.querySelectorAll('.s-evrow')).forEach((row, index) => {
+    const inputs = row.querySelectorAll('input');
+    if (inputs[2]) inputs[2].value = cfg.customEvents?.[index]?.description || '';
+  });
+  setSetupPersonnel(cfg.keyPersonnel || DEFAULT_SETUP_PERSONNEL);
+  syncProviderDefaults(false, cfg.models);
+  $('s-preset').value = 'custom';
+}
+
 function loadFromParams() {
   const p = new URLSearchParams(window.location.search);
+  if (p.has('cfg')) {
+    try {
+      applySetupConfig(decodeSharedConfig(p.get('cfg')));
+      return true;
+    } catch {
+      return false;
+    }
+  }
   if (!p.has('seed') && !p.has('a_name')) return false;
   if (p.has('seed')) $('s-seed').value = p.get('seed');
   if (p.has('turns')) $('s-turns').value = p.get('turns');
@@ -169,11 +306,8 @@ function loadGame(e) {
       gameData.results = saved.results || [];
       gameData.startedAt = saved.startedAt || '';
       gameData.completedAt = saved.completedAt || '';
-      state.v = { pop: [], morale: [], deaths: 0, tools: 0, crisis: null, decision: null, outcome: null, prevColony: null, prevDrift: {} };
-      state.e = { pop: [], morale: [], deaths: 0, tools: 0, crisis: null, decision: null, outcome: null, prevColony: null, prevDrift: {} };
-      Object.keys(leaderMap).forEach(k => delete leaderMap[k]);
-      $('body-v').innerHTML = '';
-      $('body-e').innerHTML = '';
+      if (gameData.config) applySetupConfig(gameData.config);
+      resetSimulationView(gameData.config);
       switchTab('sim');
       let i = 0;
       function replayNext() {
@@ -209,35 +343,45 @@ function applySetupPreset(name) {
   $('sa-name').value = p.a.name; $('sa-arch').value = p.a.arch; $('sa-colony').value = p.a.colony; $('sa-instr').value = p.a.instr; setSHex('a', p.a.hexaco);
   $('sb-name').value = p.b.name; $('sb-arch').value = p.b.arch; $('sb-colony').value = p.b.colony; $('sb-instr').value = p.b.instr; setSHex('b', p.b.hexaco);
   $('s-turns').value = p.turns; $('s-seed').value = p.seed;
+  syncProviderDefaults();
 }
 
-function syncProviderDefaults(force = false) {
+function inferProviderFromModel(model) {
+  if (!model) return null;
+  if (model.startsWith('claude-')) return 'anthropic';
+  if (model.startsWith('gpt-') || model.startsWith('o')) return 'openai';
+  return null;
+}
+
+function syncProviderDefaults(force = false, models = {}) {
   const provider = $('s-provider')?.value || 'openai';
   const defaults = PROVIDER_DEFAULT_MODELS[provider] || PROVIDER_DEFAULT_MODELS.openai;
 
-  if (force || $('s-model-cmd').value === '' || $('s-model-cmd').dataset.provider !== provider) {
-    $('s-model-cmd').value = defaults.commander;
-  }
-  if (force || $('s-model-dept').value === '' || $('s-model-dept').dataset.provider !== provider) {
-    $('s-model-dept').value = defaults.departments;
-  }
-  if (force || $('s-model-judge').value === '' || $('s-model-judge').dataset.provider !== provider) {
-    $('s-model-judge').value = defaults.judge;
-  }
+  const applyModel = (el, requested, fallback) => {
+    const currentMatches = inferProviderFromModel(el.value) === provider;
+    const requestedMatches = inferProviderFromModel(requested) === provider;
+    el.value = force ? fallback : requestedMatches ? requested : currentMatches ? el.value : fallback;
+    el.dataset.provider = provider;
+  };
 
-  $('s-model-cmd').dataset.provider = provider;
-  $('s-model-dept').dataset.provider = provider;
-  $('s-model-judge').dataset.provider = provider;
+  applyModel($('s-model-cmd'), models.commander, defaults.commander);
+  applyModel($('s-model-dept'), models.departments, defaults.departments);
+  applyModel($('s-model-judge'), models.judge, defaults.judge);
 }
 
 let sec = 0;
 function addSetupEvent(t = '', ti = '') {
   sec++; const d = document.createElement('div'); d.className = 's-evrow'; d.id = `sev-${sec}`;
-  d.innerHTML = `<input type="number" min="1" max="12" placeholder="T" value="${t}"><input placeholder="Title" value="${ti}"><input placeholder="Description"><button class="s-rm" onclick="this.parentElement.remove()">x</button>`;
+  d.innerHTML = `<input type="number" min="1" placeholder="T" value="${t}"><input placeholder="Title" value="${ti}"><input placeholder="Description"><button class="s-rm" onclick="this.parentElement.remove()">x</button>`;
   $('s-events').appendChild(d);
 }
 function getSetupEvents() {
   return Array.from(document.querySelectorAll('.s-evrow')).map(r => { const ins = r.querySelectorAll('input'); return { turn: parseInt(ins[0].value) || 0, title: ins[1].value, description: ins[2].value }; }).filter(e => e.turn > 0 && e.title);
+}
+function addPersonnel() {
+  const d = document.createElement('div'); d.className = 's-person';
+  d.innerHTML = '<input placeholder="Name"><input placeholder="Specialization"><input value="35" type="number"><select><option value="medical">Medical</option><option value="engineering">Engineering</option><option value="agriculture">Agriculture</option><option value="psychology">Psychology</option><option value="science">Science</option><option value="governance">Governance</option></select><button class="s-rm" onclick="this.parentElement.remove()">x</button>';
+  $('s-personnel').appendChild(d);
 }
 function getSetupPersonnel() {
   return Array.from(document.querySelectorAll('.s-person')).map(r => { const ins = r.querySelectorAll('input'); const sel = r.querySelector('select'); return { name: ins[0].value, specialization: ins[1].value, age: parseInt(ins[2].value) || 35, department: sel.value, role: 'Specialist', featured: true }; });
@@ -253,7 +397,24 @@ function buildSetupConfig() {
     turns: parseInt($('s-turns').value) || 12, seed: parseInt($('s-seed').value) || 950,
     startYear: parseInt($('s-year').value) || 2035,
     population: parseInt($('s-pop').value) || 100,
-    startingResources: { food: parseInt($('s-food').value) || 18, water: parseInt($('s-water').value) || 800, power: parseInt($('s-power').value) || 400, morale: parseInt($('s-morale').value) || 85 },
+    startingResources: {
+      food: parseInt($('s-food').value) || 18,
+      water: parseInt($('s-water').value) || 800,
+      power: parseInt($('s-power').value) || 400,
+      morale: parseInt($('s-morale').value) || 85,
+      lifeSupportCapacity: parseInt($('s-lifesup').value) || 120,
+      infrastructureModules: parseInt($('s-infra').value) || 3,
+      pressurizedVolumeM3: parseInt($('s-volume').value) || 3000,
+    },
+    startingPolitics: {
+      earthDependencyPct: parseInt($('s-earthdep').value) || 95,
+    },
+    execution: {
+      commanderMaxSteps: parseInt($('s-cmd-steps').value) || 5,
+      departmentMaxSteps: parseInt($('s-dept-steps').value) || 8,
+      sandboxTimeoutMs: parseInt($('s-sandbox-timeout').value) || 10000,
+      sandboxMemoryMB: parseInt($('s-sandbox-mem').value) || 128,
+    },
     liveSearch: $('s-search').value === 'true', customEvents: getSetupEvents(),
     keyPersonnel: getSetupPersonnel(),
     models: { commander: $('s-model-cmd').value, departments: $('s-model-dept').value, judge: $('s-model-judge').value },
@@ -267,40 +428,7 @@ function exportSetup() {
 function importSetup(e) {
   const file = e.target.files[0]; if (!file) return; const r = new FileReader();
   r.onload = () => { try {
-    const cfg = JSON.parse(r.result);
-    if (cfg.leaders?.length >= 2) { const a = cfg.leaders[0], b = cfg.leaders[1];
-      $('sa-name').value = a.name || ''; $('sa-arch').value = a.archetype || ''; $('sa-colony').value = a.colony || ''; $('sa-instr').value = a.instructions || ''; if (a.hexaco) setSHex('a', a.hexaco);
-      $('sb-name').value = b.name || ''; $('sb-arch').value = b.archetype || ''; $('sb-colony').value = b.colony || ''; $('sb-instr').value = b.instructions || ''; if (b.hexaco) setSHex('b', b.hexaco);
-    }
-    if (cfg.turns) $('s-turns').value = cfg.turns;
-    if (cfg.seed) $('s-seed').value = cfg.seed;
-    if (cfg.startYear) $('s-year').value = cfg.startYear;
-    if (cfg.provider) $('s-provider').value = cfg.provider;
-    if (cfg.population) $('s-pop').value = cfg.population;
-    if (cfg.startingResources) {
-      if (cfg.startingResources.food) $('s-food').value = cfg.startingResources.food;
-      if (cfg.startingResources.water) $('s-water').value = cfg.startingResources.water;
-      if (cfg.startingResources.power) $('s-power').value = cfg.startingResources.power;
-      if (cfg.startingResources.morale) $('s-morale').value = cfg.startingResources.morale;
-    }
-    if (cfg.models) {
-      if (cfg.models.commander) $('s-model-cmd').value = cfg.models.commander;
-      if (cfg.models.departments) $('s-model-dept').value = cfg.models.departments;
-      if (cfg.models.judge) $('s-model-judge').value = cfg.models.judge;
-    }
-    if (typeof cfg.liveSearch === 'boolean') $('s-search').value = String(cfg.liveSearch);
-    if (Array.isArray(cfg.customEvents)) {
-      $('s-events').innerHTML = '';
-      sec = 0;
-      cfg.customEvents.forEach(event => addSetupEvent(event.turn, event.title));
-      const rows = Array.from(document.querySelectorAll('.s-evrow'));
-      cfg.customEvents.forEach((event, index) => {
-        const inputs = rows[index]?.querySelectorAll('input');
-        if (inputs?.[2]) inputs[2].value = event.description || '';
-      });
-    }
-    syncProviderDefaults();
-    $('s-preset').value = 'custom';
+    applySetupConfig(JSON.parse(r.result));
   } catch (err) { alert('Invalid config file'); } }; r.readAsText(file);
 }
 
@@ -337,6 +465,7 @@ async function launchFromSettings() {
       gameData.results = [];
       gameData.startedAt = new Date().toISOString();
       gameData.completedAt = null;
+      resetSimulationView(cfg);
       st.textContent = 'Running...';
       switchTab('sim');
     }
@@ -368,6 +497,8 @@ function generateReport() {
   }
 
   let html = '';
+  const vLabel = gameData.config?.leaders?.[0]?.colony || 'Ares Horizon';
+  const eLabel = gameData.config?.leaders?.[1]?.colony || 'Meridian Base';
   for (const [turnNum, sides] of Object.entries(turns).sort((a, b) => Number(a[0]) - Number(b[0]))) {
     const v = sides.v || {}, e = sides.e || {};
     const year = v.year || e.year || '?';
@@ -377,7 +508,7 @@ function generateReport() {
       <div class="rpt-turn-h"><span class="rpt-turn-title">Turn ${turnNum} \u2014 Year ${year}</span><span class="rpt-turn-meta">${sameCrisis ? 'MILESTONE' : 'DIVERGENT'}</span></div>
       <div class="rpt-cols">
         <div class="rpt-col">
-          <h4 class="v">ARES HORIZON</h4>
+          <h4 class="v">${vLabel.toUpperCase()}</h4>
           <div class="rpt-crisis">\u26A1 ${v.title || 'N/A'}${v.category ? ` <span style="font-size:9px;color:var(--text-3)">${v.category}</span>` : ''}</div>
           <div class="rpt-decision">${(v.decision || 'No decision recorded').slice(0, 300)}</div>
           <div class="rpt-outcome" style="color:${(v.outcome || '').includes('success') ? 'var(--green)' : 'var(--rust)'}">${v.outcome || '?'}</div>
@@ -385,7 +516,7 @@ function generateReport() {
           ${v.colony ? `<div class="rpt-tools">Pop ${v.colony.population} | Morale ${Math.round((v.colony.morale || 0) * 100)}% | Food ${(v.colony.foodMonthsReserve || 0).toFixed(0)}mo</div>` : ''}
         </div>
         <div class="rpt-col">
-          <h4 class="e">MERIDIAN BASE</h4>
+          <h4 class="e">${eLabel.toUpperCase()}</h4>
           <div class="rpt-crisis">\u26A1 ${e.title || 'N/A'}${e.category ? ` <span style="font-size:9px;color:var(--text-3)">${e.category}</span>` : ''}</div>
           <div class="rpt-decision">${(e.decision || 'No decision recorded').slice(0, 300)}</div>
           <div class="rpt-outcome" style="color:${(e.outcome || '').includes('success') ? 'var(--green)' : 'var(--rust)'}">${e.outcome || '?'}</div>
@@ -438,11 +569,7 @@ function scrubToTurn(idx) {
 function replayInSim() {
   if (!gameData.events.length) return;
   // Reset state and replay
-  state.v = { pop: [], morale: [], deaths: 0, tools: 0, crisis: null, decision: null, outcome: null, prevColony: null, prevDrift: {} };
-  state.e = { pop: [], morale: [], deaths: 0, tools: 0, crisis: null, decision: null, outcome: null, prevColony: null, prevDrift: {} };
-  Object.keys(leaderMap).forEach(k => delete leaderMap[k]);
-  $('body-v').innerHTML = '';
-  $('body-e').innerHTML = '';
+  resetSimulationView(gameData.config);
   switchTab('sim');
   let i = 0;
   function next() {
@@ -467,6 +594,7 @@ function loadGameForReport(e) {
       gameData.config = saved.config || null;
       gameData.startedAt = saved.startedAt || '';
       gameData.completedAt = saved.completedAt || '';
+      if (gameData.config) applySetupConfig(gameData.config);
       // Reset leader map for replay
       Object.keys(leaderMap).forEach(k => delete leaderMap[k]);
       // Re-assign sides from events
@@ -512,9 +640,15 @@ try {
     $('m-status').textContent = '● Complete'; $('m-status').style.color = 'var(--amber)'; $('m-status').style.animation = 'none';
     gameData.completedAt = new Date().toISOString();
     $('save-game-btn').style.display = 'inline-block';
+    $('s-launch-btn').disabled = false;
+    $('s-launch-status').textContent = 'Complete.';
     log('ok', '\u2713 All complete');
   });
-  es.addEventListener('sim_error', e => { try { log('no', '\u2717 ' + JSON.parse(e.data).error); } catch { log('no', '\u2717 Error'); } });
+  es.addEventListener('sim_error', e => {
+    try { log('no', '\u2717 ' + JSON.parse(e.data).error); } catch { log('no', '\u2717 Error'); }
+    $('s-launch-btn').disabled = false;
+    $('s-launch-status').textContent = 'Simulation error.';
+  });
   es.onerror = () => { log('dim', 'SSE reconnecting...'); };
 } catch (e) { log('dim', 'Static mode'); }
 
@@ -538,7 +672,7 @@ function handleSimEvent(d) {
       }
       state[s].crisis = { turn: dd.turn, title: dd.title, category: dd.category, emergent: dd.emergent };
       if (dd.colony) updateGauges(s, dd.colony);
-      if (dd.deaths) { state[s].deaths += dd.deaths; $(`gv-${s}-deaths`).textContent = state[s].deaths; $(`s-${s}-deaths`).textContent = state[s].deaths; }
+      if (dd.deaths) { state[s].deaths += dd.deaths; $(`s-${s}-deaths`).textContent = state[s].deaths; }
       log('info', `[${d.leader}] Turn ${dd.turn} \u2014 ${dd.year}: ${dd.title}${dd.emergent ? ' [EMERGENT]' : ''}`);
       break;
 
@@ -581,7 +715,24 @@ function handleSimEvent(d) {
       }
       for (const t of tools) {
         const desc = t.description || t.name.replace(/_v\d+$/, '').replace(/_/g, ' ');
-        const outputHtml = t.output ? `<div style="margin-top:3px;font-size:10px;color:var(--text-2);background:var(--bg-deep);padding:3px 6px;border-radius:3px;font-family:var(--mono);max-height:40px;overflow-y:auto;overflow-x:hidden;word-break:break-all;white-space:pre-wrap;line-height:1.3"><b style="color:var(--text-3)">COMPUTED:</b> ${String(t.output).slice(0, 200)}</div>` : '';
+        // Parse output to extract field names for input/output schema display
+        let schemaHtml = '';
+        let outputHtml = '';
+        if (t.output) {
+          try {
+            const parsed = typeof t.output === 'string' ? JSON.parse(t.output) : t.output;
+            if (parsed && typeof parsed === 'object') {
+              const keys = Object.keys(parsed);
+              const inputKeys = keys.filter(k => ['inputs','input','parameters','params'].includes(k));
+              const outputKeys = keys.filter(k => !inputKeys.includes(k));
+              if (inputKeys.length && parsed[inputKeys[0]] && typeof parsed[inputKeys[0]] === 'object') {
+                schemaHtml += `<span style="color:var(--text-3)">IN:</span> <span style="color:var(--text-2)">${Object.keys(parsed[inputKeys[0]]).join(', ')}</span> `;
+              }
+              schemaHtml += `<span style="color:var(--text-3)">OUT:</span> <span style="color:var(--text-2)">${outputKeys.join(', ')}</span>`;
+            }
+          } catch {}
+          outputHtml = `<div style="margin-top:3px;font-size:10px;color:var(--text-2);background:var(--bg-deep);padding:3px 6px;border-radius:3px;font-family:var(--mono);max-height:40px;overflow-y:auto;overflow-x:hidden;word-break:break-all;white-space:pre-wrap;line-height:1.3">${schemaHtml ? `<div style="margin-bottom:2px;font-size:9px">${schemaHtml}</div>` : ''}<b style="color:var(--text-3)">RESULT:</b> ${String(t.output).slice(0, 200)}</div>`;
+        }
         addToBody(s, `<div class="forge ok"><span style="font-size:16px">\uD83D\uDD27</span><div style="flex:1"><span class="forge-label">Agent-Forged Tool \u2014 Judge Approved</span><div class="fd">${desc}</div><div class="fn">${t.name} \u00B7 ${t.mode || 'sandbox'} \u00B7 invented at runtime</div>${outputHtml}</div><span class="jb p">\u2713 ${(t.confidence || .85).toFixed(2)}</span></div>`);
       }
       state[s].tools += tools.length; $(`s-${s}-tools`).textContent = state[s].tools;
