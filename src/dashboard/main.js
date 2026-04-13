@@ -917,6 +917,22 @@ function handleSimEvent(d) {
       break;
     }
 
+    case 'colonist_reactions': {
+      const reactions = dd.reactions || [];
+      if (reactions.length) {
+        const color = s === 'v' ? 'vis' : 'eng';
+        const moodColors = { positive: 'var(--green)', negative: 'var(--rust)', anxious: 'var(--amber)', defiant: 'var(--rust)', hopeful: 'var(--green)', resigned: 'var(--text-3)', neutral: 'var(--text-2)' };
+        const quotesHtml = reactions.slice(0, 6).map(r => {
+          const moodColor = moodColors[r.mood] || 'var(--text-2)';
+          const intensityBar = '\u2588'.repeat(Math.round(r.intensity * 5)) + '\u2591'.repeat(5 - Math.round(r.intensity * 5));
+          return `<div style="padding:4px 0;border-bottom:1px solid var(--border)"><div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-weight:700;color:var(--${color});font-size:11px">${r.name}</span><span style="font-size:9px;color:var(--text-3);font-family:var(--mono)">${r.department} \u00B7 age ${r.age}</span></div><div style="font-style:italic;color:var(--text-1);font-size:12px;line-height:1.4;margin:2px 0">"${r.quote}"</div><div style="font-size:9px;display:flex;gap:8px;align-items:center"><span style="color:${moodColor};font-weight:600">${r.mood.toUpperCase()}</span><span style="font-family:var(--mono);color:var(--text-3)">${intensityBar}</span><span style="color:var(--text-3)">${r.role}</span></div></div>`;
+        }).join('');
+        addToBody(s, `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:6px 10px;border-left:3px solid var(--${color})"><div style="font-size:10px;color:var(--${color});font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">\uD83D\uDDE3 Colonist Reactions (${dd.totalReactions} voices)</div>${quotesHtml}</div>`);
+        log('ok', `[${d.leader}] ${dd.totalReactions} colonist reactions (showing top ${reactions.length})`);
+      }
+      break;
+    }
+
     case 'turn_done':
       if (dd.colony) updateGauges(s, dd.colony);
       addToBody(s, `<div class="turn-sep">Turn ${dd.turn} complete</div>`);
