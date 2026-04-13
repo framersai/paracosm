@@ -810,10 +810,7 @@ function handleSimEvent(d) {
         const name = (dd.colonistId || '').replace('col-', '').replace(/-/g, ' ');
         const capName = name.replace(/\b\w/g, c => c.toUpperCase());
         const reasonShort = dd.reason ? dd.reason.slice(0, 60) : '';
-        const NL = '&#10;';
-        const safeReason = (dd.reason || 'No reason provided').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
-        const promoTip = `${capName}${NL}Promoted to: ${dd.role}${NL}Department: ${dd.department || 'N/A'}${NL}${NL}Commander reasoning:${NL}${safeReason}`;
-        promoList.innerHTML += `<div style="display:flex;gap:4px;align-items:baseline;font-size:11px;cursor:help" title="${promoTip}"><span style="color:var(--text-1);font-weight:600">${capName}</span><span style="color:var(--text-3)">\u2192</span><span style="color:var(--amber)">${dd.role}</span>${reasonShort ? `<span style="color:var(--text-3);font-size:9px;font-style:italic"> ${reasonShort}...</span>` : ''}</div>`;
+        promoList.innerHTML += `<div class="hover-tip" style="display:flex;gap:4px;align-items:baseline;font-size:11px"><span style="color:var(--text-1);font-weight:600">${capName}</span><span style="color:var(--text-3)">\u2192</span><span style="color:var(--amber)">${dd.role}</span>${reasonShort ? `<span style="color:var(--text-3);font-size:9px;font-style:italic"> ${reasonShort}...</span>` : ''}<div class="htip"><b>${capName}</b><br>Promoted to: <b style="color:var(--amber)">${dd.role}</b><br>Department: ${dd.department || 'N/A'}<div style="margin-top:4px;padding-top:4px;border-top:1px solid var(--border)"><b>Commander reasoning:</b><br>${dd.reason || 'No reason provided'}</div></div></div>`;
       }
       break;
     }
@@ -982,11 +979,7 @@ function handleSimEvent(d) {
           const moodColor = moodColors[r.mood] || 'var(--text-2)';
           const shortQuote = r.quote.length > 100 ? r.quote.slice(0, 100) + '...' : r.quote;
           const h = r.hexaco || {};
-          const safeQuote = (r.quote || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
-          const NL = '&#10;';
-          const tip = `${r.name}, age ${r.age}${r.marsborn ? ' (Mars-born)' : ''}${NL}${r.role} - ${r.specialization || r.department}${NL}${NL}HEXACO: O=${h.O} C=${h.C} E=${h.E} A=${h.A} Em=${h.Em} HH=${h.HH}${NL}Psych: ${r.psychScore} | Bone: ${r.boneDensity}% | Rad: ${r.radiation} mSv${NL}Mood: ${r.mood} (${(r.intensity||0).toFixed(2)})${NL}${NL}&quot;${safeQuote}&quot;`;
-
-          return `<div style="display:flex;gap:6px;align-items:baseline;padding:2px 0;border-bottom:1px solid rgba(48,42,34,.5);cursor:help" title="${tip}"><span style="font-weight:600;color:var(--${color});font-size:10px;min-width:80px;flex-shrink:0">${r.name}</span><span style="font-style:italic;color:var(--text-2);font-size:10px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">"${shortQuote}"</span><span style="font-size:8px;color:${moodColor};font-weight:700;flex-shrink:0">${r.mood.toUpperCase()}</span></div>`;
+          return `<div class="hover-tip" style="display:flex;gap:6px;align-items:baseline;padding:2px 0;border-bottom:1px solid rgba(48,42,34,.5)"><span style="font-weight:600;color:var(--${color});font-size:10px;min-width:80px;flex-shrink:0">${r.name}</span><span style="font-style:italic;color:var(--text-2);font-size:10px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">"${shortQuote}"</span><span style="font-size:8px;color:${moodColor};font-weight:700;flex-shrink:0">${r.mood.toUpperCase()}</span><div class="htip"><b>${r.name}</b>, age ${r.age}${r.marsborn ? ' (Mars-born)' : ''}<br>${r.role} \u2014 ${r.specialization || r.department}<div class="ht-hexaco">O=${h.O} C=${h.C} E=${h.E} A=${h.A} Em=${h.Em} HH=${h.HH}</div><div class="ht-stats">Psych: ${r.psychScore} | Bone: ${r.boneDensity}% | Rad: ${r.radiation} mSv</div><div class="ht-mood" style="color:${moodColor}">${r.mood.toUpperCase()} (intensity: ${(r.intensity||0).toFixed(2)})</div><div class="ht-quote">"${r.quote}"</div></div></div>`;
         }).join('');
         addToBody(s, `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:4px 8px;border-left:3px solid var(--${color})"><div style="font-size:9px;color:var(--${color});font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">\uD83D\uDDE3 ${dd.totalReactions} Colonist Reactions</div>${quotesHtml}</div>`);
         log('ok', `[${d.leader}] ${dd.totalReactions} colonist reactions (showing top ${reactions.length})`);
