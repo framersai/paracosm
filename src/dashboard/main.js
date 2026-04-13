@@ -710,9 +710,20 @@ function handleSimEvent(d) {
       break;
     }
 
-    case 'promotion':
-      addToBody(s, `<div class="card"><div class="card-h"><span class="card-title">\u2726 Promoted</span></div><div class="card-text"><b>${dd.colonistId}</b> \u2192 ${dd.role}<br><span style="color:var(--text-2);font-size:11px">${(dd.reason || '').slice(0, 120)}</span></div></div>`);
+    case 'promotion': {
+      // Accumulate promotions into a single compact list
+      let promoList = $(`promo-list-${s}`);
+      if (!promoList) {
+        addToBody(s, `<div class="card" style="padding:5px 10px"><div style="font-size:10px;color:var(--amber);font-weight:700;margin-bottom:3px">\u2726 DEPARTMENT HEADS PROMOTED</div><div id="promo-list-${s}" style="font-size:11px;line-height:1.6"></div></div>`);
+        promoList = $(`promo-list-${s}`);
+      }
+      if (promoList) {
+        const name = (dd.colonistId || '').replace('col-', '').replace(/-/g, ' ');
+        const capName = name.replace(/\b\w/g, c => c.toUpperCase());
+        promoList.innerHTML += `<div style="display:flex;gap:6px;align-items:baseline"><span style="color:var(--text-1);font-weight:600">${capName}</span><span style="color:var(--text-3)">\u2192</span><span style="color:var(--text-2)">${dd.role}</span></div>`;
+      }
       break;
+    }
 
     case 'dept_start': {
       const dIcon = { medical: '\uD83C\uDFE5', engineering: '\u2699\uFE0F', agriculture: '\uD83C\uDF3E', psychology: '\uD83E\uDDE0', governance: '\uD83C\uDFDB\uFE0F' }[dd.department] || '\uD83D\uDCCB';
