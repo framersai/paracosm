@@ -28,6 +28,8 @@ import {
   type StartingResources,
 } from '../sim-config.js';
 import { applyCustomEventToCrisis, buildPromotionPrompt, buildYearSchedule } from './runtime-helpers.js';
+import { EffectRegistry } from '../engine/effect-registry.js';
+import { MARS_CATEGORY_EFFECTS, MARS_FALLBACK_EFFECT, MARS_POLITICS_CATEGORIES, MARS_POLITICS_SUCCESS_DELTA, MARS_POLITICS_FAILURE_DELTA } from '../engine/mars/effects.js';
 import type { LeaderConfig } from '../types.js';
 export type { LeaderConfig };
 
@@ -459,6 +461,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   let lastTurnToolOutputs: Array<{ name: string; department: string; output: string }> = [];
   let lastTurnMoodSummary: string | undefined;
   const director = new CrisisDirector();
+  const effectRegistry = new EffectRegistry(MARS_CATEGORY_EFFECTS, MARS_FALLBACK_EFFECT);
   // Department memory: stores previous turn summaries per department for session continuity
   const deptMemory = new Map<Department, import('./departments.js').DepartmentTurnMemory[]>();
   const activeDepartments = new Set<Department>(opts.activeDepartments ?? ['medical', 'engineering', 'agriculture', 'psychology', 'governance']);
@@ -692,44 +695,23 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
       ? classifyOutcomeById(resolvedOptionId, crisis.options, crisis.riskSuccessProbability, kernel.getState().colony, outcomeRng)
       : classifyOutcome(decision.decision, scenario.riskyOption, crisis.riskSuccessProbability, kernel.getState().colony, outcomeRng);
 
-    // Apply outcome-driven colony effects so decisions materially change state.
-    // This ensures the two timelines diverge when commanders choose differently.
+    // Apply outcome-driven colony effects via EffectRegistry
     const outcomeEffectRng = new SeededRng(seed).turnSeed(turn + 2000);
-    const categoryEffects: Record<string, Partial<import('../kernel/state.js').ColonySystems>> = {
-      environmental:   { powerKw: 50, morale: 0.08, foodMonthsReserve: 1 },
-      resource:        { foodMonthsReserve: 4, waterLitersPerDay: 100, morale: 0.05 },
-      medical:         { morale: 0.10, lifeSupportCapacity: 5 },
-      psychological:   { morale: 0.15 },
-      political:       { morale: 0.08, infrastructureModules: 1 },
-      infrastructure:  { infrastructureModules: 2, powerKw: 60, pressurizedVolumeM3: 200 },
-      social:          { morale: 0.12 },
-      technological:   { powerKw: 50, scienceOutput: 3, morale: 0.05 },
-    };
-    const baseEffect = categoryEffects[crisis.category] || { morale: 0.08 };
-    const effectMultiplier =
-      outcome === 'risky_success'        ?  2.5 :
-      outcome === 'risky_failure'        ? -2.0 :
-      outcome === 'conservative_success' ?  1.0 :
-                                           -1.0;
-    // Per-timeline variance from leader personality: visionary gets bigger swings, engineer gets steadier results
     const personalityBonus = (leader.hexaco.openness - 0.5) * 0.08 + (leader.hexaco.conscientiousness - 0.5) * 0.04;
-    const colonyDeltas: Partial<import('../kernel/state.js').ColonySystems> = {};
-    for (const [k, v] of Object.entries(baseEffect)) {
-      if (typeof v === 'number') {
-        const noise = outcomeEffectRng.next() * 0.2 - 0.1; // ±10% variance
-        (colonyDeltas as any)[k] = Math.round((v * (effectMultiplier + personalityBonus + noise)) * 100) / 100;
-      }
-    }
-    kernel.applyColonyDeltas(colonyDeltas, [{
+    const colonyDeltas = effectRegistry.applyOutcome(crisis.category, outcome, {
+      personalityBonus,
+      noise: outcomeEffectRng.next() * 0.2 - 0.1,
+    });
+    kernel.applyColonyDeltas(colonyDeltas as any, [{
       turn, year, type: 'system',
-      description: `Outcome effect (${outcome}): ${Object.entries(colonyDeltas).map(([k, v]) => `${k} ${(v as number) >= 0 ? '+' : ''}${v}`).join(', ')}`,
+      description: `Outcome effect (${outcome}): ${Object.entries(colonyDeltas).map(([k, v]) => `${k} ${v >= 0 ? '+' : ''}${v}`).join(', ')}`,
     }]);
 
     // Apply politics deltas for political/governance crises
-    if (['political', 'social'].includes(crisis.category)) {
+    if (MARS_POLITICS_CATEGORIES.has(crisis.category)) {
       const polDelta = outcome.includes('success')
-        ? { independencePressure: 0.05, earthDependencyPct: -3 }
-        : { independencePressure: -0.03, earthDependencyPct: 2 };
+        ? MARS_POLITICS_SUCCESS_DELTA
+        : MARS_POLITICS_FAILURE_DELTA;
       kernel.applyPoliticsDeltas(polDelta);
     }
 
