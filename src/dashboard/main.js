@@ -1244,6 +1244,35 @@ function handleSimEvent(d) {
       break;
     }
 
+    case 'bulletin': {
+      const posts = dd.posts || [];
+      if (posts.length) {
+        const color = s === 'v' ? 'vis' : 'eng';
+        const postsHtml = posts.map(p => {
+          const moodColors = { positive: 'var(--green)', negative: 'var(--rust)', anxious: 'var(--amber)', defiant: 'var(--rust)', hopeful: 'var(--green)', resigned: 'var(--text-3)', neutral: 'var(--text-2)' };
+          const moodColor = moodColors[p.mood] || 'var(--text-2)';
+          return `<div class="bb-post">
+            <div class="bb-header">
+              <span class="bb-name" style="color:var(--${color})">${esc(p.name)}</span>
+              <span class="bb-meta">${esc(p.role || '')} \u00B7 ${esc(p.department || '')}</span>
+              ${p.marsborn ? '<span class="bb-meta" style="color:var(--rust)">\u00B7 Mars-born</span>' : ''}
+            </div>
+            <div class="bb-text">${esc(p.post)}</div>
+            <div class="bb-footer">
+              <span style="color:${moodColor}">${(p.mood || '').toUpperCase()}</span>
+              <span>\u2661 ${p.likes || 0}</span>
+              <span>\u21A9 ${p.replies || 0}</span>
+            </div>
+          </div>`;
+        }).join('');
+        addToBody(s, `<div style="margin-top:2px">
+          <div style="font-size:10px;color:var(--${color});font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">\u{1F4E2} Colony Bulletin \u2014 Year ${dd.year || ''}</div>
+          <div style="display:flex;flex-direction:column;gap:4px">${postsHtml}</div>
+        </div>`);
+      }
+      break;
+    }
+
     case 'turn_done':
       if (dd.colony) updateGauges(s, dd.colony);
       addToBody(s, `<div class="turn-sep">Turn ${dd.turn} complete</div>`);
