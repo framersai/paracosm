@@ -498,13 +498,38 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
         console.log(`  [${dept}] Done: ${report.citations.length} citations, ${report.risks.length} risks, ${report.forgedToolsUsed.length} tools`);
         const validTools = report.forgedToolsUsed
           .filter(t => t && (t.name || t.description))
-          .map(t => ({
-            name: t.name || t.description || 'tool',
-            mode: t.mode || 'sandbox',
-            confidence: t.confidence ?? 0.85,
-            description: t.description || humanizeToolName(t.name || ''),
-            output: t.output ? (typeof t.output === 'string' ? t.output : JSON.stringify(t.output)).slice(0, 200) : null,
-          }));
+          .map(t => {
+            const rawOutput = t.output ? (typeof t.output === 'string' ? t.output : JSON.stringify(t.output)) : null;
+            // Extract input/output field names from output JSON
+            let inputFields: string[] = [];
+            let outputFields: string[] = [];
+            if (rawOutput) {
+              try {
+                const parsed = JSON.parse(rawOutput);
+                if (parsed && typeof parsed === 'object') {
+                  const keys = Object.keys(parsed);
+                  const inKey = keys.find(k => ['inputs', 'input', 'parameters', 'params'].includes(k));
+                  if (inKey && parsed[inKey] && typeof parsed[inKey] === 'object') {
+                    inputFields = Object.keys(parsed[inKey]);
+                    outputFields = keys.filter(k => k !== inKey);
+                  } else {
+                    outputFields = keys;
+                  }
+                }
+              } catch {}
+            }
+            return {
+              name: t.name || t.description || 'tool',
+              mode: t.mode || 'sandbox',
+              confidence: t.confidence ?? 0.85,
+              description: t.description || humanizeToolName(t.name || ''),
+              output: rawOutput?.slice(0, 400) || null,
+              inputFields: inputFields.slice(0, 8),
+              outputFields: outputFields.slice(0, 8),
+              department: dept,
+              crisis: crisis.title,
+            };
+          });
         emit('dept_done', { turn, year, department: dept, summary: report.summary, citations: report.citations.length, risks: report.risks, forgedTools: validTools, recommendedActions: report.recommendedActions?.slice(0, 2) });
         if (report.forgedToolsUsed.length) {
           const names = report.forgedToolsUsed.map(t => t?.name || t?.description || 'unnamed').filter(Boolean);

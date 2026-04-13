@@ -760,25 +760,33 @@ function handleSimEvent(d) {
       }
       for (const t of tools) {
         const desc = t.description || t.name.replace(/_v\d+$/, '').replace(/_/g, ' ');
-        // Parse output to extract field names for input/output schema display
+        const inFields = (t.inputFields || []).join(', ');
+        const outFields = (t.outputFields || []).join(', ');
+        const whyDept = t.department ? (t.department.charAt(0).toUpperCase() + t.department.slice(1)) : dept.toLowerCase();
+        const whyCrisis = t.crisis || '';
+
+        // Schema line showing input/output types
         let schemaHtml = '';
-        let outputHtml = '';
-        if (t.output) {
-          try {
-            const parsed = typeof t.output === 'string' ? JSON.parse(t.output) : t.output;
-            if (parsed && typeof parsed === 'object') {
-              const keys = Object.keys(parsed);
-              const inputKeys = keys.filter(k => ['inputs','input','parameters','params'].includes(k));
-              const outputKeys = keys.filter(k => !inputKeys.includes(k));
-              if (inputKeys.length && parsed[inputKeys[0]] && typeof parsed[inputKeys[0]] === 'object') {
-                schemaHtml += `<span style="color:var(--text-3)">IN:</span> <span style="color:var(--text-2)">${Object.keys(parsed[inputKeys[0]]).join(', ')}</span> `;
-              }
-              schemaHtml += `<span style="color:var(--text-3)">OUT:</span> <span style="color:var(--text-2)">${outputKeys.join(', ')}</span>`;
-            }
-          } catch {}
-          outputHtml = `<div style="margin-top:3px;font-size:10px;color:var(--text-2);background:var(--bg-deep);padding:3px 6px;border-radius:3px;font-family:var(--mono);max-height:40px;overflow-y:auto;overflow-x:hidden;word-break:break-all;white-space:pre-wrap;line-height:1.3">${schemaHtml ? `<div style="margin-bottom:2px;font-size:9px">${schemaHtml}</div>` : ''}<b style="color:var(--text-3)">RESULT:</b> ${String(t.output).slice(0, 200)}</div>`;
+        if (inFields || outFields) {
+          schemaHtml = `<div style="margin-top:2px;font-size:9px;font-family:var(--mono);color:var(--text-2)">`;
+          if (inFields) schemaHtml += `<span style="color:var(--text-3)">INPUTS:</span> ${inFields} `;
+          if (outFields) schemaHtml += `<span style="color:var(--text-3)">\u2192 OUTPUTS:</span> ${outFields}`;
+          schemaHtml += `</div>`;
         }
-        addToBody(s, `<div class="forge ok"><span style="font-size:16px">\uD83D\uDD27</span><div style="flex:1"><span class="forge-label">Agent-Forged Tool \u2014 Judge Approved</span><div class="fd">${desc}</div><div class="fn">${t.name} \u00B7 ${t.mode || 'sandbox'} \u00B7 invented at runtime</div>${outputHtml}</div><span class="jb p">\u2713 ${(t.confidence || .85).toFixed(2)}</span></div>`);
+
+        // Result preview
+        let resultHtml = '';
+        if (t.output) {
+          resultHtml = `<div style="margin-top:3px;font-size:10px;color:var(--text-2);background:var(--bg-deep);padding:3px 6px;border-radius:3px;font-family:var(--mono);max-height:36px;overflow-y:auto;overflow-x:hidden;word-break:break-all;white-space:pre-wrap;line-height:1.3"><b style="color:var(--text-3)">RESULT:</b> ${String(t.output).slice(0, 250)}</div>`;
+        }
+
+        // Why context
+        const whyHtml = `<div style="font-size:9px;color:var(--text-3);margin-top:2px">${whyDept} agent created this tool to analyze "${whyCrisis}"</div>`;
+
+        // Full tooltip content
+        const tipContent = `Agent: ${whyDept} department\\nCrisis: ${whyCrisis}\\nMode: ${t.mode || 'sandbox'}\\nConfidence: ${(t.confidence || .85).toFixed(2)}\\n${inFields ? 'Inputs: ' + inFields + '\\n' : ''}${outFields ? 'Outputs: ' + outFields : ''}`;
+
+        addToBody(s, `<div class="forge ok" title="${tipContent}"><span style="font-size:16px">\uD83D\uDD27</span><div style="flex:1"><span class="forge-label">Agent-Forged Tool \u2014 Judge Approved</span><div class="fd">${desc}</div><div class="fn">${t.name} \u00B7 ${t.mode || 'sandbox'} \u00B7 invented at runtime</div>${schemaHtml}${whyHtml}${resultHtml}</div><span class="jb p">\u2713 ${(t.confidence || .85).toFixed(2)}</span></div>`);
       }
       state[s].tools += tools.length; $(`s-${s}-tools`).textContent = state[s].tools;
       log('ok', `[${d.leader}] ${icon} ${dept}: ${dd.citations || 0} cites, ${tools.length} tools`);
