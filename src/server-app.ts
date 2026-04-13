@@ -31,8 +31,12 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
   let simRunning = false;
   const clients: Set<ServerResponse> = new Set();
 
+  // Event buffer: stores all broadcast events so new clients can catch up
+  const eventBuffer: string[] = [];
+
   const broadcast: BroadcastFn = (event, data) => {
     const msg = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+    eventBuffer.push(msg);
     for (const res of clients) {
       try {
         res.write(msg);
@@ -53,6 +57,10 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         'Access-Control-Allow-Origin': '*',
       });
       res.write('event: connected\ndata: {}\n\n');
+      // Replay all buffered events so new clients catch up
+      for (const msg of eventBuffer) {
+        try { res.write(msg); } catch { break; }
+      }
       clients.add(res);
       req.on('close', () => clients.delete(res));
       return;

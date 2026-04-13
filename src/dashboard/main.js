@@ -38,7 +38,9 @@ function delta(curr, prev) {
   if (prev == null) return '';
   const d = curr - prev;
   if (d === 0) return '';
-  return d > 0 ? ` +${d}` : ` ${d}`;
+  // Return as a small superscript-style suffix, not a line break
+  const sign = d > 0 ? '+' : '';
+  return `<span style="font-size:10px;opacity:.7;margin-left:2px">${sign}${d}</span>`;
 }
 
 function updateGauges(s, colony) {
@@ -49,10 +51,10 @@ function updateGauges(s, colony) {
   const food = (colony.foodMonthsReserve ?? 0).toFixed(0);
   const prevFood = prev ? (prev.foodMonthsReserve ?? 0).toFixed(0) : null;
 
-  // Stats bar with deltas
-  $(`s-${s}-pop`).textContent = pop + delta(pop, prevPop);
-  $(`s-${s}-morale`).textContent = morale + '%' + delta(morale, prevMorale);
-  const foodEl = $(`s-${s}-food`); if (foodEl) foodEl.textContent = food + 'mo' + delta(Number(food), Number(prevFood));
+  // Stats bar with deltas (inline, same line)
+  $(`s-${s}-pop`).innerHTML = pop + delta(pop, prevPop);
+  $(`s-${s}-morale`).innerHTML = morale + '%' + delta(morale, prevMorale);
+  const foodEl = $(`s-${s}-food`); if (foodEl) foodEl.innerHTML = food + 'mo' + delta(Number(food), Number(prevFood));
 
   // Sparklines in leader bar
   state[s].pop.push(pop); state[s].morale.push(morale);
