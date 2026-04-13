@@ -1,4 +1,5 @@
 const $ = id => document.getElementById(id);
+let replaySpeed = 500; // ms between events during replay (default: readable pace)
 const log = (cls, msg) => { const d = $('debug'); d.innerHTML += `<br><span class="${cls}">${msg}</span>`; d.scrollTop = d.scrollHeight; };
 
 function switchTab(tab) {
@@ -334,11 +335,12 @@ function loadGame(e) {
       switchTab('sim');
       let i = 0;
       function replayNext() {
-        if (i >= gameData.events.length) { $('m-status').textContent = '● Replay Complete'; $('m-status').style.color = 'var(--amber)'; return; }
+        if (i >= gameData.events.length) { $('m-status').textContent = '\u25CF Replay Complete'; $('m-status').style.color = 'var(--amber)'; $('save-game-btn').style.display = 'inline-block'; return; }
         handleSimEvent(gameData.events[i++]);
-        setTimeout(replayNext, 50);
+        $('m-status').textContent = `\u25CF Replaying ${i}/${gameData.events.length}...`;
+        setTimeout(replayNext, replaySpeed);
       }
-      $('m-status').textContent = '● Replaying...'; $('m-status').style.color = 'var(--vis)';
+      $('m-status').textContent = '\u25CF Replaying...'; $('m-status').style.color = 'var(--vis)';
       replayNext();
     } catch (err) { alert('Invalid game file: ' + err); }
   };
@@ -634,10 +636,13 @@ function generateReport() {
 
   // Replay controls
   const turnNums = Object.keys(turns).sort((a, b) => Number(a) - Number(b));
-  html += `<div style="margin-top:10px;padding:10px 14px;background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;display:flex;align-items:center;gap:10px">
+  html += `<div style="margin-top:10px;padding:10px 14px;background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
     <b style="font-size:11px;color:var(--text-2);font-family:var(--mono)">REPLAY</b>
-    <input type="range" id="rpt-scrubber" min="0" max="${turnNums.length - 1}" value="${turnNums.length - 1}" style="flex:1;accent-color:var(--amber)" oninput="scrubToTurn(this.value)">
-    <span id="rpt-scrub-label" style="font-size:11px;color:var(--text-1);font-family:var(--mono);min-width:60px">Turn ${turnNums[turnNums.length - 1] || '?'}</span>
+    <input type="range" id="rpt-scrubber" min="0" max="${turnNums.length - 1}" value="${turnNums.length - 1}" style="flex:1;min-width:80px;accent-color:var(--amber)" oninput="scrubToTurn(this.value)">
+    <span id="rpt-scrub-label" style="font-size:11px;color:var(--text-1);font-family:var(--mono);min-width:50px">Turn ${turnNums[turnNums.length - 1] || '?'}</span>
+    <span style="color:var(--text-3);font-size:10px">Speed:</span>
+    <input type="range" min="50" max="1000" value="500" step="50" style="width:80px;accent-color:var(--rust)" oninput="setReplaySpeed(this.value)">
+    <span id="replay-speed-label" style="font-size:10px;color:var(--text-2);font-family:var(--mono);min-width:40px">Slow</span>
     <button class="act-btn" onclick="replayInSim()">Replay in Sim</button>
   </div>`;
 
@@ -663,17 +668,23 @@ function scrubToTurn(idx) {
 
 function replayInSim() {
   if (!gameData.events.length) return;
-  // Reset state and replay
   resetSimulationView(gameData.config);
   switchTab('sim');
   let i = 0;
   function next() {
-    if (i >= gameData.events.length) { $('m-status').textContent = '\u25CF Replay Complete'; $('m-status').style.color = 'var(--amber)'; return; }
+    if (i >= gameData.events.length) { $('m-status').textContent = '\u25CF Replay Complete'; $('m-status').style.color = 'var(--amber)'; $('save-game-btn').style.display = 'inline-block'; return; }
     handleSimEvent(gameData.events[i++]);
-    setTimeout(next, 80);
+    $('m-status').textContent = `\u25CF Replaying ${i}/${gameData.events.length}...`;
+    setTimeout(next, replaySpeed);
   }
   $('m-status').textContent = '\u25CF Replaying...'; $('m-status').style.color = 'var(--vis)';
   next();
+}
+
+function setReplaySpeed(val) {
+  replaySpeed = parseInt(val);
+  const label = $('replay-speed-label');
+  if (label) label.textContent = replaySpeed < 100 ? 'Fast' : replaySpeed < 300 ? 'Medium' : replaySpeed < 700 ? 'Slow' : 'Very Slow';
 }
 
 function loadGameForReport(e) {
