@@ -216,15 +216,16 @@ export class CrisisDirector {
    * Generate a crisis for a specific timeline. Uses AgentOS agent() if available,
    * falls back to generateText() for simpler integration.
    */
-  async generateCrisis(ctx: DirectorContext, provider: LlmProvider = 'openai', model: string = 'gpt-5.4'): Promise<DirectorCrisis> {
+  async generateCrisis(ctx: DirectorContext, provider: LlmProvider = 'openai', model: string = 'gpt-5.4', instructions?: string): Promise<DirectorCrisis> {
     const prompt = buildDirectorPrompt(ctx);
+    const systemInstructions = instructions || DIRECTOR_INSTRUCTIONS;
 
     try {
       const { generateText } = await import('@framers/agentos');
       const result = await generateText({
         provider,
         model,
-        prompt: DIRECTOR_INSTRUCTIONS + '\n\n' + prompt,
+        prompt: systemInstructions + '\n\n' + prompt,
       });
 
       const crisis = parseDirectorResponse(result.text);

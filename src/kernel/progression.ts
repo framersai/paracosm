@@ -2,8 +2,6 @@ import type { Colonist, ColonySystems, TurnEvent, SimulationState, HexacoProfile
 import { HEXACO_TRAITS } from './state.js';
 import { SeededRng } from './rng.js';
 
-const MARS_RADIATION_MSV_PER_YEAR = 0.67 * 365; // ~244.55 mSv/year
-
 // Trait activation profiles per department role (Tett & Burnett 2003)
 const ROLE_ACTIVATIONS: Record<string, Partial<HexacoProfile>> = {
   medical:     { conscientiousness: 0.7, emotionality: 0.6, agreeableness: 0.6 },
@@ -129,6 +127,7 @@ export function progressBetweenTurns(
   state: SimulationState,
   yearDelta: number,
   turnRng: SeededRng,
+  progressionHook?: (ctx: { colonists: any[]; yearDelta: number; year: number; turn: number; startYear: number; rng: any }) => void,
 ): { state: SimulationState; events: TurnEvent[] } {
   const events: TurnEvent[] = [];
   const year = state.metadata.currentYear;
@@ -136,22 +135,20 @@ export function progressBetweenTurns(
   let colonists = state.colonists.map(c => structuredClone(c));
   let colony = structuredClone(state.colony);
 
-  // 1. Age all colonists and accumulate radiation
+  // 1. Age all colonists (generic: experience, earth contacts)
   for (const c of colonists) {
     if (!c.health.alive) continue;
     c.career.yearsExperience += yearDelta;
-    c.health.cumulativeRadiationMsv += MARS_RADIATION_MSV_PER_YEAR * yearDelta;
-
-    // Bone density loss (stabilizes after ~20 years on Mars)
-    const lossRate = c.core.marsborn ? 0.003 : 0.005;
-    const yearsOnMars = year - (c.core.marsborn ? c.core.birthYear : state.metadata.startYear);
-    const decayFactor = Math.max(0.5, 1 - lossRate * Math.min(yearsOnMars, 20));
-    c.health.boneDensityPct = Math.max(50, c.health.boneDensityPct * decayFactor);
 
     // Earth contacts decay
     if (c.social.earthContacts > 0 && turnRng.chance(0.15 * yearDelta)) {
       c.social.earthContacts = Math.max(0, c.social.earthContacts - 1);
     }
+  }
+
+  // 1b. Scenario-specific progression (radiation, bone density, etc.)
+  if (progressionHook) {
+    progressionHook({ colonists, yearDelta, year, turn, startYear: state.metadata.startYear, rng: turnRng });
   }
 
   // 2. Natural mortality

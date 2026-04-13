@@ -188,6 +188,7 @@ export interface ProgressionHookContext {
   yearDelta: number;
   year: number;
   turn: number;
+  startYear: number;
   rng: any;
 }
 
@@ -205,6 +206,8 @@ export interface ScenarioHooks {
   directorPromptHook?: (ctx: any) => string;
   reactionContextHook?: (colonist: any, ctx: any) => string;
   fingerprintHook?: (finalState: any, outcomeLog: any[], leader: any, toolRegs: Record<string, string[]>, maxTurns: number) => Record<string, string>;
+  getMilestoneCrisis?: (turn: number, maxTurns: number) => any | null;
+  politicsHook?: (category: string, outcome: string) => Record<string, number> | null;
 }
 
 // ---------------------------------------------------------------------------

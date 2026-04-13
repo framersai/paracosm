@@ -45,10 +45,10 @@ Return JSON only: {"quote":"1-2 sentences in first person","mood":"positive|nega
 
 Keep it real. No heroic speeches. People under stress say blunt, honest things.`;
 
-function buildColonistPrompt(c: Colonist, ctx: ReactionContext): string {
+function buildColonistPrompt(c: Colonist, ctx: ReactionContext, reactionContextHook?: (colonist: any, ctx: any) => string): string {
   const age = ctx.year - c.core.birthYear;
   const h = c.hexaco;
-  const marsborn = c.core.marsborn ? 'Mars-born, never seen Earth.' : `Earth-born, ${ctx.year - 2035} years on Mars.`;
+  const marsborn = reactionContextHook ? reactionContextHook(c, ctx) : (c.core.marsborn ? 'Mars-born, never seen Earth.' : `Earth-born, ${ctx.year - 2035} years on Mars.`);
 
   // Recent life events give the colonist a personal history that shapes their reaction
   const recentEvents = c.narrative.lifeEvents
@@ -125,7 +125,7 @@ function parseReaction(text: string, c: Colonist, year: number): ColonistReactio
 export async function generateColonistReactions(
   colonists: Colonist[],
   ctx: ReactionContext,
-  options: { provider?: string; model?: string; maxConcurrent?: number } = {},
+  options: { provider?: string; model?: string; maxConcurrent?: number; reactionContextHook?: (colonist: any, ctx: any) => string } = {},
 ): Promise<ColonistReaction[]> {
   const alive = colonists.filter(c => c.health.alive);
   const provider = (options.provider || 'openai') as any;
@@ -142,7 +142,7 @@ export async function generateColonistReactions(
     const batchResults = await Promise.all(
       batch.map(async (c) => {
         try {
-          const prompt = buildColonistPrompt(c, ctx);
+          const prompt = buildColonistPrompt(c, ctx, options.reactionContextHook);
           const result = await generateText({ provider, model, prompt });
           return parseReaction(result.text, c, ctx.year);
         } catch {

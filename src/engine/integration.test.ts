@@ -55,6 +55,7 @@ test('Mars scenario progression hook modifies colonist radiation', () => {
     yearDelta: 1,
     year: 2036,
     turn: 1,
+    startYear: 2035,
     rng: { chance: () => false } as any,
   });
   assert.ok(colonist.health.cumulativeRadiationMsv > 200);
@@ -63,4 +64,49 @@ test('Mars scenario progression hook modifies colonist radiation', () => {
 
 test('Mars scenario department count matches department configs in existing code', () => {
   assert.equal(marsScenario.departments.length, 5);
+});
+
+// Phase 2 integration tests
+
+test('marsScenario hooks are all registered', () => {
+  assert.ok(marsScenario.hooks.progressionHook, 'progressionHook');
+  assert.ok(marsScenario.hooks.departmentPromptHook, 'departmentPromptHook');
+  assert.ok(marsScenario.hooks.directorInstructions, 'directorInstructions');
+  assert.ok(marsScenario.hooks.fingerprintHook, 'fingerprintHook');
+  assert.ok(marsScenario.hooks.politicsHook, 'politicsHook');
+  assert.ok(marsScenario.hooks.reactionContextHook, 'reactionContextHook');
+  assert.ok(marsScenario.hooks.getMilestoneCrisis, 'getMilestoneCrisis');
+});
+
+test('marsScenario.hooks.fingerprintHook produces valid fingerprint', () => {
+  const fp = marsScenario.hooks.fingerprintHook!(
+    { colony: { morale: 0.7 }, politics: { earthDependencyPct: 50 }, colonists: [{ health: { alive: true }, core: { marsborn: false } }] },
+    [{ turn: 1, year: 2035, outcome: 'conservative_success' }],
+    { hexaco: { extraversion: 0.5, conscientiousness: 0.5 } },
+    {}, 3,
+  );
+  assert.ok(fp.resilience);
+  assert.ok(fp.summary);
+});
+
+test('marsScenario.hooks.politicsHook returns deltas for political category', () => {
+  const delta = marsScenario.hooks.politicsHook!('political', 'risky_success');
+  assert.ok(delta);
+  assert.ok('independencePressure' in delta!);
+});
+
+test('marsScenario.hooks.politicsHook returns null for non-political category', () => {
+  const delta = marsScenario.hooks.politicsHook!('environmental', 'risky_success');
+  assert.equal(delta, null);
+});
+
+test('marsScenario.hooks.reactionContextHook returns Mars-born phrasing', () => {
+  const ctx = marsScenario.hooks.reactionContextHook!({ core: { marsborn: true } }, { year: 2060 });
+  assert.ok(ctx.includes('Mars-born'));
+});
+
+test('marsScenario.hooks.getMilestoneCrisis returns Landfall for turn 1', () => {
+  const crisis = marsScenario.hooks.getMilestoneCrisis!(1, 12);
+  assert.ok(crisis);
+  assert.equal(crisis.title, 'Landfall');
 });

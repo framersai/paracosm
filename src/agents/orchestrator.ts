@@ -15,9 +15,10 @@ import type { KeyPersonnel } from '../kernel/colonist-generator.js';
 import { getResearchPacket } from '../research/research.js';
 import { getResearchForCategory } from '../research/knowledge-base.js';
 import { initResearchMemory, recallResearch, closeResearchMemory } from '../research/research-memory.js';
-import { DEPARTMENT_CONFIGS, buildDepartmentContext, getDepartmentsForTurn } from './departments.js';
+import { buildDepartmentContext, getDepartmentsForTurn } from './departments.js';
 import { CrisisDirector, type DirectorCrisis, type DirectorContext } from './director.js';
 import { generateColonistReactions } from './colonist-reactions.js';
+import type { ScenarioPackage } from '../engine/types.js';
 import {
   DEFAULT_EXECUTION,
   resolveSimulationModels,
@@ -29,7 +30,7 @@ import {
 } from '../sim-config.js';
 import { applyCustomEventToCrisis, buildPromotionPrompt, buildYearSchedule } from './runtime-helpers.js';
 import { EffectRegistry } from '../engine/effect-registry.js';
-import { MARS_CATEGORY_EFFECTS, MARS_FALLBACK_EFFECT, MARS_POLITICS_CATEGORIES, MARS_POLITICS_SUCCESS_DELTA, MARS_POLITICS_FAILURE_DELTA } from '../engine/mars/effects.js';
+import { marsScenario } from '../engine/mars/index.js';
 import type { LeaderConfig } from '../types.js';
 export type { LeaderConfig };
 
@@ -342,21 +343,23 @@ export interface RunOptions {
   startingResources?: StartingResources;
   startingPolitics?: StartingPolitics;
   execution?: Partial<SimulationExecutionConfig>;
+  scenario?: ScenarioPackage;
 }
 
 export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPersonnel[], opts: RunOptions = {}) {
   const { agent } = await import('@framers/agentos');
+  const sc = opts.scenario ?? marsScenario;
   const maxTurns = opts.maxTurns ?? 12;
   const startYear = opts.startYear ?? 2035;
   const provider = opts.provider ?? 'openai';
-  const sid = `mars-v2-${leader.archetype.toLowerCase().replace(/\s+/g, '-')}`;
+  const sid = `${sc.labels.shortName}-v2-${leader.archetype.toLowerCase().replace(/\s+/g, '-')}`;
   const modelConfig = resolveSimulationModels(provider, opts.models);
   const emit = (type: SimEvent['type'], data?: Record<string, unknown>) => {
     opts.onEvent?.({ type, leader: leader.name, data });
   };
 
   console.log(`\n${'═'.repeat(60)}`);
-  console.log(`  MARS GENESIS v2`);
+  console.log(`  ${sc.labels.name.toUpperCase()} v2`);
   console.log(`  Commander: ${leader.name} — "${leader.archetype}"`);
   console.log(`  Turns: ${maxTurns} | Live search: ${opts.liveSearch ? 'yes' : 'no'}`);
   console.log(`${'═'.repeat(60)}\n`);
@@ -388,12 +391,8 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
 
   // Turn 0: Commander promotes department heads from colonist roster
   console.log('  [Turn 0] Commander evaluating roster for promotions...');
-  const promotionDepts: Department[] = ['medical', 'engineering', 'agriculture', 'psychology', 'governance'];
-  const roleNames: Record<string, string> = {
-    medical: 'Chief Medical Officer', engineering: 'Chief Engineer',
-    agriculture: 'Head of Agriculture', psychology: 'Colony Psychologist',
-    governance: 'Governance Advisor',
-  };
+  const promotionDepts: Department[] = sc.departments.map(d => d.id as Department);
+  const roleNames: Record<string, string> = Object.fromEntries(sc.departments.map(d => [d.id, d.role]));
   const candidateSummaries = promotionDepts.map(dept => {
     const candidates = kernel.getCandidates(dept, 5);
     return `## ${dept.toUpperCase()} — Top 5 Candidates:\n${candidates.map(c => {
@@ -438,13 +437,13 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   const promoted = kernel.getState().colonists.filter(c => c.promotion);
   for (const p of promoted) {
     const dept = p.promotion!.department;
-    const cfg = DEPARTMENT_CONFIGS.find(c => c.department === dept);
+    const cfg = sc.departments.find(c => c.id === dept);
     if (!cfg) continue;
     const wrapped = wrapForgeTool(forgeTool, `${sid}-${dept}`, sid, dept);
     const tools: ITool[] = opts.liveSearch ? [webSearchTool, wrapped] : [wrapped];
     const a = agent({
       provider,
-      model: modelConfig.departments || cfg.model,
+      model: modelConfig.departments || cfg.defaultModel,
       instructions: cfg.instructions,
       tools,
       maxSteps: opts.execution?.departmentMaxSteps ?? DEFAULT_EXECUTION.departmentMaxSteps,
@@ -461,7 +460,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   let lastTurnToolOutputs: Array<{ name: string; department: string; output: string }> = [];
   let lastTurnMoodSummary: string | undefined;
   const director = new CrisisDirector();
-  const effectRegistry = new EffectRegistry(MARS_CATEGORY_EFFECTS, MARS_FALLBACK_EFFECT);
+  const effectRegistry = new EffectRegistry(sc.effects[0]?.categoryDefaults ?? {});
   // Department memory: stores previous turn summaries per department for session continuity
   const deptMemory = new Map<Department, import('./departments.js').DepartmentTurnMemory[]>();
   const activeDepartments = new Set<Department>(opts.activeDepartments ?? ['medical', 'engineering', 'agriculture', 'psychology', 'governance']);
@@ -471,9 +470,9 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
 
     // Get crisis: milestone (turn 1 / final) or emergent (director)
     let crisis: DirectorCrisis;
-    const milestone = director.getMilestoneCrisis(turn, maxTurns);
+    const milestone = sc.hooks.getMilestoneCrisis?.(turn, maxTurns);
     if (milestone) {
-      crisis = milestone;
+      crisis = milestone as DirectorCrisis;
     } else {
       // Build director context from current colony state
       const preState = kernel.getState();
@@ -494,7 +493,8 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
         colonistMoodSummary: lastTurnMoodSummary,
       };
       emit('turn_start', { turn, year, title: 'Director generating...', crisis: '', births: 0, deaths: 0, colony: preState.colony });
-      crisis = await director.generateCrisis(dirCtx, provider, modelConfig.director);
+      const dirInstructions = sc.hooks.directorInstructions?.();
+      crisis = await director.generateCrisis(dirCtx, provider, modelConfig.director, dirInstructions);
     }
 
     crisis = applyCustomEventToCrisis(crisis, opts.customEvents ?? [], turn);
@@ -503,7 +503,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     console.log(`  Turn ${turn}/${maxTurns} — Year ${year}: ${crisis.title} [${milestone ? 'MILESTONE' : 'EMERGENT'}]`);
     console.log(`${'─'.repeat(50)}`);
 
-    const state = kernel.advanceTurn(turn, year);
+    const state = kernel.advanceTurn(turn, year, sc.hooks.progressionHook);
     const births = state.eventLog.filter(e => e.turn === turn && e.type === 'birth').length;
     const deaths = state.eventLog.filter(e => e.turn === turn && e.type === 'death').length;
     console.log(`  Kernel: +${births} births, -${deaths} deaths → pop ${state.colony.population}`);
@@ -566,7 +566,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     for (const dept of depts) {
       const sess = deptSess.get(dept);
       if (!sess) continue;
-      const ctx = buildDepartmentContext(dept, state, scenario, packet, deptMemory.get(dept));
+      const ctx = buildDepartmentContext(dept, state, scenario, packet, deptMemory.get(dept), sc.hooks.departmentPromptHook);
       console.log(`  [${dept}] Analyzing...`);
       emit('dept_start', { turn, year, department: dept });
       try {
@@ -707,11 +707,9 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
       description: `Outcome effect (${outcome}): ${Object.entries(colonyDeltas).map(([k, v]) => `${k} ${v >= 0 ? '+' : ''}${v}`).join(', ')}`,
     }]);
 
-    // Apply politics deltas for political/governance crises
-    if (MARS_POLITICS_CATEGORIES.has(crisis.category)) {
-      const polDelta = outcome.includes('success')
-        ? MARS_POLITICS_SUCCESS_DELTA
-        : MARS_POLITICS_FAILURE_DELTA;
+    // Apply politics deltas via scenario hook
+    const polDelta = sc.hooks.politicsHook?.(crisis.category, outcome);
+    if (polDelta) {
       kernel.applyPoliticsDeltas(polDelta);
     }
 
@@ -752,7 +750,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     try {
       const reactions = await generateColonistReactions(
         kernel.getState().colonists, reactionCtx,
-        { provider, model: modelConfig.colonistReactions || 'gpt-4o-mini', maxConcurrent: 25 },
+        { provider, model: modelConfig.colonistReactions || 'gpt-4o-mini', maxConcurrent: 25, reactionContextHook: sc.hooks.reactionContextHook },
       );
       if (reactions.length) {
         // Emit top 8 most intense reactions for dashboard display
@@ -817,33 +815,13 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
       }])
   );
 
-  // Compute timeline fingerprint: classify the colony based on final state
-  const riskyWins = outcomeLog.filter(o => o.outcome === 'risky_success').length;
-  const riskyLosses = outcomeLog.filter(o => o.outcome === 'risky_failure').length;
-  const conservativeWins = outcomeLog.filter(o => o.outcome === 'conservative_success').length;
-  const aliveCount = final.colonists.filter(c => c.health.alive).length;
-  const marsBorn = final.colonists.filter(c => c.health.alive && c.core.marsborn).length;
-
-  const fingerprint = {
-    // Resilience: high morale + survived losses = antifragile; low morale = brittle
-    resilience: final.colony.morale > 0.6 ? 'antifragile' : final.colony.morale > 0.35 ? 'resilient' : 'brittle',
-    // Autonomy: low earth dependency = autonomous
-    autonomy: final.politics.earthDependencyPct < 40 ? 'autonomous' : final.politics.earthDependencyPct < 70 ? 'transitioning' : 'Earth-tethered',
-    // Governance style: based on commander personality
-    governance: leader.hexaco.extraversion > 0.7 ? 'charismatic' : leader.hexaco.conscientiousness > 0.7 ? 'technocratic' : 'communal',
-    // Risk profile: based on actual outcomes
-    riskProfile: riskyWins + riskyLosses > conservativeWins ? 'expansionist' : 'conservative',
-    // Identity: Mars-born majority = Martian identity
-    identity: marsBorn > aliveCount * 0.3 ? 'Martian' : 'Earth-diaspora',
-    // Innovation: tools forged as a measure
-    innovation: Object.values(toolRegs).flat().length > maxTurns * 2 ? 'innovative' : Object.values(toolRegs).flat().length > maxTurns ? 'adaptive' : 'conventional',
-    // Summary line
-    summary: '',
-  };
-  fingerprint.summary = `${fingerprint.resilience} · ${fingerprint.autonomy} · ${fingerprint.governance} · ${fingerprint.riskProfile} · ${fingerprint.identity} · ${fingerprint.innovation}`;
+  // Compute timeline fingerprint via scenario hook
+  const fingerprint = sc.hooks.fingerprintHook
+    ? sc.hooks.fingerprintHook(final, outcomeLog, leader, toolRegs, maxTurns)
+    : { summary: 'no fingerprint hook' };
 
   const output = {
-    simulation: 'mars-genesis-v3', leader: { name: leader.name, archetype: leader.archetype, colony: leader.colony, hexaco: leader.hexaco },
+    simulation: `${sc.id}-v3`, leader: { name: leader.name, archetype: leader.archetype, colony: leader.colony, hexaco: leader.hexaco },
     turnArtifacts: artifacts, finalState: final, toolRegistries: toolRegs,
     colonistTrajectories: trajectories,
     outcomeClassifications: outcomeLog,

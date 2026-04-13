@@ -1,4 +1,5 @@
 import { DEFAULT_KEY_PERSONNEL, type NormalizedSimulationConfig } from './sim-config.js';
+import { marsScenario } from './engine/mars/index.js';
 
 export type BroadcastFn = (event: string, data: unknown) => void;
 
@@ -39,6 +40,7 @@ export async function runPairSimulations(
       startingResources: simConfig.startingResources,
       startingPolitics: simConfig.startingPolitics,
       execution: simConfig.execution,
+      scenario: marsScenario,
     }).then(
       result => {
         broadcast('result', {

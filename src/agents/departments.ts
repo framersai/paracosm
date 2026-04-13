@@ -81,6 +81,7 @@ export function buildDepartmentContext(
   scenario: Scenario,
   researchPacket: CrisisResearchPacket,
   previousTurns?: DepartmentTurnMemory[],
+  departmentPromptHook?: (ctx: { department: string; state: SimulationState; scenario: Scenario; researchPacket: CrisisResearchPacket }) => string[],
 ): string {
   const alive = state.colonists.filter(c => c.health.alive);
   const featured = alive.filter(c => c.narrative.featured);
@@ -128,30 +129,10 @@ export function buildDepartmentContext(
     '',
   ];
 
-  switch (dept) {
-    case 'medical': {
-      const avgRad = alive.reduce((s, c) => s + c.health.cumulativeRadiationMsv, 0) / alive.length;
-      const avgBone = alive.reduce((s, c) => s + c.health.boneDensityPct, 0) / alive.length;
-      lines.push('HEALTH:', `Avg radiation: ${avgRad.toFixed(0)} mSv | Avg bone: ${avgBone.toFixed(1)}% | Mars-born: ${alive.filter(c => c.core.marsborn).length}`, '');
-      lines.push('FEATURED:', ...featured.slice(0, 6).map(c => `- ${c.core.name} (${state.metadata.currentYear - c.core.birthYear}y): bone ${c.health.boneDensityPct.toFixed(0)}% rad ${c.health.cumulativeRadiationMsv.toFixed(0)}mSv psych ${c.health.psychScore.toFixed(2)}`));
-      break;
-    }
-    case 'engineering':
-      lines.push('INFRASTRUCTURE:', `Modules: ${state.colony.infrastructureModules} | Power: ${state.colony.powerKw}kW | Life support: ${state.colony.lifeSupportCapacity}/${state.colony.population} | Volume: ${state.colony.pressurizedVolumeM3}m³ | Water: ${state.colony.waterLitersPerDay}L/day`);
-      break;
-    case 'agriculture':
-      lines.push('FOOD:', `Reserves: ${state.colony.foodMonthsReserve.toFixed(1)}mo | Pop to feed: ${state.colony.population} | Farm modules: ${Math.floor(state.colony.infrastructureModules * 0.3)}`);
-      break;
-    case 'psychology': {
-      const avgPsych = alive.reduce((s, c) => s + c.health.psychScore, 0) / alive.length;
-      const depressed = alive.filter(c => c.health.psychScore < 0.5).length;
-      lines.push('PSYCH:', `Morale: ${Math.round(state.colony.morale * 100)}% | Avg psych: ${avgPsych.toFixed(2)} | Depressed: ${depressed}/${alive.length} | Mars-born: ${alive.filter(c => c.core.marsborn).length}`);
-      lines.push('', 'SOCIAL:', ...featured.slice(0, 4).map(c => `- ${c.core.name}: psych ${c.health.psychScore.toFixed(2)} partner:${c.social.partnerId ? 'y' : 'n'} children:${c.social.childrenIds.length} earthContacts:${c.social.earthContacts}`));
-      break;
-    }
-    case 'governance':
-      lines.push('POLITICS:', `Earth dep: ${state.politics.earthDependencyPct}% | Status: ${state.politics.governanceStatus} | Independence pressure: ${(state.politics.independencePressure * 100).toFixed(0)}% | Mars-born: ${alive.filter(c => c.core.marsborn).length}/${alive.length}`);
-      break;
+  // Domain-specific department context: from scenario hook or fallback
+  if (departmentPromptHook) {
+    const hookLines = departmentPromptHook({ department: dept, state, scenario, researchPacket });
+    lines.push(...hookLines);
   }
 
   return lines.join('\n');

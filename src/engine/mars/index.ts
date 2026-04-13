@@ -6,6 +6,10 @@ import { marsProgressionHook } from './progression-hooks.js';
 import { marsDepartmentPromptLines, marsDirectorInstructions } from './prompts.js';
 import { MARS_KNOWLEDGE_BUNDLE } from './research-bundle.js';
 import { MARS_DEFAULT_KEY_PERSONNEL, MARS_DEFAULT_LEADERS } from './presets.js';
+import { marsFingerprint } from './fingerprint.js';
+import { marsPoliticsHook } from './politics.js';
+import { marsReactionContext } from './reactions.js';
+import { getMarsMilestoneCrisis } from './milestones.js';
 
 /** Build world schema from extracted metric definitions */
 function buildWorldSchema() {
@@ -137,5 +141,9 @@ export const marsScenario: ScenarioPackage = {
     progressionHook: marsProgressionHook,
     departmentPromptHook: (ctx) => marsDepartmentPromptLines(ctx.department, ctx.state),
     directorInstructions: marsDirectorInstructions,
+    fingerprintHook: marsFingerprint,
+    politicsHook: marsPoliticsHook,
+    reactionContextHook: marsReactionContext,
+    getMilestoneCrisis: getMarsMilestoneCrisis,
   },
 };

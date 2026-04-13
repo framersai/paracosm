@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url';
 import { runSimulation } from './agents/orchestrator.js';
 import { parseCliRunOptions } from './cli-run-options.js';
 import { DEFAULT_KEY_PERSONNEL } from './sim-config.js';
+import { marsScenario } from './engine/mars/index.js';
 import type { LeaderConfig } from './types.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -93,7 +94,7 @@ if (cliLeader.name && !cliLeader.instructions) {
 console.log(`\n  Leader: ${leader.name} (${leader.archetype}) — ${leader.colony}`);
 console.log(`  HEXACO: O=${leader.hexaco.openness} C=${leader.hexaco.conscientiousness} E=${leader.hexaco.extraversion}`);
 
-runSimulation(leader, DEFAULT_KEY_PERSONNEL, { seed: 950, ...cliOptions }).catch((err) => {
+runSimulation(leader, DEFAULT_KEY_PERSONNEL, { seed: 950, ...cliOptions, scenario: marsScenario }).catch((err) => {
   console.error('Simulation failed:', err);
   process.exitCode = 1;
 });

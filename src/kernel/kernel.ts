@@ -128,7 +128,7 @@ export class SimulationKernel {
   }
 
   /** Advance to the next turn. Runs between-turn progression. */
-  advanceTurn(nextTurn: number, nextYear: number): SimulationState {
+  advanceTurn(nextTurn: number, nextYear: number, progressionHook?: (ctx: { colonists: any[]; yearDelta: number; year: number; turn: number; startYear: number; rng: any }) => void): SimulationState {
     const prevYear = this.state.metadata.currentYear;
     const yearDelta = nextYear - prevYear;
     const turnRng = this.rng.turnSeed(nextTurn);
@@ -137,7 +137,7 @@ export class SimulationKernel {
     this.state.metadata.currentYear = nextYear;
     this.state.metadata.currentTurn = nextTurn;
 
-    const { state: progressed, events } = progressBetweenTurns(this.state, yearDelta, turnRng);
+    const { state: progressed, events } = progressBetweenTurns(this.state, yearDelta, turnRng, progressionHook);
     this.state = progressed;
     this.state.colony.population = this.getAliveCount();
     this.updateFeaturedColonists(events);
