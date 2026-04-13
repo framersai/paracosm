@@ -405,12 +405,13 @@
     <!-- API & Models -->
     <div class="s-section">
       <h3>API Keys</h3>
-      <div class="sf"><label>OpenAI API Key</label><input id="s-apikey" type="password" placeholder="sk-..." value=""></div>
-      <div class="sf" style="margin-top:4px"><label>Serper API Key (web search)</label><input id="s-serper" type="password" placeholder="optional"></div>
-      <div style="margin-top:4px"><button class="s-add" onclick="testApiKey()" id="s-test-btn">Test Connection</button> <span id="s-test-status" style="font-size:10px;color:var(--text-3)"></span></div>
-      <h3 style="margin-top:8px">Models</h3>
-      <div class="srow"><div class="sf"><label>Commander</label><select id="s-model-cmd"><option value="gpt-5.4">gpt-5.4</option><option value="gpt-4o">gpt-4o</option><option value="gpt-4o-mini">gpt-4o-mini</option><option value="o4-mini">o4-mini</option></select></div><div class="sf"><label>Dept</label><select id="s-model-dept"><option value="gpt-5.4-mini">gpt-5.4-mini</option><option value="gpt-4o-mini">gpt-4o-mini</option><option value="gpt-4o">gpt-4o</option></select></div></div>
-      <div class="srow"><div class="sf"><label>Judge</label><select id="s-model-judge"><option value="gpt-5.4">gpt-5.4</option><option value="gpt-4o">gpt-4o</option><option value="gpt-4o-mini">gpt-4o-mini</option></select></div><div class="sf"><label>Search</label><select id="s-search"><option value="false">Off</option><option value="true">On</option></select></div></div>
+      <div class="srow"><div class="sf"><label>OpenAI</label><input id="s-apikey" type="password" placeholder="sk-..." value=""></div><div class="sf"><label>Anthropic</label><input id="s-anthropic" type="password" placeholder="sk-ant-..." value=""></div></div>
+      <div class="sf" style="margin-top:4px"><label>Serper (web search)</label><input id="s-serper" type="password" placeholder="optional"></div>
+      <div style="margin-top:4px"><button class="s-add" onclick="testApiKey()" id="s-test-btn">Test</button> <span id="s-test-status" style="font-size:10px;color:var(--text-3)"></span></div>
+      <h3 style="margin-top:8px">Provider & Models</h3>
+      <div class="sf"><label>Provider</label><select id="s-provider"><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option></select></div>
+      <div class="srow" style="margin-top:4px"><div class="sf"><label>Commander</label><select id="s-model-cmd"><optgroup label="OpenAI"><option value="gpt-5.4">gpt-5.4</option><option value="gpt-4o">gpt-4o</option><option value="o4-mini">o4-mini</option></optgroup><optgroup label="Anthropic"><option value="claude-opus-4-6">Opus 4.6</option><option value="claude-sonnet-4-6">Sonnet 4.6</option></optgroup></select></div><div class="sf"><label>Dept</label><select id="s-model-dept"><optgroup label="OpenAI"><option value="gpt-5.4-mini">gpt-5.4-mini</option><option value="gpt-4o-mini">gpt-4o-mini</option></optgroup><optgroup label="Anthropic"><option value="claude-sonnet-4-6">Sonnet 4.6</option><option value="claude-haiku-4-5-20251001">Haiku 4.5</option></optgroup></select></div></div>
+      <div class="srow"><div class="sf"><label>Judge</label><select id="s-model-judge"><optgroup label="OpenAI"><option value="gpt-5.4">gpt-5.4</option><option value="gpt-4o">gpt-4o</option></optgroup><optgroup label="Anthropic"><option value="claude-opus-4-6">Opus 4.6</option><option value="claude-sonnet-4-6">Sonnet 4.6</option></optgroup></select></div><div class="sf"><label>Search</label><select id="s-search"><option value="false">Off</option><option value="true">On</option></select></div></div>
       <h3 style="margin-top:8px">Generation</h3>
       <div class="srow"><div class="sf"><label>Cmd Max Steps</label><input id="s-cmd-steps" type="number" value="5" min="1" max="20"></div><div class="sf"><label>Dept Max Steps</label><input id="s-dept-steps" type="number" value="8" min="1" max="20"></div></div>
       <div class="srow"><div class="sf"><label>Sandbox Timeout (ms)</label><input id="s-sandbox-timeout" type="number" value="10000"></div><div class="sf"><label>Sandbox Memory (MB)</label><input id="s-sandbox-mem" type="number" value="128"></div></div>
@@ -453,7 +454,7 @@
     <a href="https://docs.agentos.sh">Docs</a>
     <a href="https://github.com/framersai/agentos">GitHub</a>
     <a href="https://www.npmjs.com/package/@framers/agentos">npm</a>
-    <a href="https://discord.gg/VXXC4SJMKh">Discord</a>
+    <a href="https://discord.gg/YbXue4Yc">Discord</a>
     <a href="mailto:team@frame.dev">Contact</a>
   </div>
   <p style="margin-top:16px;color:var(--text-3);font-size:11px">Built by <a href="https://manic.agency">Manic Agency</a> / <a href="https://frame.dev">Frame.dev</a></p>
@@ -479,7 +480,7 @@
     <input type="file" id="load-game-input" accept=".json" style="display:none" onchange="loadGame(event)">
     <button class="act-btn" onclick="exportSetup()">Export Config</button>
   </div>
-  <div class="fl"><a href="https://agentos.sh">agentos.sh</a><a href="https://docs.agentos.sh">docs</a><a href="https://github.com/framersai/agentos">github</a><a href="https://discord.gg/VXXC4SJMKh">discord</a></div>
+  <div class="fl"><a href="https://agentos.sh">agentos.sh</a><a href="https://docs.agentos.sh">docs</a><a href="https://github.com/framersai/agentos">github</a><a href="https://discord.gg/YbXue4Yc">discord</a></div>
 </div>
 
 <script>
