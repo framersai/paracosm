@@ -73,16 +73,18 @@ const webSearchTool: ITool = {
       };
     } catch {
       // Fallback to direct Serper if AgentOS web-search module not available
-      const key = process.env.SERPER_API_KEY;
-      if (!key) return { success: false, error: 'No search API keys configured' };
-      const res = await fetch('https://google.serper.dev/search', {
-        method: 'POST', headers: { 'X-API-KEY': key, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ q: query, num: 5 }),
-      });
-      if (!res.ok) return { success: false, error: `Search ${res.status}` };
-      const data = await res.json() as any;
-      return { success: true, output: { results: (data.organic || []).slice(0, 5).map((r: any) => ({ title: r.title, url: r.link, snippet: r.snippet })), query } };
-    } catch (err) { return { success: false, error: String(err) }; }
+      try {
+        const key = process.env.SERPER_API_KEY;
+        if (!key) return { success: false, error: 'No search API keys configured' };
+        const res = await fetch('https://google.serper.dev/search', {
+          method: 'POST', headers: { 'X-API-KEY': key, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ q: query, num: 5 }),
+        });
+        if (!res.ok) return { success: false, error: `Search ${res.status}` };
+        const data = await res.json() as any;
+        return { success: true, output: { results: (data.organic || []).slice(0, 5).map((r: any) => ({ title: r.title, url: r.link, snippet: r.snippet })), query } };
+      } catch (err) { return { success: false, error: String(err) }; }
+    }
   },
 };
 
