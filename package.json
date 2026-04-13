@@ -1,7 +1,7 @@
 {
-  "name": "@framers/mars-genesis-simulation",
+  "name": "paracosm",
   "version": "0.1.0",
-  "description": "Multi-agent Mars colony simulation with emergent tool forging, HEXACO personality evolution, and deterministic kernel. Built with AgentOS.",
+  "description": "Multi-agent simulation engine with emergent behavior, personality-driven divergence, and runtime tool forging. Built on AgentOS.",
   "type": "module",
   "scripts": {
     "run": "npx tsx src/run.ts",
@@ -40,7 +40,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/framersai/mars-genesis-simulation"
+    "url": "https://github.com/framersai/paracosm"
   },
   "homepage": "https://agentos.sh"
 }
