@@ -1,0 +1,128 @@
+{
+  "id": "lunar-outpost",
+  "version": "1.0.0",
+  "engineArchetype": "closed_turn_based_settlement",
+
+  "labels": {
+    "name": "Lunar Outpost",
+    "shortName": "lunar",
+    "populationNoun": "crew members",
+    "settlementNoun": "outpost",
+    "currency": "credits"
+  },
+
+  "theme": {
+    "primaryColor": "#6366f1",
+    "accentColor": "#a5b4fc",
+    "cssVariables": {
+      "--bg-primary": "#0a0a14",
+      "--bg-secondary": "#10101f",
+      "--text-primary": "#e0e0f0",
+      "--accent": "#6366f1"
+    }
+  },
+
+  "setup": {
+    "defaultTurns": 8,
+    "defaultSeed": 1200,
+    "defaultStartYear": 2030,
+    "defaultPopulation": 50,
+    "configurableSections": ["leaders", "personnel", "resources", "departments", "events", "models", "advanced"]
+  },
+
+  "departments": [
+    { "id": "medical", "label": "Medical", "role": "Chief Medical Officer", "icon": "🏥", "defaultModel": "gpt-5.4-mini", "instructions": "You are the Chief Medical Officer of a lunar outpost. You analyze crew health: regolith dust exposure, muscle atrophy in 1/6g, bone density loss, psychological wellbeing." },
+    { "id": "engineering", "label": "Engineering", "role": "Chief Engineer", "icon": "⚙️", "defaultModel": "gpt-5.4-mini", "instructions": "You are the Chief Engineer of a lunar outpost. You analyze infrastructure: habitat integrity, power systems (solar + nuclear), thermal management, construction." },
+    { "id": "mining", "label": "Mining", "role": "Mining Operations Lead", "icon": "⛏️", "defaultModel": "gpt-5.4-mini", "instructions": "You are the Mining Operations Lead. You analyze ISRU: water ice extraction from shadowed craters, regolith processing, construction material production." },
+    { "id": "life-support", "label": "Life Support", "role": "Life Support Chief", "icon": "🫧", "defaultModel": "gpt-5.4-mini", "instructions": "You are the Life Support Chief. You analyze ECLSS: oxygen from electrolysis, water recycling, food production, atmospheric management." },
+    { "id": "communications", "label": "Communications", "role": "Communications Officer", "icon": "📡", "defaultModel": "gpt-5.4-mini", "instructions": "You are the Communications Officer. You analyze Earth link: signal scheduling, relay satellite status, data transmission, crew morale through connectivity." }
+  ],
+
+  "metrics": [
+    { "id": "population", "label": "Crew", "source": "metrics.population", "format": "number" },
+    { "id": "morale", "label": "Morale", "source": "metrics.morale", "format": "percent" },
+    { "id": "foodMonthsReserve", "label": "Food", "source": "metrics.foodMonthsReserve", "format": "number" },
+    { "id": "powerKw", "label": "Power", "source": "metrics.powerKw", "format": "number" },
+    { "id": "infrastructureModules", "label": "Modules", "source": "metrics.infrastructureModules", "format": "number" },
+    { "id": "scienceOutput", "label": "Science", "source": "metrics.scienceOutput", "format": "number" }
+  ],
+
+  "events": [
+    { "id": "crisis", "label": "Crisis", "icon": "⚠️", "color": "#ef4444" },
+    { "id": "decision", "label": "Decision", "icon": "⚡", "color": "#f59e0b" },
+    { "id": "birth", "label": "Arrival", "icon": "🚀", "color": "#22c55e" },
+    { "id": "death", "label": "Casualty", "icon": "💀", "color": "#6b7280" },
+    { "id": "promotion", "label": "Appointment", "icon": "⬆️", "color": "#3b82f6" },
+    { "id": "relationship", "label": "Bond", "icon": "🤝", "color": "#ec4899" },
+    { "id": "tool_forge", "label": "Tool Forged", "icon": "🔧", "color": "#8b5cf6" },
+    { "id": "system", "label": "System", "icon": "⚙️", "color": "#64748b" }
+  ],
+
+  "effects": {
+    "environmental": { "powerKw": 40, "morale": 0.06, "foodMonthsReserve": 0.5 },
+    "resource": { "foodMonthsReserve": 3, "waterLitersPerDay": 80, "morale": 0.04 },
+    "medical": { "morale": 0.08, "lifeSupportCapacity": 3 },
+    "psychological": { "morale": 0.12 },
+    "political": { "morale": 0.06, "infrastructureModules": 1 },
+    "infrastructure": { "infrastructureModules": 1, "powerKw": 40, "pressurizedVolumeM3": 150 },
+    "social": { "morale": 0.10 },
+    "technological": { "powerKw": 35, "scienceOutput": 4, "morale": 0.04 }
+  },
+
+  "ui": {
+    "headerMetrics": [
+      { "id": "population", "format": "number" },
+      { "id": "morale", "format": "percent" },
+      { "id": "foodMonthsReserve", "format": "number" },
+      { "id": "powerKw", "format": "number" },
+      { "id": "infrastructureModules", "format": "number" },
+      { "id": "scienceOutput", "format": "number" }
+    ],
+    "tooltipFields": ["boneDensityPct", "cumulativeRadiationMsv", "psychScore"],
+    "reportSections": ["crisis", "departments", "decision", "outcome"],
+    "departmentIcons": { "medical": "🏥", "engineering": "⚙️", "mining": "⛏️", "life-support": "🫧", "communications": "📡" },
+    "setupSections": ["leaders", "personnel", "resources", "departments", "events", "models", "advanced"]
+  },
+
+  "policies": {
+    "toolForging": { "enabled": true, "requiredPerDepartment": true },
+    "liveSearch": { "enabled": false, "mode": "off" },
+    "bulletin": { "enabled": true },
+    "characterChat": { "enabled": true },
+    "sandbox": { "timeoutMs": 10000, "memoryMB": 128 }
+  },
+
+  "presets": [
+    {
+      "id": "default",
+      "label": "Default Lunar Outpost",
+      "leaders": [
+        {
+          "name": "Commander Sarah Lindgren",
+          "archetype": "The Pioneer",
+          "hexaco": { "openness": 0.85, "conscientiousness": 0.60, "extraversion": 0.75, "agreeableness": 0.65, "emotionality": 0.35, "honestyHumility": 0.70 },
+          "instructions": "You are Commander Sarah Lindgren, \"The Pioneer.\" You balance ambition with crew safety. You push boundaries but respect engineering limits. You communicate openly. Your HEXACO profile drives your leadership style."
+        },
+        {
+          "name": "Commander Raj Patel",
+          "archetype": "The Methodologist",
+          "hexaco": { "openness": 0.35, "conscientiousness": 0.90, "extraversion": 0.40, "agreeableness": 0.70, "emotionality": 0.60, "honestyHumility": 0.85 },
+          "instructions": "You are Commander Raj Patel, \"The Methodologist.\" You follow procedures. You document everything. You prioritize crew welfare over discovery timelines. Cautious, thorough, transparent. Your HEXACO profile drives your leadership style."
+        }
+      ],
+      "personnel": [
+        { "name": "Dr. Sarah Anderson", "department": "medical", "role": "Chief Medical Officer", "specialization": "Aerospace Medicine", "age": 42, "featured": true },
+        { "name": "James Mueller", "department": "engineering", "role": "Chief Engineer", "specialization": "Structural Systems", "age": 48, "featured": true },
+        { "name": "Dr. Yuki Nakamura", "department": "mining", "role": "Mining Operations Lead", "specialization": "ISRU Engineering", "age": 39, "featured": true },
+        { "name": "Chen Wei", "department": "life-support", "role": "Life Support Chief", "specialization": "ECLSS Design", "age": 44, "featured": true },
+        { "name": "Maria Santos", "department": "communications", "role": "Communications Officer", "specialization": "Deep Space Networks", "age": 36, "featured": true }
+      ]
+    }
+  ],
+
+  "names": {
+    "first": ["Sarah","James","Yuki","Chen","Maria","Ahmed","Olga","Raj","Emma","Lucas","Fatima","Noah","Aiko","Omar","Sofia","Wei","Anna","Kai","Leila","Max","Zara","Felix","Nina","Leo","Ava","Hugo","Mia","Sam","Iris","Theo","Luna","Alex","Eva","Liam","Hana","Ravi","Nora","Jin","Ella","David","Rosa","Erik","Dina","Sven","Clio","Marco","Ines","Tao","Ada","Leon"],
+    "last": ["Anderson","Kim","Tanaka","Mueller","Santos","Patel","Ivanova","Chen","Garcia","Johansson","Singh","Petrov","Nakamura","Fernandez","Weber","Ibrahim","Park","Torres","Lindgren","Ahmad","Costa","Volkov","Li","Osei","Larsson","Diallo","Sato","Rivera","Berg","Mensah","Kato","Morales","Holm","Yusuf","Takahashi","Reyes","Nkomo","Herrera","Ito","Mendez","Dahl","Owusu","Yamamoto","Cruz","Bakker","Ali","Hansen","Novak","Svensson","Kowalski"],
+    "child": ["Selene","Apollo","Luna","Artemis","Ceres","Titan","Nova","Stella","Orion","Helios","Lyra","Atlas","Iris","Pax","Sol","Astra"]
+  }
+}

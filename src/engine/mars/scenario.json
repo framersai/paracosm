@@ -1,0 +1,128 @@
+{
+  "id": "mars-genesis",
+  "version": "3.0.0",
+  "engineArchetype": "closed_turn_based_settlement",
+
+  "labels": {
+    "name": "Mars Genesis",
+    "shortName": "mars",
+    "populationNoun": "colonists",
+    "settlementNoun": "colony",
+    "currency": "credits"
+  },
+
+  "theme": {
+    "primaryColor": "#dc2626",
+    "accentColor": "#f97316",
+    "cssVariables": {
+      "--bg-primary": "#0a0a0f",
+      "--bg-secondary": "#14141f",
+      "--text-primary": "#e5e5e5",
+      "--accent": "#dc2626"
+    }
+  },
+
+  "setup": {
+    "defaultTurns": 12,
+    "defaultSeed": 950,
+    "defaultStartYear": 2035,
+    "defaultPopulation": 100,
+    "configurableSections": ["leaders", "personnel", "resources", "departments", "events", "models", "advanced"]
+  },
+
+  "departments": [
+    { "id": "medical", "label": "Medical", "role": "Chief Medical Officer", "icon": "🏥", "defaultModel": "gpt-5.4-mini", "instructions": "You are the Chief Medical Officer of a Mars colony. You analyze health impacts: radiation, bone density, disease, injuries, mortality risk, psychological wellbeing." },
+    { "id": "engineering", "label": "Engineering", "role": "Chief Engineer", "icon": "⚙️", "defaultModel": "gpt-5.4-mini", "instructions": "You are the Chief Engineer of a Mars colony. You analyze infrastructure: habitat integrity, power, life support capacity, water systems, construction." },
+    { "id": "agriculture", "label": "Agriculture", "role": "Head of Agriculture", "icon": "🌱", "defaultModel": "gpt-5.4-mini", "instructions": "You are the Head of Agriculture for a Mars colony. You analyze food security: crop yields, soil remediation, hydroponic capacity, caloric needs, reserves." },
+    { "id": "psychology", "label": "Psychology", "role": "Colony Psychologist", "icon": "🧠", "defaultModel": "gpt-5.4-mini", "instructions": "You are the Colony Psychologist. You analyze morale, isolation effects, depression risk, social cohesion, generational tensions." },
+    { "id": "governance", "label": "Governance", "role": "Governance Advisor", "icon": "🏛️", "defaultModel": "gpt-5.4-mini", "instructions": "You are the Governance Advisor. You analyze self-sufficiency, Earth dependency, political pressure, independence readiness." }
+  ],
+
+  "metrics": [
+    { "id": "population", "label": "Population", "source": "metrics.population", "format": "number" },
+    { "id": "morale", "label": "Morale", "source": "metrics.morale", "format": "percent" },
+    { "id": "foodMonthsReserve", "label": "Food", "source": "metrics.foodMonthsReserve", "format": "number" },
+    { "id": "powerKw", "label": "Power", "source": "metrics.powerKw", "format": "number" },
+    { "id": "infrastructureModules", "label": "Modules", "source": "metrics.infrastructureModules", "format": "number" },
+    { "id": "scienceOutput", "label": "Science", "source": "metrics.scienceOutput", "format": "number" }
+  ],
+
+  "events": [
+    { "id": "crisis", "label": "Crisis", "icon": "⚠️", "color": "#ef4444" },
+    { "id": "decision", "label": "Decision", "icon": "⚡", "color": "#f59e0b" },
+    { "id": "birth", "label": "Birth", "icon": "👶", "color": "#22c55e" },
+    { "id": "death", "label": "Death", "icon": "💀", "color": "#6b7280" },
+    { "id": "promotion", "label": "Promotion", "icon": "⬆️", "color": "#3b82f6" },
+    { "id": "relationship", "label": "Relationship", "icon": "💕", "color": "#ec4899" },
+    { "id": "tool_forge", "label": "Tool Forged", "icon": "🔧", "color": "#8b5cf6" },
+    { "id": "system", "label": "System", "icon": "⚙️", "color": "#64748b" }
+  ],
+
+  "effects": {
+    "environmental": { "powerKw": 50, "morale": 0.08, "foodMonthsReserve": 1 },
+    "resource": { "foodMonthsReserve": 4, "waterLitersPerDay": 100, "morale": 0.05 },
+    "medical": { "morale": 0.10, "lifeSupportCapacity": 5 },
+    "psychological": { "morale": 0.15 },
+    "political": { "morale": 0.08, "infrastructureModules": 1 },
+    "infrastructure": { "infrastructureModules": 2, "powerKw": 60, "pressurizedVolumeM3": 200 },
+    "social": { "morale": 0.12 },
+    "technological": { "powerKw": 50, "scienceOutput": 3, "morale": 0.05 }
+  },
+
+  "ui": {
+    "headerMetrics": [
+      { "id": "population", "format": "number" },
+      { "id": "morale", "format": "percent" },
+      { "id": "foodMonthsReserve", "format": "number" },
+      { "id": "powerKw", "format": "number" },
+      { "id": "infrastructureModules", "format": "number" },
+      { "id": "scienceOutput", "format": "number" }
+    ],
+    "tooltipFields": ["boneDensityPct", "cumulativeRadiationMsv", "psychScore", "marsborn"],
+    "reportSections": ["crisis", "departments", "decision", "outcome", "quotes"],
+    "departmentIcons": { "medical": "🏥", "engineering": "⚙️", "agriculture": "🌱", "psychology": "🧠", "governance": "🏛️" },
+    "setupSections": ["leaders", "personnel", "resources", "departments", "events", "models", "advanced"]
+  },
+
+  "policies": {
+    "toolForging": { "enabled": true, "requiredPerDepartment": true },
+    "liveSearch": { "enabled": false, "mode": "off" },
+    "bulletin": { "enabled": true },
+    "characterChat": { "enabled": true },
+    "sandbox": { "timeoutMs": 10000, "memoryMB": 128 }
+  },
+
+  "presets": [
+    {
+      "id": "default",
+      "label": "Default Mars Genesis",
+      "leaders": [
+        {
+          "name": "Aria Chen",
+          "archetype": "The Visionary",
+          "hexaco": { "openness": 0.95, "conscientiousness": 0.35, "extraversion": 0.85, "agreeableness": 0.55, "emotionality": 0.30, "honestyHumility": 0.65 },
+          "instructions": "You are Aria Chen, \"The Visionary.\" You lead by inspiration. You value openness to experience and bold experimentation. You tolerate mess if it leads to breakthroughs. You spin setbacks as learning opportunities. You rally people with charisma. Your HEXACO profile drives your leadership style."
+        },
+        {
+          "name": "Dietrich Voss",
+          "archetype": "The Engineer",
+          "hexaco": { "openness": 0.25, "conscientiousness": 0.97, "extraversion": 0.30, "agreeableness": 0.60, "emotionality": 0.70, "honestyHumility": 0.90 },
+          "instructions": "You are Dietrich Voss, \"The Engineer.\" You lead by precision and evidence. You value conscientiousness and proven methods. You reject untested approaches. You share bad news immediately and honestly. You build systems, not visions. Your HEXACO profile drives your leadership style."
+        }
+      ],
+      "personnel": [
+        { "name": "Dr. Yuki Tanaka", "department": "medical", "role": "Chief Medical Officer", "specialization": "Radiation Medicine", "age": 38, "featured": true },
+        { "name": "Erik Lindqvist", "department": "engineering", "role": "Chief Engineer", "specialization": "Structural Engineering", "age": 45, "featured": true },
+        { "name": "Amara Osei", "department": "agriculture", "role": "Head of Agriculture", "specialization": "Hydroponics", "age": 34, "featured": true },
+        { "name": "Dr. Priya Singh", "department": "psychology", "role": "Colony Psychologist", "specialization": "Clinical Psychology", "age": 41, "featured": true },
+        { "name": "Carlos Fernandez", "department": "science", "role": "Chief Scientist", "specialization": "Geology", "age": 50, "featured": true }
+      ]
+    }
+  ],
+
+  "names": {
+    "first": ["Aria","Dietrich","Yuki","Marcus","Elena","Kwame","Sofia","Jin","Amara","Liam","Priya","Omar","Mei","Carlos","Ingrid","Tariq","Nadia","Henrik","Aisha","Pavel","Luna","Ravi","Zara","Felix","Anya","Diego","Kira","Hassan","Signe","Jamal","Mila","Chen","Fatima","Anders","Keiko","David","Olga","Kofi","Leila","Sven","Rosa","Idris","Hana","Bruno","Daria","Emeka","Yara","Tomas","Nia","Viktor"],
+    "last": ["Chen","Voss","Tanaka","Webb","Kowalski","Okafor","Petrov","Kim","Santos","Johansson","Patel","Al-Rashid","Nakamura","Fernandez","Berg","Ibrahim","Volkov","Singh","Torres","Andersen","Müller","Zhang","Osei","Larsson","Ahmad","Costa","Ivanova","Park","Eriksson","Diallo","Sato","Rivera","Lindqvist","Mensah","Kato","Morales","Holm","Yusuf","Takahashi","Reyes","Nkomo","Li","Herrera","Bakker","Ito","Mendez","Dahl","Owusu","Yamamoto","Cruz"],
+    "child": ["Nova","Kai","Sol","Tera","Eos","Zan","Lyra","Orion","Vega","Juno","Atlas","Iris","Clio","Pax","Io","Thea"]
+  }
+}

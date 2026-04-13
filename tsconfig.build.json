@@ -7,6 +7,6 @@
     "declarationMap": true,
     "sourceMap": true
   },
-  "include": ["src/engine/**/*.ts", "src/runtime/**/*.ts"],
+  "include": ["src/engine/**/*.ts", "src/engine/**/*.json", "src/runtime/**/*.ts"],
   "exclude": ["**/*.test.ts"]
 }
