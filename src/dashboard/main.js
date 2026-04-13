@@ -1025,6 +1025,27 @@ function handleSimEvent(d) {
   }
 }
 
+// Position fixed tooltips near mouse
+document.addEventListener('mouseover', e => {
+  const tip = e.target.closest('.hover-tip');
+  if (!tip) return;
+  const htip = tip.querySelector('.htip');
+  if (!htip) return;
+  const rect = tip.getBoundingClientRect();
+  const tipW = 340;
+  let left = rect.left;
+  let top = rect.top - 10; // above by default
+  // Flip down if too close to top
+  if (top < 200) top = rect.bottom + 10;
+  else top = top - htip.offsetHeight || top - 200;
+  // Keep on screen
+  if (left + tipW > window.innerWidth) left = window.innerWidth - tipW - 10;
+  if (left < 10) left = 10;
+  if (top < 10) top = 10;
+  htip.style.left = left + 'px';
+  htip.style.top = top + 'px';
+});
+
 // Dismiss intro if previously dismissed
 if (localStorage.getItem('mars-intro-dismissed') === '1') {
   const intro = $('intro-bar');
