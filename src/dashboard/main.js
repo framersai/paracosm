@@ -869,8 +869,10 @@ function handleSimEvent(d) {
           `<a href="${c.url}" target="_blank" rel="noopener" style="color:var(--amber);font-size:9px;text-decoration:none;margin-right:6px" title="${c.text}">${c.doi ? 'DOI: ' + c.doi : c.text.slice(0, 30)}</a>`
         ).join('');
         const citesHtml = citeLinks ? `<div style="margin-top:3px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${citeLinks}</div>` : '';
-        const deptTip = `${dept} Department Analysis\nCitations: ${dd.citations || 0}\nRisks: ${(dd.risks || []).map(r => r.severity + ': ' + r.description).join('\n')}\nRecommendations: ${(dd.recommendedActions || []).join('\n')}`;
-        addToBody(s, `<div class="card ${severity}" title="${deptTip.replace(/"/g, '&quot;')}"><div class="card-h"><span class="card-title">${icon} ${dept}</span><span class="card-badge">${dd.citations || 0} cites</span></div>${showSummary ? `<div class="card-text">${summary}</div>` : ''}${risks}${recsHtml}${citesHtml}</div>`);
+        const deptRisksFull = (dd.risks || []).map(r => `<div style="font-size:10px;margin:2px 0"><span style="color:${r.severity === 'critical' ? 'var(--rust)' : r.severity === 'high' ? 'var(--amber)' : 'var(--green)'};font-weight:700">${r.severity.toUpperCase()}</span>: ${r.description}</div>`).join('');
+        const deptRecsFull = (dd.recommendedActions || []).map(r => `<div style="font-size:10px;color:var(--amber);margin:1px 0">\u2192 ${r}</div>`).join('');
+        const deptPop = `<div class="htip" style="width:340px"><b>${icon} ${dept} Department</b><div class="ht-stats">Citations: ${dd.citations || 0} | Tools forged: ${tools.length}</div>${summary ? `<div style="margin:4px 0;color:var(--text-1);font-size:11px">${summary}</div>` : ''}${deptRisksFull}${deptRecsFull}</div>`;
+        addToBody(s, `<div class="card ${severity} hover-tip"><div class="card-h"><span class="card-title">${icon} ${dept}</span><span class="card-badge">${dd.citations || 0} cites</span></div>${showSummary ? `<div class="card-text">${summary}</div>` : ''}${risks}${recsHtml}${citesHtml}${deptPop}</div>`);
       }
       for (const t of tools) {
         const desc = t.description || t.name.replace(/_v\d+$/, '').replace(/_/g, ' ');
@@ -897,10 +899,10 @@ function handleSimEvent(d) {
         // Why context
         const whyHtml = `<div style="font-size:9px;color:var(--text-3);margin-top:2px">${whyDept} agent created this tool to analyze "${whyCrisis}"</div>`;
 
-        // Full tooltip content
-        const tipContent = `Agent: ${whyDept} department\\nCrisis: ${whyCrisis}\\nMode: ${t.mode || 'sandbox'}\\nConfidence: ${(t.confidence || .85).toFixed(2)}\\n${inFields ? 'Inputs: ' + inFields + '\\n' : ''}${outFields ? 'Outputs: ' + outFields : ''}`;
+        // CSS popover tooltip
+        const toolPop = `<div class="htip" style="width:360px"><b>\uD83D\uDD27 ${t.name}</b><div style="margin:4px 0;color:var(--text-1)">${desc}</div><div class="ht-stats">Mode: ${t.mode || 'sandbox'} | Confidence: ${(t.confidence || .85).toFixed(2)}</div><div class="ht-stats">Created by: ${whyDept} department</div><div class="ht-stats">Crisis: ${whyCrisis}</div>${inFields ? `<div class="ht-hexaco" style="margin-top:4px"><span style="color:var(--text-3)">INPUTS:</span> ${inFields}</div>` : ''}${outFields ? `<div class="ht-hexaco"><span style="color:var(--text-3)">OUTPUTS:</span> ${outFields}</div>` : ''}${t.output ? `<div style="margin-top:4px;padding-top:4px;border-top:1px solid var(--border);font-size:10px;font-family:var(--mono);color:var(--text-2);max-height:80px;overflow-y:auto;word-break:break-all"><b style="color:var(--text-3)">FULL RESULT:</b><br>${String(t.output).slice(0, 400)}</div>` : ''}</div>`;
 
-        addToBody(s, `<div class="forge ok" title="${tipContent}"><span style="font-size:16px">\uD83D\uDD27</span><div style="flex:1"><span class="forge-label">Agent-Forged Tool \u2014 Judge Approved</span><div class="fd">${desc}</div><div class="fn">${t.name} \u00B7 ${t.mode || 'sandbox'} \u00B7 invented at runtime</div>${schemaHtml}${whyHtml}${resultHtml}</div><span class="jb p">\u2713 ${(t.confidence || .85).toFixed(2)}</span></div>`);
+        addToBody(s, `<div class="forge ok hover-tip"><span style="font-size:16px">\uD83D\uDD27</span><div style="flex:1"><span class="forge-label">Agent-Forged Tool \u2014 Judge Approved</span><div class="fd">${desc}</div><div class="fn">${t.name} \u00B7 ${t.mode || 'sandbox'} \u00B7 invented at runtime</div>${schemaHtml}${whyHtml}${resultHtml}</div><span class="jb p">\u2713 ${(t.confidence || .85).toFixed(2)}</span>${toolPop}</div>`);
       }
       state[s].tools += tools.length; $(`s-${s}-tools`).textContent = state[s].tools;
       state[s].cites += (dd.citations || 0); const citesEl = $(`s-${s}-cites`); if (citesEl) citesEl.textContent = state[s].cites;
@@ -927,8 +929,9 @@ function handleSimEvent(d) {
       const cls = oc === 'risky_success' ? 'rs' : oc === 'conservative_success' ? 'cs' : 'rf';
       const badge = oc === 'risky_success' ? 'RISKY WIN' : oc === 'risky_failure' ? 'RISKY LOSS' : oc === 'conservative_success' ? 'SAFE WIN' : 'SAFE LOSS';
       const icon = oc.includes('success') ? '\u2713' : '\u2717';
-      const decTip = `Commander Decision - Turn ${dd.turn}\nOutcome: ${oc}\nRisky option: ${dd.riskyOption || 'N/A'}\n\nFull decision:\n${dec}`;
-      addToBody(s, `<div class="dec ${s}" title="${decTip.replace(/"/g, '&quot;')}"><div class="dl ${s}">\u26A1 Commander Decision</div><div class="ddt">${dec}</div><div class="out"><span class="ob ${cls}">${icon} ${badge}</span></div><div id="drift-slot-${s}-${dd.turn}" class="drift-inline" style="display:none"></div></div>`);
+      const outcomeColor = oc.includes('success') ? 'var(--green)' : 'var(--rust)';
+      const decPop = `<div class="htip" style="width:380px"><b>\u26A1 Commander Decision</b><div class="ht-stats">Outcome: <span style="color:${outcomeColor};font-weight:700">${oc.replace(/_/g,' ').toUpperCase()}</span></div><div style="margin-top:4px;color:var(--text-1);line-height:1.5">${dec}</div></div>`;
+      addToBody(s, `<div class="dec ${s} hover-tip"><div class="dl ${s}">\u26A1 Commander Decision</div><div class="ddt">${dec}</div><div class="out"><span class="ob ${cls}">${icon} ${badge}</span></div><div id="drift-slot-${s}-${dd.turn}" class="drift-inline" style="display:none"></div>${decPop}</div>`);
       addTimeline(s, dd.year, dec.slice(0, 40), cls, icon);
       state[s].outcome = oc; state[s].decision = dec;
       // Divergence check
