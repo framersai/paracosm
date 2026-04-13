@@ -204,6 +204,13 @@ function setSetupPersonnel(personnel = DEFAULT_SETUP_PERSONNEL) {
   (personnel.length ? personnel : DEFAULT_SETUP_PERSONNEL).forEach(person => addPersonnelRow(person));
 }
 
+function getActiveDepartments() {
+  return Array.from(document.querySelectorAll('#s-departments input[type=checkbox]'))
+    .filter(el => el.checked)
+    .map(el => el.dataset.dept)
+    .filter(Boolean);
+}
+
 function applySetupConfig(cfg) {
   if (cfg.leaders?.length >= 2) {
     const a = cfg.leaders[0], b = cfg.leaders[1];
@@ -239,6 +246,10 @@ function applySetupConfig(cfg) {
     if (cfg.execution.sandboxTimeoutMs != null) $('s-sandbox-timeout').value = cfg.execution.sandboxTimeoutMs;
     if (cfg.execution.sandboxMemoryMB != null) $('s-sandbox-mem').value = cfg.execution.sandboxMemoryMB;
   }
+  document.querySelectorAll('#s-departments input[type=checkbox]').forEach(el => {
+    if (el.disabled) return;
+    el.checked = Array.isArray(cfg.activeDepartments) ? cfg.activeDepartments.includes(el.dataset.dept) : true;
+  });
   if (typeof cfg.liveSearch === 'boolean') $('s-search').value = String(cfg.liveSearch);
   $('s-events').innerHTML = '';
   sec = 0;
@@ -397,6 +408,7 @@ function buildSetupConfig() {
     turns: parseInt($('s-turns').value) || 12, seed: parseInt($('s-seed').value) || 950,
     startYear: parseInt($('s-year').value) || 2035,
     population: parseInt($('s-pop').value) || 100,
+    activeDepartments: getActiveDepartments(),
     startingResources: {
       food: parseInt($('s-food').value) || 18,
       water: parseInt($('s-water').value) || 800,

@@ -16,6 +16,16 @@ import { getResearchPacket } from '../research/research.js';
 import { getResearchForCategory } from '../research/knowledge-base.js';
 import { DEPARTMENT_CONFIGS, buildDepartmentContext, getDepartmentsForTurn } from './departments.js';
 import { CrisisDirector, type DirectorCrisis, type DirectorContext } from './director.js';
+import {
+  DEFAULT_EXECUTION,
+  resolveSimulationModels,
+  type LlmProvider,
+  type SimulationExecutionConfig,
+  type SimulationModelConfig,
+  type StartingPolitics,
+  type StartingResources,
+} from '../sim-config.js';
+import { applyCustomEventToCrisis, buildPromotionPrompt, buildYearSchedule } from './runtime-helpers.js';
 import type { LeaderConfig } from '../types.js';
 export type { LeaderConfig };
 
@@ -50,13 +60,18 @@ const webSearchTool: ITool = {
 // Emergent engine
 // ---------------------------------------------------------------------------
 
-function createEmergentEngine(toolMap: Map<string, ITool>) {
+function createEmergentEngine(
+  toolMap: Map<string, ITool>,
+  provider: LlmProvider,
+  judgeModel: string,
+  execution: Partial<SimulationExecutionConfig> = {},
+) {
   const llmCb = async (model: string, prompt: string) => {
-    const r = await generateText({ provider: 'openai', model: model || 'gpt-5.4', prompt });
+    const r = await generateText({ provider, model: model || judgeModel, prompt });
     return r.text;
   };
   const registry = new EmergentToolRegistry();
-  const judge = new EmergentJudge({ judgeModel: 'gpt-5.4', promotionModel: 'gpt-5.4', generateText: llmCb });
+  const judge = new EmergentJudge({ judgeModel, promotionModel: judgeModel, generateText: llmCb });
   const executor = async (name: string, args: unknown, ctx: any) => {
     const t = toolMap.get(name);
     return t ? t.execute(args as any, ctx) : { success: false, error: `Tool "${name}" not found` };
@@ -64,10 +79,11 @@ function createEmergentEngine(toolMap: Map<string, ITool>) {
   const engine = new EmergentCapabilityEngine({
     config: {
       enabled: true, maxSessionTools: 20, maxAgentTools: 50,
-      sandboxTimeoutMs: 10000, sandboxMemoryMB: 128,
+      sandboxTimeoutMs: execution.sandboxTimeoutMs ?? DEFAULT_EXECUTION.sandboxTimeoutMs,
+      sandboxMemoryMB: execution.sandboxMemoryMB ?? DEFAULT_EXECUTION.sandboxMemoryMB,
       promotionThreshold: { uses: 5, confidence: 0.8 },
       allowSandboxTools: true, persistSandboxSource: true,
-      judgeModel: 'gpt-5.4', promotionJudgeModel: 'gpt-5.4',
+      judgeModel, promotionJudgeModel: judgeModel,
     },
     composableBuilder: new ComposableToolBuilder(executor as any),
     sandboxForge: new SandboxedToolForge(),
@@ -280,15 +296,26 @@ export type SimEvent = {
 export interface RunOptions {
   maxTurns?: number;
   seed?: number;
+  startYear?: number;
   liveSearch?: boolean;
+  activeDepartments?: Department[];
+  provider?: LlmProvider;
   onEvent?: (event: SimEvent) => void;
   customEvents?: Array<{ turn: number; title: string; description: string }>;
+  models?: Partial<SimulationModelConfig>;
+  initialPopulation?: number;
+  startingResources?: StartingResources;
+  startingPolitics?: StartingPolitics;
+  execution?: Partial<SimulationExecutionConfig>;
 }
 
 export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPersonnel[], opts: RunOptions = {}) {
   const { agent } = await import('@framers/agentos');
   const maxTurns = opts.maxTurns ?? 12;
+  const startYear = opts.startYear ?? 2035;
+  const provider = opts.provider ?? 'openai';
   const sid = `mars-v2-${leader.archetype.toLowerCase().replace(/\s+/g, '-')}`;
+  const modelConfig = resolveSimulationModels(provider, opts.models);
   const emit = (type: SimEvent['type'], data?: Record<string, unknown>) => {
     opts.onEvent?.({ type, leader: leader.name, data });
   };
@@ -300,18 +327,23 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   console.log(`${'═'.repeat(60)}\n`);
 
   const seed = opts.seed ?? 950;
-  const kernel = new SimulationKernel(seed, leader.name, keyPersonnel);
+  const kernel = new SimulationKernel(seed, leader.name, keyPersonnel, {
+    startYear,
+    initialPopulation: opts.initialPopulation,
+    startingResources: opts.startingResources,
+    startingPolitics: opts.startingPolitics,
+  });
 
   const toolMap = new Map<string, ITool>();
   toolMap.set('web_search', webSearchTool);
-  const { engine, forgeTool } = createEmergentEngine(toolMap);
+  const { engine, forgeTool } = createEmergentEngine(toolMap, provider, modelConfig.judge, opts.execution);
   const toolRegs: Record<string, string[]> = {};
 
   const commander = agent({
-    provider: 'openai', model: 'gpt-5.4',
+    provider, model: modelConfig.commander,
     instructions: leader.instructions,
     personality: { openness: leader.hexaco.openness, conscientiousness: leader.hexaco.conscientiousness, extraversion: leader.hexaco.extraversion, agreeableness: leader.hexaco.agreeableness, emotionality: leader.hexaco.emotionality, honesty: leader.hexaco.honestyHumility },
-    maxSteps: 5,
+    maxSteps: opts.execution?.commanderMaxSteps ?? DEFAULT_EXECUTION.commanderMaxSteps,
   });
   const cmdSess = commander.session(`${sid}-cmd`);
   await cmdSess.send('You are the colony commander. You receive department reports and make strategic decisions. When the crisis includes options with IDs, you MUST include selectedOptionId in your JSON response. Return JSON with selectedOptionId, decision, rationale, selectedPolicies, rejectedPolicies, expectedTradeoffs, watchMetricsNextTurn. Acknowledge.');
@@ -327,14 +359,14 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   const candidateSummaries = promotionDepts.map(dept => {
     const candidates = kernel.getCandidates(dept, 5);
     return `## ${dept.toUpperCase()} — Top 5 Candidates:\n${candidates.map(c => {
-      const age = 2035 - c.core.birthYear;
+      const age = startYear - c.core.birthYear;
       const h = c.hexaco;
       return `- ${c.core.name} (${c.core.id}), age ${age}, spec: ${c.career.specialization}, O:${h.openness.toFixed(2)} C:${h.conscientiousness.toFixed(2)} E:${h.extraversion.toFixed(2)} A:${h.agreeableness.toFixed(2)} Em:${h.emotionality.toFixed(2)} HH:${h.honestyHumility.toFixed(2)}`;
     }).join('\n')}`;
   }).join('\n\n');
 
   const promoResult = await cmdSess.send(
-    `You must promote 4 colonists to department head roles. Evaluate these candidates based on their personality traits and specialization. Choose people who align with YOUR leadership style.\n\n${candidateSummaries}\n\nReturn JSON: {"promotions":[{"colonistId":"col-...","department":"medical","role":"Chief Medical Officer","reason":"..."},...]}`
+    buildPromotionPrompt(candidateSummaries)
   );
 
   const promoMatch = promoResult.text.match(/\{[\s\S]*"promotions"[\s\S]*\}/);
@@ -372,17 +404,24 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     if (!cfg) continue;
     const wrapped = wrapForgeTool(forgeTool, `${sid}-${dept}`, sid, dept);
     const tools: ITool[] = opts.liveSearch ? [webSearchTool, wrapped] : [wrapped];
-    const a = agent({ provider: 'openai', model: cfg.model, instructions: cfg.instructions, tools, maxSteps: 8 });
+    const a = agent({
+      provider,
+      model: modelConfig.departments || cfg.model,
+      instructions: cfg.instructions,
+      tools,
+      maxSteps: opts.execution?.departmentMaxSteps ?? DEFAULT_EXECUTION.departmentMaxSteps,
+    });
     deptAgents.set(dept, a);
     deptSess.set(dept, a.session(`${sid}-${dept}`));
   }
   console.log(`  Promoted ${promoted.length} department heads. Agents created.\n`);
 
   const artifacts: TurnArtifact[] = [];
-  const yearSchedule = [2035, 2037, 2040, 2043, 2046, 2049, 2053, 2058, 2063, 2068, 2075, 2085];
+  const yearSchedule = buildYearSchedule(startYear, maxTurns);
   const outcomeLog: Array<{ turn: number; year: number; outcome: TurnOutcome }> = [];
   const crisisHistory: DirectorContext['previousCrises'] = [];
   const director = new CrisisDirector();
+  const activeDepartments = new Set<Department>(opts.activeDepartments ?? ['medical', 'engineering', 'agriculture', 'psychology', 'governance']);
 
   for (let turn = 1; turn <= maxTurns; turn++) {
     const year = yearSchedule[turn - 1] ?? (yearSchedule[yearSchedule.length - 1] + (turn - yearSchedule.length) * 5);
@@ -410,8 +449,10 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
           .map(c => ({ name: c.core.name, role: c.core.role, openness: c.hexaco.openness, conscientiousness: c.hexaco.conscientiousness })),
       };
       emit('turn_start', { turn, year, title: 'Director generating...', crisis: '', births: 0, deaths: 0, colony: preState.colony });
-      crisis = await director.generateCrisis(dirCtx);
+      crisis = await director.generateCrisis(dirCtx, provider, modelConfig.director);
     }
+
+    crisis = applyCustomEventToCrisis(crisis, opts.customEvents ?? [], turn);
 
     console.log(`\n${'─'.repeat(50)}`);
     console.log(`  Turn ${turn}/${maxTurns} — Year ${year}: ${crisis.title} [${milestone ? 'MILESTONE' : 'EMERGENT'}]`);
@@ -430,7 +471,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     // Departments: from director for emergent, from schedule for milestones
     const validDepts: Department[] = ['medical', 'engineering', 'agriculture', 'psychology', 'governance'];
     const rawDepts = milestone ? getDepartmentsForTurn(turn) : crisis.relevantDepartments;
-    const depts = rawDepts.filter(d => validDepts.includes(d));
+    const depts = rawDepts.filter(d => validDepts.includes(d) && activeDepartments.has(d));
     if (!depts.length) depts.push('medical', 'engineering');
     console.log(`  Departments: ${depts.join(', ')}`);
 
@@ -513,7 +554,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
       ? classifyOutcomeById(decision.selectedOptionId, crisis.options, crisis.riskSuccessProbability, kernel.getState().colony, outcomeRng)
       : classifyOutcome(decision.decision, scenario.riskyOption, crisis.riskSuccessProbability, kernel.getState().colony, outcomeRng);
 
-    const prevYear = turn === 1 ? 2035 : yearSchedule[turn - 2] ?? 2035;
+    const prevYear = turn === 1 ? startYear : yearSchedule[turn - 2] ?? startYear;
     kernel.applyDrift(leader.hexaco, outcome, Math.max(1, year - prevYear));
     outcomeLog.push({ turn, year, outcome });
 

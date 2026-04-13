@@ -144,7 +144,7 @@ export function progressBetweenTurns(
 
     // Bone density loss (stabilizes after ~20 years on Mars)
     const lossRate = c.core.marsborn ? 0.003 : 0.005;
-    const yearsOnMars = year - (c.core.marsborn ? c.core.birthYear : 2035);
+    const yearsOnMars = year - (c.core.marsborn ? c.core.birthYear : state.metadata.startYear);
     const decayFactor = Math.max(0.5, 1 - lossRate * Math.min(yearsOnMars, 20));
     c.health.boneDensityPct = Math.max(50, c.health.boneDensityPct * decayFactor);
 

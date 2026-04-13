@@ -7,6 +7,7 @@
 
 import type { Department, HexacoProfile, TurnOutcome } from '../kernel/state.js';
 import type { CrisisOption } from './contracts.js';
+import type { LlmProvider } from '../sim-config.js';
 import { SCENARIOS } from '../research/scenarios.js';
 
 export type CrisisCategory =
@@ -209,14 +210,14 @@ export class CrisisDirector {
    * Generate a crisis for a specific timeline. Uses AgentOS agent() if available,
    * falls back to generateText() for simpler integration.
    */
-  async generateCrisis(ctx: DirectorContext): Promise<DirectorCrisis> {
+  async generateCrisis(ctx: DirectorContext, provider: LlmProvider = 'openai', model: string = 'gpt-5.4'): Promise<DirectorCrisis> {
     const prompt = buildDirectorPrompt(ctx);
 
     try {
       const { generateText } = await import('@framers/agentos');
       const result = await generateText({
-        provider: 'openai',
-        model: 'gpt-5.4',
+        provider,
+        model,
         prompt: DIRECTOR_INSTRUCTIONS + '\n\n' + prompt,
       });
 

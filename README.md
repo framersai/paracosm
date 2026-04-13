@@ -51,9 +51,9 @@ The simulation runs in the browser with a live SSE-powered dashboard:
 - **Side-by-side columns** showing each timeline's crises, department analyses, forged tools, and commander decisions in real-time
 - **Per-column crisis headers** that diverge when the director generates different crises
 - **Divergence rail** comparing the two timelines when crises or outcomes differ
-- **Settings tab** for configuring leaders, HEXACO sliders, presets, key personnel, resources, custom events, API keys, and models
+- **Settings tab** for configuring leaders, HEXACO sliders, presets, key personnel, starting resources, custom events, API keys, and model overrides
 - **Reports tab** with full side-by-side turn-by-turn comparison
-- **Save/Load Game** to download and replay simulation data as JSON
+- **Save/Load Game** to download and replay simulation data as JSON, including the setup config used to launch the run
 - **Config sharing** via URL parameters
 - **About tab** with FAQ and full documentation
 
@@ -80,7 +80,7 @@ mars-genesis-simulation/
 │   ├── dashboard/                  # Live visualization
 │   │   ├── index.html              # Dashboard (Mars theme, SSE client, tabs)
 │   │   ├── main.js                 # Dashboard JavaScript
-│   │   ├── setup.html              # Standalone setup page (also available as Settings tab)
+│   │   ├── setup.html              # Legacy standalone setup prototype
 │   │   └── about.html              # Standalone about page
 │   ├── types.ts                    # Shared type definitions
 │   ├── run-visionary.ts            # Entry: Aria Chen simulation
@@ -108,17 +108,20 @@ npm install
 cp .env.example .env
 # Edit .env with your OPENAI_API_KEY (and optionally ANTHROPIC_API_KEY)
 
-# Launch dashboard (opens setup page, configure and start)
+# Launch dashboard (configure from the in-app Settings surface)
 npm run dashboard
-# Open http://localhost:3456
+# Open http://localhost:3456/#settings
 
 # Launch with defaults (3-turn smoke test)
 npm run dashboard:smoke
 
 # Standalone simulations (no dashboard)
 OPENAI_API_KEY=sk-... npm run visionary
+ANTHROPIC_API_KEY=sk-ant-... npx tsx src/run-visionary.ts 5 --provider anthropic
 OPENAI_API_KEY=sk-... npm run engineer
 ```
+
+The setup flow now drives the live runtime instead of acting as a cosmetic shell. Shared seed, start year, turn count, initial population/resources, life support and habitat capacity, Earth dependency, key personnel, custom events, sandbox/runtime controls, and model selection all flow through the server into the simulation.
 
 ## Requirements
 

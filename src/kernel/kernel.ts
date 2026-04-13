@@ -21,28 +21,45 @@ export interface PolicyEffect {
   events: TurnEvent[];
 }
 
+export interface SimulationInitOverrides {
+  startYear?: number;
+  initialPopulation?: number;
+  startingResources?: Partial<ColonySystems>;
+  startingPolitics?: Partial<ColonyPolitics>;
+}
+
 export class SimulationKernel {
   private state: SimulationState;
   private rng: SeededRng;
 
-  constructor(seed: number, leaderId: string, keyPersonnel: KeyPersonnel[]) {
+  constructor(seed: number, leaderId: string, keyPersonnel: KeyPersonnel[], init: SimulationInitOverrides = {}) {
     this.rng = new SeededRng(seed);
-    const colonists = generateInitialPopulation(seed, 2035, keyPersonnel);
+    const startYear = init.startYear ?? 2035;
+    const colonists = generateInitialPopulation(seed, startYear, keyPersonnel, init.initialPopulation ?? 100);
 
     this.state = {
       metadata: {
         simulationId: `mars-genesis-${seed}-${Date.now()}`,
         leaderId, seed,
-        startYear: 2035, currentYear: 2035, currentTurn: 0,
+        startYear, currentYear: startYear, currentTurn: 0,
       },
       colony: {
         population: colonists.length,
-        powerKw: 400, foodMonthsReserve: 18, waterLitersPerDay: 800,
-        pressurizedVolumeM3: 3000, lifeSupportCapacity: 120,
-        infrastructureModules: 3, scienceOutput: 0, morale: 0.85,
+        powerKw: init.startingResources?.powerKw ?? 400,
+        foodMonthsReserve: init.startingResources?.foodMonthsReserve ?? 18,
+        waterLitersPerDay: init.startingResources?.waterLitersPerDay ?? 800,
+        pressurizedVolumeM3: init.startingResources?.pressurizedVolumeM3 ?? 3000,
+        lifeSupportCapacity: init.startingResources?.lifeSupportCapacity ?? 120,
+        infrastructureModules: init.startingResources?.infrastructureModules ?? 3,
+        scienceOutput: init.startingResources?.scienceOutput ?? 0,
+        morale: init.startingResources?.morale ?? 0.85,
       },
       colonists,
-      politics: { earthDependencyPct: 95, governanceStatus: 'earth-governed', independencePressure: 0.05 },
+      politics: {
+        earthDependencyPct: init.startingPolitics?.earthDependencyPct ?? 95,
+        governanceStatus: init.startingPolitics?.governanceStatus ?? 'earth-governed',
+        independencePressure: init.startingPolitics?.independencePressure ?? 0.05,
+      },
       eventLog: [],
     };
   }

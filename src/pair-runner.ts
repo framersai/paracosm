@@ -30,12 +30,15 @@ export async function runPairSimulations(
       seed,
       startYear,
       liveSearch,
+      activeDepartments: simConfig.activeDepartments,
       onEvent,
       customEvents,
       provider: simConfig.provider,
       models: simConfig.models,
       initialPopulation: simConfig.initialPopulation,
       startingResources: simConfig.startingResources,
+      startingPolitics: simConfig.startingPolitics,
+      execution: simConfig.execution,
     }).then(
       result => {
         broadcast('result', {

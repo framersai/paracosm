@@ -9,7 +9,9 @@
     "smoke": "npx tsx src/run-visionary.ts 3",
     "compare": "npx tsx src/run-visionary.ts && npx tsx src/run-engineer.ts",
     "dashboard": "npx tsx src/serve.ts",
-    "dashboard:smoke": "npx tsx src/serve.ts 3"
+    "dashboard:smoke": "npx tsx src/serve.ts 3",
+    "check:dashboard": "node --check src/dashboard/main.js",
+    "test": "node --import tsx --test src/*.test.ts src/**/*.test.ts"
   },
   "dependencies": {
     "@framers/agentos": "^0.1.211"
