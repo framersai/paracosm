@@ -92,6 +92,15 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         if (simConfig.serperKey && !simConfig.serperKey.includes('...')) {
           env.SERPER_API_KEY = simConfig.serperKey;
         }
+        if (simConfig.firecrawlKey && !simConfig.firecrawlKey.includes('...')) {
+          env.FIRECRAWL_API_KEY = simConfig.firecrawlKey;
+        }
+        if (simConfig.tavilyKey && !simConfig.tavilyKey.includes('...')) {
+          env.TAVILY_API_KEY = simConfig.tavilyKey;
+        }
+        if (simConfig.cohereKey && !simConfig.cohereKey.includes('...')) {
+          env.COHERE_API_KEY = simConfig.cohereKey;
+        }
 
         if (!simRunning) {
           void marsServer.startWithConfig(simConfig);

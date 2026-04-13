@@ -560,7 +560,13 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
               crisis: crisis.title,
             };
           });
-        emit('dept_done', { turn, year, department: dept, summary: report.summary, citations: report.citations.length, risks: report.risks, forgedTools: validTools, recommendedActions: report.recommendedActions?.slice(0, 2) });
+        emit('dept_done', {
+          turn, year, department: dept, summary: report.summary,
+          citations: report.citations.length,
+          citationList: report.citations.slice(0, 5).map(c => ({ text: c.text, url: c.url, doi: c.doi })),
+          risks: report.risks, forgedTools: validTools,
+          recommendedActions: report.recommendedActions?.slice(0, 2),
+        });
         if (report.forgedToolsUsed.length) {
           const names = report.forgedToolsUsed.map(t => t?.name || t?.description || 'unnamed').filter(Boolean);
           if (names.length) toolRegs[dept] = [...(toolRegs[dept] || []), ...names];
@@ -646,7 +652,9 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
           turn, year,
           reactions: reactions.slice(0, 8).map(r => ({
             name: r.name, age: r.age, department: r.department, role: r.role,
+            specialization: r.specialization, marsborn: r.marsborn,
             quote: r.quote, mood: r.mood, intensity: r.intensity,
+            hexaco: r.hexaco, psychScore: r.psychScore, boneDensity: r.boneDensity, radiation: r.radiation,
           })),
           totalReactions: reactions.length,
         });

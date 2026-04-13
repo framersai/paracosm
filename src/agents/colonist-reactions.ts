@@ -17,9 +17,15 @@ export interface ColonistReaction {
   age: number;
   department: string;
   role: string;
+  specialization: string;
+  marsborn: boolean;
   quote: string;
   mood: 'positive' | 'negative' | 'neutral' | 'anxious' | 'defiant' | 'hopeful' | 'resigned';
-  intensity: number; // 0-1, how strongly they feel
+  intensity: number;
+  hexaco: { O: number; C: number; E: number; A: number; Em: number; HH: number };
+  psychScore: number;
+  boneDensity: number;
+  radiation: number;
 }
 
 interface ReactionContext {
@@ -74,9 +80,15 @@ function parseReaction(text: string, c: Colonist, year: number): ColonistReactio
             age: year - c.core.birthYear,
             department: c.core.department,
             role: c.core.role,
+            specialization: c.career.specialization,
+            marsborn: c.core.marsborn,
             quote: raw.quote,
             mood: raw.mood || 'neutral',
             intensity: typeof raw.intensity === 'number' ? raw.intensity : 0.5,
+            hexaco: { O: +c.hexaco.openness.toFixed(2), C: +c.hexaco.conscientiousness.toFixed(2), E: +c.hexaco.extraversion.toFixed(2), A: +c.hexaco.agreeableness.toFixed(2), Em: +c.hexaco.emotionality.toFixed(2), HH: +c.hexaco.honestyHumility.toFixed(2) },
+            psychScore: +c.health.psychScore.toFixed(2),
+            boneDensity: +c.health.boneDensityPct.toFixed(0),
+            radiation: +c.health.cumulativeRadiationMsv.toFixed(0),
           };
         }
       } catch {}

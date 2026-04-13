@@ -508,7 +508,9 @@ function restoreSettings() {
 async function launchFromSettings() {
   const btn = $('s-launch-btn'), st = $('s-launch-status');
   btn.disabled = true; st.textContent = 'Starting...';
-  const cfg = buildSetupConfig(); cfg.apiKey = $('s-apikey').value; cfg.anthropicKey = $('s-anthropic').value; cfg.serperKey = $('s-serper').value;
+  const cfg = buildSetupConfig();
+  cfg.apiKey = $('s-apikey').value; cfg.anthropicKey = $('s-anthropic').value;
+  cfg.serperKey = $('s-serper').value; cfg.tavilyKey = $('s-tavily')?.value; cfg.firecrawlKey = $('s-firecrawl')?.value; cfg.cohereKey = $('s-cohere')?.value;
   try {
     const res = await fetch('/setup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cfg) });
     const data = await res.json();
@@ -810,8 +812,12 @@ function handleSimEvent(d) {
 
       if (showSummary || risks) {
         const severity = (dd.risks || []).some(r => r.severity === 'critical') ? 'critical' : (dd.risks || []).some(r => r.severity === 'high') ? 'high' : 'normal';
+        const citeLinks = (dd.citationList || []).map(c =>
+          `<a href="${c.url}" target="_blank" rel="noopener" style="color:var(--amber);font-size:9px;text-decoration:none;margin-right:6px" title="${c.text}">${c.doi ? 'DOI: ' + c.doi : c.text.slice(0, 30)}</a>`
+        ).join('');
+        const citesHtml = citeLinks ? `<div style="margin-top:3px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${citeLinks}</div>` : '';
         const deptTip = `${dept} Department Analysis\nCitations: ${dd.citations || 0}\nRisks: ${(dd.risks || []).map(r => r.severity + ': ' + r.description).join('\n')}\nRecommendations: ${(dd.recommendedActions || []).join('\n')}`;
-        addToBody(s, `<div class="card ${severity}" title="${deptTip.replace(/"/g, '&quot;')}"><div class="card-h"><span class="card-title">${icon} ${dept}</span><span class="card-badge">${dd.citations || 0} cites</span></div>${showSummary ? `<div class="card-text">${summary}</div>` : ''}${risks}${recsHtml}</div>`);
+        addToBody(s, `<div class="card ${severity}" title="${deptTip.replace(/"/g, '&quot;')}"><div class="card-h"><span class="card-title">${icon} ${dept}</span><span class="card-badge">${dd.citations || 0} cites</span></div>${showSummary ? `<div class="card-text">${summary}</div>` : ''}${risks}${recsHtml}${citesHtml}</div>`);
       }
       for (const t of tools) {
         const desc = t.description || t.name.replace(/_v\d+$/, '').replace(/_/g, ' ');
@@ -930,7 +936,9 @@ function handleSimEvent(d) {
         const quotesHtml = reactions.slice(0, 6).map(r => {
           const moodColor = moodColors[r.mood] || 'var(--text-2)';
           const shortQuote = r.quote.length > 100 ? r.quote.slice(0, 100) + '...' : r.quote;
-          const tip = `${r.name}, age ${r.age}\n${r.role} (${r.department})\nMood: ${r.mood} (intensity: ${r.intensity.toFixed(2)})\n\nFull quote:\n"${r.quote}"`;
+          const h = r.hexaco || {};
+          const tip = `${r.name}, age ${r.age}${r.marsborn ? ' (Mars-born)' : ''}\n${r.role} — ${r.specialization || r.department}\nDepartment: ${r.department}\n\nHEXACO: O=${h.O} C=${h.C} E=${h.E} A=${h.A} Em=${h.Em} HH=${h.HH}\nPsych: ${r.psychScore} | Bone: ${r.boneDensity}% | Radiation: ${r.radiation} mSv\n\nMood: ${r.mood} (intensity: ${(r.intensity || 0).toFixed(2)})\n\nFull quote:\n"${r.quote}"`;
+
           return `<div style="display:flex;gap:6px;align-items:baseline;padding:2px 0;border-bottom:1px solid rgba(48,42,34,.5);cursor:help" title="${tip.replace(/"/g, '&quot;')}"><span style="font-weight:600;color:var(--${color});font-size:10px;min-width:80px;flex-shrink:0">${r.name}</span><span style="font-style:italic;color:var(--text-2);font-size:10px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">"${shortQuote}"</span><span style="font-size:8px;color:${moodColor};font-weight:700;flex-shrink:0">${r.mood.toUpperCase()}</span></div>`;
         }).join('');
         addToBody(s, `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:4px 8px;border-left:3px solid var(--${color})"><div style="font-size:9px;color:var(--${color});font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">\uD83D\uDDE3 ${dd.totalReactions} Colonist Reactions</div>${quotesHtml}</div>`);
