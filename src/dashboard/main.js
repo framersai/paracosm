@@ -97,14 +97,20 @@ function addToBody(s, html) {
   clearWaiting(s);
   const body = $(`body-${s}`), div = document.createElement('div');
   div.className = 'af'; div.innerHTML = html;
-  body.appendChild(div); body.scrollTop = body.scrollHeight;
+  body.appendChild(div);
+  body.scrollTo({ top: body.scrollHeight, behavior: 'smooth' });
 }
 function addTimeline(s, year, text, badgeCls, badge) {
   const tl = $(`tl-${s}`);
+  // Deduplicate: skip if this exact year+text combo already exists
+  const key = `${year}-${text.slice(0,20)}`;
+  if (tl.dataset.lastEntry === key) return;
+  tl.dataset.lastEntry = key;
   tl.querySelectorAll('.tr.now').forEach(el => el.classList.remove('now'));
   const div = document.createElement('div');
   div.className = 'tr now'; div.innerHTML = `<span class="ty ${s}">${year}</span><span class="tt">${text}</span><span class="ob ${badgeCls}" style="font-size:8px;padding:1px 5px">${badge}</span>`;
-  tl.appendChild(div); tl.scrollTop = tl.scrollHeight;
+  tl.appendChild(div);
+  tl.scrollTo({ top: tl.scrollHeight, behavior: 'smooth' });
 }
 
 // --- Game data ---
@@ -691,12 +697,16 @@ try {
     }
   });
 
+  let liveEventCount = 0;
   es.addEventListener('sim', e => {
     try {
       const d = JSON.parse(e.data);
+      liveEventCount++;
+      // Skip if this event was already replayed from server buffer during cache restore
+      const cachedLen = gameData._restoredCount || 0;
+      if (liveEventCount <= cachedLen) return; // Already rendered from cache
       gameData.events.push(d);
       handleSimEvent(d);
-      // Cache to localStorage for refresh persistence
       try { localStorage.setItem('mars-game-data', JSON.stringify(gameData)); } catch {}
     } catch (err) { log('no', 'Event parse error: ' + err); }
   });
@@ -986,6 +996,7 @@ function restoreFromCache() {
     } else {
       $('m-status').textContent = '\u25CF Restored'; $('m-status').style.color = 'var(--vis)';
     }
+    gameData._restoredCount = saved.events.length;
     log('ok', `Restored ${saved.events.length} events from cache`);
     return true;
   } catch (err) {
