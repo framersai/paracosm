@@ -501,8 +501,10 @@
   <div class="fl"><a href="https://agentos.sh">agentos.sh</a><a href="https://docs.agentos.sh">docs</a><a href="https://github.com/framersai/agentos">github</a><a href="https://discord.gg/YbXue4Yc">discord</a></div>
 </div>
 
-<script>
-const $ = id => document.getElementById(id);
+<script src="/main.js"></script>
+<noscript>JavaScript required.</noscript>
+<!-- inline script removed, see src/dashboard/main.js -->
+<!--
 const log = (cls, msg) => { const d = $('debug'); d.innerHTML += `<br><span class="${cls}">${msg}</span>`; d.scrollTop = d.scrollHeight; };
 
 function switchTab(tab) {
@@ -878,7 +880,6 @@ if (loadFromParams()) {
   switchTab('settings');
 } else if (window.location.hash === '#settings') {
   switchTab('settings');
-}
-</script>
+-->
 </body>
 </html>

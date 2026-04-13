@@ -134,6 +134,13 @@ const server = createServer(async (req, res) => {
     return;
   }
 
+  if (req.url === '/main.js') {
+    const js = readFileSync(resolve(__dirname, 'dashboard/main.js'), 'utf-8');
+    res.writeHead(200, { 'Content-Type': 'application/javascript' });
+    res.end(js);
+    return;
+  }
+
   if (req.url === '/' || req.url === '/index.html') {
     const html = readFileSync(resolve(__dirname, 'dashboard/index.html'), 'utf-8');
     res.writeHead(200, { 'Content-Type': 'text/html' });
