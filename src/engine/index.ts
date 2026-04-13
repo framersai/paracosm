@@ -58,3 +58,7 @@ export type { ColonistSocial as AgentSocial } from './core/state.js';
 export type { ColonistNarrative as AgentNarrative } from './core/state.js';
 export type { KeyPersonnel } from './core/colonist-generator.js';
 export type { ColonyPatch, PolicyEffect, SimulationInitOverrides } from './core/kernel.js';
+
+// Scenario packages
+export { marsScenario } from './mars/index.js';
+export { lunarScenario } from './lunar/index.js';

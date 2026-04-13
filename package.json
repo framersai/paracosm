@@ -18,6 +18,10 @@
       "import": "./dist/runtime/index.js",
       "types": "./dist/runtime/index.d.ts"
     },
+    "./lunar": {
+      "import": "./dist/engine/lunar/index.js",
+      "types": "./dist/engine/lunar/index.d.ts"
+    },
     "./core": {
       "import": "./dist/engine/core/state.js",
       "types": "./dist/engine/core/state.d.ts"
