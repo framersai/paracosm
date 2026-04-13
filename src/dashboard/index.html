@@ -79,6 +79,10 @@
   .main{display:flex;gap:1px;background:var(--border);flex:1;min-height:0}
   .col{flex:1;background:var(--bg-deep);display:flex;flex-direction:column;overflow:hidden}
   .col-h{display:flex;justify-content:space-between;align-items:center;padding:4px 10px;background:var(--bg-panel);border-bottom:1px solid var(--border)}
+  .col-crisis{padding:3px 10px;font-size:10px;color:var(--text-2);background:var(--bg-card);border-bottom:1px solid var(--border);display:none}
+  .col-crisis .cc-title{font-weight:700;color:var(--rust);margin-right:6px}
+  .col-crisis .cc-cat{font-size:9px;color:var(--text-3);background:var(--bg-deep);padding:1px 5px;border-radius:2px;margin-left:4px;font-family:var(--mono)}
+  .col-crisis .cc-summary{font-size:9px;color:var(--text-3);font-style:italic;margin-top:1px}
   .cn{font-weight:800;font-size:12px;font-family:var(--mono)}.cn.v{color:var(--vis)}.cn.e{color:var(--eng)}
   .cl{color:var(--text-3);font-size:10px;margin-left:6px}
   .col-body{flex:1;overflow-y:auto;padding:5px 8px;display:flex;flex-direction:column;gap:5px}
@@ -126,6 +130,15 @@
   .drift-inline b{color:var(--text-3);font-size:9px;text-transform:uppercase;letter-spacing:.5px}
 
   .turn-sep{text-align:center;padding:4px 0;font-size:10px;color:var(--text-3);font-weight:700;text-transform:uppercase;letter-spacing:1.5px;border-top:1px solid var(--border);margin-top:2px}
+
+  /* Divergence rail */
+  .diverge{display:none;padding:5px 16px;background:linear-gradient(90deg,rgba(232,180,74,.08),rgba(76,168,168,.08));border-bottom:1px solid var(--border);font-size:10px}
+  .diverge-title{font-weight:800;color:var(--text-1);font-size:11px;margin-bottom:3px;font-family:var(--mono)}
+  .diverge-row{display:flex;gap:12px}
+  .diverge-side{flex:1;padding:3px 8px;border-radius:3px}
+  .diverge-side.v{background:rgba(232,180,74,.06);border:1px solid rgba(232,180,74,.15)}
+  .diverge-side.e{background:rgba(76,168,168,.06);border:1px solid rgba(76,168,168,.15)}
+  .diverge-side b{font-size:10px}.diverge-side span{color:var(--text-2)}
 
   .waiting{color:var(--text-3);font-size:12px;text-align:center;padding:20px;opacity:.5}
   .waiting .spinner{display:inline-block;animation:pulse 1.5s infinite}
@@ -273,12 +286,16 @@
   </div>
 </div>
 
+<!-- Divergence rail (shown when crises differ between timelines) -->
+<div class="diverge" id="diverge-rail"></div>
+
 <!-- Content area (flex:1, holds all swappable panels) -->
 <div style="flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden">
 <!-- Main columns -->
 <div class="main" id="main-view">
   <div class="col" id="col-v">
     <div class="col-h"><div><span class="cn v">ARES HORIZON</span><span class="cl">Aria Chen</span></div><span class="arch v">VIS</span></div>
+    <div class="col-crisis" id="crisis-v"><span class="cc-title" id="crisis-v-title"></span><span class="cc-cat" id="crisis-v-cat"></span><div class="cc-summary" id="crisis-v-summary"></div></div>
     <div class="col-body" id="body-v">
       <div class="gauges" id="gauges-v">
         <div class="g"><span class="gl">Pop</span><span class="gv" id="gv-v-pop" style="color:var(--text-3)">···</span><div class="gb"><div class="gf" id="gf-v-pop" style="width:0;background:var(--vis)"></div></div></div>
@@ -291,6 +308,7 @@
   </div>
   <div class="col" id="col-e">
     <div class="col-h"><div><span class="cn e">MERIDIAN BASE</span><span class="cl">Dietrich Voss</span></div><span class="arch e">ENG</span></div>
+    <div class="col-crisis" id="crisis-e"><span class="cc-title" id="crisis-e-title"></span><span class="cc-cat" id="crisis-e-cat"></span><div class="cc-summary" id="crisis-e-summary"></div></div>
     <div class="col-body" id="body-e">
       <div class="gauges" id="gauges-e">
         <div class="g"><span class="gl">Pop</span><span class="gv" id="gv-e-pop" style="color:var(--text-3)">···</span><div class="gb"><div class="gf" id="gf-e-pop" style="width:0;background:var(--eng)"></div></div></div>
@@ -515,7 +533,7 @@ function side(leader) {
   if (assigned === 1) { leaderMap[leader] = 'e'; return 'e'; }
   return null;
 }
-const state = { v: { pop: [], morale: [], deaths: 0, tools: 0 }, e: { pop: [], morale: [], deaths: 0, tools: 0 } };
+const state = { v: { pop: [], morale: [], deaths: 0, tools: 0, crisis: null, decision: null, outcome: null }, e: { pop: [], morale: [], deaths: 0, tools: 0, crisis: null, decision: null, outcome: null } };
 const sparkChars = '▁▂▃▄▅▆▇█';
 const spark = arr => arr.map(v => sparkChars[Math.min(7, Math.floor(v / (Math.max(...arr) || 1) * 7.99))]).join('');
 
@@ -763,9 +781,18 @@ function handleSimEvent(d) {
       case 'turn_start':
         $('m-turn').textContent = dd.turn; $('m-year').textContent = dd.year;
         $('crisis').textContent = `⚡ T${dd.turn} — ${dd.year}: ${dd.title || 'Crisis'}`;
+        // Per-column crisis header
+        const crisisEl = $(`crisis-${s}`);
+        if (crisisEl && dd.title && dd.title !== 'Director generating...') {
+          $(`crisis-${s}-title`).textContent = `⚡ T${dd.turn}: ${dd.title}`;
+          $(`crisis-${s}-cat`).textContent = dd.category || '';
+          $(`crisis-${s}-summary`).textContent = dd.turnSummary || '';
+          crisisEl.style.display = 'block';
+        }
+        state[s].crisis = { turn: dd.turn, title: dd.title, category: dd.category, emergent: dd.emergent };
         if (dd.colony) updateGauges(s, dd.colony);
         if (dd.deaths) { state[s].deaths += dd.deaths; $(`gv-${s}-deaths`).textContent = state[s].deaths; $(`s-${s}-deaths`).textContent = state[s].deaths; }
-        log('info', `[${d.leader}] Turn ${dd.turn} — ${dd.year}: ${dd.title}`);
+        log('info', `[${d.leader}] Turn ${dd.turn} — ${dd.year}: ${dd.title}${dd.emergent ? ' [EMERGENT]' : ''}`);
         break;
 
       case 'promotion':
@@ -812,6 +839,17 @@ function handleSimEvent(d) {
         const icon = oc.includes('success') ? '✓' : '✗';
         addToBody(s, `<div class="dec ${s}"><div class="dl ${s}">⚡ Commander Decision</div><div class="ddt">${dec}</div><div class="out"><span class="ob ${cls}">${icon} ${badge}</span></div><div id="drift-slot-${s}-${dd.turn}" class="drift-inline" style="display:none"></div></div>`);
         addTimeline(s, dd.year, dec.slice(0, 40), cls, icon);
+        state[s].outcome = oc; state[s].decision = dec;
+        // Check for divergence between timelines
+        const other = s === 'v' ? 'e' : 'v';
+        if (state[other].crisis && state[s].crisis && state[other].outcome && state[s].crisis.turn === state[other].crisis.turn) {
+          const vC = state.v.crisis, eC = state.e.crisis;
+          if (vC.title !== eC.title || state.v.outcome !== state.e.outcome) {
+            const rail = $('diverge-rail');
+            rail.innerHTML = `<div class="diverge-title">TURN ${vC.turn} DIVERGENCE</div><div class="diverge-row"><div class="diverge-side v"><b style="color:var(--vis)">${vC.title}</b> <span>${vC.category || ''}</span><br><span>${(state.v.decision || '').slice(0, 80)}</span><br><b>${state.v.outcome}</b></div><div class="diverge-side e"><b style="color:var(--eng)">${eC.title}</b> <span>${eC.category || ''}</span><br><span>${(state.e.decision || '').slice(0, 80)}</span><br><b>${state.e.outcome}</b></div></div>`;
+            rail.style.display = 'block';
+          }
+        }
         log(oc.includes('success') ? 'ok' : 'no', `  → ${oc}`);
         break;
       }
