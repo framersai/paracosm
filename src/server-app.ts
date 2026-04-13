@@ -99,9 +99,8 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
     }
 
     if (req.url === '/about') {
-      const html = readFileSync(resolve(__dirname, 'dashboard/about.html'), 'utf-8');
-      res.writeHead(200, { 'Content-Type': 'text/html' });
-      res.end(html);
+      res.writeHead(302, { Location: '/#about' });
+      res.end();
       return;
     }
 

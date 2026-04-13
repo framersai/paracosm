@@ -638,23 +638,29 @@ try {
   });
 
   es.addEventListener('sim', e => {
-    const d = JSON.parse(e.data);
-    gameData.events.push(d);
-    handleSimEvent(d);
+    try {
+      const d = JSON.parse(e.data);
+      gameData.events.push(d);
+      handleSimEvent(d);
+    } catch (err) { log('no', 'Event parse error: ' + err); }
   });
 
   es.addEventListener('result', e => {
-    const d = JSON.parse(e.data);
-    gameData.results.push(d);
-    log('ok', `\u2713 ${d.leader} done: pop ${d.summary?.population}, ${d.summary?.toolsForged} tools`);
+    try {
+      const d = JSON.parse(e.data);
+      gameData.results.push(d);
+      log('ok', `\u2713 ${d.leader} done: pop ${d.summary?.population}, ${d.summary?.toolsForged} tools`);
+    } catch (err) { log('no', 'Result parse error: ' + err); }
   });
   es.addEventListener('complete', () => {
-    $('m-status').textContent = '● Complete'; $('m-status').style.color = 'var(--amber)'; $('m-status').style.animation = 'none';
+    $('m-status').textContent = '\u25CF Complete'; $('m-status').style.color = 'var(--amber)'; $('m-status').style.animation = 'none';
     gameData.completedAt = new Date().toISOString();
     $('save-game-btn').style.display = 'inline-block';
-    $('s-launch-btn').disabled = false;
-    $('s-launch-status').textContent = 'Complete.';
-    log('ok', '\u2713 All complete');
+    const launchBtn = $('s-launch-btn'); if (launchBtn) launchBtn.disabled = false;
+    const launchSt = $('s-launch-status'); if (launchSt) launchSt.textContent = 'Complete.';
+    log('ok', '\u2713 All complete. Click Reports tab for full analysis. Click Save Game to download.');
+    // Auto-generate report data
+    if (typeof generateReport === 'function') try { generateReport(); switchTab('sim'); } catch {}
   });
   es.addEventListener('sim_error', e => {
     try { log('no', '\u2717 ' + JSON.parse(e.data).error); } catch { log('no', '\u2717 Error'); }

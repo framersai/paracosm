@@ -99,15 +99,16 @@ test('POST /setup normalizes config and hands it to the simulation runner', asyn
     assert.deepEqual(json, { redirect: '/' });
     await new Promise(resolve => setTimeout(resolve, 10));
     assert.ok(captured);
-    assert.equal(captured?.provider, 'anthropic');
-    assert.equal(captured?.startYear, 2042);
-    assert.equal(captured?.initialPopulation, 110);
-    assert.deepEqual(captured?.activeDepartments, ['medical', 'engineering', 'governance']);
-    assert.equal(captured?.startingResources.pressurizedVolumeM3, 4100);
-    assert.equal(captured?.startingPolitics.earthDependencyPct, 68);
-    assert.equal(captured?.execution.commanderMaxSteps, 7);
-    assert.equal(captured?.models.commander, 'claude-sonnet-4-6');
-    assert.equal(captured?.customEvents[0].title, 'Blackout');
+    const cfg = captured as NormalizedSimulationConfig;
+    assert.equal(cfg.provider, 'anthropic');
+    assert.equal(cfg.startYear, 2042);
+    assert.equal(cfg.initialPopulation, 110);
+    assert.deepEqual(cfg.activeDepartments, ['medical', 'engineering', 'governance']);
+    assert.equal(cfg.startingResources.pressurizedVolumeM3, 4100);
+    assert.equal(cfg.startingPolitics.earthDependencyPct, 68);
+    assert.equal(cfg.execution.commanderMaxSteps, 7);
+    assert.equal(cfg.models.commander, 'claude-sonnet-4-6');
+    assert.equal(cfg.customEvents[0].title, 'Blackout');
   } finally {
     server.close();
     await once(server, 'close');
