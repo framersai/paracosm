@@ -6,6 +6,9 @@ import { useGameState } from './hooks/useGameState';
 import { TopBar } from './components/layout/TopBar';
 import { TabBar } from './components/layout/TabBar';
 import { SimView } from './components/sim/SimView';
+import { SettingsPanel } from './components/settings/SettingsPanel';
+import { ReportView } from './components/reports/ReportView';
+import { ChatPanel } from './components/chat/ChatPanel';
 
 // Scenario context available to all components
 const ScenarioContext = createContext<ScenarioClientPayload | null>(null);
@@ -32,37 +35,11 @@ function AppContent() {
         <div className="flex-1 overflow-hidden">
           {activeTab === 'sim' && <SimView state={gameState} />}
 
-          {activeTab === 'settings' && (
-            <div className="flex-1 overflow-y-auto p-6">
-              <div className="max-w-3xl mx-auto">
-                <h2 className="text-xl font-bold mb-4">Settings</h2>
-                <p style={{ color: 'var(--text-muted)' }}>
-                  Settings panel coming in Sub-project C. Scenario: <strong>{scenario.labels.name}</strong>.
-                  {' '}{scenario.departments.length} departments: {scenario.departments.map(d => d.label).join(', ')}.
-                </p>
-              </div>
-            </div>
-          )}
+          {activeTab === 'settings' && <SettingsPanel />}
 
-          {activeTab === 'reports' && (
-            <div className="flex-1 overflow-y-auto p-6">
-              <div className="max-w-4xl mx-auto">
-                <h2 className="text-xl font-bold mb-4">Reports</h2>
-                <p style={{ color: 'var(--text-muted)' }}>Reports panel coming in Sub-project C.</p>
-              </div>
-            </div>
-          )}
+          {activeTab === 'reports' && <ReportView state={gameState} />}
 
-          {activeTab === 'chat' && (
-            <div className="flex-1 overflow-y-auto p-6">
-              <div className="max-w-3xl mx-auto">
-                <h2 className="text-xl font-bold mb-4">Chat</h2>
-                <p style={{ color: 'var(--text-muted)' }}>
-                  Chat with {scenario.labels.populationNoun}. Coming in Sub-project C.
-                </p>
-              </div>
-            </div>
-          )}
+          {activeTab === 'chat' && <ChatPanel state={gameState} />}
 
           {activeTab === 'log' && (
             <div className="flex-1 overflow-y-auto p-4 font-mono text-xs" style={{ background: 'var(--bg-secondary)', color: 'var(--text-muted)' }}>
