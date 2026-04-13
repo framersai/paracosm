@@ -891,7 +891,18 @@ function handleSimEvent(d) {
         }
         const toolPop = `<div class="htip" style="width:360px"><b>\uD83D\uDD27 ${t.name}</b><div style="margin:4px 0;color:var(--text-1)">${desc}</div><div class="ht-stats">Mode: ${t.mode || 'sandbox'} | Confidence: ${(t.confidence || .85).toFixed(2)} | ${whyDept} dept</div>${outFields ? `<div class="ht-hexaco">OUTPUTS: ${outFields}</div>` : ''}${t.output ? `<div style="margin-top:4px;padding-top:4px;border-top:1px solid var(--border);font-size:10px;font-family:var(--mono);color:var(--text-2);max-height:100px;overflow-y:auto;word-break:break-all">${String(t.output).slice(0, 500)}</div>` : ''}</div>`;
 
-        addToBody(s, `<div class="forge ok hover-tip" style="padding:8px 12px"><span style="font-size:14px">\uD83D\uDD27</span><div style="flex:1"><div style="display:flex;align-items:baseline;gap:6px"><span style="font-size:9px;color:var(--green);text-transform:uppercase;letter-spacing:.5px;font-weight:800">FORGED</span><span style="font-size:14px;font-weight:700;color:var(--text-1)">${desc}</span></div><div style="font-size:11px;color:var(--text-2);margin-top:3px">${parsedValues || outFields || ''}</div><details style="margin-top:4px"><summary style="font-size:10px;color:var(--text-3);cursor:pointer">Technical details</summary><div style="margin-top:3px;font-family:var(--mono);font-size:10px;color:var(--text-3);background:var(--bg-deep);padding:4px 6px;border-radius:3px">${t.name} \u00B7 ${t.mode || 'sandbox'} \u00B7 ${whyDept} dept<br>${t.output ? String(t.output).slice(0, 300) : ''}</div></details></div><span style="color:var(--green);font-weight:800;font-family:var(--mono);font-size:12px">\u2713${(t.confidence || .85).toFixed(2)}</span>${toolPop}</div>`);
+        addToBody(s, `<div class="forge ok" style="padding:8px 12px" title="${desc.replace(/"/g,'&quot;')} | ${t.name} | ${whyDept} dept | confidence ${(t.confidence||.85).toFixed(2)}${parsedValues ? ' | ' + parsedValues.replace(/<[^>]*>/g,'') : ''}">
+          <span style="font-size:14px">\uD83D\uDD27</span>
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap">
+              <span style="font-size:8px;color:var(--green);text-transform:uppercase;letter-spacing:.5px;font-weight:800;flex-shrink:0">FORGED</span>
+              <span style="font-size:12px;font-weight:600;color:var(--text-1)">${desc.length > 80 ? desc.slice(0,80)+'...' : desc}</span>
+              <span style="color:var(--green);font-weight:800;font-family:var(--mono);font-size:11px">\u2713${(t.confidence || .85).toFixed(2)}</span>
+            </div>
+            ${parsedValues ? `<div style="font-size:11px;color:var(--text-2);margin-top:3px;font-family:var(--mono)">${parsedValues}</div>` : ''}
+            <details style="margin-top:3px"><summary style="font-size:10px;color:var(--text-3);cursor:pointer">${t.name} \u00B7 ${t.mode || 'sandbox'} \u00B7 ${whyDept}</summary><div style="margin-top:3px;font-family:var(--mono);font-size:10px;color:var(--text-3);background:var(--bg-deep);padding:4px 6px;border-radius:3px;max-height:60px;overflow:auto;word-break:break-all">${t.output ? String(t.output).slice(0, 400) : 'No output'}</div></details>
+          </div>
+        </div>`);
       }
       state[s].tools += tools.length; $(`s-${s}-tools`).textContent = state[s].tools;
       state[s].cites += (dd.citations || 0); const citesEl = $(`s-${s}-cites`); if (citesEl) citesEl.textContent = state[s].cites;
@@ -997,8 +1008,8 @@ function handleSimEvent(d) {
             <div style="flex:1;display:flex;height:14px;border-radius:4px;overflow:hidden;gap:1px">${barHtml}</div>
           </div>
           <div style="display:flex;gap:14px;font-size:11px;margin-bottom:4px">${legendHtml}</div>
-          <details>
-            <summary style="font-size:11px;color:var(--${color});cursor:pointer;font-weight:600">Show individual quotes</summary>
+          <details open>
+            <summary style="font-size:11px;color:var(--${color});cursor:pointer;font-weight:600">Individual quotes</summary>
             <div style="margin-top:4px">${quotesHtml}</div>
           </details>
         </div>`);
