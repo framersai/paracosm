@@ -28,8 +28,8 @@ function side(leader) {
   return null;
 }
 const state = {
-  v: { pop: [], morale: [], deaths: 0, tools: 0, crisis: null, decision: null, outcome: null, prevColony: null, prevDrift: {} },
-  e: { pop: [], morale: [], deaths: 0, tools: 0, crisis: null, decision: null, outcome: null, prevColony: null, prevDrift: {} }
+  v: { pop: [], morale: [], deaths: 0, tools: 0, cites: 0, crisis: null, decision: null, outcome: null, prevColony: null, prevDrift: {} },
+  e: { pop: [], morale: [], deaths: 0, tools: 0, cites: 0, crisis: null, decision: null, outcome: null, prevColony: null, prevDrift: {} }
 };
 const sparkChars = '\u2581\u2582\u2583\u2584\u2585\u2586\u2587\u2588';
 const spark = arr => arr.map(v => sparkChars[Math.min(7, Math.floor(v / (Math.max(...arr) || 1) * 7.99))]).join('');
@@ -46,9 +46,13 @@ function updateGauges(s, colony) {
   const prev = state[s].prevColony;
   const prevPop = prev?.population, prevMorale = prev ? Math.round((prev.morale ?? 0) * 100) : null;
 
+  const food = (colony.foodMonthsReserve ?? 0).toFixed(0);
+  const prevFood = prev ? (prev.foodMonthsReserve ?? 0).toFixed(0) : null;
+
   // Stats bar with deltas
   $(`s-${s}-pop`).textContent = pop + delta(pop, prevPop);
   $(`s-${s}-morale`).textContent = morale + '%' + delta(morale, prevMorale);
+  const foodEl = $(`s-${s}-food`); if (foodEl) foodEl.textContent = food + 'mo' + delta(Number(food), Number(prevFood));
 
   // Sparklines in leader bar
   state[s].pop.push(pop); state[s].morale.push(morale);
@@ -789,6 +793,7 @@ function handleSimEvent(d) {
         addToBody(s, `<div class="forge ok" title="${tipContent}"><span style="font-size:16px">\uD83D\uDD27</span><div style="flex:1"><span class="forge-label">Agent-Forged Tool \u2014 Judge Approved</span><div class="fd">${desc}</div><div class="fn">${t.name} \u00B7 ${t.mode || 'sandbox'} \u00B7 invented at runtime</div>${schemaHtml}${whyHtml}${resultHtml}</div><span class="jb p">\u2713 ${(t.confidence || .85).toFixed(2)}</span></div>`);
       }
       state[s].tools += tools.length; $(`s-${s}-tools`).textContent = state[s].tools;
+      state[s].cites += (dd.citations || 0); const citesEl = $(`s-${s}-cites`); if (citesEl) citesEl.textContent = state[s].cites;
       log('ok', `[${d.leader}] ${icon} ${dept}: ${dd.citations || 0} cites, ${tools.length} tools`);
       break;
     }
