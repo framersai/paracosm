@@ -7,6 +7,7 @@ export interface SimulationModelConfig {
   departments: string;
   judge: string;
   director: string;
+  colonistReactions?: string;
 }
 
 export type LlmProvider = 'openai' | 'anthropic';

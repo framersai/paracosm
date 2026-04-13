@@ -16,6 +16,7 @@ import { getResearchPacket } from '../research/research.js';
 import { getResearchForCategory } from '../research/knowledge-base.js';
 import { DEPARTMENT_CONFIGS, buildDepartmentContext, getDepartmentsForTurn } from './departments.js';
 import { CrisisDirector, type DirectorCrisis, type DirectorContext } from './director.js';
+import { generateColonistReactions } from './colonist-reactions.js';
 import {
   DEFAULT_EXECUTION,
   resolveSimulationModels,
@@ -286,7 +287,7 @@ function decisionToPolicy(decision: CommanderDecision, reports: DepartmentReport
 // ---------------------------------------------------------------------------
 
 export type SimEvent = {
-  type: 'turn_start' | 'dept_start' | 'dept_done' | 'forge_attempt' | 'commander_deciding' | 'commander_decided' | 'outcome' | 'drift' | 'turn_done' | 'promotion';
+  type: 'turn_start' | 'dept_start' | 'dept_done' | 'forge_attempt' | 'commander_deciding' | 'commander_decided' | 'outcome' | 'drift' | 'colonist_reactions' | 'turn_done' | 'promotion';
   leader: string;
   turn?: number;
   year?: number;
@@ -597,6 +598,33 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
       driftData[p.core.id] = { name: p.core.name, hexaco: { O: +h.openness.toFixed(2), C: +h.conscientiousness.toFixed(2), E: +h.extraversion.toFixed(2), A: +h.agreeableness.toFixed(2) } };
     }
     emit('drift', { turn, year, colonists: driftData });
+
+    // Generate colonist reactions in parallel (all alive colonists, cheap model)
+    const reactionCtx = {
+      crisisTitle: crisis.title, crisisCategory: crisis.category,
+      outcome, decision: decision.decision.slice(0, 200),
+      year, turn, colonyMorale: kernel.getState().colony.morale,
+      colonyPopulation: kernel.getState().colony.population,
+    };
+    try {
+      const reactions = await generateColonistReactions(
+        kernel.getState().colonists, reactionCtx,
+        { provider, model: modelConfig.colonistReactions || 'gpt-4o-mini', maxConcurrent: 25 },
+      );
+      if (reactions.length) {
+        // Emit top 8 most intense reactions for dashboard display
+        emit('colonist_reactions', {
+          turn, year,
+          reactions: reactions.slice(0, 8).map(r => ({
+            name: r.name, age: r.age, department: r.department, role: r.role,
+            quote: r.quote, mood: r.mood, intensity: r.intensity,
+          })),
+          totalReactions: reactions.length,
+        });
+      }
+    } catch (err) {
+      console.log(`  [colonists] Reaction generation failed: ${err}`);
+    }
 
     const after = kernel.getState();
     artifacts.push({
