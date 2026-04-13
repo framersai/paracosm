@@ -212,12 +212,13 @@
   .s-section{background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:8px 8px;min-width:0;overflow:hidden}
   .s-section h3{font-size:11px;font-family:var(--mono);color:var(--text-2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
   .s-personnel{margin-top:4px}
-  .s-person{display:flex;gap:3px;margin-bottom:3px;align-items:center;font-size:10px;max-width:100%}
-  .s-person input{background:var(--bg-card);color:var(--text-1);border:1px solid var(--border);padding:2px 4px;border-radius:3px;font-size:9px;min-width:0}
+  .s-person{display:flex;gap:4px;margin-bottom:4px;align-items:center;max-width:100%}
+  .s-person input{background:var(--bg-card);color:var(--text-1);border:1px solid var(--border);padding:4px 6px;border-radius:3px;font-size:11px;min-width:0}
   .s-person input:first-child{flex:3}
   .s-person input:nth-child(2){flex:3}
-  .s-person input:nth-child(3){flex:1;max-width:36px}
-  .s-person select{background:var(--bg-card);color:var(--text-1);border:1px solid var(--border);padding:2px 3px;border-radius:3px;font-size:9px;flex:2;min-width:0}
+  .s-person input:nth-child(3){flex:1;max-width:42px}
+  .s-person select{background:var(--bg-card);color:var(--text-1);border:1px solid var(--border);padding:4px 4px;border-radius:3px;font-size:11px;flex:2;min-width:0}
+  .s-person .s-rm{flex-shrink:0}
   .s-evrow{display:flex;gap:4px;margin-bottom:3px;align-items:center}
   .s-evrow input{background:var(--bg-card);color:var(--text-1);border:1px solid var(--border);padding:2px 6px;border-radius:3px;font-size:10px}
   .s-evrow input:first-child{width:40px}
@@ -282,7 +283,7 @@
     <span class="logo-text">AgentOS</span><span class="logo-sub">MARS GENESIS</span>
   </div>
   <span class="top-c">Same colony, same crises, two different leaders. 12 turns spanning 50 years on Mars.</span>
-  <div class="meta"><span title="Each turn is a crisis event the colony must respond to">Turn <b id="m-turn">—</b>/<b id="m-max-turns">12</b></span><span title="Simulation year on Mars">Year <b id="m-year">—</b></span><span title="Deterministic seed: same seed = same colonist roster">Seed <b>950</b></span><span class="live" id="m-status">● Waiting</span></div>
+  <div class="meta"><span title="Each turn is a crisis event the colony must respond to">Turn <b id="m-turn">—</b>/<b id="m-max-turns">12</b></span><span title="Simulation year on Mars">Year <b id="m-year">—</b></span><span title="Deterministic seed: same seed = same colonist roster">Seed <b id="m-seed">950</b></span><span class="live" id="m-status">● Waiting</span></div>
 </div>
 
 <!-- Leaders: defaults shown, overridden dynamically from SSE -->
@@ -355,8 +356,8 @@
 
 <!-- Timeline -->
 <div class="tl" id="tl-view">
-  <div class="tl-col" id="tl-v"><div class="tl-label v">ARES HORIZON</div></div>
-  <div class="tl-col" id="tl-e"><div class="tl-label e">MERIDIAN BASE</div></div>
+  <div class="tl-col" id="tl-v"><div class="tl-label v" id="tl-v-label">ARES HORIZON</div></div>
+  <div class="tl-col" id="tl-e"><div class="tl-label e" id="tl-e-label">MERIDIAN BASE</div></div>
 </div>
 
 <!-- Settings Panel -->
@@ -441,15 +442,15 @@
       <div style="font-size:9px;color:var(--text-3);margin-bottom:4px">Injected at specific turns alongside generated crises</div>
       <div id="s-events"></div>
       <button class="s-add" onclick="addSetupEvent()">+ Add Event</button>
-      <h3 style="margin-top:10px">Key Personnel</h3>
-      <div style="font-size:9px;color:var(--text-3);margin-bottom:4px">Name · Specialization · Age · Department</div>
+      <h3 style="margin-top:10px">Key Personnel <span style="font-size:9px;color:var(--text-3);font-weight:400">(Name · Spec · Age · Dept)</span></h3>
       <div class="s-personnel" id="s-personnel">
-        <div class="s-person"><input value="Dr. Yuki Tanaka"><input value="Radiation Medicine"><input value="38" type="number"><select><option value="medical" selected>Medical</option><option value="engineering">Engineering</option><option value="agriculture">Agriculture</option><option value="psychology">Psychology</option><option value="science">Science</option></select></div>
-        <div class="s-person"><input value="Erik Lindqvist"><input value="Structural Engineering"><input value="45" type="number"><select><option value="medical">Medical</option><option value="engineering" selected>Engineering</option><option value="agriculture">Agriculture</option><option value="psychology">Psychology</option><option value="science">Science</option></select></div>
-        <div class="s-person"><input value="Amara Osei"><input value="Hydroponics"><input value="34" type="number"><select><option value="medical">Medical</option><option value="engineering">Engineering</option><option value="agriculture" selected>Agriculture</option><option value="psychology">Psychology</option><option value="science">Science</option></select></div>
-        <div class="s-person"><input value="Dr. Priya Singh"><input value="Clinical Psychology"><input value="41" type="number"><select><option value="medical">Medical</option><option value="engineering">Engineering</option><option value="agriculture">Agriculture</option><option value="psychology" selected>Psychology</option><option value="science">Science</option></select></div>
-        <div class="s-person"><input value="Carlos Fernandez"><input value="Geology"><input value="50" type="number"><select><option value="medical">Medical</option><option value="engineering">Engineering</option><option value="agriculture">Agriculture</option><option value="psychology">Psychology</option><option value="science" selected>Science</option></select></div>
+        <div class="s-person"><input value="Dr. Yuki Tanaka"><input value="Radiation Medicine"><input value="38" type="number"><select><option value="medical" selected>Medical</option><option value="engineering">Engineering</option><option value="agriculture">Agriculture</option><option value="psychology">Psychology</option><option value="science">Science</option><option value="governance">Governance</option></select><button class="s-rm" onclick="this.parentElement.remove()">x</button></div>
+        <div class="s-person"><input value="Erik Lindqvist"><input value="Structural Engineering"><input value="45" type="number"><select><option value="medical">Medical</option><option value="engineering" selected>Engineering</option><option value="agriculture">Agriculture</option><option value="psychology">Psychology</option><option value="science">Science</option><option value="governance">Governance</option></select><button class="s-rm" onclick="this.parentElement.remove()">x</button></div>
+        <div class="s-person"><input value="Amara Osei"><input value="Hydroponics"><input value="34" type="number"><select><option value="medical">Medical</option><option value="engineering">Engineering</option><option value="agriculture" selected>Agriculture</option><option value="psychology">Psychology</option><option value="science">Science</option><option value="governance">Governance</option></select><button class="s-rm" onclick="this.parentElement.remove()">x</button></div>
+        <div class="s-person"><input value="Dr. Priya Singh"><input value="Clinical Psychology"><input value="41" type="number"><select><option value="medical">Medical</option><option value="engineering">Engineering</option><option value="agriculture">Agriculture</option><option value="psychology" selected>Psychology</option><option value="science">Science</option><option value="governance">Governance</option></select><button class="s-rm" onclick="this.parentElement.remove()">x</button></div>
+        <div class="s-person"><input value="Carlos Fernandez"><input value="Geology"><input value="50" type="number"><select><option value="medical">Medical</option><option value="engineering">Engineering</option><option value="agriculture">Agriculture</option><option value="psychology">Psychology</option><option value="science" selected>Science</option><option value="governance">Governance</option></select><button class="s-rm" onclick="this.parentElement.remove()">x</button></div>
       </div>
+      <button class="s-add" onclick="addPersonnel()">+ Add Personnel</button>
     </div>
 
     <!-- API & Models -->
