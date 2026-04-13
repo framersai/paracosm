@@ -810,7 +810,8 @@ function handleSimEvent(d) {
 
       if (showSummary || risks) {
         const severity = (dd.risks || []).some(r => r.severity === 'critical') ? 'critical' : (dd.risks || []).some(r => r.severity === 'high') ? 'high' : 'normal';
-        addToBody(s, `<div class="card ${severity}"><div class="card-h"><span class="card-title">${icon} ${dept}</span><span class="card-badge">${dd.citations || 0} cites</span></div>${showSummary ? `<div class="card-text">${summary}</div>` : ''}${risks}${recsHtml}</div>`);
+        const deptTip = `${dept} Department Analysis\nCitations: ${dd.citations || 0}\nRisks: ${(dd.risks || []).map(r => r.severity + ': ' + r.description).join('\n')}\nRecommendations: ${(dd.recommendedActions || []).join('\n')}`;
+        addToBody(s, `<div class="card ${severity}" title="${deptTip.replace(/"/g, '&quot;')}"><div class="card-h"><span class="card-title">${icon} ${dept}</span><span class="card-badge">${dd.citations || 0} cites</span></div>${showSummary ? `<div class="card-text">${summary}</div>` : ''}${risks}${recsHtml}</div>`);
       }
       for (const t of tools) {
         const desc = t.description || t.name.replace(/_v\d+$/, '').replace(/_/g, ' ');
@@ -867,7 +868,8 @@ function handleSimEvent(d) {
       const cls = oc === 'risky_success' ? 'rs' : oc === 'conservative_success' ? 'cs' : 'rf';
       const badge = oc === 'risky_success' ? 'RISKY WIN' : oc === 'risky_failure' ? 'RISKY LOSS' : oc === 'conservative_success' ? 'SAFE WIN' : 'SAFE LOSS';
       const icon = oc.includes('success') ? '\u2713' : '\u2717';
-      addToBody(s, `<div class="dec ${s}"><div class="dl ${s}">\u26A1 Commander Decision</div><div class="ddt">${dec}</div><div class="out"><span class="ob ${cls}">${icon} ${badge}</span></div><div id="drift-slot-${s}-${dd.turn}" class="drift-inline" style="display:none"></div></div>`);
+      const decTip = `Commander Decision - Turn ${dd.turn}\nOutcome: ${oc}\nRisky option: ${dd.riskyOption || 'N/A'}\n\nFull decision:\n${dec}`;
+      addToBody(s, `<div class="dec ${s}" title="${decTip.replace(/"/g, '&quot;')}"><div class="dl ${s}">\u26A1 Commander Decision</div><div class="ddt">${dec}</div><div class="out"><span class="ob ${cls}">${icon} ${badge}</span></div><div id="drift-slot-${s}-${dd.turn}" class="drift-inline" style="display:none"></div></div>`);
       addTimeline(s, dd.year, dec.slice(0, 40), cls, icon);
       state[s].outcome = oc; state[s].decision = dec;
       // Divergence check
@@ -927,8 +929,9 @@ function handleSimEvent(d) {
         const moodColors = { positive: 'var(--green)', negative: 'var(--rust)', anxious: 'var(--amber)', defiant: 'var(--rust)', hopeful: 'var(--green)', resigned: 'var(--text-3)', neutral: 'var(--text-2)' };
         const quotesHtml = reactions.slice(0, 6).map(r => {
           const moodColor = moodColors[r.mood] || 'var(--text-2)';
-          const quote = r.quote.length > 100 ? r.quote.slice(0, 100) + '...' : r.quote;
-          return `<div style="display:flex;gap:6px;align-items:baseline;padding:2px 0;border-bottom:1px solid rgba(48,42,34,.5)"><span style="font-weight:600;color:var(--${color});font-size:10px;min-width:80px;flex-shrink:0">${r.name}</span><span style="font-style:italic;color:var(--text-2);font-size:10px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">"${quote}"</span><span style="font-size:8px;color:${moodColor};font-weight:700;flex-shrink:0">${r.mood.toUpperCase()}</span></div>`;
+          const shortQuote = r.quote.length > 100 ? r.quote.slice(0, 100) + '...' : r.quote;
+          const tip = `${r.name}, age ${r.age}\n${r.role} (${r.department})\nMood: ${r.mood} (intensity: ${r.intensity.toFixed(2)})\n\nFull quote:\n"${r.quote}"`;
+          return `<div style="display:flex;gap:6px;align-items:baseline;padding:2px 0;border-bottom:1px solid rgba(48,42,34,.5);cursor:help" title="${tip.replace(/"/g, '&quot;')}"><span style="font-weight:600;color:var(--${color});font-size:10px;min-width:80px;flex-shrink:0">${r.name}</span><span style="font-style:italic;color:var(--text-2);font-size:10px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">"${shortQuote}"</span><span style="font-size:8px;color:${moodColor};font-weight:700;flex-shrink:0">${r.mood.toUpperCase()}</span></div>`;
         }).join('');
         addToBody(s, `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:4px 8px;border-left:3px solid var(--${color})"><div style="font-size:9px;color:var(--${color});font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">\uD83D\uDDE3 ${dd.totalReactions} Colonist Reactions</div>${quotesHtml}</div>`);
         log('ok', `[${d.leader}] ${dd.totalReactions} colonist reactions (showing top ${reactions.length})`);
