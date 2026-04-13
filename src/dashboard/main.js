@@ -846,70 +846,56 @@ function handleSimEvent(d) {
     }
 
     case 'dept_done': {
-      // Remove loading indicator
       const loadEl = $(`loading-${s}`);
       if (loadEl) loadEl.remove();
-      const dept = (dd.department || '').toUpperCase();
-      const icon = { medical: '\uD83C\uDFE5', engineering: '\u2699\uFE0F', agriculture: '\uD83C\uDF3E', psychology: '\uD83E\uDDE0', governance: '\uD83C\uDFDB\uFE0F' }[dd.department] || '\uD83D\uDCCB';
+      const dept = (dd.department || '');
+      const deptUp = dept.toUpperCase();
+      const icon = { medical: '\uD83C\uDFE5', engineering: '\u2699\uFE0F', agriculture: '\uD83C\uDF3E', psychology: '\uD83E\uDDE0', governance: '\uD83C\uDFDB\uFE0F' }[dept] || '\uD83D\uDCCB';
       const summary = dd.summary || '';
-      const risks = (dd.risks || []).slice(0, 2).map(r => `<div class="risk"><span class="rd ${r.severity === 'critical' ? 'cr' : r.severity === 'high' ? 'hi' : 'lo'}"></span>${r.severity.toUpperCase()}: ${(r.description || '').slice(0, 120)}</div>`).join('');
-      const recs = (dd.recommendedActions || []).slice(0, 2);
-      const recsHtml = recs.length ? `<div style="margin-top:4px;color:var(--amber);font-size:11px">\u2192 ${recs.join('<br>\u2192 ')}</div>` : '';
-      // Deduplicate tools by name (same tool can appear in multiple forge attempts)
       const seenTools = state[s]._shownTools || new Set();
       state[s]._shownTools = seenTools;
-      const tools = (dd.forgedTools || []).filter(t => {
-        if (!t.name || t.name === 'unnamed') return false;
-        if (seenTools.has(t.name)) return false;
-        seenTools.add(t.name);
-        return true;
-      });
-      const showSummary = summary && summary.length > 10 && !summary.startsWith('{') && !summary.endsWith('complete.');
+      const tools = (dd.forgedTools || []).filter(t => { if (!t.name || t.name === 'unnamed' || seenTools.has(t.name)) return false; seenTools.add(t.name); return true; });
+      const severity = (dd.risks || []).some(r => r.severity === 'critical') ? 'critical' : (dd.risks || []).some(r => r.severity === 'high') ? 'high' : '';
 
-      if (showSummary || risks) {
-        const severity = (dd.risks || []).some(r => r.severity === 'critical') ? 'critical' : (dd.risks || []).some(r => r.severity === 'high') ? 'high' : 'normal';
-        const citeLinks = (dd.citationList || []).map(c =>
-          `<a href="${c.url}" target="_blank" rel="noopener" style="color:var(--amber);font-size:9px;text-decoration:none;margin-right:6px" title="${c.text}">${c.doi ? 'DOI: ' + c.doi : c.text.slice(0, 30)}</a>`
-        ).join('');
-        const citesHtml = citeLinks ? `<div style="margin-top:3px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${citeLinks}</div>` : '';
-        const deptRisksFull = (dd.risks || []).map(r => `<div style="font-size:10px;margin:2px 0"><span style="color:${r.severity === 'critical' ? 'var(--rust)' : r.severity === 'high' ? 'var(--amber)' : 'var(--green)'};font-weight:700">${r.severity.toUpperCase()}</span>: ${r.description}</div>`).join('');
-        const deptRecsFull = (dd.recommendedActions || []).map(r => `<div style="font-size:10px;color:var(--amber);margin:1px 0">\u2192 ${r}</div>`).join('');
-        const deptPop = `<div class="htip" style="width:340px"><b>${icon} ${dept} Department</b><div class="ht-stats">Citations: ${dd.citations || 0} | Tools forged: ${tools.length}</div>${summary ? `<div style="margin:4px 0;color:var(--text-1);font-size:11px">${summary}</div>` : ''}${deptRisksFull}${deptRecsFull}</div>`;
-        addToBody(s, `<div class="card ${severity} hover-tip"><div class="card-h"><span class="card-title">${icon} ${dept}</span><span class="card-badge">${dd.citations || 0} cites</span></div>${showSummary ? `<div class="card-text">${summary}</div>` : ''}${risks}${recsHtml}${citesHtml}${deptPop}</div>`);
+      // Department pill (accumulate into a row)
+      let pillRow = $(`dept-pills-${s}-${dd.turn}`);
+      if (!pillRow) {
+        addToBody(s, `<div id="dept-pills-${s}-${dd.turn}" style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:4px"></div>`);
+        pillRow = $(`dept-pills-${s}-${dd.turn}`);
       }
+      if (pillRow) {
+        const sevColor = severity === 'critical' ? 'rgba(224,101,48,.2)' : severity === 'high' ? 'rgba(232,180,74,.15)' : 'rgba(48,42,34,.6)';
+        const sevText = severity === 'critical' ? 'color:var(--rust)' : severity === 'high' ? 'color:var(--amber)' : 'color:var(--text-2)';
+        const sevLabel = severity ? ` \u00B7 ${severity.toUpperCase()}` : '';
+        const pillPop = `<div class="htip" style="width:320px"><b>${icon} ${deptUp}</b><div class="ht-stats">Citations: ${dd.citations || 0} | Tools: ${tools.length}</div>${summary ? `<div style="margin:4px 0;color:var(--text-1)">${summary}</div>` : ''}${(dd.risks || []).map(r => `<div style="font-size:11px;margin:2px 0"><span style="color:${r.severity === 'critical' ? 'var(--rust)' : 'var(--amber)'};font-weight:700">${r.severity.toUpperCase()}</span>: ${r.description}</div>`).join('')}${(dd.recommendedActions || []).map(r => `<div style="font-size:11px;color:var(--amber)">\u2192 ${r}</div>`).join('')}</div>`;
+        pillRow.innerHTML += `<span class="hover-tip" style="background:${sevColor};${sevText};padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;cursor:help">${icon} ${dept.charAt(0).toUpperCase() + dept.slice(1)} \u00B7 ${dd.citations || 0}c ${tools.length}t${sevLabel}${pillPop}</span>`;
+      }
+
+      // Tool cards with collapsible details
       for (const t of tools) {
         const desc = t.description || t.name.replace(/_v\d+$/, '').replace(/_/g, ' ');
-        const inFields = (t.inputFields || []).join(', ');
         const outFields = (t.outputFields || []).join(', ');
-        const whyDept = t.department ? (t.department.charAt(0).toUpperCase() + t.department.slice(1)) : dept.toLowerCase();
-        const whyCrisis = t.crisis || '';
-
-        // Schema line showing input/output types
-        let schemaHtml = '';
-        if (inFields || outFields) {
-          schemaHtml = `<div style="margin-top:2px;font-size:9px;font-family:var(--mono);color:var(--text-2)">`;
-          if (inFields) schemaHtml += `<span style="color:var(--text-3)">INPUTS:</span> ${inFields} `;
-          if (outFields) schemaHtml += `<span style="color:var(--text-3)">\u2192 OUTPUTS:</span> ${outFields}`;
-          schemaHtml += `</div>`;
-        }
-
-        // Result preview
-        let resultHtml = '';
+        const whyDept = t.department ? (t.department.charAt(0).toUpperCase() + t.department.slice(1)) : dept;
+        // Parse key values from output for inline display
+        let parsedValues = '';
         if (t.output) {
-          resultHtml = `<div style="margin-top:3px;font-size:10px;color:var(--text-2);background:var(--bg-deep);padding:3px 6px;border-radius:3px;font-family:var(--mono);max-height:36px;overflow-y:auto;overflow-x:hidden;word-break:break-all;white-space:pre-wrap;line-height:1.3"><b style="color:var(--text-3)">RESULT:</b> ${String(t.output).slice(0, 250)}</div>`;
+          try {
+            const p = typeof t.output === 'string' ? JSON.parse(t.output) : t.output;
+            if (p && typeof p === 'object') {
+              parsedValues = Object.entries(p).slice(0, 4).map(([k, v]) => {
+                const val = typeof v === 'number' ? (v % 1 ? v.toFixed(1) : v) : String(v).slice(0, 15);
+                return `<span style="color:var(--text-3)">${k}:</span><b style="color:var(--text-1)">${val}</b>`;
+              }).join(' \u00B7 ');
+            }
+          } catch {}
         }
+        const toolPop = `<div class="htip" style="width:360px"><b>\uD83D\uDD27 ${t.name}</b><div style="margin:4px 0;color:var(--text-1)">${desc}</div><div class="ht-stats">Mode: ${t.mode || 'sandbox'} | Confidence: ${(t.confidence || .85).toFixed(2)} | ${whyDept} dept</div>${outFields ? `<div class="ht-hexaco">OUTPUTS: ${outFields}</div>` : ''}${t.output ? `<div style="margin-top:4px;padding-top:4px;border-top:1px solid var(--border);font-size:10px;font-family:var(--mono);color:var(--text-2);max-height:100px;overflow-y:auto;word-break:break-all">${String(t.output).slice(0, 500)}</div>` : ''}</div>`;
 
-        // Why context
-        const whyHtml = `<div style="font-size:9px;color:var(--text-3);margin-top:2px">${whyDept} agent created this tool to analyze "${whyCrisis}"</div>`;
-
-        // CSS popover tooltip
-        const toolPop = `<div class="htip" style="width:360px"><b>\uD83D\uDD27 ${t.name}</b><div style="margin:4px 0;color:var(--text-1)">${desc}</div><div class="ht-stats">Mode: ${t.mode || 'sandbox'} | Confidence: ${(t.confidence || .85).toFixed(2)}</div><div class="ht-stats">Created by: ${whyDept} department</div><div class="ht-stats">Crisis: ${whyCrisis}</div>${inFields ? `<div class="ht-hexaco" style="margin-top:4px"><span style="color:var(--text-3)">INPUTS:</span> ${inFields}</div>` : ''}${outFields ? `<div class="ht-hexaco"><span style="color:var(--text-3)">OUTPUTS:</span> ${outFields}</div>` : ''}${t.output ? `<div style="margin-top:4px;padding-top:4px;border-top:1px solid var(--border);font-size:10px;font-family:var(--mono);color:var(--text-2);max-height:80px;overflow-y:auto;word-break:break-all"><b style="color:var(--text-3)">FULL RESULT:</b><br>${String(t.output).slice(0, 400)}</div>` : ''}</div>`;
-
-        addToBody(s, `<div class="forge ok hover-tip"><span style="font-size:16px">\uD83D\uDD27</span><div style="flex:1"><span class="forge-label">Agent-Forged Tool \u2014 Judge Approved</span><div class="fd">${desc}</div><div class="fn">${t.name} \u00B7 ${t.mode || 'sandbox'} \u00B7 invented at runtime</div>${schemaHtml}${whyHtml}${resultHtml}</div><span class="jb p">\u2713 ${(t.confidence || .85).toFixed(2)}</span>${toolPop}</div>`);
+        addToBody(s, `<div class="forge ok hover-tip" style="padding:8px 12px"><span style="font-size:14px">\uD83D\uDD27</span><div style="flex:1"><div style="display:flex;align-items:baseline;gap:6px"><span style="font-size:9px;color:var(--green);text-transform:uppercase;letter-spacing:.5px;font-weight:800">FORGED</span><span style="font-size:14px;font-weight:700;color:var(--text-1)">${desc}</span></div><div style="font-size:11px;color:var(--text-2);margin-top:3px">${parsedValues || outFields || ''}</div><details style="margin-top:4px"><summary style="font-size:10px;color:var(--text-3);cursor:pointer">Technical details</summary><div style="margin-top:3px;font-family:var(--mono);font-size:10px;color:var(--text-3);background:var(--bg-deep);padding:4px 6px;border-radius:3px">${t.name} \u00B7 ${t.mode || 'sandbox'} \u00B7 ${whyDept} dept<br>${t.output ? String(t.output).slice(0, 300) : ''}</div></details></div><span style="color:var(--green);font-weight:800;font-family:var(--mono);font-size:12px">\u2713${(t.confidence || .85).toFixed(2)}</span>${toolPop}</div>`);
       }
       state[s].tools += tools.length; $(`s-${s}-tools`).textContent = state[s].tools;
       state[s].cites += (dd.citations || 0); const citesEl = $(`s-${s}-cites`); if (citesEl) citesEl.textContent = state[s].cites;
-      log('ok', `[${d.leader}] ${icon} ${dept}: ${dd.citations || 0} cites, ${tools.length} tools`);
+      log('ok', `[${d.leader}] ${icon} ${deptUp}: ${dd.citations || 0} cites, ${tools.length} tools`);
       break;
     }
 
@@ -933,8 +919,19 @@ function handleSimEvent(d) {
       const badge = oc === 'risky_success' ? 'RISKY WIN' : oc === 'risky_failure' ? 'RISKY LOSS' : oc === 'conservative_success' ? 'SAFE WIN' : 'SAFE LOSS';
       const icon = oc.includes('success') ? '\u2713' : '\u2717';
       const outcomeColor = oc.includes('success') ? 'var(--green)' : 'var(--rust)';
-      const decPop = `<div class="htip" style="width:380px"><b>\u26A1 Commander Decision</b><div class="ht-stats">Outcome: <span style="color:${outcomeColor};font-weight:700">${oc.replace(/_/g,' ').toUpperCase()}</span></div><div style="margin-top:4px;color:var(--text-1);line-height:1.5">${dec}</div></div>`;
-      addToBody(s, `<div class="dec ${s} hover-tip"><div class="dl ${s}">\u26A1 Commander Decision</div><div class="ddt">${dec}</div><div class="out"><span class="ob ${cls}">${icon} ${badge}</span></div><div id="drift-slot-${s}-${dd.turn}" class="drift-inline" style="display:none"></div>${decPop}</div>`);
+      const decShort = dec.length > 120 ? dec.slice(0, 120) + '...' : dec;
+      const decPop = `<div class="htip" style="width:400px"><b>\u26A1 Commander Decision</b><div class="ht-stats">Outcome: <span style="color:${outcomeColor};font-weight:700">${oc.replace(/_/g,' ').toUpperCase()}</span></div><div style="margin-top:6px;color:var(--text-1);line-height:1.6;font-size:12px">${dec}</div></div>`;
+      addToBody(s, `<div class="dec ${s} hover-tip" style="padding:8px 12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <div style="flex:1;min-width:0">
+            <span style="color:var(--${s === 'v' ? 'vis' : 'eng'});font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.5px">\u26A1 DECISION</span>
+            <div style="color:var(--text-1);font-size:12px;margin-top:3px;line-height:1.4">${decShort}</div>
+          </div>
+          <span class="ob ${cls}" style="flex-shrink:0">${icon} ${badge}</span>
+        </div>
+        <div id="drift-slot-${s}-${dd.turn}" class="drift-inline" style="display:none"></div>
+        ${decPop}
+      </div>`);
       addTimeline(s, dd.year, dec.slice(0, 40), cls, icon);
       state[s].outcome = oc; state[s].decision = dec;
       // Divergence check
@@ -971,14 +968,41 @@ function handleSimEvent(d) {
       if (reactions.length) {
         const color = s === 'v' ? 'vis' : 'eng';
         const moodColors = { positive: 'var(--green)', negative: 'var(--rust)', anxious: 'var(--amber)', defiant: 'var(--rust)', hopeful: 'var(--green)', resigned: 'var(--text-3)', neutral: 'var(--text-2)' };
+
+        // Calculate mood distribution
+        const moodCounts = {};
+        for (const r of reactions) { moodCounts[r.mood] = (moodCounts[r.mood] || 0) + 1; }
+        // Use totalReactions for percentages
+        const total = dd.totalReactions || reactions.length;
+        const moodBarSegments = Object.entries(moodCounts)
+          .sort((a, b) => b[1] - a[1])
+          .map(([mood, count]) => {
+            const pct = Math.round((count / reactions.length) * 100);
+            const bgColor = { positive: '#6aad48', negative: '#e06530', anxious: '#e8b44a', defiant: '#e06530', hopeful: '#6aad48', resigned: '#a89878', neutral: '#a89878' }[mood] || '#a89878';
+            return { mood, count, pct, bgColor };
+          });
+        const barHtml = moodBarSegments.map(m => `<div style="flex:${m.pct};background:${m.bgColor}" title="${m.pct}% ${m.mood}"></div>`).join('');
+        const legendHtml = moodBarSegments.slice(0, 3).map(m => `<span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${m.bgColor};margin-right:3px"></span>${m.pct}% ${m.mood}</span>`).join(' ');
+
+        // Individual quotes (collapsible)
         const quotesHtml = reactions.slice(0, 6).map(r => {
           const moodColor = moodColors[r.mood] || 'var(--text-2)';
-          const shortQuote = r.quote.length > 100 ? r.quote.slice(0, 100) + '...' : r.quote;
           const h = r.hexaco || {};
-          return `<div class="hover-tip" style="display:flex;gap:6px;align-items:baseline;padding:3px 0;border-bottom:1px solid rgba(48,42,34,.5)"><span style="font-weight:600;color:var(--${color});font-size:12px;min-width:90px;flex-shrink:0">${r.name}</span><span style="font-style:italic;color:var(--text-2);font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">"${shortQuote}"</span><span style="font-size:10px;color:${moodColor};font-weight:700;flex-shrink:0">${r.mood.toUpperCase()}</span><div class="htip"><b>${r.name}</b>, age ${r.age}${r.marsborn ? ' (Mars-born)' : ''}<br>${r.role} \u2014 ${r.specialization || r.department}<div class="ht-hexaco">O=${h.O} C=${h.C} E=${h.E} A=${h.A} Em=${h.Em} HH=${h.HH}</div><div class="ht-stats">Psych: ${r.psychScore} | Bone: ${r.boneDensity}% | Rad: ${r.radiation} mSv</div><div class="ht-mood" style="color:${moodColor}">${r.mood.toUpperCase()} (intensity: ${(r.intensity||0).toFixed(2)})</div><div class="ht-quote">"${r.quote}"</div></div></div>`;
+          return `<div class="hover-tip" style="display:flex;gap:8px;align-items:baseline;padding:4px 0;border-bottom:1px solid rgba(48,42,34,.5)"><span style="font-weight:600;color:var(--${color});font-size:12px;min-width:100px;flex-shrink:0">${r.name}</span><span style="font-style:italic;color:var(--text-1);font-size:12px;flex:1">"${r.quote.slice(0, 90)}${r.quote.length > 90 ? '...' : ''}"</span><span style="font-size:10px;color:${moodColor};font-weight:700;flex-shrink:0">${r.mood.toUpperCase()}</span><div class="htip"><b>${r.name}</b>, age ${r.age}${r.marsborn ? ' (Mars-born)' : ''}<br>${r.role} \u2014 ${r.specialization || r.department}<div class="ht-hexaco">O=${h.O} C=${h.C} E=${h.E} A=${h.A} Em=${h.Em} HH=${h.HH}</div><div class="ht-stats">Psych: ${r.psychScore} | Bone: ${r.boneDensity}% | Rad: ${r.radiation} mSv</div><div class="ht-mood" style="color:${moodColor}">${r.mood.toUpperCase()} (intensity: ${(r.intensity||0).toFixed(2)})</div><div class="ht-quote">"${r.quote}"</div></div></div>`;
         }).join('');
-        addToBody(s, `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:5px 10px;border-left:3px solid var(--${color})"><div style="font-size:10px;color:var(--${color});font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">\uD83D\uDDE3 ${dd.totalReactions} Colonist Reactions</div>${quotesHtml}</div>`);
-        log('ok', `[${d.leader}] ${dd.totalReactions} colonist reactions (showing top ${reactions.length})`);
+
+        addToBody(s, `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:8px 12px;margin-top:2px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+            <span style="font-size:10px;color:var(--${color});font-weight:800;text-transform:uppercase;letter-spacing:.5px">\uD83D\uDDE3 ${total} voices</span>
+            <div style="flex:1;display:flex;height:14px;border-radius:4px;overflow:hidden;gap:1px">${barHtml}</div>
+          </div>
+          <div style="display:flex;gap:14px;font-size:11px;margin-bottom:4px">${legendHtml}</div>
+          <details>
+            <summary style="font-size:11px;color:var(--${color});cursor:pointer;font-weight:600">Show individual quotes</summary>
+            <div style="margin-top:4px">${quotesHtml}</div>
+          </details>
+        </div>`);
+        log('ok', `[${d.leader}] ${total} colonist reactions`);
       }
       break;
     }
