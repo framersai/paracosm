@@ -9,7 +9,7 @@
  */
 
 import { generateText } from '@framers/agentos';
-import type { Colonist, TurnOutcome } from '../kernel/state.js';
+import type { Colonist, TurnOutcome } from '../engine/core/state.js';
 
 export interface ColonistReaction {
   colonistId: string;

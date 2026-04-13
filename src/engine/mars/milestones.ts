@@ -3,7 +3,7 @@
  * Extracted from agents/director.ts getMilestoneCrisis and research/scenarios.ts.
  */
 
-import type { CrisisOption } from '../../agents/contracts.js';
+import type { CrisisOption } from '../../runtime/contracts.js';
 
 export interface MilestoneCrisis {
   title: string;

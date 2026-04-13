@@ -3,7 +3,7 @@ import type { ColonySystems, ColonyPolitics } from './state.js';
 import { SeededRng } from './rng.js';
 import { generateInitialPopulation, type KeyPersonnel } from './colonist-generator.js';
 import { progressBetweenTurns, applyPersonalityDrift, ROLE_ACTIVATIONS } from './progression.js';
-import { SCENARIOS } from '../research/scenarios.js';
+import { SCENARIOS } from '../../runtime/research/scenarios.js';
 
 export interface ColonyPatch {
   colony?: Partial<ColonySystems>;

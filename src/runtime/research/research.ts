@@ -1,4 +1,4 @@
-import type { CrisisResearchPacket } from '../agents/contracts.js';
+import type { CrisisResearchPacket } from '../contracts.js';
 
 export const RESEARCH_PACKETS: Record<number, CrisisResearchPacket> = {
   1: {

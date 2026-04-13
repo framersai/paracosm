@@ -13,16 +13,16 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { runSimulation } from './agents/orchestrator.js';
+import { runSimulation } from '../runtime/orchestrator.js';
 import { parseCliRunOptions } from './cli-run-options.js';
 import { DEFAULT_KEY_PERSONNEL } from './sim-config.js';
-import { marsScenario } from './engine/mars/index.js';
+import { marsScenario } from '../engine/mars/index.js';
 import type { LeaderConfig } from './types.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 function loadEnv() {
-  const envPath = resolve(__dirname, '..', '.env');
+  const envPath = resolve(__dirname, '..', '..', '.env');
   if (existsSync(envPath)) {
     for (const line of readFileSync(envPath, 'utf-8').split('\n')) {
       const match = line.match(/^\s*([^#=]+?)\s*=\s*(.+?)\s*$/);
@@ -32,7 +32,7 @@ function loadEnv() {
 }
 
 function loadLeaders(): LeaderConfig[] {
-  const jsonPath = resolve(__dirname, '..', 'leaders.json');
+  const jsonPath = resolve(__dirname, '..', '..', 'leaders.json');
   if (!existsSync(jsonPath)) {
     console.error(`  leaders.json not found at ${jsonPath}`);
     process.exit(1);

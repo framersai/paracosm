@@ -9,7 +9,7 @@
  * Falls back to static knowledge base if Memory init fails.
  */
 
-import type { CrisisResearchPacket } from '../agents/contracts.js';
+import type { CrisisResearchPacket } from '../contracts.js';
 
 let _memory: any = null;
 let _initialized = false;

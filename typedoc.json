@@ -1,0 +1,17 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["src/engine/index.ts"],
+  "out": "docs/api",
+  "tsconfig": "tsconfig.build.json",
+  "exclude": ["**/*.test.ts"],
+  "skipErrorChecking": true,
+  "cleanOutputDir": true,
+  "name": "paracosm",
+  "readme": "README.md",
+  "includeVersion": true,
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "excludeExternals": true,
+  "categorizeByGroup": true,
+  "groupOrder": ["Classes", "Interfaces", "Functions", "Types", "Variables"]
+}
