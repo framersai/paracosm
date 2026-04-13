@@ -348,18 +348,50 @@ Respond in character as this person. Be direct, personal, emotional. Reference y
       return;
     }
 
-    if (req.url === '/main.js') {
-      const js = readFileSync(resolve(__dirname, 'dashboard/main.js'), 'utf-8');
-      res.writeHead(200, { 'Content-Type': 'application/javascript' });
-      res.end(js);
-      return;
-    }
+    // Serve Vite build if dist/ exists, otherwise fall back to legacy dashboard
+    const distDir = resolve(__dirname, 'dashboard/dist');
+    const legacyMode = !existsSync(resolve(distDir, 'index.html'));
 
-    if (req.url === '/' || req.url === '/index.html') {
-      const html = readFileSync(resolve(__dirname, 'dashboard/index.html'), 'utf-8');
-      res.writeHead(200, { 'Content-Type': 'text/html' });
-      res.end(html);
-      return;
+    if (legacyMode) {
+      // Legacy vanilla dashboard
+      if (req.url === '/main.js') {
+        const js = readFileSync(resolve(__dirname, 'dashboard/main.legacy.js'), 'utf-8');
+        res.writeHead(200, { 'Content-Type': 'application/javascript' });
+        res.end(js);
+        return;
+      }
+      if (req.url === '/' || req.url === '/index.html') {
+        const html = readFileSync(resolve(__dirname, 'dashboard/index.legacy.html'), 'utf-8');
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(html);
+        return;
+      }
+    } else {
+      // Vite React dashboard
+      if (req.url?.startsWith('/assets/')) {
+        const assetPath = resolve(distDir, req.url.slice(1));
+        if (existsSync(assetPath)) {
+          const ext = assetPath.split('.').pop();
+          const mimeTypes: Record<string, string> = {
+            js: 'application/javascript', css: 'text/css', svg: 'image/svg+xml',
+            png: 'image/png', jpg: 'image/jpeg', woff2: 'font/woff2', woff: 'font/woff',
+          };
+          const content = readFileSync(assetPath);
+          res.writeHead(200, {
+            'Content-Type': mimeTypes[ext || ''] || 'application/octet-stream',
+            'Cache-Control': 'public, max-age=31536000, immutable',
+          });
+          res.end(content);
+          return;
+        }
+      }
+      // SPA fallback: serve index.html for all non-API routes
+      if (req.url === '/' || req.url === '/index.html' || !req.url?.startsWith('/')) {
+        const html = readFileSync(resolve(distDir, 'index.html'), 'utf-8');
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(html);
+        return;
+      }
     }
 
     res.writeHead(404);

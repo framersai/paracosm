@@ -1,0 +1,141 @@
+@import "tailwindcss";
+
+/* AgentOS Design System — adapted from agentos.sh/globals.css */
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+  }
+
+  body {
+    width: 100%;
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  :root {
+    color-scheme: light;
+
+    /* Backgrounds */
+    --bg-primary: hsl(220, 30%, 98%);
+    --bg-secondary: hsl(220, 40%, 96%);
+    --bg-tertiary: hsl(220, 40%, 93%);
+    --bg-glass: hsla(220, 30%, 98%, 0.85);
+    --bg-card: hsl(0, 0%, 100%);
+    --bg-elevated: hsl(0, 0%, 100%);
+
+    /* Text */
+    --text-primary: hsl(222, 47%, 11%);
+    --text-secondary: hsl(220, 35%, 25%);
+    --text-muted: hsl(220, 25%, 32%);
+    --text-placeholder: hsl(220, 20%, 50%);
+    --text-contrast: hsl(0, 0%, 100%);
+
+    /* Accents */
+    --accent-primary: hsl(250, 95%, 55%);
+    --accent-secondary: hsl(280, 85%, 50%);
+    --accent-warm: hsl(25, 95%, 50%);
+    --accent-hover: hsl(250, 95%, 58%);
+    --accent-gradient: linear-gradient(135deg, hsl(250, 95%, 64%), hsl(290, 90%, 60%));
+
+    /* Borders */
+    --border-primary: hsl(220, 25%, 82%);
+    --border-subtle: hsl(220, 20%, 88%);
+    --border-interactive: hsl(250, 95%, 55%);
+
+    /* States */
+    --color-success: hsl(150, 100%, 35%);
+    --color-warning: hsl(40, 100%, 50%);
+    --color-error: hsl(350, 90%, 60%);
+
+    /* Simulation: side colors */
+    --side-a: hsl(250, 95%, 55%);
+    --side-b: hsl(180, 85%, 45%);
+
+    /* Effects */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 12px rgba(160, 170, 190, 0.12), 0 1px 3px rgba(0, 0, 0, 0.08);
+    --shadow-glass: 0 20px 60px -30px rgba(15, 23, 42, 0.2);
+    --glass-surface: rgba(252, 253, 255, 0.92);
+    --glass-border: rgba(230, 235, 245, 0.95);
+
+    /* Radius */
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+
+    /* Mono font */
+    --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  }
+
+  .dark {
+    color-scheme: dark;
+
+    /* Backgrounds */
+    --bg-primary: hsl(240, 20%, 3%);
+    --bg-secondary: hsl(240, 15%, 6%);
+    --bg-tertiary: hsl(240, 15%, 9%);
+    --bg-glass: hsla(240, 20%, 3%, 0.8);
+    --bg-card: hsl(240, 18%, 5%);
+    --bg-elevated: hsl(240, 18%, 10%);
+
+    /* Text */
+    --text-primary: hsl(220, 30%, 97%);
+    --text-secondary: hsl(220, 25%, 82%);
+    --text-muted: hsl(220, 22%, 74%);
+    --text-placeholder: hsl(220, 18%, 55%);
+    --text-contrast: hsl(0, 0%, 100%);
+
+    /* Accents */
+    --accent-primary: hsl(250, 100%, 70%);
+    --accent-secondary: hsl(290, 100%, 70%);
+    --accent-warm: hsl(30, 100%, 65%);
+    --accent-hover: hsl(250, 100%, 75%);
+    --accent-gradient: linear-gradient(135deg, hsl(250, 100%, 65%), hsl(290, 100%, 65%));
+
+    /* Borders */
+    --border-primary: hsl(240, 20%, 18%);
+    --border-subtle: hsl(240, 20%, 12%);
+    --border-interactive: hsl(250, 100%, 60%);
+
+    /* States */
+    --color-success: hsl(150, 90%, 45%);
+    --color-warning: hsl(40, 100%, 60%);
+    --color-error: hsl(350, 90%, 65%);
+
+    /* Simulation: side colors */
+    --side-a: hsl(40, 90%, 60%);
+    --side-b: hsl(180, 85%, 55%);
+
+    /* Effects */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+    --shadow-glass: 0 20px 60px -30px rgba(0, 0, 0, 0.6);
+    --glass-surface: rgba(15, 15, 30, 0.8);
+    --glass-border: rgba(40, 40, 70, 0.5);
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg-primary); }
+  ::-webkit-scrollbar-thumb { background: var(--border-primary); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+}
