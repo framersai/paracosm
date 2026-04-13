@@ -105,6 +105,16 @@
   .tip-pop .tip-trait{display:flex;justify-content:space-between;font-size:10px;font-family:var(--mono);padding:1px 0}
   .tip-pop .tip-trait span:first-child{color:var(--text-3)}
 
+  /* Inline hover popovers for cards (colonist reactions, promotions, etc) */
+  .hover-tip{position:relative;cursor:help}
+  .hover-tip .htip{display:none;position:absolute;bottom:100%;left:0;z-index:200;background:var(--bg-card);border:1px solid var(--amber-dim);border-radius:6px;padding:8px 10px;font-size:11px;color:var(--text-2);line-height:1.5;width:320px;max-width:90vw;box-shadow:0 -4px 20px rgba(0,0,0,.6);white-space:normal;font-style:normal}
+  .hover-tip:hover .htip{display:block}
+  .htip b{color:var(--text-1);font-size:12px}
+  .htip .ht-hexaco{font-family:var(--mono);font-size:10px;color:var(--text-2);margin:3px 0}
+  .htip .ht-stats{font-size:10px;color:var(--text-3);margin:2px 0}
+  .htip .ht-quote{font-style:italic;color:var(--text-1);margin-top:4px;padding-top:4px;border-top:1px solid var(--border);line-height:1.5}
+  .htip .ht-mood{font-size:10px;font-weight:700;margin-top:3px}
+
   /* Progress indicator */
   .progress-bar{height:2px;background:var(--border);position:relative;flex-shrink:0}
   .progress-fill{height:100%;background:linear-gradient(90deg,var(--vis),var(--eng));transition:width .5s ease;border-radius:1px}
@@ -309,7 +319,7 @@
       <span class="tip-wrap">
         <span class="ldr-name v" id="ldr-v-name">Aria Chen</span>
         <span class="ldr-colony" id="ldr-v-colony">Ares Horizon</span>
-        <span class="tip-icon">&#9432;</span>
+        <span class="tip-icon" style="font-size:8px;border:1px solid currentColor;border-radius:50%;width:12px;height:12px;display:inline-flex;align-items:center;justify-content:center">i</span>
         <div class="tip-pop">
           <b style="color:var(--vis)">The Visionary: Aria Chen</b>
           Colony: Ares Horizon<br>
@@ -337,7 +347,7 @@
       <span class="tip-wrap">
         <span class="ldr-name e" id="ldr-e-name">Dietrich Voss</span>
         <span class="ldr-colony" id="ldr-e-colony">Meridian Base</span>
-        <span class="tip-icon">&#9432;</span>
+        <span class="tip-icon" style="font-size:8px;border:1px solid currentColor;border-radius:50%;width:12px;height:12px;display:inline-flex;align-items:center;justify-content:center">i</span>
         <div class="tip-pop" style="left:auto;right:0">
           <b style="color:var(--eng)">The Engineer: Dietrich Voss</b>
           Colony: Meridian Base<br>
