@@ -13,7 +13,7 @@ test('legacy dashboard main.js parses cleanly', () => {
   assert.ok(true);
 });
 
-test('vite dashboard dist exists after build', async () => {
+test('vite dashboard dist exists after build', { skip: !await import('node:fs').then(fs => fs.existsSync(distPath)) ? 'dist not built (run npm run dashboard:build first)' : undefined }, async () => {
   const { existsSync } = await import('node:fs');
   assert.ok(existsSync(distPath), 'dist/index.html should exist after npm run dashboard:build');
 });

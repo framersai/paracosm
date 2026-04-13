@@ -364,8 +364,8 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   console.log(`  Turns: ${maxTurns} | Live search: ${opts.liveSearch ? 'yes' : 'no'}`);
   console.log(`${'═'.repeat(60)}\n`);
 
-  // Initialize research memory (semantic recall from DOI citations)
-  await initResearchMemory();
+  // Initialize research memory from scenario knowledge bundle
+  await initResearchMemory(sc.knowledge);
 
   const seed = opts.seed ?? 950;
   const kernel = new SimulationKernel(seed, leader.name, keyPersonnel, {
