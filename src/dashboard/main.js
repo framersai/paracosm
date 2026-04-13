@@ -27,22 +27,36 @@ function side(leader) {
   if (assigned === 1) { leaderMap[leader] = 'e'; return 'e'; }
   return null;
 }
-const state = { v: { pop: [], morale: [], deaths: 0, tools: 0, crisis: null, decision: null, outcome: null }, e: { pop: [], morale: [], deaths: 0, tools: 0, crisis: null, decision: null, outcome: null } };
+const state = {
+  v: { pop: [], morale: [], deaths: 0, tools: 0, crisis: null, decision: null, outcome: null, prevColony: null },
+  e: { pop: [], morale: [], deaths: 0, tools: 0, crisis: null, decision: null, outcome: null, prevColony: null }
+};
 const sparkChars = '\u2581\u2582\u2583\u2584\u2585\u2586\u2587\u2588';
 const spark = arr => arr.map(v => sparkChars[Math.min(7, Math.floor(v / (Math.max(...arr) || 1) * 7.99))]).join('');
 
+function delta(curr, prev) {
+  if (prev == null) return '';
+  const d = curr - prev;
+  if (d === 0) return '';
+  return d > 0 ? ` +${d}` : ` ${d}`;
+}
+
 function updateGauges(s, colony) {
   const pop = colony.population ?? 0, morale = Math.round((colony.morale ?? 0) * 100), food = (colony.foodMonthsReserve ?? 0).toFixed(0);
-  $(`gv-${s}-pop`).textContent = pop;
+  const prev = state[s].prevColony;
+  const prevPop = prev?.population, prevMorale = prev ? Math.round((prev.morale ?? 0) * 100) : null, prevFood = prev ? (prev.foodMonthsReserve ?? 0).toFixed(0) : null;
+
+  $(`gv-${s}-pop`).textContent = pop + delta(pop, prevPop);
   $(`gf-${s}-pop`).style.width = Math.min(100, pop / 4) + '%';
-  $(`gv-${s}-morale`).textContent = morale + '%';
+  $(`gv-${s}-morale`).textContent = morale + '%' + delta(morale, prevMorale);
   $(`gv-${s}-morale`).style.color = morale > 70 ? 'var(--green)' : morale > 50 ? 'var(--amber)' : 'var(--rust)';
   $(`gf-${s}-morale`).style.width = morale + '%';
-  $(`gv-${s}-food`).textContent = food + 'mo';
+  $(`gv-${s}-food`).textContent = food + 'mo' + delta(Number(food), Number(prevFood));
   state[s].pop.push(pop); state[s].morale.push(morale);
   $(`spark-${s}-pop`).textContent = spark(state[s].pop) + ' ' + pop;
   $(`spark-${s}-morale`).textContent = spark(state[s].morale) + ' ' + morale + '%';
   $(`s-${s}-pop`).textContent = pop; $(`s-${s}-morale`).textContent = morale + '%';
+  state[s].prevColony = { ...colony };
 }
 
 function clearWaiting(s) { const w = $(`body-${s}`).querySelector('.waiting'); if (w) w.remove(); }
@@ -375,7 +389,26 @@ function handleSimEvent(d) {
       addToBody(s, `<div class="card"><div class="card-h"><span class="card-title">\u2726 Promoted</span></div><div class="card-text"><b>${dd.colonistId}</b> \u2192 ${dd.role}<br><span style="color:var(--text-2);font-size:11px">${(dd.reason || '').slice(0, 120)}</span></div></div>`);
       break;
 
+    case 'dept_start': {
+      const dIcon = { medical: '\uD83C\uDFE5', engineering: '\u2699\uFE0F', agriculture: '\uD83C\uDF3E', psychology: '\uD83E\uDDE0', governance: '\uD83C\uDFDB\uFE0F' }[dd.department] || '\uD83D\uDCCB';
+      // Remove previous loading indicator for this side
+      const prev = $(`loading-${s}`);
+      if (prev) prev.remove();
+      addToBody(s, `<div class="loading-card" id="loading-${s}" style="font-size:11px;color:var(--text-3);padding:4px 10px;display:flex;align-items:center;gap:6px"><span style="animation:pulse 1.5s infinite">${dIcon}</span>${(dd.department || '').charAt(0).toUpperCase() + (dd.department || '').slice(1)} analyzing...</div>`);
+      break;
+    }
+
+    case 'commander_deciding': {
+      const prev2 = $(`loading-${s}`);
+      if (prev2) prev2.remove();
+      addToBody(s, `<div class="loading-card" id="loading-${s}" style="font-size:11px;color:var(--text-3);padding:4px 10px;display:flex;align-items:center;gap:6px"><span style="animation:pulse 1.5s infinite">\u26A1</span>Commander deciding...</div>`);
+      break;
+    }
+
     case 'dept_done': {
+      // Remove loading indicator
+      const loadEl = $(`loading-${s}`);
+      if (loadEl) loadEl.remove();
       const dept = (dd.department || '').toUpperCase();
       const icon = { medical: '\uD83C\uDFE5', engineering: '\u2699\uFE0F', agriculture: '\uD83C\uDF3E', psychology: '\uD83E\uDDE0', governance: '\uD83C\uDFDB\uFE0F' }[dd.department] || '\uD83D\uDCCB';
       const summary = dd.summary || '';
@@ -403,10 +436,13 @@ function handleSimEvent(d) {
       else log('no', `  \uD83D\uDD27 \u2717 ${dd.name}: ${(dd.reason || '').slice(0, 60)}`);
       break;
 
-    case 'commander_decided':
+    case 'commander_decided': {
+      const loadEl3 = $(`loading-${s}`);
+      if (loadEl3) loadEl3.remove();
       state[s].pendingDecision = dd.decision;
       log('info', `[${d.leader}] ${(dd.decision || '').slice(0, 60)}`);
       break;
+    }
 
     case 'outcome': {
       const dec = (state[s].pendingDecision || '').slice(0, 500);
@@ -448,6 +484,12 @@ function handleSimEvent(d) {
       addToBody(s, `<div class="turn-sep">Turn ${dd.turn} complete</div>`);
       break;
   }
+}
+
+// Dismiss intro if previously dismissed
+if (localStorage.getItem('mars-intro-dismissed') === '1') {
+  const intro = $('intro-bar');
+  if (intro) intro.style.display = 'none';
 }
 
 // Load config from URL params on startup
