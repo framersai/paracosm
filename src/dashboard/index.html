@@ -63,7 +63,7 @@
   .ldr-row2{display:flex;align-items:center;gap:10px;margin-top:2px}
   .ldr-name{font-size:13px;font-weight:800;white-space:nowrap}.ldr-name.v{color:var(--vis)}.ldr-name.e{color:var(--eng)}
   .ldr-sep{color:var(--border);margin:0 2px}
-  .ldr-quote{color:var(--text-3);font-size:9px;font-style:italic;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ldr-quote{color:var(--text-2);font-size:11px;font-style:italic;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .traits{font-size:9px;color:var(--text-2);white-space:nowrap;font-family:var(--mono);letter-spacing:0;overflow:hidden;text-overflow:ellipsis}
   .traits .hi{font-weight:700}.traits .v{color:var(--vis)}.traits .e{color:var(--eng)}
   .traits .tx{margin-right:3px;margin-left:6px}.traits .tx:first-child{margin-left:0}.traits .tv{margin-right:0}
@@ -93,6 +93,20 @@
   .cn{font-weight:800;font-size:12px;font-family:var(--mono)}.cn.v{color:var(--vis)}.cn.e{color:var(--eng)}
   .cl{color:var(--text-3);font-size:10px;margin-left:6px}
   .col-body{flex:1;overflow-y:auto;padding:5px 8px;display:flex;flex-direction:column;gap:5px}
+
+  /* Custom tooltip popovers */
+  .tip-wrap{position:relative;display:inline-flex;align-items:center;cursor:help}
+  .tip-icon{font-size:10px;color:var(--text-3);margin-left:3px;opacity:.6;transition:opacity .2s}
+  .tip-wrap:hover .tip-icon{opacity:1;color:var(--amber)}
+  .tip-pop{display:none;position:absolute;top:100%;left:0;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:10px 12px;font-size:11px;color:var(--text-2);line-height:1.6;width:280px;box-shadow:0 4px 20px rgba(0,0,0,.5);pointer-events:none;white-space:normal}
+  .tip-wrap:hover .tip-pop{display:block}
+  .tip-pop b{color:var(--text-1);display:block;margin-bottom:4px;font-size:12px}
+  .tip-pop .tip-trait{display:flex;justify-content:space-between;font-size:10px;font-family:var(--mono);padding:1px 0}
+  .tip-pop .tip-trait span:first-child{color:var(--text-3)}
+
+  /* Progress indicator */
+  .progress-bar{height:2px;background:var(--border);position:relative;flex-shrink:0}
+  .progress-fill{height:100%;background:linear-gradient(90deg,var(--vis),var(--eng));transition:width .5s ease;border-radius:1px}
 
   /* Cards - compact */
   .card{background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:6px 10px}
@@ -160,7 +174,7 @@
   .waiting .spinner{display:inline-block;animation:pulse 1.5s infinite}
 
   /* Timeline */
-  .tl{border-top:1px solid var(--border);background:var(--bg-panel);display:flex;gap:1px;max-height:90px;overflow:hidden}
+  .tl{border-top:1px solid var(--border);background:var(--bg-panel);display:flex;gap:1px;max-height:140px;overflow:hidden}
   .tl-col{flex:1;background:var(--bg-panel);padding:3px 8px;overflow-y:auto}
   .tl-label{font-size:9px;font-weight:700;padding:2px 6px;border-radius:3px;margin-bottom:3px;display:inline-block;font-family:var(--mono)}
   .tl-label.v{color:var(--vis);background:rgba(232,180,74,.08)}.tl-label.e{color:var(--eng);background:rgba(76,168,168,.08)}
@@ -290,9 +304,24 @@
 <div class="leaders">
   <div class="ldr" id="ldr-v">
     <div class="ldr-row1">
-      <span class="arch v" id="ldr-v-arch" title="THE VISIONARY &#10;Aria Chen, Ares Horizon &#10;&#10;Bold expansion, calculated risks. Explores novel solutions. Acts on intuition. Charismatic leader who rallies through vision. Cool under pressure. Spins setbacks. &#10;&#10;O=0.95 creative &#10;C=0.35 loose, fast &#10;E=0.85 charismatic &#10;A=0.55 moderate &#10;Em=0.30 calm &#10;HH=0.65 spins setbacks &#10;&#10;Favors higher upside even when riskier.">VISIONARY</span>
-      <span class="ldr-name v" id="ldr-v-name" title="Commander Aria Chen &#10;Colony: Ares Horizon &#10;Archetype: The Visionary &#10;Bold expansion, calculated risks">Aria Chen</span>
-      <span style="color:var(--text-3);font-size:10px" id="ldr-v-colony" title="Ares Horizon colony">Ares Horizon</span>
+      <span class="arch v" id="ldr-v-arch">VISIONARY</span>
+      <span class="tip-wrap">
+        <span class="ldr-name v" id="ldr-v-name">Aria Chen</span>
+        <span style="color:var(--text-3);font-size:10px" id="ldr-v-colony">Ares Horizon</span>
+        <span class="tip-icon">&#9432;</span>
+        <div class="tip-pop">
+          <b style="color:var(--vis)">The Visionary: Aria Chen</b>
+          Colony: Ares Horizon<br>
+          Bold expansion, calculated risks. Explores novel solutions. Acts on intuition over data. Charismatic leader who rallies through vision. Cool under pressure. Spins setbacks as learning opportunities.
+          <div class="tip-trait"><span>Openness</span><span style="color:var(--vis)">.95 (creative, experimental)</span></div>
+          <div class="tip-trait"><span>Conscientiousness</span><span>.35 (loose, fast)</span></div>
+          <div class="tip-trait"><span>Extraversion</span><span>.85 (charismatic)</span></div>
+          <div class="tip-trait"><span>Agreeableness</span><span>.55 (moderate)</span></div>
+          <div class="tip-trait"><span>Emotionality</span><span>.30 (calm)</span></div>
+          <div class="tip-trait"><span>Honesty-Humility</span><span>.65 (spins setbacks)</span></div>
+          <div style="margin-top:4px;font-size:10px;color:var(--amber)">Favors higher upside even when riskier.</div>
+        </div>
+      </span>
       <span class="ldr-sep">|</span>
       <span class="traits" id="ldr-v-traits"><span class="v tx">O</span><span class="v">█████░</span><span class="v tv">.95</span><span class="v tx">C</span><span class="v">██░░░░</span><span class="v tv">.35</span><span class="v tx">E</span><span class="v">████░</span><span class="v tv">.85</span><span class="v tx">A</span><span class="v">███░░</span><span class="v tv">.55</span></span>
     </div>
@@ -303,9 +332,24 @@
   </div>
   <div class="ldr" id="ldr-e">
     <div class="ldr-row1">
-      <span class="arch e" id="ldr-e-arch" title="THE ENGINEER &#10;Dietrich Voss, Meridian Base &#10;&#10;Engineering discipline, safety margins. Proven methods only. Precise, thorough. Protocol-driven, not speeches. Anxious, plans for worst case. Shares bad news immediately. &#10;&#10;O=0.25 proven methods &#10;C=0.97 extremely precise &#10;E=0.30 quiet, reserved &#10;A=0.45 moderate &#10;Em=0.70 anxious, cautious &#10;HH=0.90 transparent &#10;&#10;Demands data before decisions. Favors lower risk.">ENGINEER</span>
-      <span class="ldr-name e" id="ldr-e-name" title="Commander Dietrich Voss &#10;Colony: Meridian Base &#10;Archetype: The Engineer &#10;Safety margins, data-driven">Dietrich Voss</span>
-      <span style="color:var(--text-3);font-size:10px" id="ldr-e-colony" title="Meridian Base colony">Meridian Base</span>
+      <span class="arch e" id="ldr-e-arch">ENGINEER</span>
+      <span class="tip-wrap">
+        <span class="ldr-name e" id="ldr-e-name">Dietrich Voss</span>
+        <span style="color:var(--text-3);font-size:10px" id="ldr-e-colony">Meridian Base</span>
+        <span class="tip-icon">&#9432;</span>
+        <div class="tip-pop" style="left:auto;right:0">
+          <b style="color:var(--eng)">The Engineer: Dietrich Voss</b>
+          Colony: Meridian Base<br>
+          Engineering discipline, safety margins. Proven methods only. Precise, thorough. Protocol-driven. Plans for worst case. Shares bad news immediately.
+          <div class="tip-trait"><span>Openness</span><span>.25 (proven methods)</span></div>
+          <div class="tip-trait"><span>Conscientiousness</span><span style="color:var(--eng)">.97 (extremely precise)</span></div>
+          <div class="tip-trait"><span>Extraversion</span><span>.30 (quiet, reserved)</span></div>
+          <div class="tip-trait"><span>Agreeableness</span><span>.45 (moderate)</span></div>
+          <div class="tip-trait"><span>Emotionality</span><span>.70 (anxious, cautious)</span></div>
+          <div class="tip-trait"><span>Honesty-Humility</span><span style="color:var(--eng)">.90 (transparent)</span></div>
+          <div style="margin-top:4px;font-size:10px;color:var(--eng)">Demands data before decisions. Favors lower risk.</div>
+        </div>
+      </span>
       <span class="ldr-sep">|</span>
       <span class="traits" id="ldr-e-traits"><span class="e tx">O</span><span class="e">█░░░░</span><span class="e tv">.25</span><span class="e hi tx">C</span><span class="e">█████</span><span class="e hi tv">.97</span><span class="e tx">E</span><span class="e">██░░░</span><span class="e tv">.30</span><span class="e hi tx">H</span><span class="e">████░</span><span class="e hi tv">.90</span></span>
     </div>
@@ -326,6 +370,9 @@
     <div class="stat" title="Computational tools invented by department agents at runtime. Judge-reviewed."><span id="s-v-tools" class="stat-num" style="color:var(--vis)">0</span><span class="stat-vs">/</span><span id="s-e-tools" class="stat-num" style="color:var(--eng)">0</span><span class="stat-label">Tools</span></div>
   </div>
 </div>
+
+<!-- Progress bar -->
+<div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0"></div></div>
 
 <!-- Intro overlay (dismissible) -->
 <div class="intro" id="intro-bar">
