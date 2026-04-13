@@ -12,6 +12,7 @@ import { SettingsPanel } from './components/settings/SettingsPanel';
 import { ReportView } from './components/reports/ReportView';
 import { ChatPanel } from './components/chat/ChatPanel';
 import { ToastProvider, useToast } from './components/shared/Toast';
+import { Analytics } from './components/shared/Analytics';
 
 // Scenario context available to all components
 const ScenarioContext = createContext<ScenarioClientPayload | null>(null);
@@ -114,6 +115,7 @@ export function App() {
   return (
     <ThemeProvider>
       <ToastProvider>
+        <Analytics />
         <AppContent />
       </ToastProvider>
     </ThemeProvider>
