@@ -1031,23 +1031,28 @@ document.addEventListener('mouseover', e => {
   if (!tip) return;
   const htip = tip.querySelector('.htip');
   if (!htip) return;
-  // Briefly show to measure, then position
-  htip.style.visibility = 'hidden';
-  htip.style.display = 'block';
   const rect = tip.getBoundingClientRect();
-  const tipH = htip.offsetHeight;
-  const tipW = htip.offsetWidth;
+  // Position off-screen to measure without disrupting layout
+  htip.style.left = '-9999px';
+  htip.style.top = '-9999px';
+  htip.style.display = 'block';
+  const tipH = htip.offsetHeight || 200;
+  const tipW = htip.offsetWidth || 360;
   let left = rect.left;
   let top = rect.top - tipH - 8;
-  // Flip below if not enough room above
   if (top < 10) top = rect.bottom + 8;
-  // Clamp to viewport
   if (left + tipW > window.innerWidth - 10) left = window.innerWidth - tipW - 10;
   if (left < 10) left = 10;
   if (top + tipH > window.innerHeight - 10) top = window.innerHeight - tipH - 10;
+  if (top < 10) top = 10;
   htip.style.left = left + 'px';
   htip.style.top = top + 'px';
-  htip.style.visibility = 'visible';
+});
+document.addEventListener('mouseout', e => {
+  const tip = e.target.closest('.hover-tip');
+  if (!tip) return;
+  const htip = tip.querySelector('.htip');
+  if (htip) htip.style.display = 'none';
 });
 
 // Dismiss intro if previously dismissed
