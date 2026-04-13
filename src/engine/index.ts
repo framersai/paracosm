@@ -58,6 +58,12 @@ export type { ColonistSocial as AgentSocial } from './core/state.js';
 export type { ColonistNarrative as AgentNarrative } from './core/state.js';
 export type { KeyPersonnel } from './core/colonist-generator.js';
 export type { ColonyPatch, PolicyEffect, SimulationInitOverrides } from './core/kernel.js';
+export type { HexacoSnapshot, LifeEvent } from './core/state.js';
+export type { LeaderConfig, LlmProvider, SimulationModelConfig } from './types.js';
+
+// Re-export registry types for typedoc
+export type { ScenarioMetric } from './mars/metrics.js';
+export type { ScenarioEventDef } from './mars/events.js';
 
 // Scenario packages
 export { marsScenario } from './mars/index.js';

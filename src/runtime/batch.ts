@@ -2,10 +2,8 @@
  * Batch Runner — run multiple scenarios with typed configs and reproducible manifests.
  */
 
-import type { ScenarioPackage } from '../engine/types.js';
-import type { LeaderConfig } from '../cli/types.js';
+import type { ScenarioPackage, LeaderConfig, LlmProvider, SimulationModelConfig } from '../engine/types.js';
 import type { KeyPersonnel } from '../engine/core/colonist-generator.js';
-import type { LlmProvider, SimulationModelConfig } from '../cli/sim-config.js';
 
 export interface BatchConfig {
   scenarios: ScenarioPackage[];

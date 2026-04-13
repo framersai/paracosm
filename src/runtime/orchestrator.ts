@@ -19,19 +19,18 @@ import { buildDepartmentContext, getDepartmentsForTurn } from './departments.js'
 import { CrisisDirector, type DirectorCrisis, type DirectorContext } from './director.js';
 import { generateColonistReactions } from './colonist-reactions.js';
 import type { ScenarioPackage } from '../engine/types.js';
+import type { LlmProvider, SimulationModelConfig } from '../engine/types.js';
 import {
   DEFAULT_EXECUTION,
   resolveSimulationModels,
-  type LlmProvider,
   type SimulationExecutionConfig,
-  type SimulationModelConfig,
   type StartingPolitics,
   type StartingResources,
 } from '../cli/sim-config.js';
 import { applyCustomEventToCrisis, buildPromotionPrompt, buildYearSchedule } from './runtime-helpers.js';
 import { EffectRegistry } from '../engine/effect-registry.js';
 import { marsScenario } from '../engine/mars/index.js';
-import type { LeaderConfig } from '../cli/types.js';
+import type { LeaderConfig } from '../engine/types.js';
 export type { LeaderConfig };
 
 const __dirname = dirname(fileURLToPath(import.meta.url));

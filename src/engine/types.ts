@@ -1,3 +1,5 @@
+import type { HexacoProfile } from './core/state.js';
+
 // ---------------------------------------------------------------------------
 // Primitive value types
 // ---------------------------------------------------------------------------
@@ -208,6 +210,55 @@ export interface ScenarioHooks {
   fingerprintHook?: (finalState: any, outcomeLog: any[], leader: any, toolRegs: Record<string, string[]>, maxTurns: number) => Record<string, string>;
   getMilestoneCrisis?: (turn: number, maxTurns: number) => any | null;
   politicsHook?: (category: string, outcome: string) => Record<string, number> | null;
+}
+
+// ---------------------------------------------------------------------------
+// Scenario (legacy turn-based, used by static SCENARIOS and department context)
+// ---------------------------------------------------------------------------
+
+export interface CrisisOptionDef {
+  id: string;
+  label: string;
+  description: string;
+  isRisky: boolean;
+}
+
+export interface Scenario {
+  turn: number;
+  year: number;
+  title: string;
+  crisis: string;
+  researchKeywords: string[];
+  snapshotHints: Record<string, unknown>;
+  riskyOption: string;
+  riskSuccessProbability: number;
+  options?: CrisisOptionDef[];
+}
+
+// ---------------------------------------------------------------------------
+// Leader config (shared by engine, runtime, and cli)
+// ---------------------------------------------------------------------------
+
+export interface LeaderConfig {
+  name: string;
+  archetype: string;
+  colony: string;
+  hexaco: HexacoProfile;
+  instructions: string;
+}
+
+// ---------------------------------------------------------------------------
+// LLM provider types (shared by runtime and cli)
+// ---------------------------------------------------------------------------
+
+export type LlmProvider = 'openai' | 'anthropic';
+
+export interface SimulationModelConfig {
+  commander: string;
+  departments: string;
+  judge: string;
+  director: string;
+  colonistReactions?: string;
 }
 
 // ---------------------------------------------------------------------------

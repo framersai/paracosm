@@ -1,6 +1,6 @@
 import type { Department, SimulationState, Colonist } from '../engine/core/state.js';
 import type { DepartmentReport, CrisisResearchPacket } from './contracts.js';
-import type { Scenario } from '../cli/types.js';
+import type { Scenario } from '../engine/types.js';
 
 export interface DepartmentConfig {
   department: Department;
