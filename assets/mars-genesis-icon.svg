@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="mars" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#c45a2c"/>
+      <stop offset="50%" stop-color="#e8b44a"/>
+      <stop offset="100%" stop-color="#8b3d1e"/>
+    </linearGradient>
+    <radialGradient id="planet" cx="40%" cy="35%" r="50%">
+      <stop offset="0%" stop-color="#e06530"/>
+      <stop offset="60%" stop-color="#c45a2c"/>
+      <stop offset="100%" stop-color="#8b3d1e"/>
+    </radialGradient>
+  </defs>
+  <!-- Mars planet -->
+  <circle cx="32" cy="32" r="22" fill="url(#planet)"/>
+  <!-- Surface features -->
+  <ellipse cx="26" cy="28" rx="6" ry="3" fill="#8b3d1e" opacity=".4"/>
+  <ellipse cx="38" cy="36" rx="8" ry="2.5" fill="#8b3d1e" opacity=".3"/>
+  <circle cx="22" cy="38" r="3" fill="#a0472a" opacity=".3"/>
+  <!-- AgentOS node network overlay -->
+  <circle cx="32" cy="26" r="3" fill="#e8b44a" opacity=".9"/>
+  <circle cx="24" cy="36" r="2.5" fill="#e8b44a" opacity=".7"/>
+  <circle cx="40" cy="36" r="2.5" fill="#4ca8a8" opacity=".7"/>
+  <circle cx="32" cy="42" r="2" fill="#4ca8a8" opacity=".6"/>
+  <path d="M32 26L24 36M32 26L40 36M24 36L40 36M24 36L32 42M40 36L32 42" stroke="#e8b44a" stroke-width="1" opacity=".4"/>
+  <!-- Atmosphere glow -->
+  <circle cx="32" cy="32" r="22" fill="none" stroke="#e06530" stroke-width=".5" opacity=".3"/>
+  <circle cx="32" cy="32" r="24" fill="none" stroke="#e8b44a" stroke-width=".3" opacity=".15"/>
+</svg>

@@ -979,7 +979,16 @@ function handleSimEvent(d) {
           const moodColor = moodColors[r.mood] || 'var(--text-2)';
           const shortQuote = r.quote.length > 100 ? r.quote.slice(0, 100) + '...' : r.quote;
           const h = r.hexaco || {};
-          const tip = `${r.name}, age ${r.age}${r.marsborn ? ' (Mars-born)' : ''}\n${r.role} — ${r.specialization || r.department}\nDepartment: ${r.department}\n\nHEXACO: O=${h.O} C=${h.C} E=${h.E} A=${h.A} Em=${h.Em} HH=${h.HH}\nPsych: ${r.psychScore} | Bone: ${r.boneDensity}% | Radiation: ${r.radiation} mSv\n\nMood: ${r.mood} (intensity: ${(r.intensity || 0).toFixed(2)})\n\nFull quote:\n"${r.quote}"`;
+          const safeQuote = (r.quote || '').replace(/"/g, "'").replace(/`/g, "'").replace(/\n/g, ' ');
+          const tip = [
+            `${r.name}, age ${r.age}${r.marsborn ? ' (Mars-born)' : ''}`,
+            `${r.role} - ${r.specialization || r.department}`,
+            `HEXACO: O=${h.O} C=${h.C} E=${h.E} A=${h.A} Em=${h.Em} HH=${h.HH}`,
+            `Psych: ${r.psychScore} | Bone: ${r.boneDensity}% | Rad: ${r.radiation} mSv`,
+            `Mood: ${r.mood} (${(r.intensity || 0).toFixed(2)})`,
+            ``,
+            `'${safeQuote}'`,
+          ].join('\n');
 
           return `<div style="display:flex;gap:6px;align-items:baseline;padding:2px 0;border-bottom:1px solid rgba(48,42,34,.5);cursor:help" title="${tip.replace(/"/g, '&quot;')}"><span style="font-weight:600;color:var(--${color});font-size:10px;min-width:80px;flex-shrink:0">${r.name}</span><span style="font-style:italic;color:var(--text-2);font-size:10px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">"${shortQuote}"</span><span style="font-size:8px;color:${moodColor};font-weight:700;flex-shrink:0">${r.mood.toUpperCase()}</span></div>`;
         }).join('');

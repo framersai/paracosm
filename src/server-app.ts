@@ -121,11 +121,19 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       return;
     }
 
-    if (req.url === '/favicon.png' || req.url === '/favicon.ico') {
+    if (req.url === '/favicon.svg' || req.url === '/favicon.png' || req.url === '/favicon.ico') {
       try {
-        const icon = readFileSync(resolve(__dirname, '..', 'assets', 'agentos-icon.png'));
-        res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=86400' });
-        res.end(icon);
+        const svgPath = resolve(__dirname, '..', 'assets', 'mars-genesis-icon.svg');
+        const pngPath = resolve(__dirname, '..', 'assets', 'agentos-icon.png');
+        if (existsSync(svgPath)) {
+          const svg = readFileSync(svgPath, 'utf-8');
+          res.writeHead(200, { 'Content-Type': 'image/svg+xml', 'Cache-Control': 'public, max-age=86400' });
+          res.end(svg);
+        } else {
+          const icon = readFileSync(pngPath);
+          res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=86400' });
+          res.end(icon);
+        }
       } catch {
         res.writeHead(404); res.end();
       }
