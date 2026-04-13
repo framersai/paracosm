@@ -103,13 +103,13 @@ function addToBody(s, html) {
 }
 function addTimeline(s, year, text, badgeCls, badge) {
   const tl = $(`tl-${s}`);
-  // Deduplicate: skip if this exact year+text combo already exists
   const key = `${year}-${text.slice(0,20)}`;
   if (tl.dataset.lastEntry === key) return;
   tl.dataset.lastEntry = key;
   tl.querySelectorAll('.tr.now').forEach(el => el.classList.remove('now'));
   const div = document.createElement('div');
-  div.className = 'tr now'; div.innerHTML = `<span class="ty ${s}">${year}</span><span class="tt">${text}</span><span class="ob ${badgeCls}" style="font-size:8px;padding:1px 5px">${badge}</span>`;
+  div.className = 'tr now hover-tip';
+  div.innerHTML = `<span class="ty ${s}">${year}</span><span class="tt">${text}</span><span class="ob ${badgeCls}" style="font-size:9px;padding:1px 5px">${badge}</span><div class="htip" style="bottom:auto;top:100%;width:280px"><b>Year ${year}</b><div style="margin-top:3px;color:var(--text-1);line-height:1.5">${text}</div></div>`;
   tl.appendChild(div);
   tl.scrollTo({ top: tl.scrollHeight, behavior: 'smooth' });
 }
@@ -951,35 +951,14 @@ function handleSimEvent(d) {
     case 'drift': {
       const entries = Object.values(dd.colonists || {});
       if (entries.length) {
-        // Inline drift in decision card
         const slot = $(`drift-slot-${s}-${dd.turn}`);
         if (slot) {
-          slot.innerHTML = `<b>Personality Drift</b><br>` + entries.map(c => `${c.name}: <span style="color:var(--${s === 'v' ? 'vis' : 'eng'})">O${c.hexaco?.O ?? '?'} C${c.hexaco?.C ?? '?'} E${c.hexaco?.E ?? '?'} A${c.hexaco?.A ?? '?'}</span>`).join(' \u00B7 ');
+          const color = s === 'v' ? 'vis' : 'eng';
+          slot.innerHTML = `<span style="font-size:9px;color:var(--text-3);font-weight:700">DRIFT:</span> ` + entries.slice(0, 3).map(c => `<span style="color:var(--${color})">${c.name.split(' ')[0]}</span> O${c.hexaco?.O ?? '?'} C${c.hexaco?.C ?? '?'}`).join(' \u00B7 ');
           slot.style.display = 'block';
         }
-        // Featured colonist card: pick the one with most dramatic change
-        const prev = state[s].prevDrift || {};
-        let featured = null, maxDelta = 0;
-        for (const c of entries) {
-          if (!c.hexaco) continue;
-          const p = prev[c.name];
-          if (p) {
-            const d = Math.abs((c.hexaco.O||0)-(p.O||0)) + Math.abs((c.hexaco.C||0)-(p.C||0)) + Math.abs((c.hexaco.E||0)-(p.E||0)) + Math.abs((c.hexaco.A||0)-(p.A||0));
-            if (d > maxDelta) { maxDelta = d; featured = c; }
-          } else if (!featured) { featured = c; }
-        }
-        // Store current drift for next comparison
         state[s].prevDrift = {};
         for (const c of entries) { if (c.hexaco) state[s].prevDrift[c.name] = c.hexaco; }
-
-        if (featured && featured.hexaco) {
-          const h = featured.hexaco;
-          const pf = prev[featured.name];
-          const dO = pf ? (h.O - pf.O).toFixed(2) : ''; const dC = pf ? (h.C - pf.C).toFixed(2) : '';
-          const deltaStr = pf ? `O ${dO > 0 ? '+' : ''}${dO}, C ${dC > 0 ? '+' : ''}${dC}` : `O ${h.O}, C ${h.C}, E ${h.E}, A ${h.A}`;
-          const color = s === 'v' ? 'vis' : 'eng';
-          addToBody(s, `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:6px 10px;font-size:11px;display:flex;align-items:center;gap:8px"><span style="font-size:16px">\uD83D\uDC64</span><div style="flex:1"><div style="font-weight:700;color:var(--${color})">${featured.name}</div><div style="color:var(--text-2);font-size:10px">HEXACO shift: <span style="font-family:var(--mono);color:var(--text-1)">${deltaStr}</span></div></div><span style="font-size:9px;color:var(--text-3);font-family:var(--mono)">FEATURED</span></div>`);
-        }
       }
       break;
     }

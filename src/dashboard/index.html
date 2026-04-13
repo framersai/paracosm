@@ -97,8 +97,8 @@
 
   /* Custom tooltip popovers */
   .tip-wrap{position:relative;display:inline-flex;align-items:center;cursor:help}
-  .tip-icon{font-size:10px;color:var(--text-3);margin-left:3px;opacity:.6;transition:opacity .2s}
-  .tip-wrap:hover .tip-icon{opacity:1;color:var(--amber)}
+  .tip-icon{font-size:9px;color:var(--text-3);margin-left:4px;opacity:.5;transition:all .2s;background:var(--border);width:14px;height:14px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-family:var(--sans);flex-shrink:0}
+  .tip-wrap:hover .tip-icon{opacity:1;color:var(--bg-deep);background:var(--amber)}
   .tip-pop{display:none;position:absolute;top:100%;left:0;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:10px 12px;font-size:11px;color:var(--text-2);line-height:1.6;width:280px;box-shadow:0 4px 20px rgba(0,0,0,.5);pointer-events:none;white-space:normal}
   .tip-wrap:hover .tip-pop{display:block}
   .tip-pop b{color:var(--text-1);display:block;margin-bottom:4px;font-size:12px}
@@ -119,13 +119,13 @@
   .progress-bar{height:2px;background:var(--border);position:relative;flex-shrink:0}
   .progress-fill{height:100%;background:linear-gradient(90deg,var(--vis),var(--eng));transition:width .5s ease;border-radius:1px}
 
-  /* Cards - compact */
+  /* Cards */
   .card{background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:6px 10px}
-  .card-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px}
-  .card-title{font-weight:700;font-size:12px;color:var(--amber)}
-  .card-badge{font-size:10px;color:var(--text-3);background:var(--bg-deep);padding:1px 6px;border-radius:3px;font-family:var(--mono)}
-  .card-text{color:var(--text-1);line-height:1.5;font-size:12px}
-  .risk{margin-top:3px;font-size:11px;font-weight:600;display:flex;align-items:center;gap:4px}
+  .card-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px}
+  .card-title{font-weight:700;font-size:13px;color:var(--amber)}
+  .card-badge{font-size:11px;color:var(--text-3);background:var(--bg-deep);padding:1px 6px;border-radius:3px;font-family:var(--mono)}
+  .card-text{color:var(--text-1);line-height:1.5;font-size:13px}
+  .risk{margin-top:3px;font-size:12px;font-weight:600;display:flex;align-items:center;gap:4px}
   .rd{width:6px;height:6px;border-radius:50%}.rd.cr{background:var(--rust)}.rd.hi{background:var(--amber)}.rd.lo{background:var(--green)}
 
   /* Forge cards - distinctive with glow */
@@ -136,18 +136,18 @@
   .forge{border-radius:4px;padding:6px 10px;font-size:11px;display:flex;align-items:center;gap:8px;animation:forgeSlide .4s ease both,forgeGlow 2s ease both}
   .forge.ok{background:rgba(106,173,72,.08);border:1px solid rgba(106,173,72,.25);border-left:3px solid var(--green)}
   .forge.no{background:rgba(224,101,48,.04);border:1px solid rgba(224,101,48,.15);border-left:3px solid var(--rust);opacity:.6}
-  .forge-label{font-size:7px;color:var(--green);text-transform:uppercase;letter-spacing:1.5px;font-weight:800;font-family:var(--mono);display:block;margin-bottom:1px}
-  .fn{font-size:9px;color:var(--text-3);font-family:var(--mono);margin-top:1px}
-  .fd{font-size:12px;color:var(--text-1);font-weight:600;line-height:1.3}
+  .forge-label{font-size:8px;color:var(--green);text-transform:uppercase;letter-spacing:1px;font-weight:800;font-family:var(--mono);display:block;margin-bottom:1px}
+  .fn{font-size:10px;color:var(--text-3);font-family:var(--mono);margin-top:1px}
+  .fd{font-size:13px;color:var(--text-1);font-weight:600;line-height:1.3}
   .jb{padding:2px 6px;border-radius:3px;font-size:9px;font-weight:800;white-space:nowrap;font-family:var(--mono)}
   .jb.p{background:rgba(106,173,72,.15);color:var(--green);border:1px solid rgba(106,173,72,.3)}
   .jb.f{background:rgba(224,101,48,.1);color:var(--rust);border:1px solid rgba(224,101,48,.2)}
 
   /* Decision cards - with pulse */
-  .dec{border-radius:4px;padding:6px 10px;font-size:12px;animation:decisionPulse 2s ease both}
+  .dec{border-radius:4px;padding:6px 10px;font-size:13px;animation:decisionPulse 2s ease both}
   .dec.v{background:rgba(232,180,74,.06);border:1px solid var(--amber-dim);border-left:3px solid var(--vis)}
   .dec.e{background:rgba(76,168,168,.06);border:1px solid var(--teal-dim);border-left:3px solid var(--eng)}
-  .dl{font-weight:800;font-size:10px;margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px}.dl.v{color:var(--vis)}.dl.e{color:var(--eng)}
+  .dl{font-weight:800;font-size:11px;margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px}.dl.v{color:var(--vis)}.dl.e{color:var(--eng)}
 
   /* Cards with severity accents */
   .card.critical{border-left:3px solid var(--rust);animation:criticalFlash 2s ease 1}
@@ -160,10 +160,10 @@
   .rf{background:rgba(224,101,48,.12);color:var(--rust);border:1px solid var(--rust-dim)}
   .cs{background:rgba(106,173,72,.12);color:var(--green);border:1px solid rgba(106,173,72,.25)}
   .cf{background:rgba(224,101,48,.08);color:var(--rust);border:1px solid var(--rust-dim)}
-  .drift-inline{margin-top:4px;padding-top:4px;border-top:1px solid var(--border);font-size:10px;color:var(--text-2);font-family:var(--mono);line-height:1.5}
-  .drift-inline b{color:var(--text-3);font-size:9px;text-transform:uppercase;letter-spacing:.5px}
+  .drift-inline{margin-top:4px;padding-top:4px;border-top:1px solid var(--border);font-size:11px;color:var(--text-2);font-family:var(--mono);line-height:1.4}
+  .drift-inline b{color:var(--text-3);font-size:10px;text-transform:uppercase;letter-spacing:.5px}
 
-  .turn-sep{text-align:center;padding:4px 0;font-size:10px;color:var(--text-3);font-weight:700;text-transform:uppercase;letter-spacing:1.5px;border-top:1px solid var(--border);margin-top:2px}
+  .turn-sep{text-align:center;padding:5px 0;font-size:11px;color:var(--text-3);font-weight:700;text-transform:uppercase;letter-spacing:1.5px;border-top:1px solid var(--border);margin-top:3px}
 
   /* Intro overlay */
   .intro{padding:8px 16px;background:linear-gradient(90deg,rgba(232,180,74,.08),rgba(76,168,168,.08));border-bottom:1px solid var(--border);display:flex;align-items:center;gap:16px;font-size:11px}
@@ -319,7 +319,7 @@
       <span class="tip-wrap">
         <span class="ldr-name v" id="ldr-v-name">Aria Chen</span>
         <span class="ldr-colony" id="ldr-v-colony">Ares Horizon</span>
-        <span class="tip-icon" style="font-size:8px;border:1px solid currentColor;border-radius:50%;width:12px;height:12px;display:inline-flex;align-items:center;justify-content:center">i</span>
+        <span class="tip-icon">i</span>
         <div class="tip-pop">
           <b style="color:var(--vis)">The Visionary: Aria Chen</b>
           Colony: Ares Horizon<br>
@@ -347,7 +347,7 @@
       <span class="tip-wrap">
         <span class="ldr-name e" id="ldr-e-name">Dietrich Voss</span>
         <span class="ldr-colony" id="ldr-e-colony">Meridian Base</span>
-        <span class="tip-icon" style="font-size:8px;border:1px solid currentColor;border-radius:50%;width:12px;height:12px;display:inline-flex;align-items:center;justify-content:center">i</span>
+        <span class="tip-icon">i</span>
         <div class="tip-pop" style="left:auto;right:0">
           <b style="color:var(--eng)">The Engineer: Dietrich Voss</b>
           Colony: Meridian Base<br>
