@@ -2,7 +2,7 @@ const $ = id => document.getElementById(id);
 const log = (cls, msg) => { const d = $('debug'); d.innerHTML += `<br><span class="${cls}">${msg}</span>`; d.scrollTop = d.scrollHeight; };
 
 function switchTab(tab) {
-  const panels = { sim: ['main-view','tl-view'], log: ['debug'], settings: ['settings-panel'], about: ['about-panel'] };
+  const panels = { sim: ['main-view','tl-view'], reports: ['reports-panel'], log: ['debug'], settings: ['settings-panel'], about: ['about-panel'] };
   document.querySelectorAll('.tab-bar button').forEach(b => b.classList.remove('active'));
   for (const ids of Object.values(panels)) ids.forEach(id => { const el = $(id); if (el) { el.style.display = 'none'; el.style.flex = ''; } });
   const ids = panels[tab] || panels.sim;
@@ -229,6 +229,92 @@ async function launchFromSettings() {
   } catch (err) { st.textContent = 'Failed: ' + err; btn.disabled = false; }
 }
 
+// --- Reports ---
+function generateReport() {
+  if (!gameData.events.length) { alert('No simulation data. Run a simulation first or load a saved game.'); return; }
+  const content = $('rpt-content');
+
+  // Group events by turn and side
+  const turns = {};
+  for (const evt of gameData.events) {
+    const s = side(evt.leader);
+    if (!s) continue;
+    const dd = evt.data || {};
+    const turn = dd.turn;
+    if (!turn) continue;
+    if (!turns[turn]) turns[turn] = { v: {}, e: {} };
+    const t = turns[turn][s];
+    if (evt.type === 'turn_start') { t.title = dd.title; t.year = dd.year; t.category = dd.category; t.emergent = dd.emergent; t.colony = dd.colony; t.births = dd.births; t.deaths = dd.deaths; }
+    if (evt.type === 'commander_decided') { t.decision = dd.decision; }
+    if (evt.type === 'outcome') { t.outcome = dd.outcome; }
+    if (evt.type === 'dept_done') { t.depts = t.depts || []; t.depts.push({ dept: dd.department, summary: dd.summary, tools: (dd.forgedTools || []).length, citations: dd.citations }); }
+  }
+
+  let html = '';
+  for (const [turnNum, sides] of Object.entries(turns).sort((a, b) => Number(a[0]) - Number(b[0]))) {
+    const v = sides.v || {}, e = sides.e || {};
+    const year = v.year || e.year || '?';
+    const sameCrisis = v.title === e.title;
+
+    html += `<div class="rpt-turn">
+      <div class="rpt-turn-h"><span class="rpt-turn-title">Turn ${turnNum} \u2014 Year ${year}</span><span class="rpt-turn-meta">${sameCrisis ? 'MILESTONE' : 'DIVERGENT'}</span></div>
+      <div class="rpt-cols">
+        <div class="rpt-col">
+          <h4 class="v">ARES HORIZON</h4>
+          <div class="rpt-crisis">\u26A1 ${v.title || 'N/A'}${v.category ? ` <span style="font-size:9px;color:var(--text-3)">${v.category}</span>` : ''}</div>
+          <div class="rpt-decision">${(v.decision || 'No decision recorded').slice(0, 300)}</div>
+          <div class="rpt-outcome" style="color:${(v.outcome || '').includes('success') ? 'var(--green)' : 'var(--rust)'}">${v.outcome || '?'}</div>
+          ${v.depts ? `<div class="rpt-tools">${v.depts.map(d => `${d.dept}: ${d.citations} cites, ${d.tools} tools`).join(' | ')}</div>` : ''}
+          ${v.colony ? `<div class="rpt-tools">Pop ${v.colony.population} | Morale ${Math.round((v.colony.morale || 0) * 100)}% | Food ${(v.colony.foodMonthsReserve || 0).toFixed(0)}mo</div>` : ''}
+        </div>
+        <div class="rpt-col">
+          <h4 class="e">MERIDIAN BASE</h4>
+          <div class="rpt-crisis">\u26A1 ${e.title || 'N/A'}${e.category ? ` <span style="font-size:9px;color:var(--text-3)">${e.category}</span>` : ''}</div>
+          <div class="rpt-decision">${(e.decision || 'No decision recorded').slice(0, 300)}</div>
+          <div class="rpt-outcome" style="color:${(e.outcome || '').includes('success') ? 'var(--green)' : 'var(--rust)'}">${e.outcome || '?'}</div>
+          ${e.depts ? `<div class="rpt-tools">${e.depts.map(d => `${d.dept}: ${d.citations} cites, ${d.tools} tools`).join(' | ')}</div>` : ''}
+          ${e.colony ? `<div class="rpt-tools">Pop ${e.colony.population} | Morale ${Math.round((e.colony.morale || 0) * 100)}% | Food ${(e.colony.foodMonthsReserve || 0).toFixed(0)}mo</div>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // Summary
+  if (gameData.results.length) {
+    html += `<div class="rpt-analysis"><h3>Final Summary</h3>`;
+    for (const r of gameData.results) {
+      const s = r.summary || {};
+      html += `<p><b>${r.leader}</b>: Pop ${s.population || '?'} | Morale ${s.morale ? Math.round(s.morale * 100) + '%' : '?'} | ${s.toolsForged || 0} tools forged | ${s.citations || 0} citations</p>`;
+    }
+    html += `</div>`;
+  }
+
+  content.innerHTML = html || '<div class="rpt-empty">No turn data found.</div>';
+}
+
+function loadGameForReport(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const saved = JSON.parse(reader.result);
+      if (!saved.events?.length) { alert('No events in file'); return; }
+      // Replace game data
+      gameData.events = saved.events;
+      gameData.results = saved.results || [];
+      gameData.config = saved.config || null;
+      gameData.startedAt = saved.startedAt || '';
+      gameData.completedAt = saved.completedAt || '';
+      // Reset leader map for replay
+      Object.keys(leaderMap).forEach(k => delete leaderMap[k]);
+      // Re-assign sides from events
+      for (const evt of saved.events) { if (evt.leader) side(evt.leader); }
+      generateReport();
+    } catch (err) { alert('Invalid game file: ' + err); }
+  };
+  reader.readAsText(file);
+}
+
 // --- SSE ---
 try {
   const es = new EventSource('/events');
@@ -304,7 +390,8 @@ function handleSimEvent(d) {
       }
       for (const t of tools) {
         const desc = t.description || t.name.replace(/_v\d+$/, '').replace(/_/g, ' ');
-        addToBody(s, `<div class="forge ok"><span style="font-size:14px">\uD83D\uDD27</span><div style="flex:1"><div class="fd">${desc}</div><div class="fn">${t.name} \u00B7 ${t.mode || 'sandbox'}</div></div><span class="jb p">\u2713 ${(t.confidence || .85).toFixed(2)}</span></div>`);
+        const outputHtml = t.output ? `<div style="margin-top:3px;font-size:10px;color:var(--text-2);background:var(--bg-deep);padding:3px 6px;border-radius:3px;font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><b style="color:var(--text-3)">OUTPUT:</b> ${String(t.output).slice(0, 150)}</div>` : '';
+        addToBody(s, `<div class="forge ok"><span style="font-size:14px">\uD83D\uDD27</span><div style="flex:1"><div class="fd">${desc}</div><div class="fn">${t.name} \u00B7 ${t.mode || 'sandbox'}</div>${outputHtml}</div><span class="jb p">\u2713 ${(t.confidence || .85).toFixed(2)}</span></div>`);
       }
       state[s].tools += tools.length; $(`s-${s}-tools`).textContent = state[s].tools;
       log('ok', `[${d.leader}] ${icon} ${dept}: ${dd.citations || 0} cites, ${tools.length} tools`);
@@ -322,7 +409,7 @@ function handleSimEvent(d) {
       break;
 
     case 'outcome': {
-      const dec = (state[s].pendingDecision || '').slice(0, 200);
+      const dec = (state[s].pendingDecision || '').slice(0, 500);
       const oc = dd.outcome || '';
       const cls = oc === 'risky_success' ? 'rs' : oc === 'conservative_success' ? 'cs' : 'rf';
       const badge = oc === 'risky_success' ? 'RISKY WIN' : oc === 'risky_failure' ? 'RISKY LOSS' : oc === 'conservative_success' ? 'SAFE WIN' : 'SAFE LOSS';

@@ -457,7 +457,13 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
         console.log(`  [${dept}] Done: ${report.citations.length} citations, ${report.risks.length} risks, ${report.forgedToolsUsed.length} tools`);
         const validTools = report.forgedToolsUsed
           .filter(t => t && (t.name || t.description))
-          .map(t => ({ name: t.name || t.description || 'tool', mode: t.mode || 'sandbox', confidence: t.confidence ?? 0.85, description: t.description || humanizeToolName(t.name || '') }));
+          .map(t => ({
+            name: t.name || t.description || 'tool',
+            mode: t.mode || 'sandbox',
+            confidence: t.confidence ?? 0.85,
+            description: t.description || humanizeToolName(t.name || ''),
+            output: t.output ? (typeof t.output === 'string' ? t.output : JSON.stringify(t.output)).slice(0, 200) : null,
+          }));
         emit('dept_done', { turn, year, department: dept, summary: report.summary, citations: report.citations.length, risks: report.risks, forgedTools: validTools, recommendedActions: report.recommendedActions?.slice(0, 2) });
         if (report.forgedToolsUsed.length) {
           const names = report.forgedToolsUsed.map(t => t?.name || t?.description || 'unnamed').filter(Boolean);
@@ -486,7 +492,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     const cmdR = await cmdSess.send(cmdPrompt);
     const decision = parseCmdDecision(cmdR.text, depts);
     console.log(`  [commander] ${decision.decision.slice(0, 120)}...`);
-    emit('commander_decided', { turn, year, decision: decision.decision.slice(0, 300), rationale: decision.rationale.slice(0, 200), selectedPolicies: decision.selectedPolicies });
+    emit('commander_decided', { turn, year, decision: decision.decision, rationale: decision.rationale, selectedPolicies: decision.selectedPolicies });
 
     kernel.applyPolicy(decisionToPolicy(decision, reports, turn, year));
 

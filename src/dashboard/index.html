@@ -108,8 +108,8 @@
   .forge{border-radius:4px;padding:5px 8px;font-size:11px;display:flex;align-items:center;gap:8px}
   .forge.ok{background:rgba(106,173,72,.06);border:1px solid rgba(106,173,72,.2)}
   .forge.no{background:rgba(224,101,48,.04);border:1px solid rgba(224,101,48,.12);opacity:.5}
-  .fn{font-size:9px;color:var(--text-3);font-family:var(--mono)}
-  .fd{font-size:12px;color:var(--text-1);font-weight:600}
+  .fn{font-size:9px;color:var(--text-3);font-family:var(--mono);margin-top:1px}
+  .fd{font-size:12px;color:var(--text-1);font-weight:600;line-height:1.3}
   .jb{padding:2px 6px;border-radius:3px;font-size:9px;font-weight:800;white-space:nowrap;font-family:var(--mono)}
   .jb.p{background:rgba(106,173,72,.15);color:var(--green);border:1px solid rgba(106,173,72,.3)}
   .jb.f{background:rgba(224,101,48,.1);color:var(--rust);border:1px solid rgba(224,101,48,.2)}
@@ -223,6 +223,28 @@
   .s-tooltip{color:var(--text-3);font-size:8px;font-style:italic;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .s-resources{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px}
 
+  /* Reports panel */
+  .reports-panel{display:none;flex:1;overflow-y:auto;padding:16px 20px;background:var(--bg-deep)}
+  .reports-panel h2{font-size:14px;color:var(--amber);margin:12px 0 6px 0;font-family:var(--mono)}
+  .reports-panel h2:first-child{margin-top:0}
+  .rpt-empty{color:var(--text-3);font-size:12px;text-align:center;padding:30px}
+  .rpt-turn{background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:10px 14px;margin-bottom:8px}
+  .rpt-turn-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+  .rpt-turn-title{font-size:13px;font-weight:800;font-family:var(--mono)}
+  .rpt-turn-meta{font-size:10px;color:var(--text-3)}
+  .rpt-cols{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .rpt-col{background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:8px 10px}
+  .rpt-col h4{font-size:11px;font-family:var(--mono);margin-bottom:4px}
+  .rpt-col h4.v{color:var(--vis)}.rpt-col h4.e{color:var(--eng)}
+  .rpt-crisis{font-size:11px;color:var(--text-1);font-weight:600;margin-bottom:3px}
+  .rpt-decision{font-size:11px;color:var(--text-2);line-height:1.4;margin-bottom:3px}
+  .rpt-outcome{font-size:10px;font-weight:800;font-family:var(--mono)}
+  .rpt-tools{font-size:10px;color:var(--text-3);margin-top:3px}
+  .rpt-analysis{background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;padding:12px 14px;margin-top:8px}
+  .rpt-analysis h3{font-size:12px;color:var(--amber);font-family:var(--mono);margin-bottom:6px}
+  .rpt-analysis p{font-size:12px;color:var(--text-2);line-height:1.6}
+  .rpt-actions{display:flex;gap:6px;margin-bottom:10px}
+
   /* About */
   .about-panel{display:none;flex:1;overflow-y:auto;padding:20px 32px;background:var(--bg-deep)}
   .about-panel h2{font-size:16px;color:var(--amber);margin:20px 0 6px 0;font-family:var(--mono)}
@@ -254,7 +276,7 @@
       <span class="arch v">VIS</span>
       <span class="ldr-name v">Aria Chen</span>
       <span class="ldr-sep">|</span>
-      <span class="traits"><span class="v tx">O</span><span class="v">████░</span><span class="v tv">.95</span><span class="v tx">C</span><span class="v">█░░░</span><span class="v tv">.35</span><span class="v tx">E</span><span class="v">████░</span><span class="v tv">.85</span><span class="v tx">A</span><span class="v">██░░</span><span class="v tv">.55</span></span>
+      <span class="traits" title="O.95 = Highly creative, explores novel solutions. C.35 = Loose, fast, acts on intuition. E.85 = Charismatic, rallies people. A.55 = Moderate cooperation."><span class="v tx">O</span><span class="v">████░</span><span class="v tv">.95</span><span class="v tx">C</span><span class="v">█░░░</span><span class="v tv">.35</span><span class="v tx">E</span><span class="v">████░</span><span class="v tv">.85</span><span class="v tx">A</span><span class="v">██░░</span><span class="v tv">.55</span></span>
     </div>
     <div class="ldr-row2">
       <span class="ldr-quote">"We didn't cross 55M km to play it safe."</span>
@@ -266,7 +288,7 @@
       <span class="arch e">ENG</span>
       <span class="ldr-name e">Dietrich Voss</span>
       <span class="ldr-sep">|</span>
-      <span class="traits"><span class="e tx">O</span><span class="e">█░░░</span><span class="e tv">.25</span><span class="e hi tx">C</span><span class="e">████░</span><span class="e hi tv">.97</span><span class="e tx">E</span><span class="e">█░░░</span><span class="e tv">.30</span><span class="e hi tx">H</span><span class="e">████░</span><span class="e hi tv">.90</span></span>
+      <span class="traits" title="O.25 = Proven methods only, low risk tolerance. C.97 = Extremely disciplined, precise. E.30 = Quiet, protocol-driven. H.90 = Shares bad news immediately, high integrity."><span class="e tx">O</span><span class="e">█░░░</span><span class="e tv">.25</span><span class="e hi tx">C</span><span class="e">████░</span><span class="e hi tv">.97</span><span class="e tx">E</span><span class="e">█░░░</span><span class="e tv">.30</span><span class="e hi tx">H</span><span class="e">████░</span><span class="e hi tv">.90</span></span>
     </div>
     <div class="ldr-row2">
       <span class="ldr-quote">"Every gram of oxygen is accounted for."</span>
@@ -279,10 +301,10 @@
 <div class="crisis-stats">
   <span id="crisis" class="crisis-text">⚡ Waiting...</span>
   <div class="stats-row">
-    <div class="stat"><span id="s-v-pop" class="stat-num" style="color:var(--vis)">—</span><span class="stat-vs">vs</span><span id="s-e-pop" class="stat-num" style="color:var(--eng)">—</span><span class="stat-label">Pop</span></div>
-    <div class="stat"><span id="s-v-morale" class="stat-num" style="color:var(--vis)">—</span><span class="stat-vs">vs</span><span id="s-e-morale" class="stat-num" style="color:var(--eng)">—</span><span class="stat-label">Morale</span></div>
-    <div class="stat"><span id="s-v-deaths" class="stat-num" style="color:var(--vis)">—</span><span class="stat-vs">vs</span><span id="s-e-deaths" class="stat-num" style="color:var(--eng)">—</span><span class="stat-label">Deaths</span></div>
-    <div class="stat"><span id="s-v-tools" class="stat-num" style="color:var(--vis)">0</span><span class="stat-vs">/</span><span id="s-e-tools" class="stat-num" style="color:var(--eng)">0</span><span class="stat-label">Tools</span></div>
+    <div class="stat" title="Alive colonists. Starts at 100. Changes from births, deaths, immigration."><span id="s-v-pop" class="stat-num" style="color:var(--vis)">—</span><span class="stat-vs">vs</span><span id="s-e-pop" class="stat-num" style="color:var(--eng)">—</span><span class="stat-label">Pop</span></div>
+    <div class="stat" title="Colony wellbeing 0-100%. Affected by food, overcrowding, policy decisions."><span id="s-v-morale" class="stat-num" style="color:var(--vis)">—</span><span class="stat-vs">vs</span><span id="s-e-morale" class="stat-num" style="color:var(--eng)">—</span><span class="stat-label">Morale</span></div>
+    <div class="stat" title="Cumulative colonist deaths from aging, radiation, and crisis outcomes."><span id="s-v-deaths" class="stat-num" style="color:var(--vis)">—</span><span class="stat-vs">vs</span><span id="s-e-deaths" class="stat-num" style="color:var(--eng)">—</span><span class="stat-label">Deaths</span></div>
+    <div class="stat" title="Computational tools invented by department agents at runtime. Judge-reviewed."><span id="s-v-tools" class="stat-num" style="color:var(--vis)">0</span><span class="stat-vs">/</span><span id="s-e-tools" class="stat-num" style="color:var(--eng)">0</span><span class="stat-label">Tools</span></div>
   </div>
 </div>
 
@@ -446,6 +468,19 @@
   </div>
 </div>
 
+<!-- Reports Panel -->
+<div class="reports-panel" id="reports-panel">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <h2 style="margin:0">Game Report</h2>
+    <div class="rpt-actions">
+      <button class="act-btn" onclick="generateReport()">Generate Report</button>
+      <button class="act-btn" onclick="document.getElementById('rpt-load').click()">Load Saved Game</button>
+      <input type="file" id="rpt-load" accept=".json" style="display:none" onchange="loadGameForReport(event)">
+    </div>
+  </div>
+  <div id="rpt-content"><div class="rpt-empty">Run a simulation or load a saved game to see the full report.</div></div>
+</div>
+
 <!-- About Panel -->
 <div class="about-panel" id="about-panel">
   <h2>What Is This?</h2>
@@ -484,6 +519,7 @@
 <!-- Tabs: OUTSIDE content area so they stay fixed -->
 <div class="tab-bar">
   <button id="tab-sim" class="active" onclick="switchTab('sim')">Simulation</button>
+  <button id="tab-reports" onclick="switchTab('reports')">Reports</button>
   <button id="tab-log" onclick="switchTab('log')">Debug Log</button>
   <button id="tab-settings" onclick="switchTab('settings')">Settings</button>
   <button id="tab-about" onclick="switchTab('about')">About</button>
