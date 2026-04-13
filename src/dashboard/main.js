@@ -508,12 +508,13 @@ function handleSimEvent(d) {
       const showSummary = summary && summary.length > 10 && !summary.startsWith('{') && !summary.endsWith('complete.');
 
       if (showSummary || risks) {
-        addToBody(s, `<div class="card"><div class="card-h"><span class="card-title">${icon} ${dept}</span><span class="card-badge">${dd.citations || 0} cites</span></div>${showSummary ? `<div class="card-text">${summary}</div>` : ''}${risks}${recsHtml}</div>`);
+        const severity = (dd.risks || []).some(r => r.severity === 'critical') ? 'critical' : (dd.risks || []).some(r => r.severity === 'high') ? 'high' : 'normal';
+        addToBody(s, `<div class="card ${severity}"><div class="card-h"><span class="card-title">${icon} ${dept}</span><span class="card-badge">${dd.citations || 0} cites</span></div>${showSummary ? `<div class="card-text">${summary}</div>` : ''}${risks}${recsHtml}</div>`);
       }
       for (const t of tools) {
         const desc = t.description || t.name.replace(/_v\d+$/, '').replace(/_/g, ' ');
-        const outputHtml = t.output ? `<div style="margin-top:3px;font-size:10px;color:var(--text-2);background:var(--bg-deep);padding:3px 6px;border-radius:3px;font-family:var(--mono);max-height:40px;overflow-y:auto;overflow-x:hidden;word-break:break-all;white-space:pre-wrap;line-height:1.3"><b style="color:var(--text-3)">OUTPUT:</b> ${String(t.output).slice(0, 200)}</div>` : '';
-        addToBody(s, `<div class="forge ok"><span style="font-size:14px">\uD83D\uDD27</span><div style="flex:1"><div class="fd">${desc}</div><div class="fn">${t.name} \u00B7 ${t.mode || 'sandbox'}</div>${outputHtml}</div><span class="jb p">\u2713 ${(t.confidence || .85).toFixed(2)}</span></div>`);
+        const outputHtml = t.output ? `<div style="margin-top:3px;font-size:10px;color:var(--text-2);background:var(--bg-deep);padding:3px 6px;border-radius:3px;font-family:var(--mono);max-height:40px;overflow-y:auto;overflow-x:hidden;word-break:break-all;white-space:pre-wrap;line-height:1.3"><b style="color:var(--text-3)">COMPUTED:</b> ${String(t.output).slice(0, 200)}</div>` : '';
+        addToBody(s, `<div class="forge ok"><span style="font-size:16px">\uD83D\uDD27</span><div style="flex:1"><span class="forge-label">Agent-Forged Tool \u2014 Judge Approved</span><div class="fd">${desc}</div><div class="fn">${t.name} \u00B7 ${t.mode || 'sandbox'} \u00B7 invented at runtime</div>${outputHtml}</div><span class="jb p">\u2713 ${(t.confidence || .85).toFixed(2)}</span></div>`);
       }
       state[s].tools += tools.length; $(`s-${s}-tools`).textContent = state[s].tools;
       log('ok', `[${d.leader}] ${icon} ${dept}: ${dd.citations || 0} cites, ${tools.length} tools`);

@@ -103,21 +103,31 @@
   .risk{margin-top:3px;font-size:11px;font-weight:600;display:flex;align-items:center;gap:4px}
   .rd{width:6px;height:6px;border-radius:50%}.rd.cr{background:var(--rust)}.rd.hi{background:var(--amber)}.rd.lo{background:var(--green)}
 
-  /* Forge cards - compact */
-  .forge{border-radius:4px;padding:5px 8px;font-size:11px;display:flex;align-items:center;gap:8px}
-  .forge.ok{background:rgba(106,173,72,.06);border:1px solid rgba(106,173,72,.2)}
-  .forge.no{background:rgba(224,101,48,.04);border:1px solid rgba(224,101,48,.12);opacity:.5}
+  /* Forge cards - distinctive with glow */
+  @keyframes forgeGlow{0%{box-shadow:0 0 0 transparent}30%{box-shadow:0 0 12px rgba(106,173,72,.25),inset 0 0 6px rgba(106,173,72,.04)}100%{box-shadow:0 0 2px rgba(106,173,72,.1)}}
+  @keyframes forgeSlide{from{transform:translateX(-6px);opacity:0}to{transform:translateX(0);opacity:1}}
+  @keyframes decisionPulse{0%{box-shadow:0 0 0 transparent}40%{box-shadow:0 0 15px rgba(232,180,74,.2)}100%{box-shadow:0 0 3px rgba(232,180,74,.05)}}
+  @keyframes criticalFlash{0%{border-color:var(--rust)}50%{border-color:rgba(224,101,48,.6)}100%{border-color:var(--rust)}}
+  .forge{border-radius:4px;padding:6px 10px;font-size:11px;display:flex;align-items:center;gap:8px;animation:forgeSlide .4s ease both,forgeGlow 2s ease both}
+  .forge.ok{background:rgba(106,173,72,.08);border:1px solid rgba(106,173,72,.25);border-left:3px solid var(--green)}
+  .forge.no{background:rgba(224,101,48,.04);border:1px solid rgba(224,101,48,.15);border-left:3px solid var(--rust);opacity:.6}
+  .forge-label{font-size:7px;color:var(--green);text-transform:uppercase;letter-spacing:1.5px;font-weight:800;font-family:var(--mono);display:block;margin-bottom:1px}
   .fn{font-size:9px;color:var(--text-3);font-family:var(--mono);margin-top:1px}
   .fd{font-size:12px;color:var(--text-1);font-weight:600;line-height:1.3}
   .jb{padding:2px 6px;border-radius:3px;font-size:9px;font-weight:800;white-space:nowrap;font-family:var(--mono)}
   .jb.p{background:rgba(106,173,72,.15);color:var(--green);border:1px solid rgba(106,173,72,.3)}
   .jb.f{background:rgba(224,101,48,.1);color:var(--rust);border:1px solid rgba(224,101,48,.2)}
 
-  /* Decision cards */
-  .dec{border-radius:4px;padding:6px 10px;font-size:12px}
-  .dec.v{background:rgba(232,180,74,.06);border:1px solid var(--amber-dim)}
-  .dec.e{background:rgba(76,168,168,.06);border:1px solid var(--teal-dim)}
+  /* Decision cards - with pulse */
+  .dec{border-radius:4px;padding:6px 10px;font-size:12px;animation:decisionPulse 2s ease both}
+  .dec.v{background:rgba(232,180,74,.06);border:1px solid var(--amber-dim);border-left:3px solid var(--vis)}
+  .dec.e{background:rgba(76,168,168,.06);border:1px solid var(--teal-dim);border-left:3px solid var(--eng)}
   .dl{font-weight:800;font-size:10px;margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px}.dl.v{color:var(--vis)}.dl.e{color:var(--eng)}
+
+  /* Cards with severity accents */
+  .card.critical{border-left:3px solid var(--rust);animation:criticalFlash 2s ease 1}
+  .card.high{border-left:3px solid var(--amber)}
+  .card.normal{border-left:3px solid var(--border)}
   .ddt{color:var(--text-1);line-height:1.5}
   .out{margin-top:4px;display:flex;align-items:center;gap:6px}
   .ob{padding:2px 8px;border-radius:3px;font-size:10px;font-weight:800;font-family:var(--mono)}
