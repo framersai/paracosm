@@ -543,9 +543,12 @@ function generateReport() {
   switchTab('reports');
 
   // Deduplicate events by creating a unique key per event
+  // Deduplicate but allow turn_start updates (Director generating... -> real title)
   const seen = new Set();
   const uniqueEvents = gameData.events.filter(evt => {
     const dd = evt.data || {};
+    // turn_start with placeholder title should be skipped entirely
+    if (evt.type === 'turn_start' && dd.title === 'Director generating...') return false;
     const key = `${evt.type}-${evt.leader}-${dd.turn}-${dd.department || ''}-${dd.outcome || ''}`;
     if (seen.has(key)) return false;
     seen.add(key);
@@ -562,7 +565,7 @@ function generateReport() {
     if (!turn) continue;
     if (!turns[turn]) turns[turn] = { v: {}, e: {} };
     const t = turns[turn][s];
-    if (evt.type === 'turn_start' && dd.title) { t.title = dd.title; t.year = dd.year; t.category = dd.category; t.emergent = dd.emergent; t.colony = dd.colony; }
+    if (evt.type === 'turn_start' && dd.title && dd.title !== 'Director generating...') { t.title = dd.title; t.year = dd.year; t.category = dd.category; t.emergent = dd.emergent; t.colony = dd.colony; }
     if (evt.type === 'commander_decided' && dd.decision) { t.decision = dd.decision; }
     if (evt.type === 'outcome' && dd.outcome) { t.outcome = dd.outcome; }
     if (evt.type === 'dept_done') {
