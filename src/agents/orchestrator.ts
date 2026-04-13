@@ -14,6 +14,7 @@ import { SimulationKernel, type PolicyEffect } from '../kernel/kernel.js';
 import type { KeyPersonnel } from '../kernel/colonist-generator.js';
 import { getResearchPacket } from '../research/research.js';
 import { getResearchForCategory } from '../research/knowledge-base.js';
+import { initResearchMemory, recallResearch, closeResearchMemory } from '../research/research-memory.js';
 import { DEPARTMENT_CONFIGS, buildDepartmentContext, getDepartmentsForTurn } from './departments.js';
 import { CrisisDirector, type DirectorCrisis, type DirectorContext } from './director.js';
 import { generateColonistReactions } from './colonist-reactions.js';
@@ -318,7 +319,7 @@ function decisionToPolicy(decision: CommanderDecision, reports: DepartmentReport
 // ---------------------------------------------------------------------------
 
 export type SimEvent = {
-  type: 'turn_start' | 'dept_start' | 'dept_done' | 'forge_attempt' | 'commander_deciding' | 'commander_decided' | 'outcome' | 'drift' | 'colonist_reactions' | 'turn_done' | 'promotion';
+  type: 'turn_start' | 'dept_start' | 'dept_done' | 'forge_attempt' | 'commander_deciding' | 'commander_decided' | 'outcome' | 'drift' | 'colonist_reactions' | 'bulletin' | 'turn_done' | 'promotion';
   leader: string;
   turn?: number;
   year?: number;
@@ -357,6 +358,9 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   console.log(`  Commander: ${leader.name} — "${leader.archetype}"`);
   console.log(`  Turns: ${maxTurns} | Live search: ${opts.liveSearch ? 'yes' : 'no'}`);
   console.log(`${'═'.repeat(60)}\n`);
+
+  // Initialize research memory (semantic recall from DOI citations)
+  await initResearchMemory();
 
   const seed = opts.seed ?? 950;
   const kernel = new SimulationKernel(seed, leader.name, keyPersonnel, {
@@ -503,33 +507,40 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
 
     emit('turn_start', { turn, year, title: crisis.title, crisis: crisis.crisis.slice(0, 200), category: crisis.category, births, deaths, colony: state.colony, emergent: !milestone, turnSummary: crisis.turnSummary });
 
-    // Get research: live search for emergent crises when enabled, static fallback otherwise
+    // Get research: memory recall > live web search > static fallback
     let packet: import('./contracts.js').CrisisResearchPacket;
     if (milestone) {
       packet = getResearchPacket(turn);
-    } else if (opts.liveSearch && crisis.researchKeywords.length) {
-      // Live web search using AgentOS WebSearchService
-      try {
-        const query = crisis.researchKeywords.slice(0, 3).join(' ') + ' mars colony science';
-        console.log(`  [research] Live search: "${query}"`);
-        const searchResult = await webSearchTool.execute({ query }, { gmiId: sid, personaId: sid, userContext: {} } as any);
-        const results = (searchResult as any)?.output?.results || [];
-        packet = {
-          canonicalFacts: results.slice(0, 5).map((r: any) => ({
-            claim: r.snippet || r.title || '',
-            source: r.title || 'web search',
-            url: r.url || '',
-          })),
-          counterpoints: [],
-          departmentNotes: {},
-        };
-        console.log(`  [research] ${packet.canonicalFacts.length} live results`);
-      } catch (err) {
-        console.log(`  [research] Live search failed, using static: ${err}`);
+    } else {
+      // Try research memory first (semantic recall from ingested DOI citations)
+      const memPacket = await recallResearch(crisis.title + ' ' + crisis.crisis.slice(0, 100), crisis.researchKeywords);
+      if (memPacket.canonicalFacts.length >= 2) {
+        packet = memPacket;
+        console.log(`  [research] Memory recall: ${packet.canonicalFacts.length} citations`);
+      } else if (opts.liveSearch && crisis.researchKeywords.length) {
+        // Live web search using AgentOS WebSearchService
+        try {
+          const query = crisis.researchKeywords.slice(0, 3).join(' ') + ' mars colony science';
+          console.log(`  [research] Live search: "${query}"`);
+          const searchResult = await webSearchTool.execute({ query }, { gmiId: sid, personaId: sid, userContext: {} } as any);
+          const results = (searchResult as any)?.output?.results || [];
+          packet = {
+            canonicalFacts: results.slice(0, 5).map((r: any) => ({
+              claim: r.snippet || r.title || '',
+              source: r.title || 'web search',
+              url: r.url || '',
+            })),
+            counterpoints: [],
+            departmentNotes: {},
+          };
+          console.log(`  [research] ${packet.canonicalFacts.length} live results`);
+        } catch (err) {
+          console.log(`  [research] Live search failed, using static: ${err}`);
+          packet = getResearchForCategory(crisis.category, crisis.researchKeywords);
+        }
+      } else {
         packet = getResearchForCategory(crisis.category, crisis.researchKeywords);
       }
-    } else {
-      packet = getResearchForCategory(crisis.category, crisis.researchKeywords);
     }
 
     // Departments: from director for emergent, from schedule for milestones
@@ -778,6 +789,17 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
         for (const r of reactions) moodCounts[r.mood] = (moodCounts[r.mood] || 0) + 1;
         const moodParts = Object.entries(moodCounts).sort((a, b) => b[1] - a[1]).map(([m, c]) => `${Math.round(c / reactions.length * 100)}% ${m}`);
         lastTurnMoodSummary = `${reactions.length} colonists: ${moodParts.join(', ')}`;
+
+        // Colony bulletin board: top 4 most intense reactions as public posts
+        const bulletinPosts = reactions.slice(0, 4).map(r => ({
+          name: r.name, department: r.department, role: r.role,
+          marsborn: r.marsborn, age: r.age,
+          post: r.quote.length > 140 ? r.quote.slice(0, 137) + '...' : r.quote,
+          mood: r.mood, intensity: r.intensity,
+          likes: Math.floor(r.intensity * 20 + Math.random() * 10),
+          replies: Math.floor(r.intensity * 5 + Math.random() * 3),
+        }));
+        emit('bulletin', { turn, year, posts: bulletinPosts });
       }
     } catch (err) {
       console.log(`  [colonists] Reaction generation failed: ${err}`);
@@ -864,6 +886,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   console.log(`${'═'.repeat(60)}\n`);
 
   engine.cleanupSession(sid);
+  await closeResearchMemory();
   await commander.close();
   for (const a of deptAgents.values()) await a.close();
   return output;
