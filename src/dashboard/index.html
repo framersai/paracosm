@@ -144,7 +144,7 @@
   .jb.f{background:rgba(224,101,48,.1);color:var(--rust);border:1px solid rgba(224,101,48,.2)}
 
   /* Decision cards - with pulse */
-  .dec{border-radius:4px;padding:6px 10px;font-size:13px;animation:decisionPulse 2s ease both}
+  .dec{border-radius:4px;padding:6px 10px;font-size:11px;animation:decisionPulse 2s ease both}
   .dec.v{background:rgba(232,180,74,.06);border:1px solid var(--amber-dim);border-left:3px solid var(--vis)}
   .dec.e{background:rgba(76,168,168,.06);border:1px solid var(--teal-dim);border-left:3px solid var(--eng)}
   .dl{font-weight:800;font-size:11px;margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px}.dl.v{color:var(--vis)}.dl.e{color:var(--eng)}
@@ -153,7 +153,7 @@
   .card.critical{border-left:3px solid var(--rust);animation:criticalFlash 2s ease 1}
   .card.high{border-left:3px solid var(--amber)}
   .card.normal{border-left:3px solid var(--border)}
-  .ddt{color:var(--text-1);line-height:1.5}
+  .ddt{color:var(--text-2);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:11px}
   .out{margin-top:4px;display:flex;align-items:center;gap:6px}
   .ob{padding:2px 8px;border-radius:3px;font-size:10px;font-weight:800;font-family:var(--mono)}
   .rs{background:rgba(232,180,74,.12);color:var(--vis);border:1px solid var(--amber-dim)}
@@ -319,7 +319,6 @@
       <span class="tip-wrap">
         <span class="ldr-name v" id="ldr-v-name">Aria Chen</span>
         <span class="ldr-colony" id="ldr-v-colony">Ares Horizon</span>
-        <span class="tip-icon">i</span>
         <div class="tip-pop">
           <b style="color:var(--vis)">The Visionary: Aria Chen</b>
           Colony: Ares Horizon<br>
@@ -347,7 +346,6 @@
       <span class="tip-wrap">
         <span class="ldr-name e" id="ldr-e-name">Dietrich Voss</span>
         <span class="ldr-colony" id="ldr-e-colony">Meridian Base</span>
-        <span class="tip-icon">i</span>
         <div class="tip-pop" style="left:auto;right:0">
           <b style="color:var(--eng)">The Engineer: Dietrich Voss</b>
           Colony: Meridian Base<br>

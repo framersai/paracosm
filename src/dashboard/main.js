@@ -109,7 +109,7 @@ function addTimeline(s, year, text, badgeCls, badge) {
   tl.querySelectorAll('.tr.now').forEach(el => el.classList.remove('now'));
   const div = document.createElement('div');
   div.className = 'tr now hover-tip';
-  div.innerHTML = `<span class="ty ${s}">${year}</span><span class="tt">${text}</span><span class="ob ${badgeCls}" style="font-size:9px;padding:1px 5px">${badge}</span><div class="htip" style="bottom:auto;top:100%;width:280px"><b>Year ${year}</b><div style="margin-top:3px;color:var(--text-1);line-height:1.5">${text}</div></div>`;
+  div.innerHTML = `<span class="ty ${s}">${year}</span><span class="tt">${text}</span><span class="ob ${badgeCls}" style="font-size:9px;padding:1px 5px">${badge}</span><div class="htip" style="bottom:100%;top:auto;width:280px"><b>Year ${year}</b><div style="margin-top:3px;color:var(--text-1);line-height:1.5">${text}</div></div>`;
   tl.appendChild(div);
   tl.scrollTo({ top: tl.scrollHeight, behavior: 'smooth' });
 }
@@ -972,9 +972,9 @@ function handleSimEvent(d) {
           const moodColor = moodColors[r.mood] || 'var(--text-2)';
           const shortQuote = r.quote.length > 100 ? r.quote.slice(0, 100) + '...' : r.quote;
           const h = r.hexaco || {};
-          return `<div class="hover-tip" style="display:flex;gap:6px;align-items:baseline;padding:2px 0;border-bottom:1px solid rgba(48,42,34,.5)"><span style="font-weight:600;color:var(--${color});font-size:10px;min-width:80px;flex-shrink:0">${r.name}</span><span style="font-style:italic;color:var(--text-2);font-size:10px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">"${shortQuote}"</span><span style="font-size:8px;color:${moodColor};font-weight:700;flex-shrink:0">${r.mood.toUpperCase()}</span><div class="htip"><b>${r.name}</b>, age ${r.age}${r.marsborn ? ' (Mars-born)' : ''}<br>${r.role} \u2014 ${r.specialization || r.department}<div class="ht-hexaco">O=${h.O} C=${h.C} E=${h.E} A=${h.A} Em=${h.Em} HH=${h.HH}</div><div class="ht-stats">Psych: ${r.psychScore} | Bone: ${r.boneDensity}% | Rad: ${r.radiation} mSv</div><div class="ht-mood" style="color:${moodColor}">${r.mood.toUpperCase()} (intensity: ${(r.intensity||0).toFixed(2)})</div><div class="ht-quote">"${r.quote}"</div></div></div>`;
+          return `<div class="hover-tip" style="display:flex;gap:6px;align-items:baseline;padding:3px 0;border-bottom:1px solid rgba(48,42,34,.5)"><span style="font-weight:600;color:var(--${color});font-size:12px;min-width:90px;flex-shrink:0">${r.name}</span><span style="font-style:italic;color:var(--text-2);font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">"${shortQuote}"</span><span style="font-size:10px;color:${moodColor};font-weight:700;flex-shrink:0">${r.mood.toUpperCase()}</span><div class="htip"><b>${r.name}</b>, age ${r.age}${r.marsborn ? ' (Mars-born)' : ''}<br>${r.role} \u2014 ${r.specialization || r.department}<div class="ht-hexaco">O=${h.O} C=${h.C} E=${h.E} A=${h.A} Em=${h.Em} HH=${h.HH}</div><div class="ht-stats">Psych: ${r.psychScore} | Bone: ${r.boneDensity}% | Rad: ${r.radiation} mSv</div><div class="ht-mood" style="color:${moodColor}">${r.mood.toUpperCase()} (intensity: ${(r.intensity||0).toFixed(2)})</div><div class="ht-quote">"${r.quote}"</div></div></div>`;
         }).join('');
-        addToBody(s, `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:4px 8px;border-left:3px solid var(--${color})"><div style="font-size:9px;color:var(--${color});font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">\uD83D\uDDE3 ${dd.totalReactions} Colonist Reactions</div>${quotesHtml}</div>`);
+        addToBody(s, `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:5px 10px;border-left:3px solid var(--${color})"><div style="font-size:10px;color:var(--${color});font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">\uD83D\uDDE3 ${dd.totalReactions} Colonist Reactions</div>${quotesHtml}</div>`);
         log('ok', `[${d.leader}] ${dd.totalReactions} colonist reactions (showing top ${reactions.length})`);
       }
       break;
