@@ -54,6 +54,36 @@ test('GET /setup redirects to the live dashboard settings surface', async () => 
   }
 });
 
+test('GET /scenario returns valid scenario client payload', async () => {
+  const server = createMarsServer({
+    runPairSimulations: async () => {},
+  });
+
+  server.listen(0);
+  await once(server, 'listening');
+  const address = server.address();
+  const port = typeof address === 'object' && address ? address.port : 0;
+
+  try {
+    const res = await fetch(`http://127.0.0.1:${port}/scenario`);
+    assert.equal(res.status, 200);
+    const data = await res.json();
+    assert.equal(data.id, 'mars-genesis');
+    assert.ok(data.labels);
+    assert.equal(data.labels.name, 'Mars Genesis');
+    assert.ok(data.departments);
+    assert.ok(data.departments.length >= 5);
+    assert.ok(data.presets);
+    assert.ok(data.ui);
+    assert.ok(data.theme);
+    assert.ok(data.policies);
+    assert.equal(data.policies.toolForging, true);
+  } finally {
+    server.close();
+    await once(server, 'close');
+  }
+});
+
 test('POST /setup normalizes config and hands it to the simulation runner', async () => {
   let captured: NormalizedSimulationConfig | null = null;
 

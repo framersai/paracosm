@@ -1,4 +1,66 @@
 const $ = id => document.getElementById(id);
+
+// Scenario data: fetched from server, falls back to Mars defaults
+const MARS_FALLBACK_SCENARIO = {
+  id: 'mars-genesis', version: '3.0.0',
+  labels: { name: 'Mars Genesis', shortName: 'mars', populationNoun: 'colonists', settlementNoun: 'colony', currency: 'credits' },
+  theme: { primaryColor: '#dc2626', accentColor: '#f97316', cssVariables: {} },
+  setup: { defaultTurns: 12, defaultSeed: 950, defaultStartYear: 2035, defaultPopulation: 100 },
+  departments: [
+    { id: 'medical', label: 'Medical', role: 'Chief Medical Officer', icon: '🏥' },
+    { id: 'engineering', label: 'Engineering', role: 'Chief Engineer', icon: '⚙️' },
+    { id: 'agriculture', label: 'Agriculture', role: 'Head of Agriculture', icon: '🌱' },
+    { id: 'psychology', label: 'Psychology', role: 'Colony Psychologist', icon: '🧠' },
+    { id: 'governance', label: 'Governance', role: 'Governance Advisor', icon: '🏛️' },
+  ],
+  presets: [],
+  ui: {
+    headerMetrics: [
+      { id: 'population', format: 'number' }, { id: 'morale', format: 'percent' },
+      { id: 'foodMonthsReserve', format: 'number' }, { id: 'powerKw', format: 'number' },
+      { id: 'infrastructureModules', format: 'number' }, { id: 'scienceOutput', format: 'number' },
+    ],
+    tooltipFields: ['boneDensityPct', 'cumulativeRadiationMsv', 'psychScore', 'marsborn'],
+    departmentIcons: { medical: '🏥', engineering: '⚙️', agriculture: '🌱', psychology: '🧠', governance: '🏛️' },
+    setupSections: ['leaders', 'personnel', 'resources', 'departments', 'events', 'models', 'advanced'],
+  },
+  policies: { toolForging: true, bulletin: true, characterChat: true },
+};
+window.SCENARIO = MARS_FALLBACK_SCENARIO;
+window.DEPT_ICONS = Object.fromEntries(MARS_FALLBACK_SCENARIO.departments.map(d => [d.id, d.icon]));
+const storageKey = (key) => `${(window.SCENARIO?.labels?.shortName || 'mars')}-${key}`;
+
+function applyScenarioToUI(sc) {
+  document.title = sc.labels.name + ' Simulation';
+  const logoText = $('logo-text');
+  if (logoText) logoText.textContent = sc.labels.name.toUpperCase();
+  const tagline = $('top-tagline');
+  if (tagline) tagline.textContent = `Same ${sc.labels.settlementNoun}, two different leaders. Watch emergent civilizations diverge.`;
+  if (sc.theme?.cssVariables && Object.keys(sc.theme.cssVariables).length) {
+    const style = document.createElement('style');
+    style.textContent = ':root { ' + Object.entries(sc.theme.cssVariables).map(([k, v]) => `${k}: ${v}`).join('; ') + ' }';
+    document.head.appendChild(style);
+  }
+  window.DEPT_ICONS = {};
+  for (const d of sc.departments || []) window.DEPT_ICONS[d.id] = d.icon || '📋';
+  if (sc.presets?.length) {
+    const dp = sc.presets.find(p => p.id === 'default');
+    if (dp && dp.leaders?.length >= 2) {
+      const a = dp.leaders[0], b = dp.leaders[1];
+      SETUP_PRESETS.default = {
+        a: { name: a.name, arch: a.archetype, colony: 'Colony Alpha', hexaco: a.hexaco, instr: a.instructions },
+        b: { name: b.name, arch: b.archetype, colony: 'Colony Beta', hexaco: b.hexaco, instr: b.instructions },
+        turns: sc.setup?.defaultTurns || 12, seed: sc.setup?.defaultSeed || 950,
+      };
+    }
+  }
+}
+
+// Fetch live scenario from server (non-blocking, falls back silently)
+fetch('/scenario').then(r => r.ok ? r.json() : null).then(sc => {
+  if (sc && sc.id) { window.SCENARIO = sc; applyScenarioToUI(sc); }
+}).catch(() => {});
+
 let replaySpeed = 50; // ms between events during replay (default: fast)
 let liveEventCount = 0; // tracks SSE events received to skip server buffer replay
 const log = (cls, msg) => { const d = $('debug'); d.innerHTML += `<br><span class="${cls}">${msg}</span>`; d.scrollTop = d.scrollHeight; };
@@ -245,7 +307,8 @@ function shareConfig() {
 function addPersonnelRow(person = {}) {
   const row = document.createElement('div');
   row.className = 's-person';
-  row.innerHTML = `<input value="${person.name || ''}"><input value="${person.specialization || ''}"><input value="${person.age ?? 35}" type="number"><select><option value="medical">Medical</option><option value="engineering">Engineering</option><option value="agriculture">Agriculture</option><option value="psychology">Psychology</option><option value="science">Science</option></select>`;
+  const deptOpts = (window.SCENARIO?.departments || MARS_FALLBACK_SCENARIO.departments).map(d2 => `<option value="${d2.id}">${d2.label}</option>`).join('');
+  row.innerHTML = `<input value="${person.name || ''}"><input value="${person.specialization || ''}"><input value="${person.age ?? 35}" type="number"><select>${deptOpts}</select>`;
   row.querySelector('select').value = person.department || 'science';
   $('s-personnel').appendChild(row);
 }
@@ -351,9 +414,9 @@ function clearAll() {
   if (!confirm('Clear all simulation data, reports, and cached game? This cannot be undone.')) return;
   // Clear server event buffer
   fetch('/clear', { method: 'POST' }).catch(() => {});
-  localStorage.removeItem('mars-game-data');
-  localStorage.removeItem('mars-settings');
-  localStorage.setItem('mars-cleared', Date.now().toString()); // flag to skip SSE replay on reload
+  localStorage.removeItem(storageKey('game-data'));
+  localStorage.removeItem(storageKey('settings'));
+  localStorage.setItem(storageKey('cleared'), Date.now().toString()); // flag to skip SSE replay on reload
   gameData.config = null;
   gameData.events = [];
   gameData.results = [];
@@ -365,7 +428,7 @@ function clearAll() {
   resetSimulationView();
   // Reset nav title and tagline
   const tag = $('top-tagline');
-  if (tag) tag.textContent = 'Same colony, two different leaders. Watch emergent civilizations diverge on Mars.';
+  if (tag) tag.textContent = `Same ${window.SCENARIO?.labels?.settlementNoun || 'colony'}, two different leaders. Watch emergent civilizations diverge.`;
   $('crisis').textContent = '\u26A1 Waiting...';
   $('m-turn').textContent = '\u2014';
   $('m-year').textContent = '\u2014';
@@ -390,7 +453,7 @@ function saveGame() {
   const blob = new Blob([JSON.stringify(gameData, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `mars-genesis-${gameData.config?.seed || 950}-${gameData.events.length}events.json`;
+  a.download = `${window.SCENARIO?.labels?.shortName || 'mars'}-${gameData.config?.seed || 950}-${gameData.events.length}events.json`;
   a.click();
 }
 
@@ -488,7 +551,8 @@ function getSetupEvents() {
 }
 function addPersonnel() {
   const d = document.createElement('div'); d.className = 's-person';
-  d.innerHTML = '<input placeholder="Name"><input placeholder="Specialization"><input value="35" type="number"><select><option value="medical">Medical</option><option value="engineering">Engineering</option><option value="agriculture">Agriculture</option><option value="psychology">Psychology</option><option value="science">Science</option><option value="governance">Governance</option></select><button class="s-rm" onclick="this.parentElement.remove()">x</button>';
+  const deptOpts2 = (window.SCENARIO?.departments || MARS_FALLBACK_SCENARIO.departments).map(d2 => `<option value="${d2.id}">${d2.label}</option>`).join('');
+  d.innerHTML = `<input placeholder="Name"><input placeholder="Specialization"><input value="35" type="number"><select>${deptOpts2}</select><button class="s-rm" onclick="this.parentElement.remove()">x</button>`;
   $('s-personnel').appendChild(d);
 }
 function getSetupPersonnel() {
@@ -532,7 +596,7 @@ function buildSetupConfig() {
 
 function exportSetup() {
   const cfg = buildSetupConfig(); const blob = new Blob([JSON.stringify(cfg, null, 2)], { type: 'application/json' });
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'mars-genesis-config.json'; a.click();
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${window.SCENARIO?.labels?.shortName || 'mars'}-config.json`; a.click();
 }
 function importSetup(e) {
   const file = e.target.files[0]; if (!file) return; const r = new FileReader();
@@ -587,7 +651,7 @@ checkRateLimit();
 function saveSettingsToStorage() {
   const cfg = buildSetupConfig();
   try {
-    localStorage.setItem('mars-settings', JSON.stringify(cfg));
+    localStorage.setItem(storageKey('settings'), JSON.stringify(cfg));
     const st = $('s-launch-status');
     if (st) { st.textContent = 'Settings saved.'; setTimeout(() => { st.textContent = ''; }, 2000); }
   } catch (err) { alert('Failed to save: ' + err); }
@@ -595,7 +659,7 @@ function saveSettingsToStorage() {
 
 function resetSettingsToDefaults() {
   applySetupPreset('default');
-  localStorage.removeItem('mars-settings');
+  localStorage.removeItem(storageKey('settings'));
   const st = $('s-launch-status');
   if (st) { st.textContent = 'Reset to defaults.'; setTimeout(() => { st.textContent = ''; }, 2000); }
 }
@@ -603,7 +667,7 @@ function resetSettingsToDefaults() {
 // Restore saved settings on load
 function restoreSettings() {
   try {
-    const saved = localStorage.getItem('mars-settings');
+    const saved = localStorage.getItem(storageKey('settings'));
     if (!saved) return;
     const cfg = JSON.parse(saved);
     if (cfg.leaders?.length >= 2) {
@@ -642,9 +706,9 @@ async function launchFromSettings() {
       gameData._cleared = false; // Allow SSE events for new sim
       gameData._restoredCount = 0;
       liveEventCount = 0;
-      localStorage.removeItem('mars-cleared');
+      localStorage.removeItem(storageKey('cleared'));
       resetSimulationView(cfg);
-      localStorage.removeItem('mars-game-data'); // Clear cache for fresh run
+      localStorage.removeItem(storageKey('game-data')); // Clear cache for fresh run
       const pf = $('progress-fill'); if (pf) pf.style.width = '0';
       st.textContent = 'Running...';
       switchTab('sim');
@@ -863,7 +927,7 @@ try {
       $('m-max-turns').textContent = d.maxTurns;
       // Update tagline dynamically
       const tag = $('top-tagline');
-      if (tag) tag.textContent = `Same colony, two different leaders. ${d.maxTurns} turns on Mars.`;
+      if (tag) tag.textContent = `Same ${window.SCENARIO?.labels?.settlementNoun || 'colony'}, two different leaders. ${d.maxTurns} turns.`;
     }
     if (Array.isArray(d.customEvents) && d.customEvents.length) {
       log('info', `Custom events: ${d.customEvents.map(event => event.title).join(', ')}`);
@@ -876,7 +940,7 @@ try {
         // Update tagline with leader names
         const tag = $('top-tagline');
         const maxT = $('m-max-turns')?.textContent || '12';
-        if (tag) tag.textContent = `${d.leaders[0].name} vs ${d.leaders[1].name}. ${maxT} turns on Mars.`;
+        if (tag) tag.textContent = `${d.leaders[0].name} vs ${d.leaders[1].name}. ${maxT} turns.`;
       }
     }
   });
@@ -893,7 +957,7 @@ try {
       if (liveEventCount <= cachedLen) return; // Already rendered from cache
       gameData.events.push(d);
       handleSimEvent(d);
-      try { localStorage.setItem('mars-game-data', JSON.stringify(gameData)); } catch {}
+      try { localStorage.setItem(storageKey('game-data'), JSON.stringify(gameData)); } catch {}
     } catch (err) { log('no', 'Event parse error: ' + err); }
   });
 
@@ -925,7 +989,7 @@ try {
   es.addEventListener('complete', () => {
     $('m-status').textContent = '\u25CF Complete'; $('m-status').style.color = 'var(--amber)'; $('m-status').style.animation = 'none';
     const pf = $('progress-fill'); if (pf) pf.style.width = '100%';
-    try { localStorage.setItem('mars-game-data', JSON.stringify(gameData)); } catch {}
+    try { localStorage.setItem(storageKey('game-data'), JSON.stringify(gameData)); } catch {}
     gameData.completedAt = new Date().toISOString();
     $('save-game-btn').style.display = 'inline-block';
     const launchBtn = $('s-launch-btn'); if (launchBtn) launchBtn.disabled = false;
@@ -1008,7 +1072,7 @@ function handleSimEvent(d) {
     }
 
     case 'dept_start': {
-      const dIcon = { medical: '\uD83C\uDFE5', engineering: '\u2699\uFE0F', agriculture: '\uD83C\uDF3E', psychology: '\uD83E\uDDE0', governance: '\uD83C\uDFDB\uFE0F' }[dd.department] || '\uD83D\uDCCB';
+      const dIcon = (window.DEPT_ICONS || {})[dd.department] || '📋';
       // Remove previous loading indicator for this side
       const prev = $(`loading-${s}`);
       if (prev) prev.remove();
@@ -1028,7 +1092,7 @@ function handleSimEvent(d) {
       if (loadEl) loadEl.remove();
       const dept = (dd.department || '');
       const deptUp = dept.toUpperCase();
-      const icon = { medical: '\uD83C\uDFE5', engineering: '\u2699\uFE0F', agriculture: '\uD83C\uDF3E', psychology: '\uD83E\uDDE0', governance: '\uD83C\uDFDB\uFE0F' }[dept] || '\uD83D\uDCCB';
+      const icon = (window.DEPT_ICONS || {})[dept] || '📋';
       const summary = dd.summary || '';
       const seenTools = state[s]._shownTools || new Set();
       state[s]._shownTools = seenTools;
@@ -1266,7 +1330,7 @@ function handleSimEvent(d) {
           </div>`;
         }).join('');
         addToBody(s, `<div style="margin-top:2px">
-          <div style="font-size:10px;color:var(--${color});font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">\u{1F4E2} Colony Bulletin \u2014 Year ${dd.year || ''}</div>
+          <div style="font-size:10px;color:var(--${color});font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">📢 ${(window.SCENARIO?.labels?.settlementNoun || 'Colony').charAt(0).toUpperCase() + (window.SCENARIO?.labels?.settlementNoun || 'colony').slice(1)} Bulletin — Year ${dd.year || ''}</div>
           <div style="display:flex;flex-direction:column;gap:4px">${postsHtml}</div>
         </div>`);
       }
@@ -1310,7 +1374,8 @@ function selectChatColonist(name) {
   chatHistory = [];
   const msgs = $('chat-messages');
   const colonist = chatColonists.get(name);
-  msgs.innerHTML = `<div class="chat-msg colonist"><div class="cm-name">${esc(name)}</div>${colonist ? `${esc(colonist.role)} in ${esc(colonist.department)}. ${colonist.marsborn ? 'Mars-born.' : 'Earth-born.'} Age ${colonist.age || '?'}.` : ''} Ask me anything about life on Mars.</div>`;
+  const _sc = window.SCENARIO || MARS_FALLBACK_SCENARIO;
+  msgs.innerHTML = `<div class="chat-msg colonist"><div class="cm-name">${esc(name)}</div>${colonist ? `${esc(colonist.role)} in ${esc(colonist.department)}. Age ${colonist.age || '?'}.` : ''} Ask me anything about life in the ${_sc.labels?.settlementNoun || 'colony'}.</div>`;
   $('chat-input').disabled = false;
   $('chat-send-btn').disabled = false;
   $('chat-input').focus();
@@ -1428,7 +1493,7 @@ new MutationObserver(mutations => {
 }).observe(document.body, { childList: true, subtree: true });
 
 // Dismiss intro if previously dismissed
-if (localStorage.getItem('mars-intro-dismissed') === '1') {
+if (localStorage.getItem(storageKey('intro-dismissed')) === '1') {
   const intro = $('intro-bar');
   if (intro) intro.style.display = 'none';
 }
@@ -1437,8 +1502,8 @@ if (localStorage.getItem('mars-intro-dismissed') === '1') {
 function restoreFromCache() {
   try {
     // Skip restore if user explicitly cleared
-    if (localStorage.getItem('mars-cleared')) return false;
-    const cached = localStorage.getItem('mars-game-data');
+    if (localStorage.getItem(storageKey('cleared'))) return false;
+    const cached = localStorage.getItem(storageKey('game-data'));
     if (!cached) return false;
     const saved = JSON.parse(cached);
     if (!saved.events || !saved.events.length) return false;

@@ -4,6 +4,26 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { normalizeSimulationConfig, type NormalizedSimulationConfig } from './sim-config.js';
 import { runPairSimulations, type BroadcastFn } from './pair-runner.js';
+import { marsScenario } from './engine/mars/index.js';
+import type { ScenarioPackage } from './engine/types.js';
+
+function projectScenarioForClient(sc: ScenarioPackage) {
+  return {
+    id: sc.id,
+    version: sc.version,
+    labels: sc.labels,
+    theme: sc.theme,
+    setup: sc.setup,
+    departments: sc.departments.map(d => ({ id: d.id, label: d.label, role: d.role, icon: d.icon })),
+    presets: sc.presets,
+    ui: sc.ui,
+    policies: {
+      toolForging: sc.policies.toolForging.enabled,
+      bulletin: sc.policies.bulletin.enabled,
+      characterChat: sc.policies.characterChat.enabled,
+    },
+  };
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -144,6 +164,13 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       }
       clients.add(res);
       req.on('close', () => clients.delete(res));
+      return;
+    }
+
+    if (req.url === '/scenario' && req.method === 'GET') {
+      const payload = JSON.stringify(projectScenarioForClient(marsScenario));
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+      res.end(payload);
       return;
     }
 
