@@ -3,7 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mars Genesis — AgentOS</title>
+<title>Mars Genesis — Multi-Agent AI Simulation | AgentOS</title>
+<meta name="description" content="Live multi-agent AI simulation demonstrating emergent behavior, runtime tool forging, and HEXACO personality evolution. Two AI commanders lead a Mars colony through dynamically generated crises. Built with AgentOS.">
+<meta name="keywords" content="AI agent simulation, multi-agent framework, emergent AI behavior, autonomous AI agents, TypeScript AI agents, HEXACO personality AI, runtime tool forging, Mars colony simulation, AgentOS">
+<meta name="author" content="team@frame.dev">
+<meta property="og:title" content="Mars Genesis — Multi-Agent AI Simulation">
+<meta property="og:description" content="Two AI commanders. Same colony. Different personalities. Watch emergent civilizations diverge in real-time.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://github.com/framersai/mars-genesis-simulation">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%23e06530'/><stop offset='50%25' stop-color='%23e8b44a'/><stop offset='100%25' stop-color='%234ca8a8'/></linearGradient></defs><circle cx='32' cy='32' r='8' fill='url(%23g)'/><circle cx='32' cy='12' r='4' fill='%23e06530' opacity='.9'/><circle cx='48' cy='20' r='4' fill='%23e8b44a' opacity='.9'/><circle cx='48' cy='44' r='4' fill='%234ca8a8' opacity='.9'/><circle cx='32' cy='52' r='4' fill='%234ca8a8' opacity='.9'/><circle cx='16' cy='44' r='4' fill='%23e8b44a' opacity='.9'/><circle cx='16' cy='20' r='4' fill='%23e06530' opacity='.9'/><path d='M32 32L32 12M32 32L48 20M32 32L48 44M32 32L32 52M32 32L16 44M32 32L16 20' stroke='url(%23g)' stroke-width='1.5' opacity='.5'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -483,34 +490,69 @@
 
 <!-- About Panel -->
 <div class="about-panel" id="about-panel">
-  <h2>What Is This?</h2>
-  <p>Mars Genesis is a live multi-agent simulation. Two AI commanders lead the same colony of 100 colonists through crises spanning 50 years on Mars. Their HEXACO personality profiles drive different decisions, different tool inventions, and different civilizational outcomes. Same seed, same starting colony. Only leadership differs.</p>
-  <h2>How It Works</h2>
+  <h2>Mars Genesis: Multi-Agent AI Simulation</h2>
+  <p>Mars Genesis is a live multi-agent AI simulation that demonstrates emergent behavior in autonomous AI agents. Two AI commanders with distinct personality profiles lead the same colony of 100 colonists through dynamically generated crises spanning 50 years on Mars. Their HEXACO personality traits shape every decision: which risks to take, which departments to trust, and how to allocate scarce resources. The result is two genuinely different civilizations emerging from identical starting conditions.</p>
+  <p>This is not a scripted demo. Starting from Turn 2, an AI Crisis Director generates unique crises for each timeline based on colony state, decision history, and resource levels. The same seed guarantees the same colonist roster and RNG stream. Only leadership personality differs. Every divergence is traceable and explainable.</p>
+
+  <h2>How the Simulation Works</h2>
   <ul>
-    <li><strong>Deterministic kernel</strong> handles colonist generation, aging, births, deaths, career progression, and resource accounting via seeded RNG.</li>
-    <li><strong>Department agents</strong> (Medical, Engineering, Agriculture, Psychology, Governance) analyze each crisis using real Mars science with DOI-linked citations.</li>
-    <li><strong>Tool forging</strong> lets agents invent computational tools at runtime (radiation models, food projectors). An LLM judge reviews each tool for safety and correctness.</li>
-    <li><strong>Personality drift</strong> evolves promoted colonists' HEXACO traits over time via leader pull, role pull, and outcome feedback.</li>
-    <li><strong>Commanders decide</strong> which policies to enact. Personality shapes risk tolerance and strategy.</li>
+    <li><strong>Deterministic simulation kernel</strong> owns canonical state: colonist generation, aging, births, deaths, career progression, bone density, radiation exposure, and resource accounting. All driven by seeded RNG (Mulberry32) for full reproducibility.</li>
+    <li><strong>Five department agents</strong> (Medical, Engineering, Agriculture, Psychology, Governance) analyze each crisis independently. Each agent has its own HEXACO personality that drifts over time based on leadership influence and crisis outcomes.</li>
+    <li><strong>Runtime tool forging</strong> lets department agents invent computational tools on the fly: radiation dose calculators, food security projectors, structural load analyzers. Each tool is reviewed by an LLM-as-judge for safety, correctness, and determinism before activation. Nobody pre-programmed these tools. The agent decides what it needs and builds it.</li>
+    <li><strong>Personality evolution</strong> changes promoted colonists' six-factor HEXACO traits through three forces grounded in real psychology research: leader pull (trait convergence toward the commander), role pull (department activates specific traits per <a href="https://doi.org/10.1037/0021-9010.88.3.500">Tett & Burnett 2003</a>), and outcome pull (successful risks boost openness, failures boost conscientiousness).</li>
+    <li><strong>Emergent Crisis Director</strong> generates crises tailored to each timeline's colony state. Struggling colonies face survivable crises. Thriving colonies face existential ones. Crises reference consequences of prior decisions and never repeat the same category twice in a row.</li>
+    <li><strong>Typed policy effects</strong> make commander decisions materially change kernel state through bounded numerical effects (resource shifts, capacity expansions, governance changes), not just narrative prose.</li>
   </ul>
-  <h2>What Do The Numbers Mean?</h2>
+
+  <h2>What the Numbers Mean</h2>
   <ul>
-    <li><strong>Pop</strong> = alive colonists (starts at 100). <strong>Morale</strong> = colony wellbeing 0-100%. <strong>Food</strong> = months of reserves. <strong>Deaths</strong> = cumulative.</li>
-    <li><strong>Tools Forged</strong> = computational tools invented by department agents during the run.</li>
-    <li><strong>HEXACO bars</strong> = O(penness) C(onscientiousness) E(xtraversion) A(greeableness) H(onesty-Humility).</li>
-    <li><strong>Personality Drift</strong> = how colonist traits shifted this turn from leadership influence and crisis outcomes.</li>
+    <li><strong>Population</strong>: alive colonists. Starts at 100. Changes from births (deterministic from age/relationship model), deaths (aging, radiation, crisis), and immigration decisions.</li>
+    <li><strong>Morale</strong>: colony wellbeing from 0-100%. Affected by food reserves, overcrowding relative to life support capacity, and commander policy decisions.</li>
+    <li><strong>Food</strong>: months of food reserves remaining. Below 6 months triggers resource crisis escalation from the director.</li>
+    <li><strong>Deaths</strong>: cumulative colonist deaths. Tracked from kernel progression events (aging, radiation exposure, crisis outcomes).</li>
+    <li><strong>Tools Forged</strong>: computational tools invented by department agents at runtime. Each tool is sandboxed, judge-reviewed, and produces real computed output that influences decisions.</li>
+    <li><strong>HEXACO traits</strong>: O=Openness (curiosity, experimentation), C=Conscientiousness (discipline, thoroughness), E=Extraversion (sociability, leadership visibility), A=Agreeableness (cooperation, trust), Em=Emotionality (anxiety, empathy), HH=Honesty-Humility (sincerity, fairness).</li>
+    <li><strong>Personality Drift</strong>: how colonist traits shifted this turn. Shows the numerical HEXACO changes from leadership influence, role activation, and crisis outcome feedback.</li>
   </ul>
-  <h2>Built With</h2>
-  <p>Runs on <a href="https://agentos.sh">AgentOS</a>, an open-source TypeScript runtime for autonomous AI agents. <code>npm i @framers/agentos</code></p>
+
+  <h2>FAQ</h2>
+  <ul>
+    <li><strong>Is this scripted?</strong> Turn 1 (Landfall) and the final turn (Legacy Assessment) are fixed milestones. Every other turn uses an AI Crisis Director that generates crises based on what actually happened in each timeline. Two runs with different leader personalities produce different crises, different tools, and different civilizations.</li>
+    <li><strong>What is HEXACO?</strong> A six-factor personality model from psychology research. Unlike Big Five, HEXACO includes Honesty-Humility as a distinct factor. Each trait ranges from 0 (low) to 1 (high) and shapes how the commander evaluates risk, trusts departments, and allocates resources.</li>
+    <li><strong>What is tool forging?</strong> Department agents can request the creation of new computational tools at runtime. The agent describes what it needs (a radiation dose calculator, a food security projector), writes the code in a sandboxed environment, and an LLM judge reviews it for safety and correctness. Approved tools produce real numerical outputs that inform the commander's decision.</li>
+    <li><strong>What is the deterministic kernel?</strong> The simulation engine that handles births, deaths, aging, and resource accounting using seeded pseudo-random number generation. Same seed always produces the same colonist roster and the same progression events. Only the AI-driven decisions differ between runs.</li>
+    <li><strong>Can I use my own leaders?</strong> Yes. The Settings tab lets you configure leader names, archetypes, HEXACO personality sliders, commander instructions, colony resources, and custom events. Export and share configs via URL or JSON.</li>
+    <li><strong>What models does it use?</strong> Configurable per role. Commanders default to gpt-5.4 or Claude Opus. Departments default to gpt-5.4-mini or Claude Sonnet/Haiku. Tool forge judges use the commander model. All configurable in Settings.</li>
+    <li><strong>Can I save and replay simulations?</strong> Yes. The Save Game button downloads all SSE events as JSON. Load Game replays them visually. The Reports tab generates a full side-by-side comparison.</li>
+  </ul>
+
+  <h2>Built with AgentOS</h2>
+  <p>Mars Genesis runs on <a href="https://agentos.sh">AgentOS</a>, an open-source TypeScript framework for building autonomous AI agents with personality, memory, tool use, and multi-agent coordination. AgentOS provides the <code>agent()</code> API, <code>EmergentCapabilityEngine</code> for runtime tool forging, <code>EmergentJudge</code> for LLM-as-judge tool review, and <code>ForgeToolMetaTool</code> that agents call to create new tools.</p>
+  <p>Install: <code>npm i @framers/agentos</code></p>
+
   <div class="about-links">
-    <a href="https://agentos.sh">AgentOS</a>
-    <a href="https://docs.agentos.sh">Docs</a>
-    <a href="https://github.com/framersai/agentos">GitHub</a>
+    <a href="https://github.com/framersai/mars-genesis-simulation">Mars Genesis GitHub</a>
+    <a href="https://github.com/framersai/agentos">AgentOS GitHub</a>
+    <a href="https://agentos.sh">agentos.sh</a>
+    <a href="https://docs.agentos.sh">Documentation</a>
+    <a href="https://docs.agentos.sh/api">API Reference</a>
     <a href="https://www.npmjs.com/package/@framers/agentos">npm</a>
-    <a href="https://discord.gg/YbXue4Yc">Discord</a>
-    <a href="mailto:team@frame.dev">Contact</a>
+    <a href="https://github.com/framersai/agentos-extensions">Extensions (107+)</a>
+    <a href="https://github.com/framersai/agentos-skills">Skills (72)</a>
+    <a href="https://wilds.ai/discord">Discord</a>
+    <a href="mailto:team@frame.dev">team@frame.dev</a>
   </div>
-  <p style="margin-top:16px;color:var(--text-3);font-size:11px">Built by <a href="https://manic.agency">Manic Agency</a> / <a href="https://frame.dev">Frame.dev</a></p>
+
+  <h2>The AgentOS Ecosystem</h2>
+  <ul>
+    <li><a href="https://github.com/framersai/agentos">AgentOS Core</a>: TypeScript runtime for autonomous AI agents. Personality, memory, tool use, multi-model support (OpenAI, Anthropic, Ollama, Gemini, and more).</li>
+    <li><a href="https://github.com/framersai/agentos-extensions">Extensions</a>: 107+ tool extensions including web search, browser automation, code execution, GitHub integration, and 37 channel adapters (Slack, Discord, Twitch, WhatsApp, Matrix, and more).</li>
+    <li><a href="https://github.com/framersai/agentos-skills">Skills</a>: 72 curated skill modules for agent capabilities.</li>
+    <li><a href="https://github.com/framersai/agentos-workbench">Workbench</a>: Developer cockpit for debugging and monitoring AgentOS sessions.</li>
+    <li><a href="https://github.com/framersai/mars-genesis-simulation">Mars Genesis</a>: This simulation. Demonstrates emergent tool forging, personality evolution, and multi-agent coordination in a single runnable demo.</li>
+  </ul>
+
+  <p style="margin-top:16px;color:var(--text-3);font-size:11px">Built by <a href="https://manic.agency">Manic Agency</a> / <a href="https://frame.dev">Frame.dev</a>. MIT License.</p>
 </div>
 
 <div class="debug" id="debug" style="display:none"><span class="dim">[Mars Genesis] Connecting...</span></div>
@@ -534,7 +576,7 @@
     <input type="file" id="load-game-input" accept=".json" style="display:none" onchange="loadGame(event)">
     <button class="act-btn" onclick="exportSetup()">Export Config</button>
   </div>
-  <div class="fl"><a href="https://agentos.sh">agentos.sh</a><a href="https://docs.agentos.sh">docs</a><a href="https://github.com/framersai/agentos">github</a><a href="https://discord.gg/YbXue4Yc">discord</a></div>
+  <div class="fl"><a href="https://github.com/framersai/mars-genesis-simulation">source</a><a href="https://github.com/framersai/agentos">github.com/framersai</a><a href="https://agentos.sh">agentos.sh</a><a href="https://docs.agentos.sh">docs</a><a href="https://wilds.ai/discord">discord</a></div>
 </div>
 
 <script src="/main.js"></script>
