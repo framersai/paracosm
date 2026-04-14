@@ -59,7 +59,7 @@ export function StatsBar({ colonyA, colonyB, prevColonyA, prevColonyB, deathsA, 
         fontFamily: 'var(--mono)', fontSize: '12px', color: 'var(--text-3)',
       }}>
         <span className="spinner" />
-        <span>Initializing simulation. Crisis Director generating first crisis.</span>
+        <span>Waiting for colony metrics. Departments are analyzing the current crisis.</span>
       </div>
     );
   }
