@@ -44,11 +44,11 @@ export function Toolbar({ state, onSave, onLoad, onClear }: ToolbarProps) {
       </span>
       <div style={{ flex: 1 }} />
       {hasEvents && (
-        <button onClick={onSave} style={btnStyle} aria-label="Save simulation data">Save</button>
+        <button onClick={onSave} style={btnStyle} aria-label="Save simulation data" title="Export current simulation events and results as a .json file">Save</button>
       )}
-      <button onClick={onLoad} style={btnStyle} aria-label="Load saved simulation">Load Game</button>
+      <button onClick={onLoad} style={btnStyle} aria-label="Load saved simulation" title="Load a previously saved simulation from a .json file exported via the Save button">Load Game</button>
       {hasEvents && (
-        <button onClick={onClear} style={{ ...btnStyle, color: 'var(--rust)' }} aria-label="Clear simulation data">Clear</button>
+        <button onClick={onClear} style={{ ...btnStyle, color: 'var(--rust)' }} aria-label="Clear simulation data" title="Clear all simulation data and reset to settings. Cannot be undone.">Clear</button>
       )}
     </div>
   );
