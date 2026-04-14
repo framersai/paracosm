@@ -55,6 +55,7 @@ jobs:
             dist/
             src/cli/dashboard/dist/
             docs/api/
+            assets/
             package.json
             package-lock.json
             src/
