@@ -308,23 +308,46 @@ footer{padding:28px 24px;border-top:1px solid var(--border);background:var(--bg2
       <div class="code-body">npm install paracosm</div>
     </div>
     <div class="code-block">
-      <div class="code-header"><span>API Usage</span><button class="code-copy" onclick="copyCode(this, document.getElementById('api-code').textContent)">Copy</button></div>
-      <div class="code-body" id="api-code"><span class="kw">import</span> { marsScenario } <span class="kw">from</span> <span class="str">'paracosm/mars'</span>;
+      <div class="code-header"><span>Compile any scenario from JSON</span><button class="code-copy" onclick="copyCode(this, document.getElementById('api-code').textContent)">Copy</button></div>
+      <div class="code-body" id="api-code"><span class="kw">import</span> { compileScenario } <span class="kw">from</span> <span class="str">'paracosm/compiler'</span>;
 <span class="kw">import</span> { runSimulation } <span class="kw">from</span> <span class="str">'paracosm/runtime'</span>;
 
+<span class="cm">// Your world definition: departments, metrics, rules</span>
+<span class="kw">const</span> scenario = <span class="kw">await</span> <span class="fn">compileScenario</span>(myWorldJson, {
+  provider: <span class="str">'anthropic'</span>,
+  model: <span class="str">'claude-sonnet-4-6'</span>,
+});
+
+<span class="cm">// Run with any leaders, any seed</span>
 <span class="kw">const</span> output = <span class="kw">await</span> <span class="fn">runSimulation</span>(leaders, personnel, {
-  scenario: marsScenario,
-  maxTurns: <span class="str">12</span>,
+  scenario,
+  maxTurns: <span class="str">8</span>,
   seed: <span class="str">950</span>,
 });</div>
     </div>
     <div class="code-block">
-      <div class="code-header"><span>Dashboard</span><button class="code-copy" onclick="copyCode(this, document.getElementById('dash-code').textContent)">Copy</button></div>
-      <div class="code-body" id="dash-code"><span class="cm"># Clone, install, run the live dashboard</span>
+      <div class="code-header"><span>Define your world as JSON</span><button class="code-copy" onclick="copyCode(this, document.getElementById('json-code').textContent)">Copy</button></div>
+      <div class="code-body" id="json-code">{
+  <span class="str">"id"</span>: <span class="str">"submarine-habitat"</span>,
+  <span class="str">"labels"</span>: { <span class="str">"name"</span>: <span class="str">"Deep Ocean Habitat"</span> },
+  <span class="str">"departments"</span>: [
+    { <span class="str">"id"</span>: <span class="str">"life-support"</span>, <span class="str">"label"</span>: <span class="str">"Life Support"</span> },
+    { <span class="str">"id"</span>: <span class="str">"engineering"</span>, <span class="str">"label"</span>: <span class="str">"Engineering"</span> }
+  ],
+  <span class="str">"metrics"</span>: [{ <span class="str">"id"</span>: <span class="str">"population"</span>, <span class="str">"format"</span>: <span class="str">"number"</span> }]
+}</div>
+    </div>
+    <div class="code-block">
+      <div class="code-header"><span>Quick start</span><button class="code-copy" onclick="copyCode(this, document.getElementById('dash-code').textContent)">Copy</button></div>
+      <div class="code-body" id="dash-code"><span class="cm"># Clone and run the dashboard with built-in scenarios</span>
 git clone https://github.com/framersai/paracosm
 cd paracosm && npm install
-cp .env.example .env  <span class="cm"># add your API key</span>
-npm run dashboard     <span class="cm"># http://localhost:3456</span></div>
+cp .env.example .env  <span class="cm"># add your OpenAI or Anthropic key</span>
+npm run dashboard     <span class="cm"># http://localhost:3456</span>
+
+<span class="cm"># Or compile your own scenario from JSON</span>
+npx tsx src/cli/compile.ts my-world.json
+npm run dashboard     <span class="cm"># your scenario is now live</span></div>
     </div>
   </div>
 </section>
