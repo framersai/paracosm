@@ -50,7 +50,7 @@ function AppContent() {
   const [activeTab, setActiveTabState] = useState<Tab>(getTabFromUrl);
   const setActiveTab = (tab: Tab) => {
     if (tab === 'about') {
-      window.open('/', '_blank');
+      window.location.href = '/';
       return;
     }
     setActiveTabState(tab);
