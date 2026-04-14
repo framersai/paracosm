@@ -150,10 +150,11 @@ a{color:var(--amber);text-decoration:none}a:hover{text-decoration:underline}
 .code-copy:hover{border-color:var(--amber);color:var(--t1)}
 .code-copy.copied{color:var(--green);border-color:var(--green)}
 .code-body{padding:14px 16px;font-family:var(--mono);font-size:13px;line-height:1.7;color:var(--t1);overflow-x:auto;white-space:pre}
-.code-body .cm{color:var(--t4)}
-.code-body .kw{color:var(--teal)}
-.code-body .str{color:var(--amber)}
-.code-body .fn{color:var(--rust)}
+.code-body .cm{color:#6b6356;font-style:italic}
+.code-body .kw{color:#4ca8a8}
+.code-body .str{color:#e8b44a}
+.code-body .fn{color:#e06530}
+.code-body .num{color:#6aad48}
 .light .code-block{background:var(--bg3);border-color:var(--border)}
 .light .code-header{background:rgba(228,216,192,.5)}
 
@@ -354,26 +355,42 @@ footer{padding:28px 24px;border-top:1px solid var(--border);background:var(--bg2
     </div>
     <div class="code-block">
       <div class="code-header"><span>2. Define your world as JSON</span><button class="code-copy" onclick="copyCode(this, document.getElementById('json-code').textContent)">Copy</button></div>
-      <div class="code-body" id="json-code"><span class="cm">// my-world.json</span>
+      <div class="code-body" id="json-code"><span class="cm">// my-world.json — this is the full input to compileScenario()</span>
+
 {
   <span class="str">"id"</span>: <span class="str">"submarine-habitat"</span>,
+
   <span class="str">"labels"</span>: {
-    <span class="str">"name"</span>: <span class="str">"Deep Ocean Habitat"</span>,
-    <span class="str">"populationNoun"</span>: <span class="str">"crew"</span>,
-    <span class="str">"settlementNoun"</span>: <span class="str">"habitat"</span>
+    <span class="str">"name"</span>:            <span class="str">"Deep Ocean Habitat"</span>,
+    <span class="str">"populationNoun"</span>:  <span class="str">"crew"</span>,
+    <span class="str">"settlementNoun"</span>:  <span class="str">"habitat"</span>
   },
-  <span class="str">"setup"</span>: { <span class="str">"defaultTurns"</span>: 8, <span class="str">"defaultPopulation"</span>: 50 },
+
+  <span class="str">"setup"</span>: {
+    <span class="str">"defaultTurns"</span>:      <span class="num">8</span>,
+    <span class="str">"defaultPopulation"</span>: <span class="num">50</span>,
+    <span class="str">"defaultSeed"</span>:       <span class="num">42</span>,
+    <span class="str">"defaultStartYear"</span>:  <span class="num">2040</span>
+  },
+
   <span class="str">"departments"</span>: [
-    { <span class="str">"id"</span>: <span class="str">"life-support"</span>, <span class="str">"label"</span>: <span class="str">"Life Support"</span>,
-      <span class="str">"role"</span>: <span class="str">"Chief Life Support Officer"</span>,
-      <span class="str">"instructions"</span>: <span class="str">"You analyze O2 levels, CO2 scrubbing, water recycling."</span> },
-    { <span class="str">"id"</span>: <span class="str">"engineering"</span>, <span class="str">"label"</span>: <span class="str">"Engineering"</span>,
-      <span class="str">"role"</span>: <span class="str">"Chief Engineer"</span>,
-      <span class="str">"instructions"</span>: <span class="str">"You analyze hull integrity, pressure, power systems."</span> }
+    {
+      <span class="str">"id"</span>:           <span class="str">"life-support"</span>,
+      <span class="str">"label"</span>:        <span class="str">"Life Support"</span>,
+      <span class="str">"role"</span>:         <span class="str">"Chief Life Support Officer"</span>,
+      <span class="str">"instructions"</span>: <span class="str">"You analyze O2 levels, CO2 scrubbing, water recycling."</span>
+    },
+    {
+      <span class="str">"id"</span>:           <span class="str">"engineering"</span>,
+      <span class="str">"label"</span>:        <span class="str">"Engineering"</span>,
+      <span class="str">"role"</span>:         <span class="str">"Chief Engineer"</span>,
+      <span class="str">"instructions"</span>: <span class="str">"You analyze hull integrity, pressure, power systems."</span>
+    }
   ],
+
   <span class="str">"metrics"</span>: [
     { <span class="str">"id"</span>: <span class="str">"population"</span>, <span class="str">"format"</span>: <span class="str">"number"</span> },
-    { <span class="str">"id"</span>: <span class="str">"morale"</span>, <span class="str">"format"</span>: <span class="str">"percent"</span> }
+    { <span class="str">"id"</span>: <span class="str">"morale"</span>,     <span class="str">"format"</span>: <span class="str">"percent"</span> }
   ]
 }</div>
     </div>
