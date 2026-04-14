@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { emitScenarioUpdated } from '../../scenario-sync';
+import { emitScenarioUpdated, subscribeScenarioUpdates } from '../../scenario-sync';
 import { buildScenarioCompileRequest } from './scenarioCompileRequest';
 
 interface AdminConfig {
@@ -51,6 +51,23 @@ export function ScenarioEditor() {
     fetch('/admin-config').then(r => r.json()).then(setAdminConfig).catch(() => {});
   }, []);
 
+  // Auto-load the active scenario JSON into the editor on mount and when scenario changes
+  const loadActiveIntoEditor = useCallback(() => {
+    fetch('/scenario')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.id) {
+          setJsonText(JSON.stringify(data, null, 2));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    loadActiveIntoEditor();
+    return subscribeScenarioUpdates(window, loadActiveIntoEditor);
+  }, [loadActiveIntoEditor]);
+
   // Validate JSON on change
   useEffect(() => {
     if (!jsonText.trim()) { setParseError(''); return; }
@@ -59,6 +76,15 @@ export function ScenarioEditor() {
   }, [jsonText]);
 
   const loadExample = () => setJsonText(JSON.stringify(EXAMPLE_SCENARIO, null, 2));
+
+  const loadActiveScenario = useCallback(async () => {
+    try {
+      const res = await fetch('/scenario');
+      const data = await res.json();
+      setJsonText(JSON.stringify(data, null, 2));
+      setResult({ success: true, message: `Loaded active scenario: ${data.labels?.name || data.id}` });
+    } catch (err) { setResult({ success: false, message: `Failed to load: ${err}` }); }
+  }, []);
 
   const importFile = () => fileInputRef.current?.click();
 
@@ -223,7 +249,8 @@ export function ScenarioEditor() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-          <button onClick={loadExample} style={btnStyle} aria-label="Load example scenario">Example</button>
+          <button onClick={loadActiveScenario} style={{ ...btnStyle, color: 'var(--amber)', borderColor: 'var(--amber-dim, var(--border))' }} aria-label="Load active scenario JSON">Load Active</button>
+          <button onClick={loadExample} style={btnStyle} aria-label="Load example scenario">Template</button>
           <button onClick={importFile} style={btnStyle} aria-label="Import JSON file">Import</button>
           <button onClick={exportFile} style={btnStyle} disabled={!jsonText.trim() || !!parseError} aria-label="Export as JSON file">Export</button>
           <input ref={fileInputRef} type="file" accept=".json,application/json" onChange={handleFileImport} style={{ display: 'none' }} />

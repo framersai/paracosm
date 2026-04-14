@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useMemo } from 'react';
+import { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import type { GameState, Side, SideState, LeaderInfo } from '../../hooks/useGameState';
 import { useScenarioContext } from '../../App';
 import { LeaderBar } from '../layout/LeaderBar';
@@ -34,21 +34,46 @@ function SideColumn({ side, sideState, state }: { side: Side; sideState: SideSta
     >
       <CrisisHeader side={side} crisis={sideState.crisis} />
 
-      <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '5px 8px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+      <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '4px 8px', display: 'flex', flexDirection: 'column', gap: '1px' }}>
         {!isWaiting && sideState.events.length === 0 && state.isRunning && (
           <div style={{ color: 'var(--text-3)', fontSize: '12px', padding: '16px 12px' }} role="status">
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
               <span className="spinner" style={{ borderTopColor: sideColor }} />
-              <span style={{ fontFamily: 'var(--mono)', fontSize: '12px', fontWeight: 600, color: 'var(--text-2)' }}>Generating crisis...</span>
+              <span style={{ fontFamily: 'var(--mono)', fontSize: '12px', fontWeight: 600, color: 'var(--text-2)' }}>Generating event...</span>
             </div>
             <div style={{ fontSize: '12px', color: 'var(--text-3)', lineHeight: 1.6 }}>
-              The Crisis Director is reading swarm state and decision history to generate a crisis targeting current weaknesses.
+              The Event Director is reading simulation state to generate an event targeting current weaknesses.
             </div>
           </div>
         )}
-        {sideState.events.map(event => (
-          <EventCard key={event.id} event={event} side={side} />
-        ))}
+        {(() => {
+          // Group all dept_done events by turn, render as one row per turn
+          const deptsByTurn = new Map<number, typeof sideState.events>();
+          const renderedDeptTurns = new Set<number>();
+          for (const e of sideState.events) {
+            if (e.type === 'dept_done' && e.turn != null) {
+              if (!deptsByTurn.has(e.turn)) deptsByTurn.set(e.turn, []);
+              deptsByTurn.get(e.turn)!.push(e);
+            }
+          }
+
+          return sideState.events.map(event => {
+            // Skip dept_start (noise between dept_done pills)
+            if (event.type === 'dept_start') return null;
+            // For dept_done: render the whole turn's group on first encounter
+            if (event.type === 'dept_done' && event.turn != null) {
+              if (renderedDeptTurns.has(event.turn)) return null;
+              renderedDeptTurns.add(event.turn);
+              const group = deptsByTurn.get(event.turn) || [event];
+              return (
+                <div key={`depts-${event.turn}`} style={{ display: 'flex', flexWrap: 'wrap', gap: '3px', padding: '2px 0' }}>
+                  {group.map(e => <EventCard key={e.id} event={e} side={side} />)}
+                </div>
+              );
+            }
+            return <EventCard key={event.id} event={event} side={side} />;
+          });
+        })()}
       </div>
     </section>
   );
@@ -89,17 +114,20 @@ function IntroBar({ onDismiss }: { onDismiss: () => void }) {
 
 export function SimView({ state, sseStatus, onRun }: SimViewProps) {
   const scenario = useScenarioContext();
+  const [launching, setLaunching] = useState(false);
 
-  // Delay showing "loading" state so replayed events have time to arrive
-  const [showLoading, setShowLoading] = useState(false);
   const hasEvents = state.a.events.length > 0 || state.b.events.length > 0;
+  const showLoading = state.isRunning && !hasEvents;
+
+  // Clear launching state once events start arriving or sim is running
   useEffect(() => {
-    if (sseStatus === 'connected' && !hasEvents && !state.isRunning && !state.isComplete) {
-      const t = setTimeout(() => setShowLoading(true), 2000);
-      return () => clearTimeout(t);
-    }
-    setShowLoading(false);
-  }, [sseStatus, hasEvents, state.isRunning, state.isComplete]);
+    if (hasEvents || state.isRunning) setLaunching(false);
+  }, [hasEvents, state.isRunning]);
+
+  const handleRun = useCallback(() => {
+    setLaunching(true);
+    onRun?.();
+  }, [onRun]);
 
   // Fallback leader info from scenario presets when no simulation data yet
   const defaultPreset = scenario.presets.find(p => p.id === 'default');
@@ -154,7 +182,7 @@ export function SimView({ state, sseStatus, onRun }: SimViewProps) {
       <DivergenceRail state={state} />
 
       {/* Loading state: connected but no events after 2s grace period */}
-      {showLoading && (
+      {showLoading && !hasEvents && !state.isComplete && state.turn === 0 && (
         <div style={{
           flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
           padding: '40px 24px', textAlign: 'center', background: 'var(--bg-deep)',
@@ -164,13 +192,45 @@ export function SimView({ state, sseStatus, onRun }: SimViewProps) {
             Simulation starting...
           </div>
           <div style={{ fontSize: '13px', color: 'var(--text-3)', maxWidth: '400px', lineHeight: 1.7 }}>
-            The Crisis Director is reading swarm state and generating the first crisis. Departments will analyze and forge tools once it arrives. This takes 30 to 60 seconds.
+            The Event Director is reading simulation state and generating the first event. Departments will analyze and forge tools once it arrives.
           </div>
         </div>
       )}
 
-      {/* Empty state: no events, not running, SSE not connected */}
-      {!state.isRunning && !state.isComplete && state.a.events.length === 0 && state.b.events.length === 0 && sseStatus !== 'connected' && (
+      {/* Launching state: user clicked Run, waiting for first events */}
+      {launching && !hasEvents && !state.isRunning && (
+        <div style={{
+          flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          padding: '40px 24px', textAlign: 'center', background: 'var(--bg-deep)',
+        }}>
+          <span className="spinner" style={{ width: '32px', height: '32px', borderWidth: '3px', marginBottom: '16px' }} />
+          <div style={{ fontFamily: 'var(--mono)', fontSize: '16px', fontWeight: 700, color: 'var(--amber)', marginBottom: '8px' }}>
+            Launching Simulation...
+          </div>
+          <div style={{ fontSize: '13px', color: 'var(--text-3)', maxWidth: '400px', lineHeight: 1.7 }}>
+            Initializing the Event Director, departments, and agent personalities. First events will appear shortly.
+          </div>
+        </div>
+      )}
+
+      {/* Connecting state: SSE not yet connected, no events, show spinner */}
+      {!hasEvents && !state.isComplete && !launching && sseStatus === 'connecting' && (
+        <div style={{
+          flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          padding: '40px 24px', textAlign: 'center', background: 'var(--bg-deep)',
+        }}>
+          <span className="spinner" style={{ width: '28px', height: '28px', borderWidth: '3px', marginBottom: '16px' }} />
+          <div style={{ fontFamily: 'var(--mono)', fontSize: '14px', fontWeight: 700, color: 'var(--text-1)', marginBottom: '8px' }}>
+            Connecting...
+          </div>
+          <div style={{ fontSize: '13px', color: 'var(--text-3)', maxWidth: '400px', lineHeight: 1.7 }}>
+            Loading simulation state from the server. If a simulation is running, events will appear shortly.
+          </div>
+        </div>
+      )}
+
+      {/* Empty state: connected but no events and no sim running */}
+      {!state.isRunning && !state.isComplete && state.a.events.length === 0 && state.b.events.length === 0 && sseStatus === 'connected' && !launching && (
         <div style={{
           flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
           padding: '40px 24px', textAlign: 'center', background: 'var(--bg-deep)',
@@ -184,7 +244,7 @@ export function SimView({ state, sseStatus, onRun }: SimViewProps) {
           <div style={{ display: 'flex', gap: '12px' }}>
             {onRun && (
               <button
-                onClick={onRun}
+                onClick={handleRun}
                 style={{
                   background: 'linear-gradient(135deg, var(--rust), #c44a1e)', color: '#fff',
                   border: 'none', padding: '10px 28px', borderRadius: '6px',

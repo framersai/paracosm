@@ -11,10 +11,13 @@ interface TurnData {
   year?: number;
   category?: string;
   emergent?: boolean;
+  crisis?: string;
   decision?: string;
+  rationale?: string;
+  policies?: string[];
   outcome?: string;
   colony?: Record<string, unknown>;
-  depts: Record<string, { summary: string; tools: number; citations: number }>;
+  depts: Record<string, { summary: string; tools: number; citations: number; citationList: Array<{ text: string; url: string; doi?: string }> }>;
   reactions: Array<Record<string, unknown>>;
   totalReactions: number;
 }
@@ -26,17 +29,26 @@ export function ReportView({ state }: ReportViewProps) {
       for (const evt of state[side].events) {
         const turn = evt.turn;
         if (!turn) continue;
-        if (!map[turn]) map[turn] = { a: { depts: {}, reactions: [], totalReactions: 0 }, b: { depts: {}, reactions: [], totalReactions: 0 } };
+        if (!map[turn]) map[turn] = { a: { depts: {}, reactions: [], totalReactions: 0 } as TurnData, b: { depts: {}, reactions: [], totalReactions: 0 } as TurnData };
         const t = map[turn][side];
         if (evt.type === 'turn_start' && evt.data.title && evt.data.title !== 'Director generating...') {
           t.title = evt.data.title as string; t.year = evt.data.year as number;
           t.category = evt.data.category as string; t.emergent = evt.data.emergent as boolean;
+          t.crisis = (evt.data.crisis as string) || (evt.data.turnSummary as string) || '';
           t.colony = evt.data.colony as Record<string, unknown>;
         }
-        if (evt.type === 'outcome') { t.decision = evt.data._decision as string; t.outcome = evt.data.outcome as string; }
+        if (evt.type === 'outcome') {
+          t.decision = evt.data._decision as string; t.outcome = evt.data.outcome as string;
+          t.rationale = evt.data._rationale as string; t.policies = evt.data._policies as string[];
+        }
         if (evt.type === 'dept_done') {
           const dept = evt.data.department as string;
-          t.depts[dept] = { summary: evt.data.summary as string || '', tools: ((evt.data._filteredTools as unknown[]) || []).length, citations: evt.data.citations as number || 0 };
+          t.depts[dept] = {
+            summary: evt.data.summary as string || '',
+            tools: ((evt.data._filteredTools as unknown[]) || []).length,
+            citations: evt.data.citations as number || 0,
+            citationList: (evt.data.citationList as Array<{ text: string; url: string; doi?: string }>) || [],
+          };
         }
         if (evt.type === 'agent_reactions') {
           t.reactions = (evt.data.reactions as Array<Record<string, unknown>> || []).slice(0, 3);
@@ -99,6 +111,11 @@ export function ReportView({ state }: ReportViewProps) {
   );
 }
 
+const moodColors: Record<string, string> = {
+  positive: 'var(--green)', negative: 'var(--rust)', anxious: 'var(--amber)',
+  defiant: 'var(--rust)', hopeful: 'var(--green)', resigned: 'var(--text-3)', neutral: 'var(--text-2)',
+};
+
 function TurnSide({ data, name, sideColor }: { data: TurnData; name: string; sideColor: string }) {
   if (!data.title) {
     return (
@@ -109,37 +126,132 @@ function TurnSide({ data, name, sideColor }: { data: TurnData; name: string; sid
     );
   }
 
-  const deptList = Object.entries(data.depts).map(([dept, d]) =>
-    `${dept.charAt(0).toUpperCase() + dept.slice(1)} ${d.citations}c ${d.tools}t`
-  ).join(' \u00b7 ');
+  const colony = data.colony as Record<string, number> | undefined;
 
   return (
     <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '6px', padding: '14px 16px' }}>
       <h4 style={{ fontSize: '15px', fontFamily: 'var(--mono)', fontWeight: 800, color: sideColor, marginBottom: '8px' }}>{name}</h4>
-      <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-1)', marginBottom: '6px' }}>
+
+      {/* Crisis title + tags */}
+      <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-1)', marginBottom: '4px' }}>
         {data.title}
         <span style={{ fontSize: '10px', color: 'var(--text-3)', background: 'var(--bg-deep)', padding: '1px 6px', borderRadius: '3px', marginLeft: '6px', fontFamily: 'var(--mono)' }}>
           {data.category}
         </span>
+        {data.emergent && <span style={{ fontSize: '9px', fontWeight: 800, color: 'var(--rust)', fontFamily: 'var(--mono)', marginLeft: '6px' }}>EMERGENT</span>}
       </div>
-      {data.decision && (
-        <div style={{ fontSize: '13px', color: 'var(--text-2)', lineHeight: 1.6, marginBottom: '8px' }}>
-          {data.decision.slice(0, 200)}{data.decision.length > 200 ? '...' : ''}
+
+      {/* Crisis description */}
+      {data.crisis && (
+        <div style={{ fontSize: '12px', color: 'var(--text-3)', lineHeight: 1.5, marginBottom: '8px', fontStyle: 'italic' }}>
+          {data.crisis}
         </div>
       )}
-      {data.outcome && <div style={{ marginBottom: '6px' }}><Badge outcome={data.outcome} /></div>}
-      {deptList && <div style={{ fontSize: '12px', color: 'var(--text-3)', fontFamily: 'var(--mono)', marginTop: '6px' }}>{deptList}</div>}
-      {data.reactions.length > 0 && (
-        <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid var(--border)' }}>
-          {data.reactions.map((r, i) => (
-            <div key={i} style={{ fontSize: '13px', color: 'var(--text-2)', fontStyle: 'italic', padding: '6px 0', borderBottom: i < data.reactions.length - 1 ? '1px solid rgba(48,42,34,.5)' : 'none', lineHeight: 1.5 }}>
-              &ldquo;{String(r.quote || '').slice(0, 80)}&rdquo;
-              <span style={{ color: 'var(--text-3)', fontStyle: 'normal', fontWeight: 600, fontSize: '12px', marginLeft: '4px' }}>
-                &mdash; {String(r.name)}
-              </span>
-            </div>
-          ))}
+
+      {/* Decision - full text */}
+      {data.decision && (
+        <div style={{ fontSize: '13px', color: 'var(--text-2)', lineHeight: 1.6, marginBottom: '6px' }}>
+          {data.decision}
         </div>
+      )}
+
+      {/* Outcome badge + rationale */}
+      {data.outcome && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+          <Badge outcome={data.outcome} />
+          {data.policies && data.policies.length > 0 && (
+            <span style={{ fontSize: '10px', color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
+              {data.policies.join(' / ')}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Rationale expandable */}
+      {data.rationale && (
+        <details style={{ marginBottom: '8px' }}>
+          <summary style={{ fontSize: '11px', fontWeight: 600, cursor: 'pointer', color: sideColor, fontFamily: 'var(--mono)' }}>Rationale</summary>
+          <div style={{ fontSize: '12px', color: 'var(--text-2)', lineHeight: 1.6, marginTop: '4px', fontStyle: 'italic', paddingLeft: '8px', borderLeft: `2px solid ${sideColor}` }}>
+            {data.rationale}
+          </div>
+        </details>
+      )}
+
+      {/* Colony state */}
+      {colony && (
+        <details style={{ marginBottom: '8px' }}>
+          <summary style={{ fontSize: '11px', fontWeight: 600, cursor: 'pointer', color: sideColor, fontFamily: 'var(--mono)' }}>Colony State</summary>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 12px', marginTop: '4px', fontSize: '11px', fontFamily: 'var(--mono)' }}>
+            {Object.entries(colony).map(([k, v]) => (
+              <span key={k} style={{ color: 'var(--text-2)' }}>
+                <span style={{ color: 'var(--text-3)' }}>{k}: </span>
+                <span style={{ fontWeight: 700, color: 'var(--text-1)' }}>{typeof v === 'number' ? (Number.isInteger(v) ? v : v.toFixed(2)) : String(v)}</span>
+              </span>
+            ))}
+          </div>
+        </details>
+      )}
+
+      {/* Department analyses expandable */}
+      {Object.keys(data.depts).length > 0 && (
+        <details style={{ marginBottom: '8px' }} open>
+          <summary style={{ fontSize: '11px', fontWeight: 600, cursor: 'pointer', color: sideColor, fontFamily: 'var(--mono)' }}>
+            Departments ({Object.keys(data.depts).length})
+          </summary>
+          <div style={{ marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {Object.entries(data.depts).map(([dept, d]) => (
+              <div key={dept} style={{ fontSize: '12px', padding: '4px 8px', background: 'var(--bg-deep)', borderRadius: '4px', borderLeft: `2px solid ${sideColor}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontWeight: 700, color: 'var(--text-1)' }}>{dept.charAt(0).toUpperCase() + dept.slice(1)}</span>
+                  <span style={{ fontSize: '10px', color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>{d.citations}c {d.tools}t</span>
+                </div>
+                {d.summary && <div style={{ color: 'var(--text-2)', lineHeight: 1.5, marginTop: '2px' }}>{d.summary}</div>}
+                {d.citationList.length > 0 && (
+                  <div style={{ marginTop: '4px' }}>
+                    {d.citationList.map((c, ci) => (
+                      <div key={ci} style={{ fontSize: '10px', marginTop: '2px' }}>
+                        <a href={c.url} target="_blank" rel="noopener" style={{ color: 'var(--amber)', textDecoration: 'underline', textUnderlineOffset: '2px' }}>
+                          {c.text}
+                        </a>
+                        {c.doi && <span style={{ marginLeft: '4px', fontFamily: 'var(--mono)', fontSize: '9px', color: 'var(--text-3)' }}>DOI:{c.doi}</span>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
+
+      {/* Agent reactions */}
+      {data.reactions.length > 0 && (
+        <details open>
+          <summary style={{ fontSize: '11px', fontWeight: 600, cursor: 'pointer', color: sideColor, fontFamily: 'var(--mono)' }}>
+            Agent Voices ({data.totalReactions || data.reactions.length})
+          </summary>
+          <div style={{ marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {data.reactions.map((r, i) => (
+              <div key={i} style={{ fontSize: '12px', padding: '4px 8px', background: 'var(--bg-deep)', borderRadius: '4px', lineHeight: 1.5 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                  <span style={{ fontWeight: 700, color: sideColor }}>{String(r.name)}</span>
+                  <span style={{
+                    fontSize: '9px', fontWeight: 800, fontFamily: 'var(--mono)',
+                    padding: '1px 5px', borderRadius: '3px',
+                    color: moodColors[String(r.mood)] || 'var(--text-3)',
+                    background: `color-mix(in srgb, ${moodColors[String(r.mood)] || 'var(--text-3)'} 12%, transparent)`,
+                  }}>
+                    {String(r.mood || '').toUpperCase()}
+                  </span>
+                </div>
+                <div style={{ color: 'var(--text-2)', fontStyle: 'italic' }}>
+                  &ldquo;{String(r.quote || '')}&rdquo;
+                </div>
+                {r.role && <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '2px' }}>{String(r.role)} {r.department ? `in ${String(r.department)}` : ''}</div>}
+              </div>
+            ))}
+          </div>
+        </details>
       )}
     </div>
   );

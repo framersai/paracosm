@@ -240,7 +240,18 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
     // Admin config: tells client what's enabled
     if (req.url === '/admin-config' && req.method === 'GET') {
       res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-      res.end(JSON.stringify({ adminWrite, memoryScenarios: [...memoryScenarios.keys()] }));
+      res.end(JSON.stringify({
+        adminWrite,
+        memoryScenarios: [...memoryScenarios.keys()],
+        keys: {
+          openai: !!env.OPENAI_API_KEY,
+          anthropic: !!env.ANTHROPIC_API_KEY,
+          serper: !!env.SERPER_API_KEY,
+          firecrawl: !!env.FIRECRAWL_API_KEY,
+          tavily: !!env.TAVILY_API_KEY,
+          cohere: !!env.COHERE_API_KEY,
+        },
+      }));
       return;
     }
 
@@ -379,7 +390,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
           return;
         }
         // Find colonist in the last broadcast result
-        const lastResultEvent = eventBuffer.find(msg => msg.includes('"finalState"'));
+        const lastResultEvent = eventBuffer.find(msg => msg.startsWith('event: result\n'));
         if (!lastResultEvent) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'No simulation data available. Run a simulation first.' }));

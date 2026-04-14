@@ -37,7 +37,7 @@ export function TabBar({ active, onTabChange, scenario }: TabBarProps) {
           id={`tab-${tab.id}`}
           className="cursor-pointer transition-colors"
           style={{
-            padding: '10px 0',
+            padding: '8px 0',
             flex: 1,
             fontFamily: 'var(--sans)',
             fontSize: '12px',
@@ -45,9 +45,10 @@ export function TabBar({ active, onTabChange, scenario }: TabBarProps) {
             letterSpacing: '0.5px',
             textTransform: 'uppercase' as const,
             color: active === tab.id ? 'var(--amber)' : 'var(--text-3)',
-            background: active === tab.id ? 'var(--bg-card)' : 'var(--bg-panel)',
+            background: active === tab.id ? 'var(--bg-card)' : 'transparent',
             border: 'none',
             borderBottom: active === tab.id ? '2px solid var(--amber)' : '2px solid transparent',
+            marginBottom: '-1px',
           }}
         >
           {tab.label}

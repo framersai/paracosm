@@ -83,37 +83,37 @@ export function StatsBar({ colonyA, colonyB, prevColonyA, prevColonyB, deathsA, 
         const label = SHORT_LABELS[metric.id] || metric.id.replace(/([A-Z])/g, ' $1').trim().toUpperCase();
 
         return (
-          <span key={metric.id} style={{ display: 'flex', alignItems: 'baseline', gap: '4px', whiteSpace: 'nowrap', flexShrink: 0 }}>
+          <span key={metric.id} style={{ display: 'flex', alignItems: 'baseline', gap: '4px', whiteSpace: 'nowrap', flexShrink: 0, paddingLeft: '8px', borderLeft: '1px solid var(--border)' }}>
+            <span style={{ fontSize: '10px', color: 'var(--text-1)', letterSpacing: '0.8px', fontWeight: 800, marginRight: '2px', opacity: 0.7 }}>
+              {label}
+            </span>
             <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--vis)' }}>{fA}{suffix}</span>
             {dA && <span style={{ fontSize: '9px', color: dA.startsWith('+') ? 'var(--green)' : 'var(--rust)' }}>{dA}</span>}
             <span style={{ color: 'var(--text-3)', fontSize: '10px' }}>vs</span>
             <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--eng)' }}>{fB}{suffix}</span>
             {dB && <span style={{ fontSize: '9px', color: dB.startsWith('+') ? 'var(--green)' : 'var(--rust)' }}>{dB}</span>}
-            <span style={{ fontSize: '11px', color: 'var(--amber)', letterSpacing: '0.5px', fontWeight: 800, marginLeft: '2px' }}>
-              {label}
-            </span>
           </span>
         );
       })}
 
       {/* Deaths, Tools, Citations */}
-      <span style={{ display: 'flex', alignItems: 'baseline', gap: '4px', whiteSpace: 'nowrap', flexShrink: 0 }}>
-        <span style={{ color: 'var(--text-1)', fontWeight: 800 }}>&mdash;</span>
-        <span style={{ color: 'var(--text-3)', fontSize: '11px' }}>vs</span>
-        <span style={{ color: 'var(--text-1)', fontWeight: 800 }}>&mdash;</span>
-        <span style={{ fontSize: '13px', color: 'var(--amber)', fontWeight: 800, marginLeft: '4px' }}>DEATHS</span>
+      <span style={{ display: 'flex', alignItems: 'baseline', gap: '4px', whiteSpace: 'nowrap', flexShrink: 0, paddingLeft: '8px', borderLeft: '1px solid var(--border)' }}>
+        <span style={{ fontSize: '10px', color: 'var(--text-1)', letterSpacing: '0.8px', fontWeight: 800, marginRight: '2px', opacity: 0.7 }}>DEATHS</span>
+        <span style={{ color: deathsA > 0 ? 'var(--rust)' : 'var(--text-1)', fontWeight: 800 }}>{deathsA}</span>
+        <span style={{ color: 'var(--text-3)', fontSize: '10px' }}>vs</span>
+        <span style={{ color: deathsB > 0 ? 'var(--rust)' : 'var(--text-1)', fontWeight: 800 }}>{deathsB}</span>
       </span>
-      <span style={{ display: 'flex', alignItems: 'baseline', gap: '4px', whiteSpace: 'nowrap', flexShrink: 0 }}>
+      <span style={{ display: 'flex', alignItems: 'baseline', gap: '4px', whiteSpace: 'nowrap', flexShrink: 0, paddingLeft: '8px', borderLeft: '1px solid var(--border)' }}>
+        <span style={{ fontSize: '10px', color: 'var(--text-1)', letterSpacing: '0.8px', fontWeight: 800, marginRight: '2px', opacity: 0.7 }}>TOOLS</span>
         <span style={{ color: 'var(--text-1)', fontWeight: 800 }}>{toolsA}</span>
-        <span style={{ color: 'var(--text-3)', fontSize: '11px' }}>/</span>
+        <span style={{ color: 'var(--text-3)', fontSize: '10px' }}>/</span>
         <span style={{ color: 'var(--text-1)', fontWeight: 800 }}>{toolsB}</span>
-        <span style={{ fontSize: '13px', color: 'var(--amber)', fontWeight: 800, marginLeft: '4px' }}>TOOLS</span>
       </span>
-      <span style={{ display: 'flex', alignItems: 'baseline', gap: '4px', whiteSpace: 'nowrap', flexShrink: 0 }}>
+      <span style={{ display: 'flex', alignItems: 'baseline', gap: '4px', whiteSpace: 'nowrap', flexShrink: 0, paddingLeft: '8px', borderLeft: '1px solid var(--border)' }}>
+        <span style={{ fontSize: '10px', color: 'var(--text-1)', letterSpacing: '0.8px', fontWeight: 800, marginRight: '2px', opacity: 0.7 }}>CITES</span>
         <span style={{ color: 'var(--text-1)', fontWeight: 800 }}>{citationsA}</span>
-        <span style={{ color: 'var(--text-3)', fontSize: '11px' }}>/</span>
+        <span style={{ color: 'var(--text-3)', fontSize: '10px' }}>/</span>
         <span style={{ color: 'var(--text-1)', fontWeight: 800 }}>{citationsB}</span>
-        <span style={{ fontSize: '13px', color: 'var(--amber)', fontWeight: 800, marginLeft: '4px' }}>CITATIONS</span>
       </span>
     </div>
   );

@@ -103,30 +103,33 @@ function TurnTooltipContent({ t, sideColor }: { t: TurnEntry; sideColor: string 
   );
 }
 
-function SideTimeline({ turns, side, leaderName }: { turns: TurnEntry[]; side: Side; leaderName: string }) {
+function SideTimeline({ turns, side }: { turns: TurnEntry[]; side: Side }) {
   const sideColor = side === 'a' ? 'var(--vis)' : 'var(--eng)';
-  const sideBg = side === 'a' ? 'rgba(232,180,74,.08)' : 'rgba(76,168,168,.08)';
 
   return (
-    <div style={{ flex: 1, background: 'var(--bg-panel)', padding: '3px 8px', overflowY: 'auto' }}>
-      <span style={{ fontSize: '9px', fontWeight: 700, padding: '2px 6px', borderRadius: '3px', marginBottom: '3px', display: 'inline-block', fontFamily: 'var(--mono)', color: sideColor, background: sideBg }}>
-        {leaderName}
-      </span>
+    <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0 }}>
       {turns.map(t => (
         <Tooltip key={t.turn} dot content={<TurnTooltipContent t={t} sideColor={sideColor} />}>
           <div style={{
-            padding: '3px 8px', background: 'var(--bg-card)', border: '1px solid var(--border)',
-            borderRadius: '3px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            fontSize: '12px', marginBottom: '3px', width: '100%', cursor: 'pointer',
+            padding: '5px 8px', background: 'var(--bg-card)', border: '1px solid var(--border)',
+            borderRadius: '4px', cursor: 'pointer', overflow: 'hidden', width: '100%', boxSizing: 'border-box' as const,
+            borderLeft: `3px solid ${sideColor}`,
             animation: t.current ? 'glow 2s infinite' : undefined,
           }}>
-            <span style={{ fontWeight: 800, minWidth: '30px', fontFamily: 'var(--mono)', color: sideColor }}>
-              {t.year}
-            </span>
-            <span style={{ flex: 1, margin: '0 6px', color: 'var(--text-2)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {t.title}{t.summary ? `: ${t.summary}` : ''}
-            </span>
-            {outcomeBadge(t.outcome)}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', minWidth: 0 }}>
+              <span style={{ fontWeight: 800, fontFamily: 'var(--mono)', color: sideColor, flexShrink: 0, fontSize: '10px' }}>
+                T{t.turn} {t.year}
+              </span>
+              <span style={{ flex: 1, color: 'var(--text-1)', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
+                {t.title}
+              </span>
+              {outcomeBadge(t.outcome)}
+            </div>
+            {t.decision && (
+              <div style={{ fontSize: '10px', color: 'var(--text-2)', marginTop: '2px', lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const }}>
+                {t.decision}
+              </div>
+            )}
           </div>
         </Tooltip>
       ))}
@@ -143,10 +146,11 @@ export function Timeline({ state }: TimelineProps) {
   return (
     <div className="timeline-row" role="region" aria-label="Turn timeline" style={{
       borderTop: '1px solid var(--border)', background: 'var(--bg-panel)',
-      display: 'flex', gap: '1px', maxHeight: '140px', overflow: 'hidden', flexShrink: 0,
+      display: 'flex', gap: '4px', height: '160px', overflow: 'hidden', flexShrink: 0,
+      padding: '4px 8px', minWidth: 0, maxWidth: '100%',
     }}>
-      <SideTimeline turns={turnsA} side="a" leaderName={state.a.leader?.name || 'A'} />
-      <SideTimeline turns={turnsB} side="b" leaderName={state.b.leader?.name || 'B'} />
+      <SideTimeline turns={turnsA} side="a" />
+      <SideTimeline turns={turnsB} side="b" />
     </div>
   );
 }

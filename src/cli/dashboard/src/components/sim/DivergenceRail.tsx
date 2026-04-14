@@ -15,7 +15,7 @@ export function DivergenceRail({ state }: DivergenceRailProps) {
   const fmtOutcome = (o: string) => o.replace(/_/g, ' ').toUpperCase();
 
   return (
-    <div style={{
+    <div aria-label="Divergence rail" style={{
       padding: '6px 16px',
       background: 'linear-gradient(90deg, rgba(232,180,74,.08), rgba(76,168,168,.08))',
       borderBottom: '1px solid var(--border)',

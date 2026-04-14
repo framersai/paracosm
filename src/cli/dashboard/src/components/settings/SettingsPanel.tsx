@@ -81,6 +81,12 @@ export function SettingsPanel() {
   const [scenarios, setScenarios] = useState<Array<{ id: string; name: string; description: string; departments: number }>>([]);
   const [activeId, setActiveId] = useState(scenario.id);
 
+  // API key state: env flags tell us what's configured server-side; overrides are user-entered values
+  const [envKeys, setEnvKeys] = useState<Record<string, boolean>>({});
+  const [keyOverrides, setKeyOverrides] = useState<Record<string, string>>({
+    openai: '', anthropic: '', serper: '', firecrawl: '', tavily: '', cohere: '',
+  });
+
   const refreshScenarioCatalog = useCallback(() => {
     fetch('/scenarios')
       .then(r => r.json())
@@ -93,6 +99,11 @@ export function SettingsPanel() {
 
   useEffect(() => {
     refreshScenarioCatalog();
+    // Fetch which API keys are configured from .env
+    fetch('/admin-config')
+      .then(r => r.json())
+      .then(data => { if (data.keys) setEnvKeys(data.keys); })
+      .catch(() => {});
     return subscribeScenarioUpdates(window, refreshScenarioCatalog);
   }, [refreshScenarioCatalog]);
 
@@ -113,7 +124,7 @@ export function SettingsPanel() {
     setLaunching(true);
     setStatus('Starting...');
     try {
-      const config = {
+      const config: Record<string, unknown> = {
         leaders: [
           { ...leaderA, hexaco: leaderA.hexaco },
           { ...leaderB, hexaco: leaderB.hexaco },
@@ -121,6 +132,13 @@ export function SettingsPanel() {
         provider, turns, seed, startYear, population, liveSearch,
         activeDepartments: scenario.departments.map(d => d.id),
       };
+      // Attach any user-provided key overrides (never sends .env values)
+      if (keyOverrides.openai) config.apiKey = keyOverrides.openai;
+      if (keyOverrides.anthropic) config.anthropicKey = keyOverrides.anthropic;
+      if (keyOverrides.serper) config.serperKey = keyOverrides.serper;
+      if (keyOverrides.firecrawl) config.firecrawlKey = keyOverrides.firecrawl;
+      if (keyOverrides.tavily) config.tavilyKey = keyOverrides.tavily;
+      if (keyOverrides.cohere) config.cohereKey = keyOverrides.cohere;
       const res = await fetch('/setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -145,7 +163,7 @@ export function SettingsPanel() {
       setStatus(`Failed: ${err}`);
       setLaunching(false);
     }
-  }, [leaderA, leaderB, turns, seed, startYear, population, provider, liveSearch, navigateTab, scenario]);
+  }, [leaderA, leaderB, turns, seed, startYear, population, provider, liveSearch, navigateTab, scenario, keyOverrides]);
 
   return (
     <div className="settings-content" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '20px 24px', background: 'var(--bg-deep)' }}>
@@ -243,6 +261,49 @@ export function SettingsPanel() {
               <option value="true">On (requires search API keys)</option>
             </select>
           </div>
+        </div>
+      </fieldset>
+
+      {/* API Keys */}
+      <fieldset style={{
+        background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: '8px',
+        padding: '16px', marginBottom: '16px', boxShadow: 'var(--card-shadow)',
+      }}>
+        <legend style={{ fontSize: '14px', fontFamily: 'var(--mono)', color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.5px', padding: '0 8px' }}>
+          API Keys
+        </legend>
+        <p style={{ fontSize: '11px', color: 'var(--text-3)', marginBottom: '12px', lineHeight: 1.6 }}>
+          Keys are read from the server .env file first. Override here for this session only. Values entered below are never displayed back for security.
+        </p>
+        <div className="responsive-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          {([
+            ['openai', 'OpenAI'],
+            ['anthropic', 'Anthropic'],
+            ['serper', 'Serper (search)'],
+            ['firecrawl', 'Firecrawl (scrape)'],
+            ['tavily', 'Tavily (search)'],
+            ['cohere', 'Cohere (rerank)'],
+          ] as const).map(([key, label]) => (
+            <div key={key}>
+              <label htmlFor={`key-${key}`} style={labelStyle}>
+                {label}
+                {envKeys[key] && (
+                  <span style={{ color: 'var(--color-success, #6aad48)', fontWeight: 400, textTransform: 'none', letterSpacing: 0, marginLeft: '6px' }}>
+                    (.env configured)
+                  </span>
+                )}
+              </label>
+              <input
+                id={`key-${key}`}
+                type="password"
+                autoComplete="off"
+                value={keyOverrides[key]}
+                onChange={e => setKeyOverrides(prev => ({ ...prev, [key]: e.target.value }))}
+                placeholder={envKeys[key] ? 'Using .env value' : 'Not configured'}
+                style={inputStyle}
+              />
+            </div>
+          ))}
         </div>
       </fieldset>
 

@@ -339,17 +339,21 @@ footer{padding:28px 24px;border-top:1px solid var(--border);background:var(--bg2
     </div>
     <div class="code-block">
       <div class="code-header"><span>2. Define your world as JSON</span><button class="code-copy" onclick="copyCode(this, document.getElementById('json-code').textContent)">Copy</button></div>
-      <div class="code-body" id="json-code"><span class="cm">// my-world.json</span>
+      <div class="code-body" id="json-code"><span class="cm">// my-world.json — defines the world, not the leaders</span>
+<span class="cm">// Leaders are configured separately so the same world</span>
+<span class="cm">// can be run with different personality matchups</span>
 {
   <span class="str">"id"</span>: <span class="str">"submarine-habitat"</span>,
   <span class="str">"labels"</span>: {
     <span class="str">"name"</span>: <span class="str">"Deep Ocean Habitat"</span>,
     <span class="str">"populationNoun"</span>: <span class="str">"crew"</span>,
-    <span class="str">"settlementNoun"</span>: <span class="str">"habitat"</span>
+    <span class="str">"settlementNoun"</span>: <span class="str">"habitat"</span>,
+    <span class="str">"currency"</span>: <span class="str">"credits"</span>
   },
   <span class="str">"setup"</span>: {
     <span class="str">"defaultTurns"</span>: <span class="num">8</span>,
     <span class="str">"defaultPopulation"</span>: <span class="num">50</span>,
+    <span class="str">"defaultStartYear"</span>: <span class="num">2040</span>,
     <span class="str">"defaultSeed"</span>: <span class="num">42</span>
   },
   <span class="str">"departments"</span>: [
@@ -357,13 +361,13 @@ footer{padding:28px 24px;border-top:1px solid var(--border);background:var(--bg2
       <span class="str">"id"</span>: <span class="str">"life-support"</span>,
       <span class="str">"label"</span>: <span class="str">"Life Support"</span>,
       <span class="str">"role"</span>: <span class="str">"Chief Life Support Officer"</span>,
-      <span class="str">"instructions"</span>: <span class="str">"Analyze O2, CO2 scrubbing, water recycling."</span>
+      <span class="str">"instructions"</span>: <span class="str">"Analyze O2 levels, CO2 scrubbing capacity, water recycling."</span>
     },
     {
       <span class="str">"id"</span>: <span class="str">"engineering"</span>,
       <span class="str">"label"</span>: <span class="str">"Engineering"</span>,
       <span class="str">"role"</span>: <span class="str">"Chief Engineer"</span>,
-      <span class="str">"instructions"</span>: <span class="str">"Analyze hull integrity, pressure, power."</span>
+      <span class="str">"instructions"</span>: <span class="str">"Analyze hull integrity, pressure systems, power generation."</span>
     }
   ],
   <span class="str">"metrics"</span>: [
@@ -373,34 +377,48 @@ footer{padding:28px 24px;border-top:1px solid var(--border);background:var(--bg2
 }</div>
     </div>
     <div class="code-block">
-      <div class="code-header"><span>3. Compile + run</span><button class="code-copy" onclick="copyCode(this, document.getElementById('api-code').textContent)">Copy</button></div>
+      <div class="code-header"><span>3. Compile the world, define two leaders, run them in parallel</span><button class="code-copy" onclick="copyCode(this, document.getElementById('api-code').textContent)">Copy</button></div>
       <div class="code-body" id="api-code"><span class="kw">import</span> { compileScenario } <span class="kw">from</span> <span class="str">'paracosm/compiler'</span>;
 <span class="kw">import</span> { runSimulation } <span class="kw">from</span> <span class="str">'paracosm/runtime'</span>;
 <span class="kw">import</span> worldJson <span class="kw">from</span> <span class="str">'./my-world.json'</span>;
 
-<span class="cm">// Compile JSON into a runnable ScenarioPackage (~$0.10, cached)</span>
+<span class="cm">// 1. Compile JSON into a runnable ScenarioPackage (~$0.10, cached to disk)</span>
 <span class="kw">const</span> scenario = <span class="kw">await</span> <span class="fn">compileScenario</span>(worldJson, {
   provider: <span class="str">'anthropic'</span>,
   model: <span class="str">'claude-sonnet-4-6'</span>,
 });
 
-<span class="cm">// Define a commander with HEXACO personality</span>
-<span class="kw">const</span> leader = {
+<span class="cm">// 2. Define two commanders with different HEXACO personalities</span>
+<span class="cm">//    Same world, same crises — different decisions</span>
+<span class="kw">const</span> leaderA = {
   name: <span class="str">'Captain Reyes'</span>,
   archetype: <span class="str">'The Pragmatist'</span>,
-  hexaco: { openness: <span class="str">0.4</span>, conscientiousness: <span class="str">0.9</span>,
-            extraversion: <span class="str">0.3</span>, agreeableness: <span class="str">0.6</span>,
-            emotionality: <span class="str">0.5</span>, honestyHumility: <span class="str">0.8</span> },
+  colony: <span class="str">'Station Alpha'</span>,
+  hexaco: { openness: <span class="num">0.4</span>, conscientiousness: <span class="num">0.9</span>,
+            extraversion: <span class="num">0.3</span>, agreeableness: <span class="num">0.6</span>,
+            emotionality: <span class="num">0.5</span>, honestyHumility: <span class="num">0.8</span> },
   instructions: <span class="str">'You lead by protocol. Safety margins first.'</span>,
 };
 
-<span class="cm">// Run the simulation</span>
-<span class="kw">const</span> output = <span class="kw">await</span> <span class="fn">runSimulation</span>(leader, [], {
-  scenario,
-  maxTurns: <span class="str">8</span>,
-  seed: <span class="str">42</span>,
-  <span class="fn">onEvent</span>(e) { console.<span class="fn">log</span>(e.type, e.data?.title); },
-});</div>
+<span class="kw">const</span> leaderB = {
+  name: <span class="str">'Captain Okafor'</span>,
+  archetype: <span class="str">'The Innovator'</span>,
+  colony: <span class="str">'Station Beta'</span>,
+  hexaco: { openness: <span class="num">0.9</span>, conscientiousness: <span class="num">0.4</span>,
+            extraversion: <span class="num">0.8</span>, agreeableness: <span class="num">0.5</span>,
+            emotionality: <span class="num">0.3</span>, honestyHumility: <span class="num">0.6</span> },
+  instructions: <span class="str">'You lead by experimentation. Push boundaries.'</span>,
+};
+
+<span class="cm">// 3. Run both in parallel — same seed, same crises, different outcomes</span>
+<span class="kw">const</span> [resultA, resultB] = <span class="kw">await</span> Promise.<span class="fn">all</span>([
+  <span class="fn">runSimulation</span>(leaderA, [], { scenario, maxTurns: <span class="num">8</span>, seed: <span class="num">42</span>,
+    <span class="fn">onEvent</span>(e) { console.<span class="fn">log</span>(<span class="str">'A:'</span>, e.type, e.data?.title); } }),
+  <span class="fn">runSimulation</span>(leaderB, [], { scenario, maxTurns: <span class="num">8</span>, seed: <span class="num">42</span>,
+    <span class="fn">onEvent</span>(e) { console.<span class="fn">log</span>(<span class="str">'B:'</span>, e.type, e.data?.title); } }),
+]);
+
+<span class="cm">// resultA.finalState vs resultB.finalState — the divergence</span></div>
     </div>
     <div class="code-block">
       <div class="code-header"><span>Or: quick start with the dashboard</span><button class="code-copy" onclick="copyCode(this, document.getElementById('dash-code').textContent)">Copy</button></div>

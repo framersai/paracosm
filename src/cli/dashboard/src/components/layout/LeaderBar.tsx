@@ -57,7 +57,7 @@ export function LeaderBar({ side, leader, popHistory, moraleHistory }: LeaderBar
               <div style={{ fontFamily: 'var(--mono)', fontSize: '11px', marginTop: '8px', lineHeight: 1.8 }}>
                 {keys.map((trait, i) => (
                   <div key={trait} style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--text-2)' }}>{trait.charAt(0).toUpperCase() + trait.slice(1)}</span>
+                    <span style={{ color: 'var(--text-2)' }}>{trait.charAt(0).toUpperCase() + trait.slice(1).replace(/([A-Z])/g, ' $1')}</span>
                     <span style={{ color: sideColor }}>{(h[trait] ?? 0).toFixed(2)}</span>
                   </div>
                 ))}

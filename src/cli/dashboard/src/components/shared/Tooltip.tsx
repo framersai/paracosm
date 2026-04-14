@@ -16,15 +16,18 @@ export function Tooltip({ content, children, dot }: TooltipProps) {
   const show = useCallback((e: React.MouseEvent) => {
     clearTimeout(timer.current);
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const tooltipW = Math.min(380, window.innerWidth - 20);
     let x = rect.left;
     // Default: position ABOVE the element
-    const tooltipHeight = 250; // estimate
+    const tooltipHeight = 250;
     let y = rect.top - tooltipHeight - 6;
     // If no room above, flip below
     if (y < 10) y = rect.bottom + 6;
-    // Clamp horizontal
-    if (x + 380 > window.innerWidth) x = window.innerWidth - 390;
+    // Clamp to viewport
+    if (x + tooltipW > window.innerWidth - 10) x = window.innerWidth - tooltipW - 10;
     if (x < 10) x = 10;
+    if (y + tooltipHeight > window.innerHeight - 10) y = window.innerHeight - tooltipHeight - 10;
+    if (y < 10) y = 10;
     setPos({ x, y });
     setVisible(true);
   }, []);
@@ -63,7 +66,7 @@ export function Tooltip({ content, children, dot }: TooltipProps) {
             padding: '14px 18px', fontSize: '12px', color: 'var(--text-1)', lineHeight: 1.6,
             width: '380px', maxWidth: '90vw', maxHeight: '70vh', overflowY: 'auto',
             boxShadow: '0 8px 40px rgba(0,0,0,.4)', pointerEvents: 'none',
-            whiteSpace: 'normal',
+            whiteSpace: 'normal', wordBreak: 'break-word',
             animation: 'fadeUp 0.15s ease both',
           }}
         >

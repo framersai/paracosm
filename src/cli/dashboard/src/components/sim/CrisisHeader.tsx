@@ -52,8 +52,8 @@ export function CrisisHeader({ side, crisis }: CrisisHeaderProps) {
           </span>
         )}
         {fullText && (
-          <span style={{ fontSize: '12px', color: 'var(--text-2)', fontStyle: 'italic', marginLeft: '8px' }}>
-            {fullText.slice(0, 120)}{fullText.length > 120 ? '...' : ''}
+          <span style={{ fontSize: '12px', color: 'var(--text-2)', fontStyle: 'italic', marginLeft: '8px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {fullText}
           </span>
         )}
       </div>

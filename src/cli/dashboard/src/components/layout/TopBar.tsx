@@ -10,6 +10,8 @@ interface TopBarProps {
   onLoad?: () => void;
   onClear?: () => void;
   onRun?: () => void;
+  onTour?: () => void;
+  onCopy?: () => void;
 }
 
 /**
@@ -44,7 +46,7 @@ const toolBtnStyle: React.CSSProperties = {
   fontFamily: 'var(--mono)',
 };
 
-export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRun }: TopBarProps) {
+export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRun, onTour, onCopy }: TopBarProps) {
   const { resolved, setTheme } = useTheme();
   const hasEvents = gameState.a.events.length > 0 || gameState.b.events.length > 0;
 
@@ -104,6 +106,23 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
 
       {/* Right: Actions + status + theme */}
       <div className="flex items-center gap-2 shrink-0">
+        {/* Tour button */}
+        {onTour && (
+          <button
+            onClick={onTour}
+            style={{
+              background: 'var(--bg-card)', color: 'var(--amber)',
+              border: '1px solid var(--amber-dim, var(--border))',
+              padding: '2px 10px', borderRadius: '3px',
+              fontSize: '10px', cursor: 'pointer', fontWeight: 600,
+              fontFamily: 'var(--mono)', letterSpacing: '0.3px',
+            }}
+            title="Interactive guided tour with sample data"
+            aria-label="Start guided tour"
+          >
+            HOW IT WORKS
+          </button>
+        )}
         {/* Run button */}
         {onRun && !gameState.isRunning && (
           <button
@@ -123,6 +142,9 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
         {/* Save/Load/Clear */}
         {hasEvents && onSave && (
           <button onClick={onSave} style={toolBtnStyle} title="Export simulation data as .json" aria-label="Save simulation">Save</button>
+        )}
+        {hasEvents && onCopy && (
+          <button onClick={onCopy} style={toolBtnStyle} title="Copy simulation summary to clipboard" aria-label="Copy summary">Copy</button>
         )}
         {onLoad && (
           <button onClick={onLoad} style={toolBtnStyle} title="Load a saved simulation .json file" aria-label="Load simulation">Load</button>
