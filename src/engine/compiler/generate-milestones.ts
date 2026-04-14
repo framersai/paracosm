@@ -90,6 +90,7 @@ export async function generateMilestones(
   const labels = scenarioJson.labels ?? {};
   const fallbackFounding: MilestoneCrisisDef = {
     title: 'Founding',
+    description: `The ${labels.populationNoun ?? 'members'} have arrived at the ${labels.settlementNoun ?? 'settlement'}. Choose your initial strategy.`,
     crisis: `The ${labels.populationNoun ?? 'members'} have arrived at the ${labels.settlementNoun ?? 'settlement'}. Choose your initial strategy.`,
     options: [
       { id: 'option_a', label: 'Conservative Start', description: 'Establish a safe, stable foundation', isRisky: false },
@@ -105,6 +106,7 @@ export async function generateMilestones(
 
   const fallbackLegacy: MilestoneCrisisDef = {
     title: 'Legacy Assessment',
+    description: `Submit a comprehensive status report on the ${labels.settlementNoun ?? 'settlement'}.`,
     crisis: `Submit a comprehensive status report on the ${labels.settlementNoun ?? 'settlement'}.`,
     options: [
       { id: 'option_a', label: 'Honest Assessment', description: 'Report factually, including failures', isRisky: false },

@@ -2,7 +2,7 @@ export function buildPromotionPrompt(candidateSummaries: string): string {
   return `You must promote 5 colonists to department head roles. Evaluate these candidates based on their personality traits and specialization. Choose people who align with YOUR leadership style.\n\n${candidateSummaries}\n\nReturn JSON: {"promotions":[{"agentId":"col-...","department":"medical","role":"Chief Medical Officer","reason":"..."},...]}`;
 }
 
-export function applyCustomEventToCrisis<T extends { crisis: string; turnSummary: string }>(
+export function applyCustomEventToCrisis<T extends { description: string; turnSummary: string; crisis?: string }>(
   crisis: T,
   customEvents: Array<{ turn: number; title: string; description: string }>,
   turn: number,
@@ -14,10 +14,12 @@ export function applyCustomEventToCrisis<T extends { crisis: string; turnSummary
     .map(event => `USER EVENT: ${event.title} — ${event.description}`)
     .join('\n');
   const suffix = matches.map(event => event.title).join(', ');
+  const baseText = crisis.crisis || crisis.description;
 
   return {
     ...crisis,
-    crisis: `${crisis.crisis}\n\n${injected}`,
+    description: `${crisis.description}\n\n${injected}`,
+    crisis: baseText ? `${baseText}\n\n${injected}` : undefined,
     turnSummary: crisis.turnSummary
       ? `${crisis.turnSummary} | user event: ${suffix}`
       : `user event: ${suffix}`,

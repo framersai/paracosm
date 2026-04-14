@@ -250,6 +250,7 @@ export class EventDirector {
       const s = SCENARIOS[0];
       return {
         title: s.title,
+        description: s.crisis,
         crisis: s.crisis,
         options: s.options || [
           { id: 'option_a', label: 'Arcadia Planitia', description: 'Flat basalt plains, safe, ice access', isRisky: false },
@@ -266,9 +267,11 @@ export class EventDirector {
 
     if (turn === maxTurns) {
       const s = SCENARIOS[11]; // Legacy Assessment
+      const crisisText = s?.crisis || 'Earth requests a comprehensive status report on your colony. Assess your legacy.';
       return {
         title: s?.title || 'Legacy Assessment',
-        crisis: s?.crisis || 'Earth requests a comprehensive status report on your colony. Assess your legacy.',
+        description: crisisText,
+        crisis: crisisText,
         options: [
           { id: 'option_a', label: 'Honest assessment', description: 'Report factually, including failures and regrets', isRisky: false },
           { id: 'option_b', label: 'Ambitious projection', description: 'Emphasize achievements, propose bold next-century vision', isRisky: true },

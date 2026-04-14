@@ -2,6 +2,7 @@ import type { MilestoneCrisisDef } from '../types.js';
 
 const LANDING: MilestoneCrisisDef = {
   title: 'Lunar Arrival',
+  description: 'Your crew module has entered lunar orbit. Choose a base location for the permanent outpost.',
   crisis: `Your crew module has entered lunar orbit. You must choose a base location for the permanent outpost. Two candidates:
 
 OPTION A: Shackleton Crater Rim (south pole, 89.9°S). Near-permanent sunlight for solar power. Access to permanently shadowed craters with confirmed water ice deposits (LCROSS 2009). Challenging terrain with steep slopes.
@@ -23,6 +24,7 @@ Both sites offer access to regolith for ISRU construction. Communication with Ea
 
 const STATUS_REPORT: MilestoneCrisisDef = {
   title: 'Mission Review',
+  description: 'Earth space agencies request a comprehensive status report on your outpost.',
   crisis: `Earth space agencies request a comprehensive status report on your outpost:
 
 1. CREW: Current headcount, rotation schedule, health status

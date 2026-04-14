@@ -64,11 +64,11 @@ export function validateMilestones(fn: ScenarioHooks['getMilestoneCrisis'], maxT
   if (!fn) return { ok: true };
   try {
     const turn1 = fn(1, maxTurns);
-    if (!turn1 || !turn1.title || !turn1.crisis || !turn1.options || turn1.options.length < 2) {
+    if (!turn1 || !turn1.title || !(turn1.description || turn1.crisis) || !turn1.options || turn1.options.length < 2) {
       return { ok: false, error: 'Turn 1 milestone invalid or missing' };
     }
     const last = fn(maxTurns, maxTurns);
-    if (!last || !last.title || !last.crisis) {
+    if (!last || !last.title || !(last.description || last.crisis)) {
       return { ok: false, error: 'Final turn milestone invalid or missing' };
     }
     const mid = fn(Math.floor(maxTurns / 2), maxTurns);

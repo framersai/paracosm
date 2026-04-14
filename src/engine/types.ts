@@ -287,6 +287,8 @@ export interface EventOptionDef {
 export interface MilestoneEventDef {
   title: string;
   description: string;
+  /** @deprecated Use description */
+  crisis?: string;
   options: EventOptionDef[];
   riskyOptionId: string;
   riskSuccessProbability: number;

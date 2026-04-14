@@ -9,6 +9,7 @@ import type { MilestoneCrisisDef } from '../types.js';
 
 const LANDFALL: MilestoneCrisisDef = {
   title: 'Landfall',
+  description: `Your colony ship has entered Mars orbit. You must choose a landing site for the first permanent settlement.`,
   crisis: `Your colony ship has entered Mars orbit. You must choose a landing site for the first permanent settlement. Two candidates:
 
 OPTION A: Arcadia Planitia \u2014 flat basalt plains at 47\u00b0N. Stable terrain, minimal landslide risk, access to subsurface ice deposits detected by Mars Express MARSIS radar. Geologically unremarkable.
@@ -32,6 +33,7 @@ Research the real science of Mars landing site selection and make your decision.
 
 const LEGACY_ASSESSMENT: MilestoneCrisisDef = {
   title: 'Legacy Assessment',
+  description: 'Earth requests a comprehensive status report on your colony. Assess your legacy.',
   crisis: `Earth requests a comprehensive status report on your colony:
 
 1. POPULATION: Current count, birth rate, death rate, immigration status
