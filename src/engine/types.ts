@@ -255,37 +255,39 @@ export interface ScenarioHooks {
   progressionHook?: (ctx: ProgressionHookContext) => void;
   /** Builds department-specific prompt context lines for LLM department agents */
   departmentPromptHook?: (ctx: PromptHookContext) => string[];
-  /** Returns the Crisis Director's system instructions for this scenario */
+  /** Returns the Event Director's system instructions for this scenario */
   directorInstructions?: () => string;
-  /** Builds the Crisis Director's per-turn context prompt */
+  /** Builds the Event Director's per-turn context prompt */
   directorPromptHook?: (ctx: Record<string, unknown>) => string;
-  /** Returns location/identity/health phrasing for colonist reaction prompts */
+  /** Returns location/identity/health phrasing for agent reaction prompts */
   reactionContextHook?: (colonist: Agent, ctx: { year: number; turn: number }) => string;
   /** Computes a timeline fingerprint classification from final simulation state */
   fingerprintHook?: (finalState: SimulationState, outcomeLog: Array<{ turn: number; year: number; outcome: string }>, leader: LeaderConfig, toolRegs: Record<string, string[]>, maxTurns: number) => Record<string, string>;
-  /** Returns a milestone crisis for narrative anchor turns (turn 1, final turn) */
+  /** Returns a milestone event for narrative anchor turns (turn 1, final turn) */
+  getMilestoneEvent?: (turn: number, maxTurns: number) => MilestoneEventDef | null;
+  /** @deprecated Use getMilestoneEvent */
   getMilestoneCrisis?: (turn: number, maxTurns: number) => MilestoneCrisisDef | null;
-  /** Returns politics deltas for political/social crises, null if not applicable */
+  /** Returns politics deltas for political/social events, null if not applicable */
   politicsHook?: (category: string, outcome: string) => Record<string, number> | null;
 }
 
 // ---------------------------------------------------------------------------
-// Crisis definitions
+// Event definitions (scenario-driven turn events)
 // ---------------------------------------------------------------------------
 
-/** A crisis option presented to the commander. */
-export interface CrisisOptionDef {
+/** An option presented to the commander for a turn event. */
+export interface EventOptionDef {
   id: string;
   label: string;
   description: string;
   isRisky: boolean;
 }
 
-/** A milestone crisis (fixed narrative anchor, e.g., turn 1 landing or final assessment). */
-export interface MilestoneCrisisDef {
+/** A milestone event (fixed narrative anchor, e.g., turn 1 founding or final assessment). */
+export interface MilestoneEventDef {
   title: string;
-  crisis: string;
-  options: CrisisOptionDef[];
+  description: string;
+  options: EventOptionDef[];
   riskyOptionId: string;
   riskSuccessProbability: number;
   category: string;
@@ -304,8 +306,14 @@ export interface Scenario {
   snapshotHints: Record<string, unknown>;
   riskyOption: string;
   riskSuccessProbability: number;
-  options?: CrisisOptionDef[];
+  options?: EventOptionDef[];
 }
+
+// Backward-compatible aliases
+/** @deprecated Use EventOptionDef */
+export type CrisisOptionDef = EventOptionDef;
+/** @deprecated Use MilestoneEventDef */
+export type MilestoneCrisisDef = MilestoneEventDef;
 
 // ---------------------------------------------------------------------------
 // Leader config
