@@ -33,9 +33,9 @@
 <style>
 :root{--bg:#0a0806;--bg2:#14110e;--bg3:#1c1915;--bg4:#242018;--border:#302a22;--border-hl:#4a3f30;--t1:#f5f0e4;--t2:#d8ccb0;--t3:#a89878;--t4:#6b5f50;--rust:#e06530;--rust-d:#8b3d1e;--amber:#e8b44a;--amber-d:#8b6a2e;--teal:#4ca8a8;--teal-d:#2a5f5f;--green:#6aad48;--pc-line:#f5f0e4;--mono:'JetBrains Mono','SF Mono',Menlo,monospace;--sans:'Inter',system-ui,-apple-system,sans-serif;--grad:linear-gradient(135deg,#e06530,#e8b44a,#4ca8a8);color-scheme:dark}
 .light{--bg:#f0e6d2;--bg2:#d8cab0;--bg3:#f8f2e4;--bg4:#e4d8c0;--border:#b8a888;--border-hl:#9a8868;--t1:#1a1208;--t2:#2e2418;--t3:#4a3e2c;--t4:#6a5c44;--rust:#a83810;--rust-d:#6a2808;--amber:#7a5200;--amber-d:#523800;--teal:#186060;--teal-d:#0e4040;--green:#305a10;--pc-line:#8a7e6c;--grad:linear-gradient(135deg,#a83810,#7a5200,#186060);color-scheme:light}
-@keyframes pc-spin{to{transform:rotate(360deg)}}@keyframes pc-spin-rev{to{transform:rotate(-360deg)}}@keyframes pc-pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.12);opacity:.85}}@keyframes pc-glow{0%,100%{transform:scale(1);opacity:.08}50%{transform:scale(1.3);opacity:.2}}
-.pc-orbit{animation:pc-spin 90s linear infinite;transform-origin:50% 50%}.pc-cross{animation:pc-spin-rev 120s linear infinite;transform-origin:50% 50%}.pc-hub{animation:pc-pulse 4s ease-in-out infinite;transform-origin:50% 50%}.pc-hub-glow{animation:pc-glow 4s ease-in-out infinite;transform-origin:50% 50%}
-@media(prefers-reduced-motion:reduce){.pc-orbit,.pc-cross,.pc-hub,.pc-hub-glow{animation:none!important}}
+@keyframes pc-hub-pulse{0%,100%{opacity:1}50%{opacity:.75}}@keyframes pc-glow-breathe{0%,100%{opacity:.06}50%{opacity:.15}}@keyframes pc-spoke-breathe{0%,100%{opacity:.5}50%{opacity:.35}}@keyframes pc-cross-breathe{0%,100%{opacity:.18}50%{opacity:.1}}
+.pc-hub{animation:pc-hub-pulse 4s ease-in-out infinite}.pc-hub-glow{animation:pc-glow-breathe 4s ease-in-out infinite}.pc-orbit line{animation:pc-spoke-breathe 6s ease-in-out infinite}.pc-cross line{animation:pc-cross-breathe 8s ease-in-out infinite}
+@media(prefers-reduced-motion:reduce){.pc-hub,.pc-hub-glow,.pc-orbit line,.pc-cross line{animation:none!important}}
 *{margin:0;padding:0;box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{background:var(--bg);color:var(--t1);font-family:var(--sans);-webkit-font-smoothing:antialiased;overflow-x:hidden;font-size:14px;line-height:1.6;background-image:radial-gradient(ellipse 100% 60% at 50% 0%,rgba(20,17,14,1) 0%,var(--bg) 50%)}
