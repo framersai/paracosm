@@ -582,7 +582,7 @@ Respond in character as this person. Be direct, personal, emotional. Reference y
             html = html.replace(/src="media\//g, 'src="/docs/media/');
             // Add our CSS override + fonts + favicon
             html = html.replace('</head>',
-              `<link rel="icon" type="image/svg+xml" href="/icon.svg"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="/docs/assets/paracosm-override.css"></head>`
+              `<link rel="icon" type="image/svg+xml" href="/icon.svg"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="/docs/assets/paracosm-override.css"><style>body{padding-top:44px!important}.paracosm-docs-header{position:fixed!important;top:0!important;left:0!important;right:0!important;z-index:9999!important}header.tsd-page-toolbar{top:44px!important}</style></head>`
             );
             // Inject nav header after <body>
             html = html.replace(/<body[^>]*>/, `$&
