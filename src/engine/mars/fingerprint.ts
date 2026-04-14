@@ -12,8 +12,8 @@ export function marsFingerprint(
   const riskyWins = outcomeLog.filter((o: any) => o.outcome === 'risky_success').length;
   const riskyLosses = outcomeLog.filter((o: any) => o.outcome === 'risky_failure').length;
   const conservativeWins = outcomeLog.filter((o: any) => o.outcome === 'conservative_success').length;
-  const aliveCount = finalState.colonists.filter((c: any) => c.health.alive).length;
-  const marsBorn = finalState.colonists.filter((c: any) => c.health.alive && c.core.marsborn).length;
+  const aliveCount = finalState.agents.filter((c: any) => c.health.alive).length;
+  const marsBorn = finalState.agents.filter((c: any) => c.health.alive && c.core.marsborn).length;
   const totalTools = Object.values(toolRegs).flat().length;
 
   const resilience = finalState.colony.morale > 0.6 ? 'antifragile' : finalState.colony.morale > 0.35 ? 'resilient' : 'brittle';

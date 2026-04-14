@@ -1,146 +1,235 @@
 @import "tailwindcss";
 
-/* AgentOS Design System — adapted from agentos.sh/globals.css */
+/* Paracosm Design System
+   Bloomberg terminal meets glassmorphic cockpit.
+   Dense. Warm. Monospace-forward. Every pixel earns its space. */
 
 @layer base {
-  *,
-  *::before,
-  *::after {
-    box-sizing: border-box;
-  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   html {
-    width: 100%;
-    height: 100%;
-    margin: 0;
-    padding: 0;
+    width: 100%; height: 100%;
     overflow-x: hidden;
+    color-scheme: dark;
   }
 
   body {
-    width: 100%;
-    min-height: 100vh;
-    margin: 0;
-    padding: 0;
+    width: 100%; min-height: 100vh;
     overflow-x: hidden;
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: var(--bg-deep);
+    color: var(--text-1);
+    font-family: var(--sans);
+    font-size: 12px;
+    line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
   :root {
-    color-scheme: light;
-
-    /* Backgrounds */
-    --bg-primary: hsl(220, 30%, 98%);
-    --bg-secondary: hsl(220, 40%, 96%);
-    --bg-tertiary: hsl(220, 40%, 93%);
-    --bg-glass: hsla(220, 30%, 98%, 0.85);
-    --bg-card: hsl(0, 0%, 100%);
-    --bg-elevated: hsl(0, 0%, 100%);
-
-    /* Text */
-    --text-primary: hsl(222, 47%, 11%);
-    --text-secondary: hsl(220, 35%, 25%);
-    --text-muted: hsl(220, 25%, 32%);
-    --text-placeholder: hsl(220, 20%, 50%);
-    --text-contrast: hsl(0, 0%, 100%);
-
-    /* Accents */
-    --accent-primary: hsl(250, 95%, 55%);
-    --accent-secondary: hsl(280, 85%, 50%);
-    --accent-warm: hsl(25, 95%, 50%);
-    --accent-hover: hsl(250, 95%, 58%);
-    --accent-gradient: linear-gradient(135deg, hsl(250, 95%, 64%), hsl(290, 90%, 60%));
-
-    /* Borders */
-    --border-primary: hsl(220, 25%, 82%);
-    --border-subtle: hsl(220, 20%, 88%);
-    --border-interactive: hsl(250, 95%, 55%);
-
-    /* States */
-    --color-success: hsl(150, 100%, 35%);
-    --color-warning: hsl(40, 100%, 50%);
-    --color-error: hsl(350, 90%, 60%);
-
-    /* Simulation: side colors */
-    --side-a: hsl(250, 95%, 55%);
-    --side-b: hsl(180, 85%, 45%);
-
-    /* Effects */
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-    --shadow-md: 0 4px 12px rgba(160, 170, 190, 0.12), 0 1px 3px rgba(0, 0, 0, 0.08);
-    --shadow-glass: 0 20px 60px -30px rgba(15, 23, 42, 0.2);
-    --glass-surface: rgba(252, 253, 255, 0.92);
-    --glass-border: rgba(230, 235, 245, 0.95);
-
-    /* Radius */
-    --radius-sm: 6px;
-    --radius-md: 8px;
-    --radius-lg: 12px;
-    --radius-xl: 16px;
-
-    /* Mono font */
-    --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
-  }
-
-  .dark {
     color-scheme: dark;
 
-    /* Backgrounds */
-    --bg-primary: hsl(240, 20%, 3%);
-    --bg-secondary: hsl(240, 15%, 6%);
-    --bg-tertiary: hsl(240, 15%, 9%);
-    --bg-glass: hsla(240, 20%, 3%, 0.8);
-    --bg-card: hsl(240, 18%, 5%);
-    --bg-elevated: hsl(240, 18%, 10%);
+    /* === FONTS === */
+    --sans: 'Inter', system-ui, -apple-system, sans-serif;
+    --mono: 'JetBrains Mono', 'SF Mono', Menlo, 'Cascadia Code', monospace;
 
-    /* Text */
-    --text-primary: hsl(220, 30%, 97%);
-    --text-secondary: hsl(220, 25%, 82%);
-    --text-muted: hsl(220, 22%, 74%);
-    --text-placeholder: hsl(220, 18%, 55%);
-    --text-contrast: hsl(0, 0%, 100%);
+    /* === BACKGROUNDS — warm deep blacks === */
+    --bg-deep: #0a0806;
+    --bg-panel: #14110e;
+    --bg-card: #1c1915;
+    --bg-input: #0e0c0a;
+    --bg-elevated: #242018;
 
-    /* Accents */
-    --accent-primary: hsl(250, 100%, 70%);
-    --accent-secondary: hsl(290, 100%, 70%);
-    --accent-warm: hsl(30, 100%, 65%);
-    --accent-hover: hsl(250, 100%, 75%);
-    --accent-gradient: linear-gradient(135deg, hsl(250, 100%, 65%), hsl(290, 100%, 65%));
+    /* Glassmorphic surfaces */
+    --glass-bg: rgba(20, 17, 14, 0.75);
+    --glass-border: rgba(48, 42, 34, 0.5);
+    --glass-blur: 12px;
+    --glass-shadow: 0 4px 24px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.3);
+    --glass-glow: 0 0 30px rgba(232, 180, 74, 0.04);
 
-    /* Borders */
-    --border-primary: hsl(240, 20%, 18%);
-    --border-subtle: hsl(240, 20%, 12%);
-    --border-interactive: hsl(250, 100%, 60%);
+    /* Inset / 3D depth */
+    --inset-shadow: inset 0 1px 0 rgba(255, 240, 200, 0.03), inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+    --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 1px rgba(232, 180, 74, 0.1);
+    --raised-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.3);
 
-    /* States */
-    --color-success: hsl(150, 90%, 45%);
-    --color-warning: hsl(40, 100%, 60%);
-    --color-error: hsl(350, 90%, 65%);
+    /* === TEXT — warm off-whites === */
+    --text-1: #f5f0e4;
+    --text-2: #d8ccb0;
+    --text-3: #a89878;
+    --text-4: #6b5f50;
 
-    /* Simulation: side colors */
-    --side-a: hsl(40, 90%, 60%);
-    --side-b: hsl(180, 85%, 55%);
+    /* Legacy aliases for components that use these */
+    --text-primary: var(--text-1);
+    --text-secondary: var(--text-2);
+    --text-muted: var(--text-3);
+    --text-placeholder: var(--text-4);
+    --text-contrast: #0a0806;
+    --bg-primary: var(--bg-deep);
+    --bg-secondary: var(--bg-panel);
+    --bg-tertiary: var(--bg-card);
 
-    /* Effects */
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
-    --shadow-glass: 0 20px 60px -30px rgba(0, 0, 0, 0.6);
-    --glass-surface: rgba(15, 15, 30, 0.8);
-    --glass-border: rgba(40, 40, 70, 0.5);
+    /* === ACCENTS === */
+    --rust: #e06530;
+    --rust-dim: #8b3d1e;
+    --rust-glow: rgba(224, 101, 48, 0.15);
+    --amber: #e8b44a;
+    --amber-dim: #8b6a2e;
+    --amber-glow: rgba(232, 180, 74, 0.12);
+    --teal: #4ca8a8;
+    --teal-dim: #2a5f5f;
+    --teal-glow: rgba(76, 168, 168, 0.12);
+    --green: #6aad48;
+    --green-dim: #3a5f28;
+    --green-glow: rgba(106, 173, 72, 0.12);
+
+    /* Legacy accent aliases */
+    --accent-primary: var(--amber);
+    --accent-secondary: var(--rust);
+    --accent-warm: var(--rust);
+    --accent-hover: #f0c060;
+
+    /* === BORDERS === */
+    --border: #302a22;
+    --border-hl: #4a3f30;
+    --border-primary: var(--border);
+    --border-subtle: #242018;
+    --border-interactive: var(--border-hl);
+
+    /* === SIDE COLORS (Visionary vs Engineer) === */
+    --vis: #e8b44a;
+    --eng: #4ca8a8;
+    --side-a: var(--vis);
+    --side-b: var(--eng);
+
+    /* === STATES === */
+    --color-success: var(--green);
+    --color-warning: var(--amber);
+    --color-error: var(--rust);
+
+    /* === EFFECTS === */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+
+    /* === RADIUS — tight, not rounded === */
+    --radius-sm: 3px;
+    --radius-md: 4px;
+    --radius-lg: 6px;
+    --radius-xl: 8px;
   }
 
-  @keyframes slideIn {
-    from { transform: translateX(100%); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
+  /* === LIGHT MODE === */
+  .light {
+    color-scheme: light;
+    --bg-deep: #faf8f5;
+    --bg-panel: #f0ece5;
+    --bg-card: #ffffff;
+    --bg-input: #ffffff;
+    --bg-elevated: #f5f2ec;
+    --glass-bg: rgba(255, 255, 255, 0.8);
+    --glass-border: rgba(200, 190, 170, 0.5);
+    --glass-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+    --inset-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), inset 0 -1px 0 rgba(0, 0, 0, 0.04);
+    --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    --text-1: #1a1612;
+    --text-2: #4a3f30;
+    --text-3: #8a7e6c;
+    --text-4: #b0a690;
+    --text-contrast: #ffffff;
+    --rust: #c45a2c;
+    --amber: #c4920a;
+    --teal: #3d8b8b;
+    --green: #4a8a30;
+    --border: #d8ccb0;
+    --border-hl: #c4b090;
+    --vis: #c45a2c;
+    --eng: #3d8b8b;
   }
 
-  /* Scrollbar styling */
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
-  ::-webkit-scrollbar-track { background: var(--bg-primary); }
-  ::-webkit-scrollbar-thumb { background: var(--border-primary); border-radius: 3px; }
-  ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+  /* === GLOBAL TYPOGRAPHY === */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--mono);
+    color: var(--text-1);
+    line-height: 1.3;
+  }
+
+  input, textarea, select, button {
+    font-family: var(--sans);
+    font-size: 12px;
+  }
+
+  code, pre, .mono {
+    font-family: var(--mono);
+  }
+
+  a {
+    color: var(--amber);
+    text-decoration: none;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
+
+  /* === SCROLLBAR === */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: var(--bg-deep); }
+  ::-webkit-scrollbar-thumb { background: var(--border-hl); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
+  ::-webkit-scrollbar-corner { background: var(--bg-deep); }
+
+  /* === FORM CONTROLS === */
+  input[type=range] { -webkit-appearance: none; background: transparent; cursor: pointer; }
+  input[type=range]::-webkit-slider-track { height: 4px; background: var(--border); border-radius: 2px; }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%;
+    margin-top: -4px; border: 2px solid var(--bg-deep); background: var(--amber);
+  }
+
+  select {
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%238a7e6c'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 6px center;
+    padding-right: 18px !important;
+  }
+
+  /* === GLASSMORPHIC CARD UTILITY === */
+  .glass-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow), var(--inset-shadow);
+    border-radius: var(--radius-md);
+  }
+
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--card-shadow);
+  }
+
+  .card-raised {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--raised-shadow), var(--inset-shadow);
+  }
+
+  /* === ANIMATIONS === */
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+  @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  @keyframes glow { 0%, 100% { box-shadow: 0 0 0 transparent; } 50% { box-shadow: 0 0 6px var(--rust-glow); } }
+  @keyframes forgeGlow {
+    0% { box-shadow: var(--card-shadow); }
+    30% { box-shadow: var(--card-shadow), 0 0 12px var(--green-glow); }
+    100% { box-shadow: var(--card-shadow), 0 0 2px var(--green-glow); }
+  }
+  @keyframes decisionPulse {
+    0% { box-shadow: var(--card-shadow); }
+    40% { box-shadow: var(--card-shadow), 0 0 15px var(--amber-glow); }
+    100% { box-shadow: var(--card-shadow), 0 0 3px var(--amber-glow); }
+  }
+  @keyframes toastIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  @keyframes toastOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
 }

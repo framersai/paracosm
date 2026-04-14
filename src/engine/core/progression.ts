@@ -1,4 +1,4 @@
-import type { Colonist, ColonySystems, TurnEvent, SimulationState, HexacoProfile, TurnOutcome } from './state.js';
+import type { Agent, WorldSystems, TurnEvent, SimulationState, HexacoProfile, TurnOutcome } from './state.js';
 import { HEXACO_TRAITS } from './state.js';
 import { SeededRng } from './rng.js';
 
@@ -18,7 +18,7 @@ export { ROLE_ACTIVATIONS };
  * Three forces: leader pull, role pull, outcome pull.
  */
 export function applyPersonalityDrift(
-  colonists: Colonist[],
+  colonists: Agent[],
   commanderHexaco: HexacoProfile,
   turnOutcome: TurnOutcome | null,
   yearDelta: number,
@@ -72,7 +72,7 @@ export function classifyOutcome(
   decisionText: string,
   riskyOption: string,
   riskSuccessProbability: number,
-  colony: ColonySystems,
+  colony: WorldSystems,
   rng: SeededRng,
 ): TurnOutcome {
   const isRisky = decisionText.toLowerCase().includes(riskyOption.toLowerCase());
@@ -99,7 +99,7 @@ export function classifyOutcomeById(
   selectedOptionId: string,
   options: Array<{ id: string; isRisky: boolean }>,
   riskSuccessProbability: number,
-  colony: ColonySystems,
+  colony: WorldSystems,
   rng: SeededRng,
 ): TurnOutcome {
   const selected = options.find(o => o.id === selectedOptionId);
@@ -127,12 +127,12 @@ export function progressBetweenTurns(
   state: SimulationState,
   yearDelta: number,
   turnRng: SeededRng,
-  progressionHook?: (ctx: { colonists: any[]; yearDelta: number; year: number; turn: number; startYear: number; rng: any }) => void,
+  progressionHook?: (ctx: { agents: any[]; yearDelta: number; year: number; turn: number; startYear: number; rng: any }) => void,
 ): { state: SimulationState; events: TurnEvent[] } {
   const events: TurnEvent[] = [];
   const year = state.metadata.currentYear;
   const turn = state.metadata.currentTurn;
-  let colonists = state.colonists.map(c => structuredClone(c));
+  let colonists = state.agents.map(c => structuredClone(c));
   let colony = structuredClone(state.colony);
 
   // 1. Age all colonists (generic: experience, earth contacts)
@@ -148,7 +148,7 @@ export function progressBetweenTurns(
 
   // 1b. Scenario-specific progression (radiation, bone density, etc.)
   if (progressionHook) {
-    progressionHook({ colonists, yearDelta, year, turn, startYear: state.metadata.startYear, rng: turnRng });
+    progressionHook({ agents: colonists, yearDelta, year, turn, startYear: state.metadata.startYear, rng: turnRng });
   }
 
   // 2. Natural mortality
@@ -171,7 +171,7 @@ export function progressBetweenTurns(
       c.health.deathYear = year;
       c.health.deathCause = age >= 80 ? 'natural causes' : 'age-related complications';
       c.narrative.lifeEvents.push({ year, event: `Died at age ${age} (${c.health.deathCause})`, source: 'kernel' });
-      events.push({ turn, year, type: 'death', description: `${c.core.name} died at age ${age}`, colonistId: c.core.id });
+      events.push({ turn, year, type: 'death', description: `${c.core.name} died at age ${age}`, agentId: c.core.id });
     }
   }
 
@@ -193,7 +193,7 @@ export function progressBetweenTurns(
           (p1.hexaco[trait] + p2.hexaco[trait]) / 2 + turnRng.next() * 0.1 - 0.05
         ));
       }
-      const child: Colonist = {
+      const child: Agent = {
         core: { id: childId, name: childName, birthYear: year, marsborn: true, department: 'science', role: 'Child' },
         health: { alive: true, boneDensityPct: 88, cumulativeRadiationMsv: 0, psychScore: 0.9, conditions: [] },
         career: { specialization: 'Undetermined', yearsExperience: 0, rank: 'junior', achievements: ['Born on Mars'] },
@@ -201,13 +201,14 @@ export function progressBetweenTurns(
         narrative: { lifeEvents: [{ year, event: `Born on Mars to ${p1.core.name} and ${p2.core.name}`, source: 'kernel' }], featured: false },
         hexaco: childHexaco,
         hexacoHistory: [{ turn, year, hexaco: { ...childHexaco } }],
+        memory: { shortTerm: [], longTerm: [], stances: {}, relationships: {} },
       };
       p1.social.childrenIds.push(childId);
       p2.social.childrenIds.push(childId);
       p1.narrative.lifeEvents.push({ year, event: `Child born: ${childName}`, source: 'kernel' });
       p2.narrative.lifeEvents.push({ year, event: `Child born: ${childName}`, source: 'kernel' });
       colonists.push(child);
-      events.push({ turn, year, type: 'birth', description: `${childName} born to ${p1.core.name} and ${p2.core.name}`, colonistId: childId });
+      events.push({ turn, year, type: 'birth', description: `${childName} born to ${p1.core.name} and ${p2.core.name}`, agentId: childId });
     }
   }
 
@@ -230,18 +231,18 @@ export function progressBetweenTurns(
     if (c.career.rank === 'junior' && c.career.yearsExperience >= 5 && turnRng.chance(0.15 * yearDelta)) {
       c.career.rank = 'senior';
       c.narrative.lifeEvents.push({ year, event: `Promoted to Senior ${c.career.specialization}`, source: 'kernel' });
-      events.push({ turn, year, type: 'promotion', description: `${c.core.name} promoted to senior`, colonistId: c.core.id });
+      events.push({ turn, year, type: 'promotion', description: `${c.core.name} promoted to senior`, agentId: c.core.id });
     }
     if (c.career.rank === 'senior' && c.career.yearsExperience >= 12 && turnRng.chance(0.08 * yearDelta)) {
       c.career.rank = 'lead';
       c.narrative.lifeEvents.push({ year, event: `Promoted to Lead ${c.career.specialization}`, source: 'kernel' });
-      events.push({ turn, year, type: 'promotion', description: `${c.core.name} promoted to lead`, colonistId: c.core.id });
+      events.push({ turn, year, type: 'promotion', description: `${c.core.name} promoted to lead`, agentId: c.core.id });
     }
   }
 
   // 5. Relationship-driven psych effects
   // Deaths cause grief in partners, children, and friends
-  const deadThisTurn = new Set(events.filter(e => e.type === 'death' && e.colonistId).map(e => e.colonistId!));
+  const deadThisTurn = new Set(events.filter(e => e.type === 'death' && e.agentId).map(e => e.agentId!));
   for (const c of colonists) {
     if (!c.health.alive) continue;
 
@@ -292,7 +293,7 @@ export function progressBetweenTurns(
       singles[i + 1].social.partnerId = singles[i].core.id;
       singles[i].narrative.lifeEvents.push({ year, event: `Partnered with ${singles[i + 1].core.name}`, source: 'kernel' });
       singles[i + 1].narrative.lifeEvents.push({ year, event: `Partnered with ${singles[i].core.name}`, source: 'kernel' });
-      events.push({ turn, year, type: 'relationship', description: `${singles[i].core.name} and ${singles[i + 1].core.name} partnered`, colonistId: singles[i].core.id });
+      events.push({ turn, year, type: 'relationship', description: `${singles[i].core.name} and ${singles[i + 1].core.name} partnered`, agentId: singles[i].core.id });
     }
   }
 
@@ -325,7 +326,7 @@ export function progressBetweenTurns(
   colony.scienceOutput += yearDelta;
 
   return {
-    state: { ...state, colonists, colony, eventLog: [...state.eventLog, ...events] },
+    state: { ...state, agents: colonists, colony, eventLog: [...state.eventLog, ...events] },
     events,
   };
 }

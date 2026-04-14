@@ -51,7 +51,7 @@ test('Mars scenario progression hook modifies colonist radiation', () => {
     career: { yearsExperience: 0 },
   };
   marsScenario.hooks.progressionHook!({
-    colonists: [colonist as any],
+    agents: [colonist as any],
     yearDelta: 1,
     year: 2036,
     turn: 1,
@@ -80,7 +80,7 @@ test('marsScenario hooks are all registered', () => {
 
 test('marsScenario.hooks.fingerprintHook produces valid fingerprint', () => {
   const fp = marsScenario.hooks.fingerprintHook!(
-    { colony: { morale: 0.7 }, politics: { earthDependencyPct: 50 }, colonists: [{ health: { alive: true }, core: { marsborn: false } }] },
+    { colony: { morale: 0.7 }, politics: { earthDependencyPct: 50 }, agents: [{ health: { alive: true }, core: { marsborn: false } }] },
     [{ turn: 1, year: 2035, outcome: 'conservative_success' }],
     { hexaco: { extraversion: 0.5, conscientiousness: 0.5 } },
     {}, 3,

@@ -15,6 +15,26 @@ const FAQ: FaqItem[] = [
     a: 'Two AI commanders with distinct HEXACO personality profiles lead the same settlement through a series of turns. Each turn: a Crisis Director generates a crisis based on colony state and decision history, department agents analyze and forge computational tools, the commander decides, and the deterministic kernel applies the outcome. Same seed, same starting conditions, different personalities, different civilizations.',
   },
   {
+    q: 'How much does Paracosm cost?',
+    a: 'The core engine, Mars Genesis and Lunar Outpost scenarios, CLI, dashboard, and batch runner are free and open source under the Apache-2.0 license. Pro ($49/mo) adds the Scenario Compiler, hosted dashboard, persistent run history, and API access. Enterprise ($499/mo) adds private deployment, custom scenario authoring studio, SSO, audit trails, and SLA. All paid tiers are coming soon.',
+  },
+  {
+    q: 'What is the Scenario Compiler?',
+    a: 'The Scenario Compiler takes a JSON file describing your world and generates all runtime hooks via LLM calls. No TypeScript required. Define departments, metrics, crisis categories, and effects in JSON. The compiler generates progression hooks, Crisis Director instructions, milestone crises, fingerprint classification, politics deltas, and reaction context. Costs approximately $0.10 per compile, cached after first generation.',
+  },
+  {
+    q: 'How many simulations can I run?',
+    a: 'There is no limit. The open-source engine runs locally on a single process. The batch runner executes multiple scenarios and seeds in sequence. Enterprise supports hundreds of concurrent simulations with orchestration, cost tracking, and structured experiment manifests. The engine scales horizontally because each simulation is an independent stateless process.',
+  },
+  {
+    q: 'What scenarios are available?',
+    a: 'Mars Genesis (100-colonist Mars colony over 50 years) is the flagship. Lunar Outpost (50-person crew at the lunar south pole) proves the engine works with different departments, progression, and milestones. The Scenario Compiler lets you create any closed-state, turn-based settlement simulation: Antarctic stations, orbital habitats, submarine habitats, generation ships, corporate acquisitions, defense wargames.',
+  },
+  {
+    q: 'What verticals does Paracosm support?',
+    a: 'Defense and intelligence (wargaming, scenario planning), corporate strategy (acquisition simulation, leadership modeling), game studios (procedural NPC civilizations, emergent narratives), academic research (controlled experiments in AI decision-making), government (policy impact simulation), and any domain where testing decisions before making them has value.',
+  },
+  {
     q: 'What is the Crisis Director?',
     a: 'The Crisis Director is an LLM agent that observes colony state, resource levels, population, morale, decision history, and tool intelligence from previous turns. It generates unique crises per timeline that test weaknesses, exploit consequences of prior decisions, and escalate over time. No two runs play the same way.',
   },
@@ -24,11 +44,7 @@ const FAQ: FaqItem[] = [
   },
   {
     q: 'What is HEXACO personality?',
-    a: 'HEXACO is a six-factor personality model: Honesty-Humility, Emotionality, Extraversion, Agreeableness, Conscientiousness, and Openness to Experience. Each commander and promoted department head has a HEXACO profile that influences their decisions. Traits drift over time through leader pull (convergence toward the commander), role pull (department activates specific traits), and outcome pull (success/failure reinforces behaviors).',
-  },
-  {
-    q: 'What scenarios are available?',
-    a: 'Mars Genesis (100-colonist Mars colony over 50 years) is the flagship. Lunar Outpost (50-person crew at the lunar south pole) proves the engine works with different departments, progression, and milestones. The engine supports any closed-state, turn-based settlement simulation: Antarctic stations, orbital habitats, submarine habitats, generation ships.',
+    a: 'HEXACO is a six-factor personality model from psychology research: Honesty-Humility, Emotionality, Extraversion, Agreeableness, Conscientiousness, and Openness to Experience. Each trait is a continuous 0-1 value, not a categorical type. Traits drift over time through leader pull, role pull, and outcome reinforcement, producing measurably different behavior across turns.',
   },
   {
     q: 'Is the simulation deterministic?',
@@ -36,7 +52,7 @@ const FAQ: FaqItem[] = [
   },
   {
     q: 'Can I create my own scenario?',
-    a: 'Yes. Define a ScenarioPackage with your world (departments, metrics, crises, progression hooks, research citations) and pass it to runSimulation(). See src/engine/_template/ for starter files. The engine runs any scenario that satisfies the ScenarioPackage interface without editing engine code.',
+    a: 'Two ways. Write a ScenarioPackage in TypeScript with full control over hooks and progression logic. Or use the Scenario Compiler: write a JSON file describing your world and let the compiler generate all hooks via LLM. Both produce a package that runs through the same engine without editing engine code.',
   },
   {
     q: 'What is AgentOS?',
@@ -46,84 +62,250 @@ const FAQ: FaqItem[] = [
     q: 'What LLM providers are supported?',
     a: 'OpenAI (GPT-5.4, GPT-5.4-mini) and Anthropic (Claude Sonnet 4.6, Claude Haiku 4.5) are supported. Different models can be assigned to different roles: commander, departments, judge, and crisis director. The simulation adapts its API calls to whichever provider you configure.',
   },
+  {
+    q: 'Is this open source or commercial?',
+    a: 'Both. The core engine is open source under Apache-2.0. You can use it freely in any project, including commercial products, without restrictions. The enterprise platform (hosted dashboard, white-label UI, scenario authoring studio, multi-tenant orchestration) is a paid product built on the open core. This is the same model used by the most successful open-source AI platforms: free engine, paid infrastructure and services.',
+  },
+  {
+    q: 'Can I white-label Paracosm for my organization?',
+    a: 'Yes. The Platform tier provides full white-label capability: your brand, your domain, your dashboard theme. The entire simulation experience, including dashboards, reports, and scenario selection, carries your visual identity. The underlying engine runs the same deterministic simulation. Available with the Platform tier.',
+  },
+];
+
+interface PricingTier {
+  name: string;
+  price: string;
+  period: string;
+  description: string;
+  features: string[];
+  cta: { label: string; href: string };
+  highlight?: boolean;
+  badge?: string;
+}
+
+const PRICING: PricingTier[] = [
+  {
+    name: 'Open Source',
+    price: 'Free',
+    period: 'forever',
+    description: 'The full engine, two scenarios, CLI, dashboard, and batch runner.',
+    features: [
+      'Paracosm engine (Apache-2.0)',
+      'Mars Genesis + Lunar Outpost scenarios',
+      'React dashboard with live SSE streaming',
+      'Batch runner for multi-scenario experiments',
+      'TypeScript SDK with full type definitions',
+      'Community support via Discord',
+    ],
+    cta: { label: 'View on GitHub', href: 'https://github.com/framersai/paracosm' },
+  },
+  {
+    name: 'Pro',
+    price: '$49',
+    period: '/month',
+    description: 'Zero-code scenario creation, hosted dashboard, API access.',
+    features: [
+      'Everything in Open Source',
+      'Scenario Compiler (JSON to hooks via LLM)',
+      'Hosted dashboard at paracosm.agentos.sh',
+      'Persistent run history (Postgres)',
+      'REST API for programmatic simulation',
+      'PDF report export',
+      'Priority model access (Claude, GPT-5.4)',
+    ],
+    cta: { label: 'Join Waitlist', href: 'mailto:team@frame.dev?subject=Paracosm Pro Waitlist' },
+    badge: 'Coming Soon',
+  },
+  {
+    name: 'Enterprise',
+    price: '$499',
+    period: '/month + usage',
+    description: 'Private deployment, custom scenarios, audit trails, SLA.',
+    features: [
+      'Everything in Pro',
+      'Private deployment (Docker/K8s)',
+      'Custom Scenario Authoring Studio',
+      'SSO / SAML integration',
+      'Full audit trails with provenance',
+      'Multi-tenant with RBAC',
+      '99.9% uptime SLA',
+    ],
+    cta: { label: 'Contact Sales', href: 'mailto:team@frame.dev?subject=Paracosm Enterprise Inquiry' },
+    highlight: true,
+    badge: 'Coming Soon',
+  },
+  {
+    name: 'Platform',
+    price: 'Custom',
+    period: 'pricing',
+    description: 'White-label, multi-simulation orchestration, marketplace.',
+    features: [
+      'Everything in Enterprise',
+      'White-label (your brand, your domain)',
+      '100+ concurrent simulation orchestration',
+      'Custom LLM integration (bring your own models)',
+      'Webhook ecosystem (Slack, Teams, Jira)',
+      'Scenario Marketplace (publish and sell)',
+      'Dedicated infrastructure',
+    ],
+    cta: { label: 'Contact Sales', href: 'mailto:team@frame.dev?subject=Paracosm Platform Inquiry' },
+    badge: 'Coming Soon',
+  },
 ];
 
 export function AboutPage() {
   const scenario = useScenarioContext();
 
   return (
-    <div className="flex-1 overflow-y-auto p-6">
-      <div className="max-w-3xl mx-auto">
+    <div style={{ flex: 1, overflowY: 'auto', padding: '32px 48px', background: 'var(--bg-deep)', maxWidth: '100%' }}>
+      <div style={{ maxWidth: '900px' }}>
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-extrabold mb-2" style={{ color: 'var(--text-primary)' }}>
+        <div style={{ marginBottom: '24px' }}>
+          <h1 style={{ fontSize: '22px', color: 'var(--amber)', fontFamily: 'var(--mono)', marginBottom: '8px' }}>
             Paracosm
           </h1>
-          <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-            Closed-state, turn-based settlement simulation engine with emergent crises, runtime tool forging,
-            HEXACO personality evolution, and a deterministic kernel. Currently running: <strong style={{ color: 'var(--accent-primary)' }}>{scenario.labels.name}</strong>.
+          <p style={{ color: 'var(--text-2)', lineHeight: 1.8, fontSize: '14px' }}>
+            Scenario-driven multi-agent simulation engine with emergent AI crisis generation, runtime tool forging,
+            HEXACO personality evolution, and a deterministic kernel. Define any closed-state settlement simulation
+            and run it without editing engine code. Currently running: <strong style={{ color: 'var(--amber)' }}>{scenario.labels.name}</strong>.
           </p>
         </div>
 
         {/* How it works */}
-        <section className="mb-8">
-          <h2 className="text-lg font-bold mb-3" style={{ color: 'var(--text-primary)' }}>How It Works</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <section style={{ marginBottom: '24px' }}>
+          <h2 style={{ fontSize: '20px', color: 'var(--amber)', fontFamily: 'var(--mono)', paddingBottom: '8px', borderBottom: '1px solid var(--border)', marginBottom: '14px' }}>
+            How It Works
+          </h2>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             {[
-              { icon: '🎯', title: 'Crisis Director', desc: 'AI generates unique crises per timeline based on colony state, decision history, and tool intelligence.' },
-              { icon: '🔧', title: 'Tool Forging', desc: 'Department agents create computational tools at runtime. An LLM judge reviews each for safety and correctness.' },
-              { icon: '🧬', title: 'Personality Drift', desc: 'HEXACO traits evolve through leader pull, role activation, and outcome reinforcement over the simulation.' },
-              { icon: '⚙️', title: 'Deterministic Kernel', desc: 'Seeded PRNG ensures reproducibility. Same seed, same roster. Only AI decisions create divergence.' },
+              { title: 'Crisis Director', desc: 'AI generates unique crises per timeline based on settlement state, decision history, and tool intelligence.' },
+              { title: 'Tool Forging', desc: 'Department agents create computational tools at runtime. An LLM judge reviews each for safety and correctness.' },
+              { title: 'Personality Drift', desc: 'HEXACO traits evolve through leader pull, role activation, and outcome reinforcement over the simulation.' },
+              { title: 'Deterministic Kernel', desc: 'Seeded PRNG ensures reproducibility. Same seed, same roster. Only AI decisions create divergence.' },
+              { title: 'Scenario Compiler', desc: 'Describe your world in JSON. The compiler generates all runtime hooks via LLM. No TypeScript required.' },
+              { title: 'Unlimited Scenarios', desc: 'Mars, lunar, submarine, Antarctic, orbital, corporate, defense. Any closed-state settlement runs through the same engine.' },
             ].map(item => (
-              <div key={item.title} className="rounded-lg p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
-                <div className="text-xl mb-2">{item.icon}</div>
-                <h3 className="text-sm font-bold mb-1" style={{ color: 'var(--text-primary)' }}>{item.title}</h3>
-                <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>{item.desc}</p>
+              <div key={item.title} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '6px', padding: '12px 16px', boxShadow: 'var(--card-shadow)' }}>
+                <h3 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-1)', fontFamily: 'var(--mono)', marginBottom: '4px' }}>{item.title}</h3>
+                <p style={{ fontSize: '13px', color: 'var(--text-2)', lineHeight: 1.6 }}>{item.desc}</p>
               </div>
             ))}
           </div>
         </section>
 
-        {/* Enterprise banner */}
-        <section className="mb-8">
-          <div
-            className="rounded-xl p-6"
-            style={{
-              background: 'linear-gradient(135deg, var(--bg-card), var(--bg-elevated))',
-              border: '1px solid var(--border-interactive)',
-              boxShadow: '0 0 30px rgba(99, 102, 241, 0.1)',
-            }}
-          >
-            <div className="text-[10px] font-extrabold tracking-[0.2em] uppercase mb-3" style={{ color: 'var(--accent-primary)' }}>
-              Coming Soon
+        {/* Enterprise / scalability banner */}
+        <section style={{ marginBottom: '24px' }}>
+          <div style={{
+            background: 'linear-gradient(135deg, var(--bg-card), var(--bg-elevated))',
+            border: '1px solid var(--border-hl)',
+            borderRadius: '8px', padding: '20px 24px',
+            boxShadow: 'var(--raised-shadow), 0 0 30px var(--amber-glow)',
+          }}>
+            <div style={{ fontSize: '10px', fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '8px', color: 'var(--amber)', fontFamily: 'var(--mono)' }}>
+              Open Core + Enterprise
             </div>
-            <h3 className="text-lg font-bold mb-3" style={{ color: 'var(--text-primary)' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '10px', color: 'var(--text-1)', fontFamily: 'var(--mono)' }}>
               Paracosm Enterprise
             </h3>
-            <p className="text-sm leading-relaxed mb-4" style={{ color: 'var(--text-secondary)' }}>
-              An enterprise-grade backend and advanced administrative UI designed to support hundreds of concurrent simulations
-              with analytics dashboards, cost tracking, and reproducible experiment manifests. Advanced scenario presets for
-              geopolitical conflict, government policy, technology markets, economic forecasting, business acquisition modeling,
-              consumer behavior prediction, and more.
+            <p style={{ color: 'var(--text-2)', lineHeight: 1.8, fontSize: '14px', marginBottom: '12px' }}>
+              The simulation engine is open source (Apache-2.0). The enterprise platform adds the infrastructure, tooling,
+              and white-label capabilities that organizations need to run simulation at scale. Same model
+              that powers the most successful open-source AI platforms: free core, paid infrastructure and services.
             </p>
-            <p className="text-sm leading-relaxed mb-5" style={{ color: 'var(--text-secondary)' }}>
-              Run batch experiments across scenario variants. Compare outcomes with statistical rigor.
-              Export structured data for downstream analysis. Full API access for programmatic integration.
+            <p style={{ color: 'var(--text-2)', lineHeight: 1.8, fontSize: '14px', marginBottom: '12px' }}>
+              Run hundreds of concurrent simulations with full orchestration, cost tracking, and reproducible experiment manifests.
+              The Scenario Compiler generates complete runtime hooks from a JSON description of your world for approximately $0.10
+              per compile. Define any settlement, organization, or strategic scenario without writing code.
             </p>
-            <a
-              href="mailto:team@frame.dev?subject=Paracosm Enterprise Inquiry"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all"
-              style={{ background: 'var(--accent-primary)', color: 'var(--text-contrast)' }}
-            >
-              Contact team@frame.dev for collaborations and early access
-            </a>
+            <p style={{ color: 'var(--text-2)', lineHeight: 1.8, fontSize: '14px', marginBottom: '16px' }}>
+              White-label the entire experience: your brand, your domain, your dashboard theme. Custom scenario authoring studio
+              for domain experts. Private deployment on your infrastructure with SSO, audit trails, and multi-tenant access control.
+              Batch experiments across scenario variants with statistical comparison of outcomes. Full REST API.
+              Scenario Marketplace for publishing and distributing custom simulation packages.
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+              <a
+                href="mailto:team@frame.dev?subject=Paracosm Enterprise Inquiry"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '6px', fontSize: '13px', fontWeight: 700 }}
+                style={{ background: 'var(--accent-primary)', color: 'var(--text-contrast)' }}
+              >
+                Contact team@frame.dev for early access
+              </a>
+              <a
+                href="mailto:team@frame.dev?subject=Paracosm Partnership / Investment"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '6px', fontSize: '13px', fontWeight: 700 }}
+                style={{ background: 'var(--bg-elevated)', color: 'var(--accent-primary)', border: '1px solid var(--border-interactive)' }}
+              >
+                Partnership and investment inquiries
+              </a>
+            </div>
+          </div>
+        </section>
+
+        {/* Pricing */}
+        <section style={{ marginBottom: '24px' }}>
+          <h2 style={{ fontSize: '20px', color: 'var(--amber)', fontFamily: 'var(--mono)', paddingBottom: '8px', borderBottom: '1px solid var(--border)', marginBottom: '10px' }}>Pricing</h2>
+          <p style={{ fontSize: '13px', color: 'var(--text-3)', marginBottom: '14px' }}>
+            Open-core model: the simulation engine is free and open source (Apache-2.0) forever. Paid tiers add hosted infrastructure,
+            zero-code scenario creation, white-label dashboards, and enterprise features. No vendor lock-in.
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            {PRICING.map(tier => (
+              <div
+                key={tier.name}
+                style={{ borderRadius: '6px', padding: '16px', display: 'flex', flexDirection: 'column' }}
+                style={{
+                  background: 'var(--bg-card)',
+                  border: tier.highlight ? '2px solid var(--accent-primary)' : '1px solid var(--border-subtle)',
+                  boxShadow: tier.highlight ? '0 0 20px rgba(99, 102, 241, 0.15)' : undefined,
+                }}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <h3 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{tier.name}</h3>
+                  {tier.badge && (
+                    <span
+                      className="text-[9px] font-extrabold tracking-wider uppercase px-2 py-0.5 rounded-full"
+                      style={{ background: 'var(--bg-elevated)', color: 'var(--accent-primary)', border: '1px solid var(--border-interactive)' }}
+                    >
+                      {tier.badge}
+                    </span>
+                  )}
+                </div>
+                <div className="mb-2">
+                  <span className="text-xl font-extrabold" style={{ color: 'var(--text-primary)' }}>{tier.price}</span>
+                  <span className="text-xs ml-1" style={{ color: 'var(--text-muted)' }}>{tier.period}</span>
+                </div>
+                <p className="text-xs mb-3" style={{ color: 'var(--text-secondary)' }}>{tier.description}</p>
+                <ul className="text-xs space-y-1.5 mb-4 flex-1" style={{ color: 'var(--text-muted)' }}>
+                  {tier.features.map(f => (
+                    <li key={f} className="flex items-start gap-1.5">
+                      <span style={{ color: 'var(--color-success, #22c55e)' }}>&#10003;</span>
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+                <a
+                  href={tier.cta.href}
+                  target={tier.cta.href.startsWith('mailto:') ? undefined : '_blank'}
+                  rel="noopener"
+                  className="text-center px-4 py-2 rounded text-xs font-bold transition-all"
+                  style={{
+                    background: tier.highlight ? 'var(--accent-primary)' : 'var(--bg-elevated)',
+                    color: tier.highlight ? 'var(--text-contrast)' : 'var(--accent-primary)',
+                    border: tier.highlight ? 'none' : '1px solid var(--border-interactive)',
+                  }}
+                >
+                  {tier.cta.label}
+                </a>
+              </div>
+            ))}
           </div>
         </section>
 
         {/* FAQ */}
-        <section className="mb-8">
-          <h2 className="text-lg font-bold mb-4" style={{ color: 'var(--text-primary)' }}>Frequently Asked Questions</h2>
-          <div className="space-y-2">
+        <section style={{ marginBottom: '24px' }}>
+          <h2 style={{ fontSize: '20px', color: 'var(--amber)', fontFamily: 'var(--mono)', paddingBottom: '8px', borderBottom: '1px solid var(--border)', marginBottom: '14px' }}>Frequently Asked Questions</h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {FAQ.map((item, i) => (
               <details key={i} className="rounded-lg group" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
                 <summary className="px-4 py-3 text-sm font-semibold cursor-pointer select-none" style={{ color: 'var(--text-primary)' }}>
@@ -138,9 +320,9 @@ export function AboutPage() {
         </section>
 
         {/* Tech stack */}
-        <section className="mb-8">
-          <h2 className="text-lg font-bold mb-3" style={{ color: 'var(--text-primary)' }}>Technology</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
+        <section style={{ marginBottom: '24px' }}>
+          <h2 style={{ fontSize: '20px', color: 'var(--amber)', fontFamily: 'var(--mono)', paddingBottom: '8px', borderBottom: '1px solid var(--border)', marginBottom: '14px' }}>Technology</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', fontSize: '12px' }}>
             {[
               { label: 'Runtime', value: 'AgentOS (TypeScript)' },
               { label: 'Package', value: 'npm: paracosm' },
@@ -151,6 +333,9 @@ export function AboutPage() {
               { label: 'Research', value: 'DOI-linked semantic recall' },
               { label: 'Providers', value: 'OpenAI, Anthropic' },
               { label: 'Dashboard', value: 'React + Vite + Tailwind' },
+              { label: 'Scenarios', value: 'Unlimited (JSON + Compiler)' },
+              { label: 'Scalability', value: 'Stateless, horizontally scalable' },
+              { label: 'Batch Runner', value: 'Multi-scenario experiments' },
             ].map(item => (
               <div key={item.label} className="px-3 py-2 rounded" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}>
                 <div className="font-bold" style={{ color: 'var(--text-muted)' }}>{item.label}</div>
@@ -161,9 +346,9 @@ export function AboutPage() {
         </section>
 
         {/* Links */}
-        <section className="mb-4">
-          <h2 className="text-lg font-bold mb-3" style={{ color: 'var(--text-primary)' }}>Links</h2>
-          <div className="flex gap-4 text-sm flex-wrap">
+        <section style={{ marginBottom: '16px' }}>
+          <h2 style={{ fontSize: '20px', color: 'var(--amber)', fontFamily: 'var(--mono)', paddingBottom: '8px', borderBottom: '1px solid var(--border)', marginBottom: '14px' }}>Links</h2>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
             <a href="https://agentos.sh" target="_blank" rel="noopener" style={{ color: 'var(--accent-primary)' }}>agentos.sh</a>
             <a href="https://docs.agentos.sh" target="_blank" rel="noopener" style={{ color: 'var(--accent-primary)' }}>Documentation</a>
             <a href="https://github.com/framersai/paracosm" target="_blank" rel="noopener" style={{ color: 'var(--accent-primary)' }}>GitHub</a>

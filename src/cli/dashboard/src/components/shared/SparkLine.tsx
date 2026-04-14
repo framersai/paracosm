@@ -1,23 +1,24 @@
-const CHARS = '▁▂▃▄▅▆▇█';
+const CHARS = '\u2581\u2582\u2583\u2584\u2585\u2586\u2587\u2588';
 
 interface SparkLineProps {
   data: number[];
   label?: string;
   suffix?: string;
+  color?: string;
 }
 
-export function SparkLine({ data, label, suffix = '' }: SparkLineProps) {
-  if (!data.length) return <span style={{ color: 'var(--text-muted)' }}>—</span>;
+export function SparkLine({ data, label, suffix = '', color }: SparkLineProps) {
+  if (!data.length) return <span style={{ color: 'var(--text-3)', fontFamily: 'var(--mono)', fontSize: '10px' }}>&mdash;</span>;
 
   const max = Math.max(...data) || 1;
   const spark = data.map(v => CHARS[Math.min(7, Math.floor((v / max) * 7.99))]).join('');
   const current = data[data.length - 1];
 
   return (
-    <span className="font-mono text-[10px]" style={{ color: 'var(--text-secondary)' }}>
-      {label && <span style={{ color: 'var(--text-muted)' }}>{label} </span>}
-      <span style={{ color: 'var(--accent-primary)', letterSpacing: '-0.5px' }}>{spark}</span>
-      {' '}{current}{suffix}
+    <span style={{ fontFamily: 'var(--mono)', fontSize: '10px', whiteSpace: 'nowrap' }}>
+      {label && <span style={{ color: 'var(--text-3)', fontSize: '8px', textTransform: 'uppercase', letterSpacing: '0.3px', fontWeight: 600 }}>{label} </span>}
+      <span style={{ color: color || 'var(--amber)', letterSpacing: '-0.5px' }}>{spark}</span>
+      {' '}<span style={{ color: color || 'var(--text-1)' }}>{current}{suffix}</span>
     </span>
   );
 }

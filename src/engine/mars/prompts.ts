@@ -5,7 +5,7 @@ import type { SimulationState } from '../core/state.js';
  * Extracted from departments.ts buildDepartmentContext switch statement.
  */
 export function marsDepartmentPromptLines(dept: string, state: SimulationState): string[] {
-  const alive = state.colonists.filter(c => c.health.alive);
+  const alive = state.agents.filter(c => c.health.alive);
   const featured = alive.filter(c => c.narrative.featured);
   const lines: string[] = [];
 

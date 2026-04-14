@@ -3,7 +3,7 @@
  */
 
 import type { ScenarioPackage, LeaderConfig, LlmProvider, SimulationModelConfig } from '../engine/types.js';
-import type { KeyPersonnel } from '../engine/core/colonist-generator.js';
+import type { KeyPersonnel } from '../engine/core/agent-generator.js';
 
 export interface BatchConfig {
   scenarios: ScenarioPackage[];

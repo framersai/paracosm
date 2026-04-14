@@ -1,18 +1,19 @@
 /**
- * Colonist Reactions — lightweight parallel LLM calls for all alive colonists.
+ * Agent Reactions — lightweight parallel LLM calls for all alive agents.
  *
  * Uses gpt-4o-mini (or configured cheap model) to generate 1-2 sentence
- * reactions from each colonist based on their personality, role, health,
+ * reactions from each agent based on their personality, role, health,
  * and the crisis outcome. All calls run in parallel via Promise.all.
  *
- * Cost: ~$0.00006 per colonist per turn. 100 colonists x 12 turns = $0.14 total.
+ * Cost: ~$0.00006 per agent per turn. 100 agents x 12 turns = $0.14 total.
  */
 
 import { generateText } from '@framers/agentos';
-import type { Colonist, TurnOutcome } from '../engine/core/state.js';
+import type { Agent, TurnOutcome } from '../engine/core/state.js';
+import { buildMemoryContext } from './agent-memory.js';
 
-export interface ColonistReaction {
-  colonistId: string;
+export interface AgentReaction {
+  agentId: string;
   name: string;
   age: number;
   department: string;
@@ -45,12 +46,12 @@ Return JSON only: {"quote":"1-2 sentences in first person","mood":"positive|nega
 
 Keep it real. No heroic speeches. People under stress say blunt, honest things.`;
 
-function buildColonistPrompt(c: Colonist, ctx: ReactionContext, reactionContextHook?: (colonist: any, ctx: any) => string): string {
+function buildAgentPrompt(c: Agent, ctx: ReactionContext, reactionContextHook?: (agent: any, ctx: any) => string): string {
   const age = ctx.year - c.core.birthYear;
   const h = c.hexaco;
   const marsborn = reactionContextHook ? reactionContextHook(c, ctx) : (c.core.marsborn ? 'Mars-born, never seen Earth.' : `Earth-born, ${ctx.year - 2035} years on Mars.`);
 
-  // Recent life events give the colonist a personal history that shapes their reaction
+  // Recent life events give the agent a personal history that shapes their reaction
   const recentEvents = c.narrative.lifeEvents
     .slice(-4)
     .map(e => `- Year ${e.year}: ${e.event}`)
@@ -69,6 +70,9 @@ function buildColonistPrompt(c: Colonist, ctx: ReactionContext, reactionContextH
   if (c.health.psychScore < 0.4) socialContext.push('Struggling with depression');
   const socialLine = socialContext.length ? socialContext.join('. ') + '.' : '';
 
+  // Persistent memory context (beliefs, recent memories, stances, relationships)
+  const memoryContext = buildMemoryContext(c);
+
   return `${REACTION_PROMPT}
 
 YOU: ${c.core.name}, age ${age}, ${c.core.role} in ${c.core.department}. ${marsborn}
@@ -76,16 +80,16 @@ ${c.career.specialization !== 'Undetermined' ? `Specialization: ${c.career.speci
 Personality: O=${h.openness.toFixed(2)} C=${h.conscientiousness.toFixed(2)} E=${h.extraversion.toFixed(2)} A=${h.agreeableness.toFixed(2)} Em=${h.emotionality.toFixed(2)} HH=${h.honestyHumility.toFixed(2)}
 Health: bone density ${c.health.boneDensityPct.toFixed(0)}%, radiation ${c.health.cumulativeRadiationMsv.toFixed(0)} mSv, psych ${c.health.psychScore.toFixed(2)}
 ${socialLine}
-${c.promotion ? `Promoted to ${c.promotion.role} by ${c.promotion.promotedBy}.` : ''}${lifeHistory}
+${c.promotion ? `Promoted to ${c.promotion.role} by ${c.promotion.promotedBy}.` : ''}${lifeHistory}${memoryContext}
 
 WHAT HAPPENED: Turn ${ctx.turn}, Year ${ctx.year}. Crisis: "${ctx.crisisTitle}" (${ctx.crisisCategory}).
 Commander decided: ${ctx.decision.slice(0, 200)}
 Outcome: ${ctx.outcome}. Colony morale: ${Math.round(ctx.colonyMorale * 100)}%. Population: ${ctx.colonyPopulation}.
 
-React as this specific person given YOUR history and personality. Do NOT start with "I can't believe". Be distinctive. JSON only.`;
+React as this specific person given YOUR history, memories, beliefs, and personality. Reference your past experiences when relevant. Do NOT start with "I can't believe". Be distinctive. JSON only.`;
 }
 
-function parseReaction(text: string, c: Colonist, year: number): ColonistReaction | null {
+function parseReaction(text: string, c: Agent, year: number): AgentReaction | null {
   // Extract JSON
   let depth = 0, start = -1;
   for (let i = 0; i < text.length; i++) {
@@ -95,7 +99,7 @@ function parseReaction(text: string, c: Colonist, year: number): ColonistReactio
         const raw = JSON.parse(text.slice(start, i + 1));
         if (raw.quote) {
           return {
-            colonistId: c.core.id,
+            agentId: c.core.id,
             name: c.core.name,
             age: year - c.core.birthYear,
             department: c.core.department,
@@ -119,30 +123,30 @@ function parseReaction(text: string, c: Colonist, year: number): ColonistReactio
 }
 
 /**
- * Generate reactions from all alive colonists in parallel.
+ * Generate reactions from all alive agents in parallel.
  * Uses cheap model (gpt-4o-mini) for cost efficiency.
  */
-export async function generateColonistReactions(
-  colonists: Colonist[],
+export async function generateAgentReactions(
+  agents: Agent[],
   ctx: ReactionContext,
-  options: { provider?: string; model?: string; maxConcurrent?: number; reactionContextHook?: (colonist: any, ctx: any) => string } = {},
-): Promise<ColonistReaction[]> {
-  const alive = colonists.filter(c => c.health.alive);
+  options: { provider?: string; model?: string; maxConcurrent?: number; reactionContextHook?: (agent: any, ctx: any) => string } = {},
+): Promise<AgentReaction[]> {
+  const alive = agents.filter(c => c.health.alive);
   const provider = (options.provider || 'openai') as any;
   const model = options.model || 'gpt-4o-mini';
   const maxConcurrent = options.maxConcurrent || 25;
 
-  console.log(`  [colonists] Generating ${alive.length} reactions via ${model}...`);
+  console.log(`  [agents] Generating ${alive.length} reactions via ${model}...`);
   const startTime = Date.now();
 
   // Process in batches to avoid rate limits
-  const reactions: ColonistReaction[] = [];
+  const reactions: AgentReaction[] = [];
   for (let i = 0; i < alive.length; i += maxConcurrent) {
     const batch = alive.slice(i, i + maxConcurrent);
     const batchResults = await Promise.all(
       batch.map(async (c) => {
         try {
-          const prompt = buildColonistPrompt(c, ctx, options.reactionContextHook);
+          const prompt = buildAgentPrompt(c, ctx, options.reactionContextHook);
           const result = await generateText({ provider, model, prompt });
           return parseReaction(result.text, c, ctx.year);
         } catch {
@@ -150,11 +154,11 @@ export async function generateColonistReactions(
         }
       })
     );
-    reactions.push(...batchResults.filter((r): r is ColonistReaction => r !== null));
+    reactions.push(...batchResults.filter((r): r is AgentReaction => r !== null));
   }
 
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-  console.log(`  [colonists] ${reactions.length}/${alive.length} reactions in ${elapsed}s`);
+  console.log(`  [agents] ${reactions.length}/${alive.length} reactions in ${elapsed}s`);
 
   // Sort by intensity (most dramatic first)
   reactions.sort((a, b) => b.intensity - a.intensity);

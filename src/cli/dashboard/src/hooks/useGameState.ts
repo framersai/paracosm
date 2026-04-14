@@ -24,7 +24,9 @@ export interface LeaderInfo {
 
 export interface CrisisInfo {
   turn: number;
+  year?: number;
   title: string;
+  description?: string;
   category: string;
   emergent: boolean;
   turnSummary?: string;
@@ -129,7 +131,9 @@ export function useGameState(sseEvents: SimEvent[], isComplete: boolean): GameSt
           if (dd.title && dd.title !== 'Director generating...') {
             s.crisis = {
               turn: dd.turn as number,
+              year: dd.year as number,
               title: dd.title as string,
+              description: dd.crisis as string || '',
               category: dd.category as string || '',
               emergent: dd.emergent as boolean || false,
               turnSummary: dd.turnSummary as string || '',
@@ -191,7 +195,7 @@ export function useGameState(sseEvents: SimEvent[], isComplete: boolean): GameSt
           s.events.push(processed);
           break;
 
-        case 'colonist_reactions':
+        case 'agent_reactions':
           s.events.push(processed);
           break;
 

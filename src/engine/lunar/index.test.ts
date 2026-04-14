@@ -55,7 +55,7 @@ test('lunarScenario progression hook applies regolith and bone loss', () => {
     health: { alive: true, boneDensityPct: 100, cumulativeRadiationMsv: 0 },
   };
   lunarScenario.hooks.progressionHook!({
-    colonists: [colonist as any], yearDelta: 1, year: 2031, turn: 1, startYear: 2030,
+    agents: [colonist as any], yearDelta: 1, year: 2031, turn: 1, startYear: 2030,
     rng: { chance: () => false } as any,
   });
   assert.ok(colonist.health.cumulativeRadiationMsv > 0, 'regolith exposure should increase');
@@ -71,7 +71,7 @@ test('lunarScenario director instructions mention lunar science', () => {
 
 test('lunarScenario fingerprint produces valid classification', () => {
   const fp = lunarScenario.hooks.fingerprintHook!(
-    { colony: { morale: 0.7, foodMonthsReserve: 15 }, colonists: [] },
+    { colony: { morale: 0.7, foodMonthsReserve: 15 }, agents: [] },
     [{ turn: 1, outcome: 'conservative_success' }],
     { hexaco: { conscientiousness: 0.9, openness: 0.3 } },
     {}, 3,

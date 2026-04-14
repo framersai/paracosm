@@ -3,23 +3,37 @@ import { useScenarioContext } from '../../App';
 import type { GameState } from '../../hooks/useGameState';
 
 interface ChatMessage {
-  role: 'user' | 'colonist';
+  role: 'user' | 'agent';
   name?: string;
   text: string;
 }
 
-interface ColonistInfo {
+interface AgentMemoryInfo {
+  beliefs: string[];
+  stances: Array<{ topic: string; value: number }>;
+  relationships: Array<{ name: string; sentiment: number }>;
+  recentMemories: Array<{ year: number; content: string; valence: string }>;
+}
+
+interface AgentInfo {
   name: string;
   role: string;
   department: string;
   mood: string;
   age?: number;
   marsborn?: boolean;
+  agentId?: string;
+  memory?: AgentMemoryInfo | null;
 }
 
 interface ChatPanelProps {
   state: GameState;
 }
+
+const moodColors: Record<string, string> = {
+  positive: 'var(--green)', negative: 'var(--rust)', anxious: 'var(--amber)',
+  defiant: 'var(--rust)', hopeful: 'var(--green)', resigned: 'var(--text-3)', neutral: 'var(--text-2)',
+};
 
 export function ChatPanel({ state }: ChatPanelProps) {
   const scenario = useScenarioContext();
@@ -30,22 +44,19 @@ export function ChatPanel({ state }: ChatPanelProps) {
   const [history, setHistory] = useState<Array<{ role: string; content: string }>>([]);
   const messagesRef = useRef<HTMLDivElement>(null);
 
-  // Collect colonists from reaction events
-  const colonists = useMemo(() => {
-    const map = new Map<string, ColonistInfo>();
+  const agents = useMemo(() => {
+    const map = new Map<string, AgentInfo>();
     for (const side of ['a', 'b'] as const) {
       for (const evt of state[side].events) {
-        if (evt.type === 'colonist_reactions') {
+        if (evt.type === 'agent_reactions') {
           const reactions = evt.data.reactions as Array<Record<string, unknown>> || [];
           for (const r of reactions) {
             if (r.name) {
               map.set(r.name as string, {
-                name: r.name as string,
-                role: r.role as string || '',
-                department: r.department as string || '',
-                mood: r.mood as string || 'neutral',
-                age: r.age as number,
-                marsborn: r.marsborn as boolean,
+                name: r.name as string, role: r.role as string || '',
+                department: r.department as string || '', mood: r.mood as string || 'neutral',
+                age: r.age as number, marsborn: r.marsborn as boolean,
+                agentId: r.agentId as string, memory: r.memory as AgentMemoryInfo | null,
               });
             }
           }
@@ -55,23 +66,20 @@ export function ChatPanel({ state }: ChatPanelProps) {
     return Array.from(map.values());
   }, [state]);
 
-  const selected = colonists.find(c => c.name === selectedId);
+  const selected = agents.find(c => c.name === selectedId);
 
   useEffect(() => {
-    if (messagesRef.current) {
-      messagesRef.current.scrollTo({ top: messagesRef.current.scrollHeight, behavior: 'smooth' });
-    }
+    if (messagesRef.current) messagesRef.current.scrollTo({ top: messagesRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages]);
 
-  const selectColonist = (name: string) => {
+  const selectAgent = (name: string) => {
     setSelectedId(name);
     setMessages([]);
     setHistory([]);
-    const c = colonists.find(col => col.name === name);
+    const c = agents.find(a => a.name === name);
     if (c) {
       setMessages([{
-        role: 'colonist',
-        name: c.name,
+        role: 'agent', name: c.name,
         text: `${c.role} in ${c.department}. Age ${c.age || '?'}. Ask me anything about life in the ${scenario.labels.settlementNoun}.`,
       }]);
     }
@@ -82,55 +90,55 @@ export function ChatPanel({ state }: ChatPanelProps) {
     const msg = input.trim();
     setInput('');
     setSending(true);
-
     setMessages(prev => [...prev, { role: 'user', text: msg }]);
     const newHistory = [...history, { role: 'user', content: msg }];
     setHistory(newHistory);
-
     try {
       const res = await fetch('/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ colonistId: selectedId, message: msg, history: newHistory }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentId: selectedId, message: msg, history: newHistory }),
       });
       const data = await res.json();
       if (data.reply) {
-        setMessages(prev => [...prev, { role: 'colonist', name: data.colonist || selectedId, text: data.reply }]);
+        setMessages(prev => [...prev, { role: 'agent', name: data.colonist || selectedId, text: data.reply }]);
         setHistory(prev => [...prev, { role: 'assistant', content: data.reply }]);
       } else {
-        setMessages(prev => [...prev, { role: 'colonist', text: data.error || 'No response' }]);
+        setMessages(prev => [...prev, { role: 'agent', text: data.error || 'No response' }]);
       }
     } catch (err) {
-      setMessages(prev => [...prev, { role: 'colonist', text: `Chat failed: ${err}` }]);
+      setMessages(prev => [...prev, { role: 'agent', text: `Chat failed: ${err}` }]);
     }
     setSending(false);
   };
 
-  const moodColors: Record<string, string> = {
-    positive: 'var(--color-success)', negative: 'var(--color-error)', anxious: 'var(--color-warning)',
-    defiant: 'var(--color-error)', hopeful: 'var(--color-success)', resigned: 'var(--text-muted)', neutral: 'var(--text-secondary)',
-  };
-
   return (
-    <div className="flex h-full">
+    <div style={{ display: 'flex', height: '100%', gap: '1px', background: 'var(--border)' }}>
       {/* Sidebar */}
-      <div className="w-56 shrink-0 overflow-y-auto border-r" style={{ background: 'var(--bg-secondary)', borderColor: 'var(--border-primary)' }}>
-        <div className="p-3 text-xs font-bold" style={{ color: 'var(--text-muted)' }}>
-          {colonists.length ? `${colonists.length} ${scenario.labels.populationNoun}` : `Run a simulation to chat with ${scenario.labels.populationNoun}.`}
-        </div>
-        {colonists.map(c => (
+      <div style={{ width: '240px', background: 'var(--bg-panel)', overflowY: 'auto', padding: '12px', flexShrink: 0 }}>
+        <h3 style={{ fontSize: '14px', color: 'var(--amber)', fontFamily: 'var(--mono)', margin: '0 0 6px 0' }}>
+          {agents.length ? `${agents.length} Agents` : 'Agent Chat'}
+        </h3>
+        <p style={{ fontSize: '10px', color: 'var(--text-3)', marginBottom: '10px', lineHeight: 1.5 }}>
+          {agents.length
+            ? `Talk to any ${scenario.labels.populationNoun.replace(/s$/, '')} from the simulation. Each agent has persistent memory, personality, and relationships shaped by the crises they experienced.`
+            : `Run a simulation first. After it completes, every agent (${scenario.labels.populationNoun}) becomes available for conversation. They remember what happened, hold opinions, and respond based on their HEXACO personality.`
+          }
+        </p>
+        {agents.map(c => (
           <button
             key={c.name}
-            onClick={() => selectColonist(c.name)}
-            className="w-full text-left px-3 py-2 text-xs border-b cursor-pointer transition-colors"
+            onClick={() => selectAgent(c.name)}
             style={{
-              borderColor: 'var(--border-subtle)',
-              background: selectedId === c.name ? 'var(--bg-tertiary)' : 'transparent',
+              width: '100%', textAlign: 'left', padding: '8px 10px', borderRadius: '6px',
+              cursor: 'pointer', marginBottom: '4px', fontSize: '12px',
+              border: selectedId === c.name ? '1px solid var(--amber)' : '1px solid transparent',
+              background: selectedId === c.name ? 'var(--bg-card)' : 'transparent',
+              color: 'var(--text-1)', display: 'block',
             }}
           >
-            <div className="font-semibold" style={{ color: 'var(--text-primary)' }}>{c.name}</div>
-            <div style={{ color: 'var(--text-muted)' }}>{c.role} · {c.department}</div>
-            <div className="text-[10px] font-bold" style={{ color: moodColors[c.mood] || 'var(--text-muted)' }}>
+            <span style={{ fontWeight: 700 }}>{c.name}</span>
+            <div style={{ color: 'var(--text-3)', fontSize: '10px' }}>{c.role} {c.department}</div>
+            <div style={{ fontSize: '10px', fontWeight: 700, marginTop: '2px', color: moodColors[c.mood] || 'var(--text-3)' }}>
               {c.mood.toUpperCase()}
             </div>
           </button>
@@ -138,26 +146,44 @@ export function ChatPanel({ state }: ChatPanelProps) {
       </div>
 
       {/* Chat area */}
-      <div className="flex-1 flex flex-col">
-        <div ref={messagesRef} className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--bg-deep)' }}>
+        {/* Memory bar */}
+        {selected?.memory && (selected.memory.beliefs?.length > 0 || selected.memory.stances?.length > 0) && (
+          <div style={{ padding: '6px 16px', borderBottom: '1px solid var(--border)', background: 'var(--bg-panel)', fontSize: '10px' }}>
+            <span style={{ fontWeight: 700, color: 'var(--text-3)', fontFamily: 'var(--mono)', letterSpacing: '0.5px' }}>MEMORY </span>
+            {selected.memory.beliefs?.slice(0, 2).map((b, i) => <span key={i} style={{ color: 'var(--text-2)', marginRight: '8px' }}>{b}</span>)}
+            {selected.memory.stances?.map((s, i) => (
+              <span key={i} style={{ color: s.value > 0 ? 'var(--green)' : 'var(--rust)', marginRight: '8px' }}>
+                {s.topic}: {s.value > 0.5 ? 'confident' : s.value > 0 ? 'cautious' : 'wary'}
+              </span>
+            ))}
+          </div>
+        )}
+
+        <div ref={messagesRef} style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {!selectedId && (
-            <div className="text-center py-16 text-sm" style={{ color: 'var(--text-muted)' }}>
-              Select a {scenario.labels.populationNoun.replace(/s$/, '')} to start chatting.
+            <div style={{ color: 'var(--text-3)', textAlign: 'center', padding: '30px 20px' }}>
+              <div style={{ fontSize: '14px', marginBottom: '10px' }}>
+                {agents.length ? `Select an agent to start chatting.` : 'No agents available yet.'}
+              </div>
+              <div style={{ fontSize: '11px', lineHeight: 1.6, maxWidth: '400px', margin: '0 auto' }}>
+                {agents.length
+                  ? `Each agent is a simulated ${scenario.labels.populationNoun.replace(/s$/, '')} with a unique HEXACO personality, persistent memory of crises they survived, evolving stances on topics, and relationships with other agents. Their responses reflect their actual simulation experience.`
+                  : `Run a simulation from the Settings tab. Once complete, all ${scenario.labels.populationNoun} become available here for post-simulation conversation. The chat system uses each agent's personality profile, memory, and crisis history to generate authentic in-character responses.`
+                }
+              </div>
             </div>
           )}
           {messages.map((msg, i) => (
-            <div key={i} className={`max-w-[80%] ${msg.role === 'user' ? 'ml-auto' : 'mr-auto'}`}>
-              {msg.name && (
-                <div className="text-[10px] font-bold mb-0.5" style={{ color: 'var(--accent-primary)' }}>{msg.name}</div>
-              )}
-              <div
-                className="px-3 py-2 rounded-lg text-sm"
-                style={{
-                  background: msg.role === 'user' ? 'var(--accent-primary)' : 'var(--bg-card)',
-                  color: msg.role === 'user' ? 'var(--text-contrast)' : 'var(--text-primary)',
-                  border: msg.role === 'colonist' ? '1px solid var(--border-subtle)' : 'none',
-                }}
-              >
+            <div key={i} style={{ maxWidth: '80%', alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+              {msg.name && <div style={{ fontSize: '10px', color: 'var(--amber)', fontWeight: 700, marginBottom: '4px' }}>{msg.name}</div>}
+              <div style={{
+                padding: '10px 14px', borderRadius: '8px', fontSize: '13px', lineHeight: 1.6,
+                background: msg.role === 'user' ? 'rgba(232,180,74,.12)' : 'var(--bg-card)',
+                border: msg.role === 'user' ? '1px solid var(--amber-dim)' : '1px solid var(--border)',
+                color: 'var(--text-1)',
+                boxShadow: 'var(--card-shadow)',
+              }}>
                 {msg.text}
               </div>
             </div>
@@ -165,21 +191,28 @@ export function ChatPanel({ state }: ChatPanelProps) {
         </div>
 
         {/* Input */}
-        <div className="p-3 border-t flex gap-2" style={{ borderColor: 'var(--border-primary)', background: 'var(--bg-secondary)' }}>
+        <div style={{ display: 'flex', gap: '8px', padding: '12px 16px', background: 'var(--bg-panel)', borderTop: '1px solid var(--border)' }}>
           <input
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && send()}
             disabled={!selectedId || sending}
-            placeholder={selectedId ? `Ask ${selected?.name || 'colonist'}...` : 'Select a colonist first'}
-            className="flex-1 px-3 py-2 rounded-lg text-sm disabled:opacity-50"
-            style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}
+            placeholder={selectedId ? `Ask ${selected?.name || 'agent'}...` : `Select a ${scenario.labels.populationNoun.replace(/s$/, '')} first`}
+            style={{
+              flex: 1, background: 'var(--bg-card)', color: 'var(--text-1)',
+              border: '1px solid var(--border)', padding: '10px 14px', borderRadius: '6px',
+              fontSize: '14px', fontFamily: 'var(--sans)', opacity: !selectedId ? 0.5 : 1,
+            }}
           />
           <button
             onClick={send}
             disabled={!selectedId || sending || !input.trim()}
-            className="px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer disabled:opacity-50"
-            style={{ background: 'var(--accent-primary)', color: 'var(--text-contrast)' }}
+            style={{
+              background: 'linear-gradient(135deg, var(--rust), #c44a1e)', color: 'white',
+              border: 'none', padding: '10px 20px', borderRadius: '6px',
+              fontSize: '13px', fontWeight: 700, cursor: 'pointer',
+              opacity: (!selectedId || sending || !input.trim()) ? 0.4 : 1,
+            }}
           >
             Send
           </button>

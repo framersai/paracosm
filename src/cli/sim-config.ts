@@ -1,4 +1,4 @@
-import type { KeyPersonnel } from '../engine/core/colonist-generator.js';
+import type { KeyPersonnel } from '../engine/core/agent-generator.js';
 import type { Department } from '../engine/core/state.js';
 import type { LeaderConfig } from './types.js';
 
@@ -7,7 +7,7 @@ export interface SimulationModelConfig {
   departments: string;
   judge: string;
   director: string;
-  colonistReactions?: string;
+  agentReactions?: string;
 }
 
 export type LlmProvider = 'openai' | 'anthropic';

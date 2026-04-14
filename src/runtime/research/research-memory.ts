@@ -89,7 +89,13 @@ export async function recallResearch(query: string, keywords: string[] = [], cat
   }
 
   const searchQuery = [query, ...keywords.slice(0, 3)].join(' ');
-  const results = await _memory.recall(searchQuery, { limit: 6 });
+  let results: any[];
+  try {
+    const raw = await _memory.recall(searchQuery, { limit: 6 });
+    results = Array.isArray(raw) ? raw : [];
+  } catch {
+    results = [];
+  }
 
   const facts: CrisisResearchPacket['canonicalFacts'] = [];
   const seen = new Set<string>();

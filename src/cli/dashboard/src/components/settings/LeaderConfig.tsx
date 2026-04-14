@@ -24,6 +24,19 @@ const HEXACO_TRAITS = [
   { key: 'honestyHumility', label: 'Honesty-Humility', short: 'HH' },
 ];
 
+const fieldInput = {
+  width: '100%', background: 'var(--bg-card)', color: 'var(--text-1)',
+  border: '1px solid var(--border)', padding: '8px 12px', borderRadius: '6px',
+  fontFamily: 'var(--sans)', fontSize: '14px', boxSizing: 'border-box' as const,
+  minWidth: 0,
+};
+
+const fieldLabel = {
+  display: 'block', fontSize: '12px', color: 'var(--text-3)',
+  textTransform: 'uppercase' as const, letterSpacing: '0.5px',
+  fontWeight: 700, marginBottom: '4px',
+};
+
 export function LeaderConfig({ label, sideColor, data, onChange }: LeaderConfigProps) {
   const update = (field: keyof LeaderFormData, value: string) =>
     onChange({ ...data, [field]: value });
@@ -32,37 +45,37 @@ export function LeaderConfig({ label, sideColor, data, onChange }: LeaderConfigP
     onChange({ ...data, hexaco: { ...data.hexaco, [key]: value } });
 
   return (
-    <div className="rounded-lg p-4 mb-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-primary)' }}>
-      <h3 className="text-sm font-bold mb-3" style={{ color: sideColor }}>{label}</h3>
-      <div className="grid grid-cols-2 gap-3 mb-3">
-        <div>
-          <label className="text-[10px] uppercase tracking-wider font-semibold block mb-1" style={{ color: 'var(--text-muted)' }}>Name</label>
-          <input value={data.name} onChange={e => update('name', e.target.value)}
-            className="w-full px-2 py-1.5 rounded text-xs font-semibold" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }} />
+    <div style={{
+      background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: '8px',
+      padding: '16px', minWidth: 0, overflow: 'hidden',
+      boxShadow: 'var(--card-shadow)',
+    }}>
+      <h3 style={{ fontSize: '16px', fontFamily: 'var(--mono)', marginBottom: '12px', color: sideColor }}>
+        {label}
+      </h3>
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '10px' }}>
+        <div style={{ flex: 1 }}>
+          <label style={fieldLabel}>Name</label>
+          <input value={data.name} onChange={e => update('name', e.target.value)} style={fieldInput} />
         </div>
-        <div>
-          <label className="text-[10px] uppercase tracking-wider font-semibold block mb-1" style={{ color: 'var(--text-muted)' }}>Archetype</label>
-          <input value={data.archetype} onChange={e => update('archetype', e.target.value)}
-            className="w-full px-2 py-1.5 rounded text-xs" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }} />
+        <div style={{ flex: 1 }}>
+          <label style={fieldLabel}>Archetype</label>
+          <input value={data.archetype} onChange={e => update('archetype', e.target.value)} style={fieldInput} />
         </div>
-        <div>
-          <label className="text-[10px] uppercase tracking-wider font-semibold block mb-1" style={{ color: 'var(--text-muted)' }}>Colony</label>
-          <input value={data.colony} onChange={e => update('colony', e.target.value)}
-            className="w-full px-2 py-1.5 rounded text-xs" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }} />
+        <div style={{ flex: 1 }}>
+          <label style={fieldLabel}>Colony</label>
+          <input value={data.colony} onChange={e => update('colony', e.target.value)} style={fieldInput} />
         </div>
       </div>
-      <div>
-        <label className="text-[10px] uppercase tracking-wider font-semibold block mb-1" style={{ color: 'var(--text-muted)' }}>Instructions</label>
+      <div style={{ marginBottom: '10px' }}>
+        <label style={fieldLabel}>Instructions</label>
         <textarea value={data.instructions} onChange={e => update('instructions', e.target.value)} rows={2}
-          className="w-full px-2 py-1.5 rounded text-xs resize-none" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }} />
+          style={{ ...fieldInput, minHeight: '48px', resize: 'vertical' as const, fontSize: '13px' }} />
       </div>
-      <div className="mt-3">
-        <label className="text-[10px] uppercase tracking-wider font-semibold block mb-2" style={{ color: 'var(--text-muted)' }}>HEXACO Personality</label>
-        <div className="space-y-1">
-          {HEXACO_TRAITS.map(t => (
-            <HexacoSlider key={t.key} label={t.label} shortLabel={t.short} value={data.hexaco[t.key] ?? 0.5} onChange={v => updateHexaco(t.key, v)} />
-          ))}
-        </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px 14px', marginTop: '10px' }}>
+        {HEXACO_TRAITS.map(t => (
+          <HexacoSlider key={t.key} label={t.label} shortLabel={t.short} value={data.hexaco[t.key] ?? 0.5} onChange={v => updateHexaco(t.key, v)} sideColor={sideColor} />
+        ))}
       </div>
     </div>
   );

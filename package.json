@@ -25,6 +25,10 @@
     "./core": {
       "import": "./dist/engine/core/state.js",
       "types": "./dist/engine/core/state.d.ts"
+    },
+    "./compiler": {
+      "import": "./dist/engine/compiler/index.js",
+      "types": "./dist/engine/compiler/index.d.ts"
     }
   },
   "files": [
@@ -43,6 +47,7 @@
     "dashboard:dev": "cd src/cli/dashboard && npx vite",
     "dashboard:build": "cd src/cli/dashboard && npx vite build",
     "dashboard:smoke": "npx tsx src/cli/serve.ts 3",
+    "compile": "npx tsx src/cli/compile.ts",
     "check:dashboard": "node --check src/cli/dashboard/main.legacy.js",
     "test": "node --import tsx --test src/**/*.test.ts",
     "docs": "typedoc",

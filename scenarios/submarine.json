@@ -1,0 +1,151 @@
+{
+  "id": "deep-ocean-station",
+  "version": "1.0.0",
+  "engineArchetype": "closed_turn_based_settlement",
+
+  "labels": {
+    "name": "Deep Ocean Station",
+    "shortName": "ocean",
+    "populationNoun": "crew members",
+    "settlementNoun": "station",
+    "currency": "credits"
+  },
+
+  "theme": {
+    "primaryColor": "#0ea5e9",
+    "accentColor": "#38bdf8",
+    "cssVariables": {
+      "--bg-primary": "#0a1628",
+      "--bg-secondary": "#0f1d32",
+      "--text-primary": "#e0f2fe",
+      "--accent": "#0ea5e9"
+    }
+  },
+
+  "setup": {
+    "defaultTurns": 8,
+    "defaultSeed": 200,
+    "defaultStartYear": 2038,
+    "defaultPopulation": 50,
+    "configurableSections": ["leaders", "personnel", "resources", "departments", "events", "models"]
+  },
+
+  "departments": [
+    { "id": "medical", "label": "Medical", "role": "Chief Medical Officer", "icon": "🏥", "defaultModel": "gpt-5.4-mini", "instructions": "You are the Chief Medical Officer of an underwater research station at 2000m depth. You analyze health impacts: pressure sickness, nitrogen narcosis, decompression risks, psychological stress from confinement, circadian disruption from lack of sunlight." },
+    { "id": "engineering", "label": "Engineering", "role": "Chief Engineer", "icon": "⚙️", "defaultModel": "gpt-5.4-mini", "instructions": "You are the Chief Engineer of a deep ocean station. You analyze infrastructure: hull integrity at 200+ atmospheres, water recycling, power generation (thermal vents vs nuclear), pressure lock systems, communication cables." },
+    { "id": "marine-science", "label": "Marine Science", "role": "Head of Research", "icon": "🔬", "defaultModel": "gpt-5.4-mini", "instructions": "You are the Head of Marine Science. You analyze research operations: deep-sea specimen collection, hydrothermal vent studies, bioluminescence research, mineral surveys, ocean current monitoring." },
+    { "id": "life-support", "label": "Life Support", "role": "Life Support Chief", "icon": "🫧", "defaultModel": "gpt-5.4-mini", "instructions": "You are the Life Support Chief. You analyze oxygen generation, CO2 scrubbing, water purification, temperature regulation, food supply (aquaculture + surface deliveries), waste processing." },
+    { "id": "communications", "label": "Communications", "role": "Comms Officer", "icon": "📡", "defaultModel": "gpt-5.4-mini", "instructions": "You are the Communications Officer. You analyze surface communications, emergency beacon systems, acoustic positioning, data uplink bandwidth, coordination with surface support vessels." }
+  ],
+
+  "metrics": [
+    { "id": "population", "label": "Crew", "source": "metrics.population", "format": "number" },
+    { "id": "morale", "label": "Morale", "source": "metrics.morale", "format": "percent" },
+    { "id": "foodMonthsReserve", "label": "Food", "source": "metrics.foodMonthsReserve", "format": "number" },
+    { "id": "powerKw", "label": "Power", "source": "metrics.powerKw", "format": "number" },
+    { "id": "hullIntegrity", "label": "Hull", "source": "metrics.hullIntegrity", "format": "percent" },
+    { "id": "oxygenReserveHours", "label": "O2 Reserve", "source": "metrics.oxygenReserveHours", "format": "number" }
+  ],
+
+  "events": [
+    { "id": "crisis", "label": "Crisis", "icon": "⚠️", "color": "#ef4444" },
+    { "id": "decision", "label": "Decision", "icon": "⚡", "color": "#f59e0b" },
+    { "id": "discovery", "label": "Discovery", "icon": "🔬", "color": "#22c55e" },
+    { "id": "death", "label": "Death", "icon": "💀", "color": "#6b7280" },
+    { "id": "resupply", "label": "Resupply", "icon": "🚢", "color": "#3b82f6" },
+    { "id": "tool_forge", "label": "Tool Forged", "icon": "🔧", "color": "#8b5cf6" },
+    { "id": "system", "label": "System", "icon": "⚙️", "color": "#64748b" }
+  ],
+
+  "effects": {
+    "environmental": { "powerKw": 30, "morale": 0.06, "hullIntegrity": -2 },
+    "resource": { "foodMonthsReserve": 3, "oxygenReserveHours": 48, "morale": 0.05 },
+    "medical": { "morale": 0.10 },
+    "psychological": { "morale": 0.15 },
+    "infrastructure": { "hullIntegrity": 5, "powerKw": 40 },
+    "scientific": { "morale": 0.08 },
+    "communications": { "morale": 0.05 }
+  },
+
+  "ui": {
+    "headerMetrics": [
+      { "id": "population", "format": "number" },
+      { "id": "morale", "format": "percent" },
+      { "id": "hullIntegrity", "format": "percent" },
+      { "id": "oxygenReserveHours", "format": "number" },
+      { "id": "powerKw", "format": "number" },
+      { "id": "foodMonthsReserve", "format": "number" }
+    ],
+    "tooltipFields": ["pressureExposureAtm", "psychScore", "diveHours"],
+    "reportSections": ["crisis", "departments", "decision", "outcome", "quotes"],
+    "departmentIcons": { "medical": "🏥", "engineering": "⚙️", "marine-science": "🔬", "life-support": "🫧", "communications": "📡" },
+    "setupSections": ["leaders", "personnel", "resources", "departments", "events", "models"]
+  },
+
+  "policies": {
+    "toolForging": { "enabled": true, "requiredPerDepartment": false },
+    "liveSearch": { "enabled": false, "mode": "off" },
+    "bulletin": { "enabled": true },
+    "characterChat": { "enabled": true },
+    "sandbox": { "timeoutMs": 10000, "memoryMB": 128 }
+  },
+
+  "presets": [
+    {
+      "id": "default",
+      "label": "Default Deep Ocean",
+      "leaders": [
+        {
+          "name": "Captain Ingrid Halvorsen",
+          "archetype": "The Explorer",
+          "hexaco": { "openness": 0.90, "conscientiousness": 0.45, "extraversion": 0.75, "agreeableness": 0.50, "emotionality": 0.25, "honestyHumility": 0.70 },
+          "instructions": "You are Captain Ingrid Halvorsen, 'The Explorer.' You lead by curiosity and fearless investigation. You prioritize scientific discovery over safety margins. You believe the ocean's secrets justify the risks. Your HEXACO profile drives your leadership."
+        },
+        {
+          "name": "Commander Takeshi Morimoto",
+          "archetype": "The Protector",
+          "hexaco": { "openness": 0.30, "conscientiousness": 0.95, "extraversion": 0.35, "agreeableness": 0.70, "emotionality": 0.65, "honestyHumility": 0.85 },
+          "instructions": "You are Commander Takeshi Morimoto, 'The Protector.' You lead by caution and precision. You prioritize crew safety above all. You distrust aggressive exploration schedules. Every dive is reviewed three times. Your HEXACO profile drives your leadership."
+        }
+      ]
+    }
+  ],
+
+  "world": {
+    "metrics": {
+      "population": { "id": "population", "label": "Crew", "unit": "people", "type": "number", "initial": 50, "min": 0, "category": "metric" },
+      "morale": { "id": "morale", "label": "Morale", "unit": "%", "type": "number", "initial": 0.75, "min": 0, "max": 1, "category": "metric" },
+      "foodMonthsReserve": { "id": "foodMonthsReserve", "label": "Food Reserve", "unit": "months", "type": "number", "initial": 8, "min": 0, "category": "metric" },
+      "powerKw": { "id": "powerKw", "label": "Power", "unit": "kW", "type": "number", "initial": 200, "min": 0, "category": "metric" },
+      "hullIntegrity": { "id": "hullIntegrity", "label": "Hull Integrity", "unit": "%", "type": "number", "initial": 100, "min": 0, "max": 100, "category": "metric" },
+      "oxygenReserveHours": { "id": "oxygenReserveHours", "label": "O2 Reserve", "unit": "hours", "type": "number", "initial": 720, "min": 0, "category": "metric" }
+    },
+    "capacities": {
+      "pressureRating": { "id": "pressureRating", "label": "Pressure Rating", "unit": "atm", "type": "number", "initial": 250, "category": "capacity" },
+      "dockingBays": { "id": "dockingBays", "label": "Docking Bays", "unit": "bays", "type": "number", "initial": 3, "category": "capacity" }
+    },
+    "statuses": {
+      "surfaceLink": { "id": "surfaceLink", "label": "Surface Link", "unit": "", "type": "string", "initial": "active", "category": "status" }
+    },
+    "politics": {
+      "fundingConfidence": { "id": "fundingConfidence", "label": "Funding Confidence", "unit": "%", "type": "number", "initial": 80, "min": 0, "max": 100, "category": "politic" },
+      "autonomyLevel": { "id": "autonomyLevel", "label": "Autonomy Level", "unit": "%", "type": "number", "initial": 30, "min": 0, "max": 100, "category": "politic" }
+    },
+    "environment": {
+      "depthMeters": { "id": "depthMeters", "label": "Depth", "unit": "m", "type": "number", "initial": 2000, "category": "environment" },
+      "waterTempC": { "id": "waterTempC", "label": "Water Temperature", "unit": "C", "type": "number", "initial": 2, "category": "environment" },
+      "currentSpeedKnots": { "id": "currentSpeedKnots", "label": "Current Speed", "unit": "knots", "type": "number", "initial": 0.5, "category": "environment" }
+    }
+  },
+
+  "knowledge": {
+    "topics": {},
+    "categoryMapping": {}
+  },
+
+  "names": {
+    "first": ["Ingrid", "Takeshi", "Marina", "Kai", "Nadia", "Henrik", "Yuki", "Carlos", "Petra", "Finn", "Leilani", "Bjorn", "Anika", "Diego", "Signe", "Ravi", "Elise", "Omar", "Freya", "Jun"],
+    "last": ["Halvorsen", "Morimoto", "Dupont", "Andersen", "Nakamura", "Torres", "Berg", "Kim", "Costa", "Johansson", "Patel", "Larsson", "Singh", "Eriksson", "Santos", "Holm", "Takahashi", "Rivera", "Dahl", "Li"],
+    "child": ["Coral", "Wave", "Tide", "Pearl", "Reef", "Finn", "Kelp", "Marina", "Abyssal", "Deep"]
+  }
+}

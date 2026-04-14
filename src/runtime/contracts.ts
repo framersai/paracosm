@@ -1,4 +1,4 @@
-import type { Department, Colonist } from '../engine/core/state.js';
+import type { Department, Agent } from '../engine/core/state.js';
 import type { ColonyPatch } from '../engine/core/kernel.js';
 
 export interface CrisisOption {
@@ -33,11 +33,11 @@ export interface ForgedToolUsage {
   confidence: number;
 }
 
-export interface FeaturedColonistUpdate {
-  colonistId: string;
+export interface FeaturedAgentUpdate {
+  agentId: string;
   updates: {
-    health?: Partial<Colonist['health']>;
-    career?: Partial<Colonist['career']>;
+    health?: Partial<Agent['health']>;
+    career?: Partial<Agent['career']>;
     narrative?: { event: string };
   };
 }
@@ -51,7 +51,7 @@ export interface DepartmentReport {
   recommendedActions: string[];
   proposedPatches: Partial<ColonyPatch>;
   forgedToolsUsed: ForgedToolUsage[];
-  featuredColonistUpdates: FeaturedColonistUpdate[];
+  featuredAgentUpdates: FeaturedAgentUpdate[];
   confidence: number;
   openQuestions: string[];
   recommendedEffects?: TypedPolicyEffect[];
@@ -95,7 +95,7 @@ export interface TurnArtifact {
 
 export interface PromotionDecision {
   promotions: Array<{
-    colonistId: string;
+    agentId: string;
     department: Department;
     role: string;
     reason: string;
