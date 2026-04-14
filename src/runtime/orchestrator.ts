@@ -16,7 +16,7 @@ import { getResearchPacket } from './research/research.js';
 import { getResearchFromBundle } from './research/scenario-research.js';
 import { initResearchMemory, recallResearch, closeResearchMemory } from './research/research-memory.js';
 import { buildDepartmentContext, getDepartmentsForTurn } from './departments.js';
-import { CrisisDirector, type DirectorCrisis, type DirectorContext } from './director.js';
+import { EventDirector, type DirectorEvent, type DirectorContext } from './director.js';
 import { generateAgentReactions } from './agent-reactions.js';
 import { recordReactionMemory, consolidateMemory, updateRelationshipsFromReactions } from './agent-memory.js';
 import type { ScenarioPackage } from '../engine/types.js';
@@ -456,10 +456,10 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   const artifacts: TurnArtifact[] = [];
   const yearSchedule = buildYearSchedule(startYear, maxTurns);
   const outcomeLog: Array<{ turn: number; year: number; outcome: TurnOutcome }> = [];
-  const crisisHistory: DirectorContext['previousCrises'] = [];
+  const eventHistory: DirectorContext['previousEvents'] = [];
   let lastTurnToolOutputs: Array<{ name: string; department: string; output: string }> = [];
   let lastTurnMoodSummary: string | undefined;
-  const director = new CrisisDirector();
+  const director = new EventDirector();
   const effectRegistry = new EffectRegistry(sc.effects[0]?.categoryDefaults ?? {});
   // Department memory: stores previous turn summaries per department for session continuity
   const deptMemory = new Map<Department, import('./departments.js').DepartmentTurnMemory[]>();
@@ -469,10 +469,11 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     const year = yearSchedule[turn - 1] ?? (yearSchedule[yearSchedule.length - 1] + (turn - yearSchedule.length) * 5);
 
     // Get crisis: milestone (turn 1 / final) or emergent (director)
-    let crisis: DirectorCrisis;
-    const milestone = sc.hooks.getMilestoneCrisis?.(turn, maxTurns);
+    let event: DirectorEvent;
+    const getMilestone = sc.hooks.getMilestoneEvent ?? sc.hooks.getMilestoneCrisis;
+    const milestone = getMilestone?.(turn, maxTurns);
     if (milestone) {
-      crisis = milestone as DirectorCrisis;
+      event = { ...milestone, description: (milestone as any).description || (milestone as any).crisis || '' } as DirectorEvent;
     } else {
       // Build director context from current colony state
       const preState = kernel.getState();
@@ -480,12 +481,16 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
       const dirCtx: DirectorContext = {
         turn, year,
         leaderName: leader.name, leaderArchetype: leader.archetype, leaderHexaco: leader.hexaco,
-        colony: preState.colony, politics: preState.politics,
+        state: preState.colony as unknown as Record<string, number>,
+        politics: preState.politics as unknown as Record<string, number | string | boolean>,
+        colony: preState.colony as unknown as Record<string, number>,
         aliveCount: alive.length,
+        nativeBornCount: alive.filter(c => c.core.marsborn).length,
         marsBornCount: alive.filter(c => c.core.marsborn).length,
         recentDeaths: preState.eventLog.filter(e => e.turn === turn - 1 && e.type === 'death').length,
         recentBirths: preState.eventLog.filter(e => e.turn === turn - 1 && e.type === 'birth').length,
-        previousCrises: crisisHistory,
+        previousEvents: eventHistory,
+        previousCrises: eventHistory,
         toolsForged: Object.values(toolRegs).flat(),
         driftSummary: preState.agents.filter(c => c.promotion && c.health.alive).slice(0, 4)
           .map(c => ({ name: c.core.name, role: c.core.role, openness: c.hexaco.openness, conscientiousness: c.hexaco.conscientiousness })),
@@ -494,13 +499,13 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
       };
       emit('turn_start', { turn, year, title: 'Director generating...', crisis: '', births: 0, deaths: 0, colony: preState.colony });
       const dirInstructions = sc.hooks.directorInstructions?.();
-      crisis = await director.generateCrisis(dirCtx, provider, modelConfig.director, dirInstructions);
+      event = await director.generateEvent(dirCtx, provider, modelConfig.director, dirInstructions);
     }
 
-    crisis = applyCustomEventToCrisis(crisis, opts.customEvents ?? [], turn);
+    event = applyCustomEventToCrisis(event, opts.customEvents ?? [], turn);
 
     console.log(`\n${'─'.repeat(50)}`);
-    console.log(`  Turn ${turn}/${maxTurns} — Year ${year}: ${crisis.title} [${milestone ? 'MILESTONE' : 'EMERGENT'}]`);
+    console.log(`  Turn ${turn}/${maxTurns} — Year ${year}: ${event.title} [${milestone ? 'MILESTONE' : 'EMERGENT'}]`);
     console.log(`${'─'.repeat(50)}`);
 
     const state = kernel.advanceTurn(turn, year, sc.hooks.progressionHook);
@@ -508,26 +513,26 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     const deaths = state.eventLog.filter(e => e.turn === turn && e.type === 'death').length;
     console.log(`  Kernel: +${births} births, -${deaths} deaths → pop ${state.colony.population}`);
 
-    emit('turn_start', { turn, year, title: crisis.title, crisis: crisis.crisis.slice(0, 200), category: crisis.category, births, deaths, colony: state.colony, emergent: !milestone, turnSummary: crisis.turnSummary });
+    emit('turn_start', { turn, year, title: event.title, crisis: event.description.slice(0, 200), category: event.category, births, deaths, colony: state.colony, emergent: !milestone, turnSummary: event.turnSummary });
 
     // Get research: memory recall > live web search > static fallback
     let packet: import('./contracts.js').CrisisResearchPacket;
     if (milestone) {
       // Milestone research: try scenario knowledge bundle first, fall back to legacy static
-      packet = getResearchFromBundle(sc.knowledge, crisis.category, crisis.researchKeywords);
+      packet = getResearchFromBundle(sc.knowledge, event.category, event.researchKeywords);
       if (packet.canonicalFacts.length === 0) {
         packet = getResearchPacket(turn);
       }
     } else {
       // Try research memory first (semantic recall from ingested scenario citations)
-      const memPacket = await recallResearch(crisis.title + ' ' + crisis.crisis.slice(0, 100), crisis.researchKeywords, crisis.category);
+      const memPacket = await recallResearch(event.title + ' ' + event.description.slice(0, 100), event.researchKeywords, event.category);
       if (memPacket.canonicalFacts.length >= 2) {
         packet = memPacket;
         console.log(`  [research] Memory recall: ${packet.canonicalFacts.length} citations`);
-      } else if (opts.liveSearch && crisis.researchKeywords.length) {
+      } else if (opts.liveSearch && event.researchKeywords.length) {
         // Live web search using AgentOS WebSearchService
         try {
-          const query = crisis.researchKeywords.slice(0, 3).join(' ') + ' ' + sc.labels.settlementNoun + ' science';
+          const query = event.researchKeywords.slice(0, 3).join(' ') + ' ' + sc.labels.settlementNoun + ' science';
           console.log(`  [research] Live search: "${query}"`);
           const searchResult = await webSearchTool.execute({ query }, { gmiId: sid, personaId: sid, userContext: {} } as any);
           const results = (searchResult as any)?.output?.results || [];
@@ -543,28 +548,28 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
           console.log(`  [research] ${packet.canonicalFacts.length} live results`);
         } catch (err) {
           console.log(`  [research] Live search failed, using scenario bundle: ${err}`);
-          packet = getResearchFromBundle(sc.knowledge, crisis.category, crisis.researchKeywords);
+          packet = getResearchFromBundle(sc.knowledge, event.category, event.researchKeywords);
         }
       } else {
         // Fallback to scenario knowledge bundle (not hardcoded Mars)
-        packet = getResearchFromBundle(sc.knowledge, crisis.category, crisis.researchKeywords);
+        packet = getResearchFromBundle(sc.knowledge, event.category, event.researchKeywords);
       }
     }
 
     // Departments: from director for emergent, from schedule for milestones
     const validDepts: Department[] = ['medical', 'engineering', 'agriculture', 'psychology', 'governance'];
-    const rawDepts = milestone ? getDepartmentsForTurn(turn) : crisis.relevantDepartments;
+    const rawDepts = milestone ? getDepartmentsForTurn(turn) : event.relevantDepartments;
     const depts = rawDepts.filter(d => validDepts.includes(d) && activeDepartments.has(d));
     if (!depts.length) depts.push('medical', 'engineering');
     console.log(`  Departments: ${depts.join(', ')}`);
 
     // Build a Scenario-compatible object for department context builder
     const scenario = {
-      turn, year, title: crisis.title, crisis: crisis.crisis,
-      researchKeywords: crisis.researchKeywords, snapshotHints: {} as any,
-      riskyOption: crisis.options.find(o => o.isRisky)?.label || '',
-      riskSuccessProbability: crisis.riskSuccessProbability,
-      options: crisis.options,
+      turn, year, title: event.title, crisis: event.description,
+      researchKeywords: event.researchKeywords, snapshotHints: {} as any,
+      riskyOption: event.options.find(o => o.isRisky)?.label || '',
+      riskSuccessProbability: event.riskSuccessProbability,
+      options: event.options,
     };
 
     const reports: DepartmentReport[] = [];
@@ -610,7 +615,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
               inputFields: inputFields.slice(0, 8),
               outputFields: outputFields.slice(0, 8),
               department: dept,
-              crisis: crisis.title,
+              crisis: event.title,
             };
           });
         emit('dept_done', {
@@ -643,7 +648,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     const pendingDeptMemories = new Map<Department, import('./departments.js').DepartmentTurnMemory>();
     for (const r of reports) {
       pendingDeptMemories.set(r.department, {
-        turn, year, crisis: crisis.title,
+        turn, year, crisis: event.title,
         summary: r.summary,
         recommendedActions: r.recommendedActions?.slice(0, 3) || [],
         outcome: '', // filled after outcome classification
@@ -652,8 +657,8 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     }
 
     const summaries = reports.map(r => `## ${r.department.toUpperCase()} (conf: ${r.confidence})\n${r.summary}\nRisks: ${r.risks.map(x => `[${x.severity}] ${x.description}`).join('; ') || 'none'}\nRecs: ${r.recommendedActions.join('; ') || 'none'}`).join('\n\n');
-    const optionText = crisis.options.length
-      ? '\n\nOPTIONS:\n' + crisis.options.map(o => `- ${o.id}: ${o.label} — ${o.description}${o.isRisky ? ' [RISKY]' : ''}`).join('\n') + '\n\nYou MUST include "selectedOptionId" in your JSON response.'
+    const optionText = event.options.length
+      ? '\n\nOPTIONS:\n' + event.options.map(o => `- ${o.id}: ${o.label} — ${o.description}${o.isRisky ? ' [RISKY]' : ''}`).join('\n') + '\n\nYou MUST include "selectedOptionId" in your JSON response.'
       : '';
     const effectsList = reports.flatMap(r => (r.recommendedEffects || []).map(e =>
       `  - ${e.id} (${e.type}): ${e.description}${e.colonyDelta ? ' | Delta: ' + JSON.stringify(e.colonyDelta) : ''}`
@@ -661,7 +666,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     const effectsText = effectsList.length
       ? '\n\nAVAILABLE POLICY EFFECTS (include "selectedEffectIds" array in your JSON to apply):\n' + effectsList.join('\n')
       : '';
-    const cmdPrompt = `TURN ${turn} — ${year}: ${crisis.title}\n\n${crisis.crisis}\n\nDEPARTMENT REPORTS:\n${summaries}\n\nColony: Pop ${state.colony.population} | Morale ${Math.round(state.colony.morale * 100)}% | Food ${state.colony.foodMonthsReserve.toFixed(1)}mo${optionText}${effectsText}\n\nDecide. Return JSON.`;
+    const cmdPrompt = `TURN ${turn} — ${year}: ${event.title}\n\n${event.description}\n\nDEPARTMENT REPORTS:\n${summaries}\n\nColony: Pop ${state.colony.population} | Morale ${Math.round(state.colony.morale * 100)}% | Food ${state.colony.foodMonthsReserve.toFixed(1)}mo${optionText}${effectsText}\n\nDecide. Return JSON.`;
 
     console.log(`  [commander] Deciding...`);
     emit('commander_deciding', { turn, year });
@@ -687,9 +692,9 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     const outcomeRng = new SeededRng(seed).turnSeed(turn + 1000);
     // Determine selected option: prefer explicit ID, then try to infer from decision text matching option labels
     let resolvedOptionId = decision.selectedOptionId;
-    if (!resolvedOptionId && crisis.options.length) {
+    if (!resolvedOptionId && event.options.length) {
       const decLower = (decision.decision || '').toLowerCase();
-      for (const opt of crisis.options) {
+      for (const opt of event.options) {
         if (decLower.includes(opt.id) || decLower.includes(opt.label.toLowerCase())) {
           resolvedOptionId = opt.id;
           break;
@@ -697,13 +702,13 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
       }
     }
     const outcome = resolvedOptionId
-      ? classifyOutcomeById(resolvedOptionId, crisis.options, crisis.riskSuccessProbability, kernel.getState().colony, outcomeRng)
-      : classifyOutcome(decision.decision, scenario.riskyOption, crisis.riskSuccessProbability, kernel.getState().colony, outcomeRng);
+      ? classifyOutcomeById(resolvedOptionId, event.options, event.riskSuccessProbability, kernel.getState().colony, outcomeRng)
+      : classifyOutcome(decision.decision, scenario.riskyOption, event.riskSuccessProbability, kernel.getState().colony, outcomeRng);
 
     // Apply outcome-driven colony effects via EffectRegistry
     const outcomeEffectRng = new SeededRng(seed).turnSeed(turn + 2000);
     const personalityBonus = (leader.hexaco.openness - 0.5) * 0.08 + (leader.hexaco.conscientiousness - 0.5) * 0.04;
-    const colonyDeltas = effectRegistry.applyOutcome(crisis.category, outcome, {
+    const colonyDeltas = effectRegistry.applyOutcome(event.category, outcome, {
       personalityBonus,
       noise: outcomeEffectRng.next() * 0.2 - 0.1,
     });
@@ -713,7 +718,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     }]);
 
     // Apply politics deltas via scenario hook
-    const polDelta = sc.hooks.politicsHook?.(crisis.category, outcome);
+    const polDelta = sc.hooks.politicsHook?.(event.category, outcome);
     if (polDelta) {
       kernel.applyPoliticsDeltas(polDelta);
     }
@@ -723,7 +728,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     outcomeLog.push({ turn, year, outcome });
 
     // Track crisis history for director context
-    crisisHistory.push({ turn, title: crisis.title, category: crisis.category, selectedOptionId: decision.selectedOptionId, decision: decision.decision.slice(0, 100), outcome });
+    eventHistory.push({ turn, title: event.title, category: event.category, selectedOptionId: decision.selectedOptionId, decision: decision.decision.slice(0, 100), outcome });
 
     // Finalize department memories with outcome and store
     for (const [dept, mem] of pendingDeptMemories) {
@@ -733,8 +738,8 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
       deptMemory.set(dept, existing);
     }
 
-    console.log(`  [outcome] ${outcome} (${crisis.category}${milestone ? ', milestone' : ', emergent'}) effects: ${JSON.stringify(colonyDeltas)}`);
-    emit('outcome', { turn, year, outcome, riskyOption: scenario.riskyOption, category: crisis.category, emergent: !milestone, colonyDeltas });
+    console.log(`  [outcome] ${outcome} (${event.category}${milestone ? ', milestone' : ', emergent'}) effects: ${JSON.stringify(colonyDeltas)}`);
+    emit('outcome', { turn, year, outcome, riskyOption: scenario.riskyOption, category: event.category, emergent: !milestone, colonyDeltas });
 
     // Log drift
     const drifted = kernel.getState().agents.filter(c => c.promotion && c.health.alive);
@@ -747,7 +752,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
 
     // Generate colonist reactions in parallel (all alive agents, cheap model)
     const reactionCtx = {
-      crisisTitle: crisis.title, crisisCategory: crisis.category,
+      crisisTitle: event.title, crisisCategory: event.category,
       outcome, decision: decision.decision.slice(0, 200),
       year, turn, colonyMorale: kernel.getState().colony.morale,
       colonyPopulation: kernel.getState().colony.population,
@@ -789,7 +794,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
         // Record reactions into persistent memory
         for (const r of reactions) {
           const c = agentMap.get(r.agentId);
-          if (c) recordReactionMemory(c, r, crisis.title, crisis.category, outcome, turn, year);
+          if (c) recordReactionMemory(c, r, event.title, event.category, outcome, turn, year);
         }
         updateRelationshipsFromReactions(kernel.getState().agents, reactions);
         // Consolidate any overflowing short-term memories
@@ -820,7 +825,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
 
     const after = kernel.getState();
     artifacts.push({
-      turn, year, crisis: crisis.title,
+      turn, year, crisis: event.title,
       departmentReports: reports, commanderDecision: decision,
       policyEffectsApplied: decision.selectedPolicies,
       stateSnapshotAfter: {
