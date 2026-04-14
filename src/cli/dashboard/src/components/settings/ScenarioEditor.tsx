@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { emitScenarioUpdated } from '../../scenario-sync';
+import { buildScenarioCompileRequest } from './scenarioCompileRequest';
 
 interface AdminConfig {
   adminWrite: boolean;
@@ -33,8 +34,10 @@ export function ScenarioEditor() {
   const [adminConfig, setAdminConfig] = useState<AdminConfig>({ adminWrite: false, memoryScenarios: [] });
   const [jsonText, setJsonText] = useState('');
   const [parseError, setParseError] = useState('');
+  const [seedText, setSeedText] = useState('');
   const [seedUrl, setSeedUrl] = useState('');
   const [webSearch, setWebSearch] = useState(true);
+  const [maxSearches, setMaxSearches] = useState('5');
   const [compiling, setCompiling] = useState(false);
   const [storing, setStoring] = useState(false);
   const [progress, setProgress] = useState<CompileProgress[]>([]);
@@ -145,8 +148,13 @@ export function ScenarioEditor() {
     setResult(null);
 
     try {
-      const body: Record<string, unknown> = { scenario: parsed, webSearch };
-      if (seedUrl.trim()) body.seedUrl = seedUrl.trim();
+      const body = buildScenarioCompileRequest({
+        scenario: parsed,
+        seedText,
+        seedUrl,
+        webSearch,
+        maxSearches,
+      });
 
       const res = await fetch('/compile', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -186,7 +194,7 @@ export function ScenarioEditor() {
       }
     } catch (err) { setResult({ success: false, message: String(err) }); }
     setCompiling(false);
-  }, [jsonText, parseError, seedUrl, webSearch]);
+  }, [jsonText, parseError, seedText, seedUrl, webSearch, maxSearches]);
 
   const lineCount = jsonText.split('\n').length;
   const byteSize = new Blob([jsonText]).size;
@@ -253,13 +261,35 @@ export function ScenarioEditor() {
         </summary>
         <div style={{ padding: '0 16px 12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <div>
+            <label style={labelStyle}>Seed Text</label>
+            <textarea
+              value={seedText}
+              onChange={e => setSeedText(e.target.value)}
+              placeholder="Paste notes, a brief, or source text to turn into research facts and category mapping."
+              style={{ ...inputStyle, minHeight: '96px', resize: 'vertical' }}
+            />
+          </div>
+          <div>
             <label style={labelStyle}>Seed URL (fetched via Firecrawl)</label>
             <input value={seedUrl} onChange={e => setSeedUrl(e.target.value)} placeholder="https://example.com/article" style={inputStyle} />
+          </div>
+          <div>
+            <label style={labelStyle}>Max Web Searches</label>
+            <input
+              value={maxSearches}
+              onChange={e => setMaxSearches(e.target.value)}
+              inputMode="numeric"
+              placeholder="5"
+              style={inputStyle}
+            />
           </div>
           <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-2)' }}>
             <input type="checkbox" checked={webSearch} onChange={e => setWebSearch(e.target.checked)} />
             Web search enrichment (requires Serper/Tavily/Firecrawl API keys)
           </label>
+          <p style={{ fontSize: '11px', color: 'var(--text-3)', margin: 0, lineHeight: 1.6 }}>
+            If both seed text and a seed URL are provided, the URL takes precedence and the compiler ingests the fetched page.
+          </p>
         </div>
       </details>
 
