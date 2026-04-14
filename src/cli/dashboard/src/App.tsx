@@ -104,10 +104,10 @@ function AppContent() {
                   <div key={i} className="py-0.5">
                     <span style={{ color: 'var(--amber)' }}>[{e.type}]</span>{' '}
                     <span style={{ color: 'var(--text-2)' }}>{e.leader}</span>{' '}
-                    {e.data?.turn && <span>T{String(e.data.turn)}</span>}
-                    {e.data?.title && <span> {String(e.data.title)}</span>}
-                    {e.data?.department && <span> {String(e.data.department)}</span>}
-                    {e.data?.outcome && <span> &rarr; {String(e.data.outcome)}</span>}
+                    {e.data?.turn != null && <span>T{String(e.data.turn)}</span>}
+                    {e.data?.title != null && <span> {String(e.data.title)}</span>}
+                    {e.data?.department != null && <span> {String(e.data.department)}</span>}
+                    {e.data?.outcome != null && <span> &rarr; {String(e.data.outcome)}</span>}
                   </div>
                 ))}
               </div>

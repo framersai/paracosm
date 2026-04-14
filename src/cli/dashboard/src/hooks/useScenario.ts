@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { subscribeScenarioUpdates } from '../scenario-sync';
 
 export interface ScenarioClientPayload {
   id: string;
@@ -78,22 +79,27 @@ export function useScenario() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/scenario')
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (data?.id) {
-          setScenario(data);
-          // Inject scenario CSS variables
-          if (data.theme?.cssVariables) {
-            const root = document.documentElement;
-            for (const [key, value] of Object.entries(data.theme.cssVariables)) {
-              root.style.setProperty(key, value as string);
+    const loadScenario = () => {
+      fetch('/scenario')
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (data?.id) {
+            setScenario(data);
+            // Inject scenario CSS variables
+            if (data.theme?.cssVariables) {
+              const root = document.documentElement;
+              for (const [key, value] of Object.entries(data.theme.cssVariables)) {
+                root.style.setProperty(key, value as string);
+              }
             }
           }
-        }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+        })
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    };
+
+    loadScenario();
+    return subscribeScenarioUpdates(window, loadScenario);
   }, []);
 
   return { scenario, loading };

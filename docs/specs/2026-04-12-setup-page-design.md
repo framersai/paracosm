@@ -1,7 +1,9 @@
 # Setup Page + Config UI Design
 
 **Date:** 2026-04-12
-**Status:** Approved
+**Status:** Superseded by the `/sim` dashboard architecture
+
+> Historical design note: the live implementation no longer serves a standalone `/setup` HTML page. `GET /setup` now redirects to `/sim?tab=settings`, and `POST /setup` returns a `/sim` redirect payload for the SPA dashboard.
 
 ## Overview
 

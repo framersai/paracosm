@@ -34,6 +34,37 @@ const leaderB = {
   instructions: 'Leader B',
 };
 
+const customScenario = {
+  id: 'deep-ocean-station',
+  version: '1.0.0',
+  labels: {
+    name: 'Deep Ocean Station',
+    shortName: 'ocean',
+    populationNoun: 'crew members',
+    settlementNoun: 'station',
+    currency: 'credits',
+  },
+  theme: { primaryColor: '#2563eb', accentColor: '#38bdf8', cssVariables: {} },
+  setup: { defaultTurns: 6, defaultSeed: 321, defaultStartYear: 2048, defaultPopulation: 40 },
+  departments: [
+    { id: 'operations', label: 'Operations', role: 'Operations Lead', icon: 'O' },
+    { id: 'research', label: 'Research', role: 'Research Lead', icon: 'R' },
+  ],
+  presets: [],
+  ui: {
+    headerMetrics: [{ id: 'population', format: 'number' }],
+    tooltipFields: [],
+    departmentIcons: {},
+    setupSections: ['leaders'],
+  },
+  policies: {
+    toolForging: { enabled: true },
+    bulletin: { enabled: true },
+    characterChat: { enabled: true },
+  },
+  hooks: {},
+};
+
 test('GET /setup redirects to the live dashboard settings surface', async () => {
   const server = createMarsServer({
     runPairSimulations: async () => {},
@@ -139,6 +170,137 @@ test('POST /setup normalizes config and hands it to the simulation runner', asyn
     assert.equal(cfg.execution.commanderMaxSteps, 7);
     assert.equal(cfg.models.commander, 'claude-sonnet-4-6');
     assert.equal(cfg.customEvents[0].title, 'Blackout');
+  } finally {
+    server.close();
+    await once(server, 'close');
+  }
+});
+
+test('POST /scenario/store makes a custom scenario switchable through the live catalog', async () => {
+  const server = createMarsServer({
+    runPairSimulations: async () => {},
+  });
+
+  server.listen(0);
+  await once(server, 'listening');
+  const address = server.address();
+  const port = typeof address === 'object' && address ? address.port : 0;
+
+  try {
+    const stored = await fetch(`http://127.0.0.1:${port}/scenario/store`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scenario: customScenario, saveToDisk: false }),
+    });
+    assert.equal(stored.status, 200);
+    assert.deepEqual(await stored.json(), {
+      stored: true,
+      id: customScenario.id,
+      savedToDisk: false,
+      adminWrite: false,
+    });
+
+    const catalog = await fetch(`http://127.0.0.1:${port}/scenarios`);
+    const catalogJson = await catalog.json();
+    assert.ok(catalogJson.scenarios.some((scenario: any) => scenario.id === customScenario.id));
+
+    const switched = await fetch(`http://127.0.0.1:${port}/scenario/switch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: customScenario.id }),
+    });
+    assert.equal(switched.status, 200);
+    assert.deepEqual(await switched.json(), {
+      active: customScenario.id,
+      name: customScenario.labels.name,
+    });
+
+    const active = await fetch(`http://127.0.0.1:${port}/scenario`);
+    const activeJson = await active.json();
+    assert.equal(activeJson.id, customScenario.id);
+    assert.equal(activeJson.labels.name, customScenario.labels.name);
+  } finally {
+    server.close();
+    await once(server, 'close');
+  }
+});
+
+test('POST /compile persists the compiled scenario for later switching and forwards seed options', async () => {
+  let captured: { scenarioJson: Record<string, unknown>; options: Record<string, unknown> } | null = null;
+  const compiledScenario = {
+    ...customScenario,
+    id: 'compiled-ocean-station',
+    labels: {
+      ...customScenario.labels,
+      name: 'Compiled Ocean Station',
+      shortName: 'compiled-ocean',
+    },
+    hooks: {
+      progressionHook: () => {},
+      directorInstructions: () => 'Director instructions for compiled ocean station.',
+      departmentPromptHook: () => [],
+      getMilestoneCrisis: () => null,
+      fingerprintHook: () => ({ summary: 'compiled' }),
+      politicsHook: () => null,
+      reactionContextHook: () => '',
+    },
+  };
+
+  const server = createMarsServer({
+    runPairSimulations: async () => {},
+    compileScenario: async (scenarioJson, options) => {
+      captured = { scenarioJson, options: options as Record<string, unknown> };
+      return compiledScenario as any;
+    },
+  } as any);
+
+  server.listen(0);
+  await once(server, 'listening');
+  const address = server.address();
+  const port = typeof address === 'object' && address ? address.port : 0;
+
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/compile`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        scenario: { id: compiledScenario.id, departments: [] },
+        seedUrl: 'https://example.com/ocean-station',
+        webSearch: false,
+        maxSearches: 7,
+      }),
+    });
+    const text = await response.text();
+
+    assert.equal(response.status, 200);
+    assert.match(text, /event: complete/);
+    assert.ok(captured);
+    assert.equal(captured?.scenarioJson.id, compiledScenario.id);
+    assert.equal(captured?.options.seedUrl, 'https://example.com/ocean-station');
+    assert.equal(captured?.options.webSearch, false);
+    assert.equal(captured?.options.maxSearches, 7);
+
+    const active = await fetch(`http://127.0.0.1:${port}/scenario`);
+    const activeJson = await active.json();
+    assert.equal(activeJson.id, compiledScenario.id);
+
+    const backToMars = await fetch(`http://127.0.0.1:${port}/scenario/switch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: 'mars-genesis' }),
+    });
+    assert.equal(backToMars.status, 200);
+
+    const backToCompiled = await fetch(`http://127.0.0.1:${port}/scenario/switch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: compiledScenario.id }),
+    });
+    assert.equal(backToCompiled.status, 200);
+    assert.deepEqual(await backToCompiled.json(), {
+      active: compiledScenario.id,
+      name: compiledScenario.labels.name,
+    });
   } finally {
     server.close();
     await once(server, 'close');

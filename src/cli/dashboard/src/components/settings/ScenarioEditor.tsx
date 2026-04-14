@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { emitScenarioUpdated } from '../../scenario-sync';
 
 interface AdminConfig {
   adminWrite: boolean;
@@ -95,6 +96,7 @@ export function ScenarioEditor() {
       });
       const data = await res.json();
       if (data.stored) {
+        emitScenarioUpdated(window);
         setResult({ success: true, message: `Stored "${data.id}" in memory. Switch to it from the scenario selector above, then compile.` });
         setAdminConfig(prev => ({ ...prev, memoryScenarios: [...new Set([...prev.memoryScenarios, data.id])] }));
       } else {
@@ -114,6 +116,7 @@ export function ScenarioEditor() {
       });
       const data = await res.json();
       if (data.savedToDisk) {
+        emitScenarioUpdated(window);
         setResult({ success: true, message: `Saved "${data.id}" to disk at scenarios/${data.id}.json` });
       } else {
         setResult({ success: false, message: data.error || 'Disk write not enabled (ADMIN_WRITE=false)' });
@@ -163,6 +166,7 @@ export function ScenarioEditor() {
                 });
               }
               if (data.id) {
+                emitScenarioUpdated(window);
                 setResult({ success: true, message: `Compiled: ${data.id} (${data.departments} departments, ${data.hooks} hooks). Go to Settings to configure leaders and launch.` });
               }
               if (data.error) setResult({ success: false, message: data.error });
