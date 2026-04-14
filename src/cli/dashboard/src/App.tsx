@@ -6,7 +6,7 @@ import { useGameState } from './hooks/useGameState';
 import { useGamePersistence } from './hooks/useGamePersistence';
 import { TopBar } from './components/layout/TopBar';
 import { TabBar } from './components/layout/TabBar';
-import { Toolbar } from './components/layout/Toolbar';
+// Toolbar merged into TopBar
 import { SimView } from './components/sim/SimView';
 import { SettingsPanel } from './components/settings/SettingsPanel';
 import { ReportView } from './components/reports/ReportView';
@@ -86,9 +86,8 @@ function AppContent() {
   return (
     <ScenarioContext.Provider value={scenario}>
       <div className="flex flex-col h-screen w-screen overflow-hidden scanline-overlay" style={{ background: 'var(--bg-deep)', color: 'var(--text-1)' }}>
-        <TopBar scenario={scenario} sse={sse} gameState={gameState} />
+        <TopBar scenario={scenario} sse={sse} gameState={gameState} onSave={handleSave} onLoad={handleLoad} onClear={handleClear} />
         <TabBar active={activeTab} onTabChange={setActiveTab} scenario={scenario} />
-        <Toolbar state={gameState} onSave={handleSave} onLoad={handleLoad} onClear={handleClear} />
 
         <main id="main-content" className="flex-1 overflow-hidden" role="main" aria-label={`${activeTab} view`} style={{ background: 'var(--bg-deep)', display: 'flex', flexDirection: 'column' }}>
           {activeTab === 'sim' && <SimView state={gameState} />}
