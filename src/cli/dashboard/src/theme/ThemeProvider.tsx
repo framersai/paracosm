@@ -33,6 +33,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const root = document.documentElement;
     // Dark is the CSS default (:root). Light is a class override.
     root.classList.toggle('light', theme === 'light');
+    // Update color-scheme for native form controls
+    root.style.colorScheme = theme;
+    // Update theme-color meta tag for browser chrome
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', theme === 'dark' ? '#0a0806' : '#e8dcc8');
   }, [theme]);
 
   return (

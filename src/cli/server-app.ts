@@ -459,7 +459,8 @@ Respond in character as this person. Be direct, personal, emotional. Reference y
         res.end(js);
         return;
       }
-      if (req.url === '/' || req.url === '/index.html') {
+      const legacyPath = (req.url || '/').split('?')[0];
+      if (legacyPath === '/' || legacyPath === '/index.html') {
         const html = readFileSync(resolve(__dirname, 'dashboard/index.legacy.html'), 'utf-8');
         res.writeHead(200, { 'Content-Type': 'text/html' });
         res.end(html);
@@ -485,7 +486,8 @@ Respond in character as this person. Be direct, personal, emotional. Reference y
         }
       }
       // SPA fallback: serve index.html for all non-API routes
-      if (req.url === '/' || req.url === '/index.html' || !req.url?.startsWith('/')) {
+      const pathname = (req.url || '/').split('?')[0];
+      if (pathname === '/' || pathname === '/index.html' || !pathname.startsWith('/')) {
         const html = readFileSync(resolve(distDir, 'index.html'), 'utf-8');
         res.writeHead(200, { 'Content-Type': 'text/html' });
         res.end(html);

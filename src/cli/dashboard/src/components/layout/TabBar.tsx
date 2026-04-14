@@ -21,25 +21,31 @@ export function TabBar({ active, onTabChange, scenario }: TabBarProps) {
   const tabs = TABS.filter(t => t.id !== 'chat' || scenario.policies.characterChat);
 
   return (
-    <div
-      className="flex shrink-0"
-      style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-primary)' }}
+    <nav
+      className="tab-bar flex shrink-0"
+      role="tablist"
+      aria-label="Dashboard navigation"
+      style={{ background: 'var(--bg-panel)', borderBottom: '1px solid var(--border)' }}
     >
       {tabs.map(tab => (
         <button
           key={tab.id}
           onClick={() => onTabChange(tab.id)}
+          role="tab"
+          aria-selected={active === tab.id}
+          aria-controls={`panel-${tab.id}`}
+          id={`tab-${tab.id}`}
           className="cursor-pointer transition-colors"
           style={{
-            padding: '4px 0',
+            padding: '6px 0',
             flex: 1,
-            fontFamily: 'var(--font-sans)',
+            fontFamily: 'var(--sans)',
             fontSize: '10px',
             fontWeight: 700,
             letterSpacing: '0.5px',
             textTransform: 'uppercase' as const,
-            color: active === tab.id ? 'var(--amber)' : 'var(--text-muted)',
-            background: active === tab.id ? 'var(--bg-card)' : 'var(--bg-secondary)',
+            color: active === tab.id ? 'var(--amber)' : 'var(--text-3)',
+            background: active === tab.id ? 'var(--bg-card)' : 'var(--bg-panel)',
             border: 'none',
             borderBottom: active === tab.id ? '2px solid var(--amber)' : '2px solid transparent',
           }}
@@ -47,6 +53,6 @@ export function TabBar({ active, onTabChange, scenario }: TabBarProps) {
           {tab.label}
         </button>
       ))}
-    </div>
+    </nav>
   );
 }

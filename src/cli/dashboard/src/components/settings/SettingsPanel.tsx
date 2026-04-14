@@ -43,6 +43,29 @@ export function SettingsPanel() {
 
   const [leaderA, setLeaderA] = useState<LeaderFormData>(initLeaderA);
   const [leaderB, setLeaderB] = useState<LeaderFormData>(initLeaderB);
+
+  // Re-populate from presets when scenario data loads (async fetch)
+  useEffect(() => {
+    const p = scenario.presets.find(p => p.id === 'default');
+    if (p?.leaders?.[0]) {
+      setLeaderA(prev => ({
+        ...prev,
+        name: p.leaders![0].name,
+        archetype: p.leaders![0].archetype,
+        instructions: p.leaders![0].instructions,
+        hexaco: { ...p.leaders![0].hexaco },
+      }));
+    }
+    if (p?.leaders?.[1]) {
+      setLeaderB(prev => ({
+        ...prev,
+        name: p.leaders![1].name,
+        archetype: p.leaders![1].archetype,
+        instructions: p.leaders![1].instructions,
+        hexaco: { ...p.leaders![1].hexaco },
+      }));
+    }
+  }, [scenario.id]);
   const [turns, setTurns] = useState(scenario.setup.defaultTurns);
   const [seed, setSeed] = useState(scenario.setup.defaultSeed);
   const [startYear, setStartYear] = useState(scenario.setup.defaultStartYear);
@@ -108,18 +131,19 @@ export function SettingsPanel() {
   }, [leaderA, leaderB, turns, seed, startYear, population, provider, liveSearch, scenario]);
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '20px 24px', background: 'var(--bg-deep)' }}>
+    <div className="settings-content" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '20px 24px', background: 'var(--bg-deep)' }}>
       {/* Scenario Selector */}
       {scenarios.length > 0 && (
-        <div style={{
+        <div className="responsive-stack" style={{
           display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px',
           padding: '12px 16px', background: 'var(--bg-panel)', border: '1px solid var(--border)',
           borderRadius: '8px', boxShadow: 'var(--card-shadow)',
         }}>
-          <label style={{ fontSize: '12px', color: 'var(--text-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          <label htmlFor="scenario-select" style={{ fontSize: '12px', color: 'var(--text-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', flexShrink: 0 }}>
             Scenario
           </label>
           <select
+            id="scenario-select"
             value={activeId}
             onChange={e => switchScenario(e.target.value)}
             style={{
@@ -145,74 +169,76 @@ export function SettingsPanel() {
       </p>
 
       {/* Leaders grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+      <div className="responsive-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
         <LeaderConfig label="Commander A" sideColor="var(--vis)" data={leaderA} onChange={setLeaderA} />
         <LeaderConfig label="Commander B" sideColor="var(--eng)" data={leaderB} onChange={setLeaderB} />
       </div>
 
       {/* Simulation config */}
-      <div style={{
+      <fieldset style={{
         background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: '8px',
         padding: '16px', marginBottom: '16px', boxShadow: 'var(--card-shadow)',
       }}>
-        <h3 style={{ fontSize: '14px', fontFamily: 'var(--mono)', color: 'var(--text-2)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+        <legend style={{ fontSize: '14px', fontFamily: 'var(--mono)', color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.5px', padding: '0 8px' }}>
           Simulation
-        </h3>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '12px' }}>
+        </legend>
+        <div className="responsive-grid-4" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '12px' }}>
           <div>
-            <label style={labelStyle}>Turns</label>
-            <input type="number" value={turns} onChange={e => setTurns(parseInt(e.target.value) || 12)} min={1} max={20} style={inputStyle} />
+            <label htmlFor="turns-input" style={labelStyle}>Turns</label>
+            <input id="turns-input" type="number" value={turns} onChange={e => setTurns(parseInt(e.target.value) || 12)} min={1} max={20} style={inputStyle} />
           </div>
           <div>
-            <label style={labelStyle}>Seed</label>
-            <input type="number" value={seed} onChange={e => setSeed(parseInt(e.target.value) || 950)} style={inputStyle} />
+            <label htmlFor="seed-input" style={labelStyle}>Seed</label>
+            <input id="seed-input" type="number" value={seed} onChange={e => setSeed(parseInt(e.target.value) || 950)} style={inputStyle} />
           </div>
           <div>
-            <label style={labelStyle}>Start Year</label>
-            <input type="number" value={startYear} onChange={e => setStartYear(parseInt(e.target.value) || 2035)} style={inputStyle} />
+            <label htmlFor="year-input" style={labelStyle}>Start Year</label>
+            <input id="year-input" type="number" value={startYear} onChange={e => setStartYear(parseInt(e.target.value) || 2035)} style={inputStyle} />
           </div>
           <div>
-            <label style={labelStyle}>Population</label>
-            <input type="number" value={population} onChange={e => setPopulation(parseInt(e.target.value) || 100)} style={inputStyle} />
+            <label htmlFor="pop-input" style={labelStyle}>Population</label>
+            <input id="pop-input" type="number" value={population} onChange={e => setPopulation(parseInt(e.target.value) || 100)} style={inputStyle} />
           </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '12px' }}>
+        <div className="responsive-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '12px' }}>
           <div>
-            <label style={labelStyle}>Provider</label>
-            <select value={provider} onChange={e => setProvider(e.target.value)} style={inputStyle}>
+            <label htmlFor="provider-select" style={labelStyle}>Provider</label>
+            <select id="provider-select" value={provider} onChange={e => setProvider(e.target.value)} style={inputStyle}>
               <option value="openai">OpenAI</option>
               <option value="anthropic">Anthropic</option>
             </select>
           </div>
           <div>
-            <label style={labelStyle}>Live Search</label>
-            <select value={String(liveSearch)} onChange={e => setLiveSearch(e.target.value === 'true')} style={inputStyle}>
+            <label htmlFor="search-select" style={labelStyle}>Live Search</label>
+            <select id="search-select" value={String(liveSearch)} onChange={e => setLiveSearch(e.target.value === 'true')} style={inputStyle}>
               <option value="false">Off</option>
               <option value="true">On (requires search API keys)</option>
             </select>
           </div>
         </div>
-      </div>
+      </fieldset>
 
       {/* Custom Scenario */}
       <CustomScenario />
 
       {/* Launch */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--border)' }}>
+      <div className="responsive-stack" style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--border)' }}>
         <button
           onClick={launch}
           disabled={launching}
+          aria-label={launching ? 'Simulation running' : 'Launch simulation'}
           style={{
             background: 'linear-gradient(135deg, var(--rust), #c44a1e)',
             color: 'white', border: 'none', padding: '12px 36px', borderRadius: '6px',
             fontSize: '16px', fontWeight: 800, cursor: 'pointer', fontFamily: 'var(--sans)',
             opacity: launching ? 0.5 : 1,
             boxShadow: '0 4px 16px rgba(224, 101, 48, 0.3)',
+            transition: 'transform 0.15s ease, box-shadow 0.15s ease',
           }}
         >
           {launching ? 'Running...' : 'Launch Simulation'}
         </button>
-        {status && <span style={{ fontSize: '13px', color: 'var(--text-3)' }}>{status}</span>}
+        {status && <span role="status" style={{ fontSize: '13px', color: 'var(--text-3)' }}>{status}</span>}
       </div>
     </div>
   );

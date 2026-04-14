@@ -20,6 +20,8 @@ export interface LeaderInfo {
   archetype: string;
   colony: string;
   hexaco: Record<string, number>;
+  instructions?: string;
+  quote?: string;
 }
 
 export interface CrisisInfo {

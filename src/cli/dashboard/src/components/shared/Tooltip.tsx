@@ -11,7 +11,7 @@ export function Tooltip({ content, children, dot }: TooltipProps) {
   const [visible, setVisible] = useState(false);
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const ref = useRef<HTMLSpanElement>(null);
-  const timer = useRef<ReturnType<typeof setTimeout>>();
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const show = useCallback((e: React.MouseEvent) => {
     clearTimeout(timer.current);
@@ -36,6 +36,11 @@ export function Tooltip({ content, children, dot }: TooltipProps) {
       onMouseEnter={show}
       onMouseLeave={hide}
       style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}
+      role="button"
+      tabIndex={0}
+      aria-describedby={visible ? 'paracosm-tooltip' : undefined}
+      onFocus={show as unknown as React.FocusEventHandler}
+      onBlur={hide}
     >
       {children}
       {dot && (
@@ -43,18 +48,22 @@ export function Tooltip({ content, children, dot }: TooltipProps) {
           width: '6px', height: '6px', borderRadius: '50%', background: 'var(--amber)',
           opacity: visible ? 0.8 : 0, marginLeft: '3px', transition: 'opacity 0.15s',
           flexShrink: 0, display: 'inline-block', verticalAlign: 'middle',
-        }} />
+        }} aria-hidden="true" />
       )}
       {visible && (
-        <div style={{
-          position: 'fixed', left: pos.x, top: pos.y, zIndex: 99999,
-          background: '#14110e', border: '2px solid var(--amber)', borderRadius: '8px',
-          padding: '14px 18px', fontSize: '12px', color: '#f5f0e4', lineHeight: 1.6,
-          width: '380px', maxWidth: '90vw', maxHeight: '70vh', overflowY: 'auto',
-          boxShadow: '0 8px 40px rgba(0,0,0,.9)', pointerEvents: 'none',
-          whiteSpace: 'normal',
-          animation: 'fadeUp 0.15s ease both',
-        }}>
+        <div
+          id="paracosm-tooltip"
+          role="tooltip"
+          style={{
+            position: 'fixed', left: pos.x, top: pos.y, zIndex: 99999,
+            background: 'var(--bg-panel)', border: '2px solid var(--amber)', borderRadius: '8px',
+            padding: '14px 18px', fontSize: '12px', color: 'var(--text-1)', lineHeight: 1.6,
+            width: '380px', maxWidth: '90vw', maxHeight: '70vh', overflowY: 'auto',
+            boxShadow: '0 8px 40px rgba(0,0,0,.5)', pointerEvents: 'none',
+            whiteSpace: 'normal',
+            animation: 'fadeUp 0.15s ease both',
+          }}
+        >
           {content}
         </div>
       )}

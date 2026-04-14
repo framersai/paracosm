@@ -3,51 +3,78 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>About — Mars Genesis</title>
+<title>About Paracosm — Multi-Agent AI Simulation Engine</title>
+<meta name="description" content="Paracosm is a scenario-driven multi-agent simulation engine with emergent AI crisis generation, runtime tool forging, HEXACO personality evolution, and a deterministic kernel." />
+<meta name="author" content="Manic Agency / Frame.dev" />
+<meta property="og:title" content="About Paracosm — Multi-Agent AI Simulation Engine" />
+<meta property="og:description" content="Two AI commanders. Same settlement. Different personalities. Emergent crises, runtime tool forging, divergent civilizations." />
+<meta property="og:type" content="website" />
+<meta name="theme-color" content="#0a0806" />
 <style>
   :root {
-    --bg: #0a0806; --bg2: #12100d; --bg3: #1a1714;
-    --border: #2a2520; --text-1: #e8dcc8; --text-2: #a89880; --text-3: #6b5f50;
-    --rust: #c45a2c; --amber: #d4a04a; --teal: #3d8b8b; --green: #5a8b3d;
-    --font: 'SF Mono',Menlo,'Cascadia Code','JetBrains Mono',monospace;
+    --bg: #0a0806; --bg2: #14110e; --bg3: #1c1915;
+    --border: #302a22; --border-hl: #4a3f30;
+    --text-1: #f5f0e4; --text-2: #d8ccb0; --text-3: #a89878; --text-4: #6b5f50;
+    --rust: #e06530; --amber: #e8b44a; --teal: #4ca8a8; --green: #6aad48;
+    --mono: 'JetBrains Mono','SF Mono',Menlo,'Cascadia Code',monospace;
+    --sans: 'Inter',system-ui,-apple-system,sans-serif;
+    color-scheme: dark;
   }
   *{margin:0;padding:0;box-sizing:border-box}
-  body{background:var(--bg);color:var(--text-1);font-family:var(--font);min-height:100vh;display:flex;flex-direction:column}
+  body{background:var(--bg);color:var(--text-1);font-family:var(--sans);min-height:100vh;display:flex;flex-direction:column;font-size:13px;line-height:1.6;-webkit-font-smoothing:antialiased}
   a{color:var(--amber);text-decoration:none}
   a:hover{text-decoration:underline}
+  *:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
   .wrap{max-width:800px;margin:0 auto;padding:40px 24px}
-  h1{font-size:28px;color:var(--amber);margin-bottom:8px}
-  h2{font-size:18px;color:var(--rust);margin-top:32px;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--border)}
-  h3{font-size:14px;color:var(--text-1);margin-top:20px;margin-bottom:6px}
-  p{color:var(--text-2);line-height:1.8;margin-bottom:12px;font-size:13px}
-  ul{color:var(--text-2);line-height:1.8;margin-bottom:12px;padding-left:20px;font-size:13px}
-  code{color:var(--rust);background:var(--bg3);padding:1px 5px;border-radius:3px;font-size:12px}
+  h1{font-size:28px;color:var(--amber);margin-bottom:8px;font-family:var(--mono)}
+  h2{font-size:18px;color:var(--rust);margin-top:32px;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--border);font-family:var(--mono)}
+  h3{font-size:14px;color:var(--text-1);margin-top:20px;margin-bottom:6px;font-family:var(--mono)}
+  p{color:var(--text-2);line-height:1.8;margin-bottom:12px}
+  ul{color:var(--text-2);line-height:1.8;margin-bottom:12px;padding-left:20px}
+  code{color:var(--rust);background:var(--bg3);padding:1px 5px;border-radius:3px;font-size:12px;font-family:var(--mono)}
   .logo-row{display:flex;align-items:center;gap:12px;margin-bottom:24px}
   .logo-row svg{width:40px;height:40px}
   .logo-row h1{margin:0}
-  .sub{color:var(--rust);font-size:11px;font-weight:700;letter-spacing:1px}
-  .links{display:flex;flex-wrap:wrap;gap:16px;margin-top:12px;font-size:13px}
-  .links a{color:var(--teal);font-weight:600;padding:6px 14px;border:1px solid var(--border);border-radius:4px;transition:border-color .2s}
-  .links a:hover{border-color:var(--teal);text-decoration:none}
+  .sub{color:var(--rust);font-size:11px;font-weight:700;letter-spacing:1px;font-family:var(--mono)}
+  .links{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;font-size:13px}
+  .links a{color:var(--teal);font-weight:600;padding:6px 14px;border:1px solid var(--border);border-radius:4px;transition:border-color .2s,box-shadow .2s}
+  .links a:hover{border-color:var(--teal);text-decoration:none;box-shadow:0 0 8px rgba(76,168,168,.15)}
   .back{display:inline-block;margin-bottom:24px;color:var(--text-3);font-size:11px}
-  .card{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:16px;margin-bottom:12px}
-  .card-title{font-weight:700;color:var(--amber);font-size:14px;margin-bottom:4px}
+  .card{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:16px;margin-bottom:12px;transition:box-shadow .3s,border-color .3s}
+  .card:hover{box-shadow:0 0 12px rgba(232,180,74,.08);border-color:var(--border-hl)}
+  .card-title{font-weight:700;color:var(--amber);font-size:14px;margin-bottom:4px;font-family:var(--mono)}
   .team{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
   .team a{color:var(--text-1);font-weight:600}
   .footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--border);font-size:11px;color:var(--text-3);text-align:center}
+  @media(max-width:600px){
+    .wrap{padding:20px 16px}
+    h1{font-size:22px}
+    h2{font-size:16px}
+    .links{gap:8px}
+    .links a{padding:4px 10px;font-size:12px}
+  }
+  @media(prefers-reduced-motion:reduce){
+    *{animation-duration:.01ms!important;transition-duration:.01ms!important}
+  }
 </style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
-<div class="wrap">
+<a href="#main" class="skip-to-content" style="position:absolute;left:-9999px;top:0;z-index:999;padding:8px 16px;background:var(--amber);color:var(--bg);font-weight:700">Skip to content</a>
+<div class="wrap" id="main" role="main">
 
-<a href="/" class="back">← Back to Simulation</a>
+<a href="/" class="back" aria-label="Back to simulation">&larr; Back to Simulation</a>
 
 <div class="logo-row">
-  <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#c45a2c"/><stop offset="50%" style="stop-color:#d4a04a"/><stop offset="100%" style="stop-color:#3d8b8b"/></linearGradient></defs><circle cx="32" cy="32" r="8" fill="url(#g)"/><circle cx="32" cy="12" r="4" fill="#c45a2c" opacity=".9"/><circle cx="48" cy="20" r="4" fill="#d4a04a" opacity=".9"/><circle cx="48" cy="44" r="4" fill="#3d8b8b" opacity=".9"/><circle cx="32" cy="52" r="4" fill="#3d8b8b" opacity=".9"/><circle cx="16" cy="44" r="4" fill="#d4a04a" opacity=".9"/><circle cx="16" cy="20" r="4" fill="#c45a2c" opacity=".9"/><path d="M32 32L32 12M32 32L48 20M32 32L48 44M32 32L32 52M32 32L16 44M32 32L16 20" stroke="url(#g)" stroke-width="1.5" opacity=".5"/></svg>
-  <div><h1>Mars Genesis</h1><div class="sub">AGENTOS SIMULATION</div></div>
+  <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Paracosm logo"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#e06530"/><stop offset="50%" style="stop-color:#e8b44a"/><stop offset="100%" style="stop-color:#4ca8a8"/></linearGradient></defs><circle cx="32" cy="32" r="8" fill="url(#g)"/><circle cx="32" cy="12" r="4" fill="#e06530" opacity=".9"/><circle cx="48" cy="20" r="4" fill="#e8b44a" opacity=".9"/><circle cx="48" cy="44" r="4" fill="#4ca8a8" opacity=".9"/><circle cx="32" cy="52" r="4" fill="#4ca8a8" opacity=".9"/><circle cx="16" cy="44" r="4" fill="#e8b44a" opacity=".9"/><circle cx="16" cy="20" r="4" fill="#e06530" opacity=".9"/><path d="M32 32L32 12M32 32L48 20M32 32L48 44M32 32L32 52M32 32L16 44M32 32L16 20" stroke="url(#g)" stroke-width="1.5" opacity=".5"/></svg>
+  <div><h1>Paracosm</h1><div class="sub">AGENTOS SIMULATION ENGINE</div></div>
 </div>
 
-<p>Mars Genesis is a multi-agent Mars colony simulation that demonstrates emergent tool forging, HEXACO personality evolution, and deterministic simulation kernels. Two AI commanders lead the same colony through 12 crises across 50 years. Their personalities drive different decisions, different tools, and different civilizational outcomes.</p>
+<p>Paracosm is a scenario-driven multi-agent simulation engine that demonstrates emergent tool forging, HEXACO personality evolution, and deterministic simulation kernels. Two AI commanders lead the same settlement through crises across decades. Their personalities drive different decisions, different tools, and different civilizational outcomes.</p>
+
+<p><strong>Availability note:</strong> the open-source simulation engine is available now. Hosted Pro, Enterprise, and Platform packaging are roadmap offerings and early-access plans, not generally available products yet.</p>
 
 <h2>What This Demonstrates</h2>
 
@@ -68,32 +95,32 @@
 
 <h2>Built With</h2>
 
-<p>Mars Genesis runs on <a href="https://agentos.sh">AgentOS</a>, an open-source TypeScript runtime for building autonomous AI agents. It uses the <code>agent()</code> API, <code>EmergentCapabilityEngine</code>, <code>EmergentJudge</code>, and <code>ForgeToolMetaTool</code> from the AgentOS core.</p>
+<p>Paracosm runs on <a href="https://agentos.sh">AgentOS</a>, an open-source TypeScript runtime for building autonomous AI agents. It uses the <code>agent()</code> API, <code>EmergentCapabilityEngine</code>, <code>EmergentJudge</code>, and <code>ForgeToolMetaTool</code> from the AgentOS core.</p>
 
-<div class="links">
+<nav aria-label="AgentOS links" class="links">
   <a href="https://agentos.sh">AgentOS</a>
   <a href="https://docs.agentos.sh">Documentation</a>
   <a href="https://docs.agentos.sh/api">API Reference</a>
   <a href="https://github.com/framersai/agentos">GitHub</a>
   <a href="https://www.npmjs.com/package/@framers/agentos">npm</a>
   <a href="https://discord.gg/3bYhhcrn">Discord</a>
-</div>
+</nav>
 
 <h2>The AgentOS Ecosystem</h2>
 
 <ul>
-  <li><a href="https://agentos.sh">AgentOS</a> — core TypeScript AI agent runtime</li>
-  <li><a href="https://docs.agentos.sh">docs.agentos.sh</a> — guides, tutorials, API reference</li>
-  <li><a href="https://github.com/framersai/agentos-extensions">Extensions</a> — 107+ tool extensions, 37 channel adapters</li>
-  <li><a href="https://github.com/framersai/agentos-skills">Skills</a> — 72 curated skill modules</li>
-  <li><a href="https://github.com/framersai/agentos-workbench">Workbench</a> — developer cockpit for AgentOS sessions</li>
-  <li><a href="https://wunderland.sh">Wunderland</a> — autonomous agent social network</li>
-  <li><a href="https://rabbithole.inc">Rabbit Hole</a> — managed cloud for agent hosting</li>
+  <li><a href="https://agentos.sh">AgentOS</a> &mdash; core TypeScript AI agent runtime</li>
+  <li><a href="https://docs.agentos.sh">docs.agentos.sh</a> &mdash; guides, tutorials, API reference</li>
+  <li><a href="https://github.com/framersai/agentos-extensions">Extensions</a> &mdash; 107+ tool extensions, 37 channel adapters</li>
+  <li><a href="https://github.com/framersai/agentos-skills">Skills</a> &mdash; 72 curated skill modules</li>
+  <li><a href="https://github.com/framersai/agentos-workbench">Workbench</a> &mdash; developer cockpit for AgentOS sessions</li>
+  <li><a href="https://wunderland.sh">Wunderland</a> &mdash; autonomous agent social network</li>
+  <li><a href="https://rabbithole.inc">Rabbit Hole</a> &mdash; managed cloud for agent hosting</li>
 </ul>
 
 <h2>Team</h2>
 
-<p>Mars Genesis is built by <a href="https://manic.agency">Manic Agency LLC</a> / <a href="https://frame.dev">Frame.dev</a>.</p>
+<p>Paracosm is built by <a href="https://manic.agency">Manic Agency LLC</a> / <a href="https://frame.dev">Frame.dev</a>.</p>
 
 <div class="team">
   <a href="mailto:team@manic.agency">team@manic.agency</a>
@@ -102,15 +129,15 @@
 
 <h2>Source Code</h2>
 
-<p>Paracosm is open source under the Apache-2.0 license. The core simulation engine is free to use in any project, including commercial products. Enterprise features (hosted dashboard, white-label UI, scenario authoring studio, multi-tenant orchestration) are available as paid services built on the open core.</p>
+<p>Paracosm is open source under the Apache-2.0 license. The core simulation engine is free to use in any project, including commercial products. Hosted dashboard, private deployment, white-label packaging, and scenario authoring are planned commercial layers built on the open core, not broadly available services today.</p>
 
-<div class="links">
+<nav aria-label="Source code links" class="links">
   <a href="https://github.com/framersai/paracosm">GitHub Repository</a>
   <a href="https://www.npmjs.com/package/paracosm">npm</a>
-</div>
+</nav>
 
-<div class="footer">
-  <p>Apache-2.0 License · Manic Agency LLC · <a href="https://manic.agency">manic.agency</a> · <a href="https://frame.dev">frame.dev</a></p>
+<div class="footer" role="contentinfo">
+  <p>Apache-2.0 License &middot; Manic Agency LLC &middot; <a href="https://manic.agency">manic.agency</a> &middot; <a href="https://frame.dev">frame.dev</a></p>
 </div>
 
 </div>

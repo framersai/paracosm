@@ -92,7 +92,7 @@ export function EventCard({ event, side }: EventCardProps) {
             <div key={i} style={{
               margin: '0 8px 4px', borderRadius: '4px', padding: '8px 12px', fontSize: '12px',
               display: 'flex', alignItems: 'center', gap: '10px',
-              animation: 'forgeGlow 2s ease both',
+              animation: 'forgeSlide 0.4s ease both, forgeGlow 2s ease both',
               background: t.approved !== false ? 'rgba(106,173,72,.08)' : 'rgba(224,101,48,.04)',
               borderLeft: `3px solid ${t.approved !== false ? 'var(--green)' : 'var(--rust)'}`,
               border: `1px solid ${t.approved !== false ? 'rgba(106,173,72,.25)' : 'rgba(224,101,48,.15)'}`,

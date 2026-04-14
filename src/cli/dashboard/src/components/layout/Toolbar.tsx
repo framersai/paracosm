@@ -10,14 +10,14 @@ interface ToolbarProps {
 
 const btnStyle = {
   background: 'var(--bg-card)',
-  color: 'var(--text-secondary)',
-  border: '1px solid var(--border-primary)',
+  color: 'var(--text-2)',
+  border: '1px solid var(--border)',
   padding: '3px 12px',
   borderRadius: '3px',
   fontSize: '10px',
   cursor: 'pointer',
   fontWeight: 600,
-  fontFamily: 'var(--font-sans)',
+  fontFamily: 'var(--sans)',
 };
 
 export function Toolbar({ state, onSave, onLoad, onClear }: ToolbarProps) {
@@ -26,27 +26,29 @@ export function Toolbar({ state, onSave, onLoad, onClear }: ToolbarProps) {
 
   return (
     <div
-      className="shrink-0"
+      className="toolbar shrink-0"
+      role="toolbar"
+      aria-label="Simulation controls"
       style={{
         display: 'flex',
         alignItems: 'center',
         gap: '6px',
         padding: '3px 16px',
-        background: 'var(--bg-secondary)',
-        borderBottom: '1px solid var(--border-primary)',
+        background: 'var(--bg-panel)',
+        borderBottom: '1px solid var(--border)',
         fontSize: '10px',
       }}
     >
-      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--amber)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+      <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, color: 'var(--amber)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
         {scenario.id}
       </span>
       <div style={{ flex: 1 }} />
       {hasEvents && (
-        <button onClick={onSave} style={btnStyle}>Save</button>
+        <button onClick={onSave} style={btnStyle} aria-label="Save simulation data">Save</button>
       )}
-      <button onClick={onLoad} style={btnStyle}>Load Game</button>
+      <button onClick={onLoad} style={btnStyle} aria-label="Load saved simulation">Load Game</button>
       {hasEvents && (
-        <button onClick={onClear} style={{ ...btnStyle, color: 'var(--rust)' }}>Clear</button>
+        <button onClick={onClear} style={{ ...btnStyle, color: 'var(--rust)' }} aria-label="Clear simulation data">Clear</button>
       )}
     </div>
   );

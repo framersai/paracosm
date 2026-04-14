@@ -11,7 +11,7 @@ interface TopBarProps {
 /** Paracosm logo: orbital node graph */
 function ParacosmLogo({ size = 20 }: { size?: number }) {
   return (
-    <svg viewBox="0 0 64 64" width={size} height={size} xmlns="http://www.w3.org/2000/svg">
+    <svg viewBox="0 0 64 64" width={size} height={size} xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Paracosm logo">
       <defs>
         <linearGradient id="plogo" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stopColor="var(--rust, #e06530)" />
@@ -35,10 +35,10 @@ export function TopBar({ scenario, sse, gameState }: TopBarProps) {
   const { resolved, setTheme } = useTheme();
 
   const statusColor = sse.isComplete
-    ? 'var(--accent-warm)'
+    ? 'var(--rust)'
     : sse.status === 'connected'
     ? 'var(--color-success)'
-    : 'var(--text-muted)';
+    : 'var(--text-3)';
 
   const statusText = sse.isComplete
     ? 'Complete'
@@ -49,40 +49,43 @@ export function TopBar({ scenario, sse, gameState }: TopBarProps) {
     : 'Connecting...';
 
   return (
-    <div
-      className="flex items-center justify-between px-4 gap-4 shrink-0"
-      style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-primary)', height: '36px' }}
+    <header
+      className="topbar flex items-center justify-between px-4 gap-4 shrink-0"
+      role="banner"
+      style={{ background: 'var(--bg-panel)', borderBottom: '1px solid var(--border)', height: '36px' }}
     >
       {/* Left: Logos + scenario name */}
       <div className="flex items-center gap-2 shrink-0">
-        <ParacosmLogo size={20} />
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
+        <a href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }} title="Reload Paracosm" aria-label="Paracosm home">
+          <ParacosmLogo size={20} />
+        </a>
+        <a href="/" style={{ fontFamily: 'var(--mono)', fontSize: '13px', fontWeight: 700, color: 'var(--text-1)', textDecoration: 'none' }}>
           PARACOSM
-        </span>
-        <span style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1px', color: 'var(--rust, #e06530)', fontFamily: 'var(--font-mono)' }}>
+        </a>
+        <a href="https://agentos.sh" target="_blank" rel="noopener" style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1px', color: 'var(--rust)', fontFamily: 'var(--mono)', textDecoration: 'none' }} title="AgentOS Runtime">
           AGENTOS
-        </span>
-        <span style={{ color: 'var(--border-primary)', margin: '0 4px', fontSize: '12px' }}>|</span>
-        <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--accent-primary)', fontFamily: 'var(--font-mono)' }}>
+        </a>
+        <span style={{ color: 'var(--border)', margin: '0 4px', fontSize: '12px' }} aria-hidden="true">|</span>
+        <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--amber)', fontFamily: 'var(--mono)' }}>
           {scenario.labels.name}
         </span>
       </div>
 
-      {/* Center: Tagline */}
-      <div className="text-xs hidden md:block truncate" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '10px' }}>
+      {/* Center: Tagline (hidden on mobile) */}
+      <div className="topbar-center text-xs hidden md:block truncate" style={{ color: 'var(--text-3)', fontFamily: 'var(--mono)', fontSize: '10px' }}>
         Two leaders. Same {scenario.labels.settlementNoun}. Emergent divergence.
       </div>
 
       {/* Right: Turn info + status + theme toggle */}
       <div className="flex items-center gap-3 shrink-0">
         {gameState.turn > 0 && (
-          <div className="flex items-center gap-2" style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
-            <span>T<strong style={{ color: 'var(--text-primary)' }}>{gameState.turn}</strong>/{gameState.maxTurns}</span>
-            <span>Y<strong style={{ color: 'var(--text-primary)' }}>{gameState.year}</strong></span>
-            <span>S<strong style={{ color: 'var(--text-primary)' }}>{gameState.seed}</strong></span>
-            <div className="w-16 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--border-primary)' }}>
+          <div className="topbar-meta flex items-center gap-2" style={{ fontSize: '11px', fontFamily: 'var(--mono)', color: 'var(--text-2)' }}>
+            <span>T<strong style={{ color: 'var(--text-1)' }}>{gameState.turn}</strong>/{gameState.maxTurns}</span>
+            <span>Y<strong style={{ color: 'var(--text-1)' }}>{gameState.year}</strong></span>
+            <span>S<strong style={{ color: 'var(--text-1)' }}>{gameState.seed}</strong></span>
+            <div className="w-16 h-1.5 rounded-full overflow-hidden progress-bar" style={{ background: 'var(--border)' }} role="progressbar" aria-valuenow={gameState.turn} aria-valuemin={0} aria-valuemax={gameState.maxTurns} aria-label="Simulation progress">
               <div
-                className="h-full rounded-full transition-all"
+                className="h-full rounded-full transition-all progress-fill"
                 style={{
                   width: `${Math.round((gameState.turn / gameState.maxTurns) * 100)}%`,
                   background: 'linear-gradient(90deg, var(--side-a), var(--side-b))',
@@ -91,23 +94,24 @@ export function TopBar({ scenario, sse, gameState }: TopBarProps) {
             </div>
           </div>
         )}
-        <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: statusColor, fontWeight: 700 }}>
-          {sse.status === 'connected' && !sse.isComplete ? '●' : '○'} {statusText}
+        <span style={{ fontSize: '11px', fontFamily: 'var(--mono)', color: statusColor, fontWeight: 700 }} role="status" aria-live="polite">
+          {sse.status === 'connected' && !sse.isComplete ? '\u25CF' : '\u25CB'} {statusText}
         </span>
         <button
           onClick={() => setTheme(resolved === 'dark' ? 'light' : 'dark')}
           className="px-2 py-0.5 rounded cursor-pointer transition-colors"
           style={{
-            background: 'var(--bg-tertiary)',
-            color: 'var(--text-muted)',
-            border: '1px solid var(--border-subtle)',
+            background: 'var(--bg-card)',
+            color: 'var(--text-3)',
+            border: '1px solid var(--border)',
             fontSize: '11px',
           }}
           title={`Switch to ${resolved === 'dark' ? 'light' : 'dark'} mode`}
+          aria-label={`Switch to ${resolved === 'dark' ? 'light' : 'dark'} mode`}
         >
-          {resolved === 'dark' ? '☀' : '☽'}
+          {resolved === 'dark' ? '\u2600' : '\u263D'}
         </button>
       </div>
-    </div>
+    </header>
   );
 }

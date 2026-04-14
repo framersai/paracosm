@@ -16,19 +16,19 @@ const FAQ: FaqItem[] = [
   },
   {
     q: 'How much does Paracosm cost?',
-    a: 'The core engine, Mars Genesis and Lunar Outpost scenarios, CLI, dashboard, and batch runner are free and open source under the Apache-2.0 license. Pro ($49/mo) adds the Scenario Compiler, hosted dashboard, persistent run history, and API access. Enterprise ($499/mo) adds private deployment, custom scenario authoring studio, SSO, audit trails, and SLA. All paid tiers are coming soon.',
+    a: 'The core engine, Mars Genesis and Lunar Outpost scenarios, CLI, dashboard, and batch runner are free and open source under the Apache-2.0 license today. Pro ($49/mo), Enterprise ($499/mo), and Platform are planned hosted tiers. They are roadmap packages, not generally available products yet.',
   },
   {
     q: 'What is the Scenario Compiler?',
-    a: 'The Scenario Compiler takes a JSON file describing your world and generates all runtime hooks via LLM calls. No TypeScript required. Define departments, metrics, crisis categories, and effects in JSON. The compiler generates progression hooks, Crisis Director instructions, milestone crises, fingerprint classification, politics deltas, and reaction context. Costs approximately $0.10 per compile, cached after first generation.',
+    a: 'The Scenario Compiler is the zero-code direction for Paracosm: a JSON world definition that generates runtime hooks via LLM calls instead of hand-written TypeScript. Core compiler work exists in the codebase, but the polished hosted self-serve experience is still a planned product surface rather than a general-availability workflow.',
   },
   {
     q: 'How many simulations can I run?',
-    a: 'There is no limit. The open-source engine runs locally on a single process. The batch runner executes multiple scenarios and seeds in sequence. Enterprise supports hundreds of concurrent simulations with orchestration, cost tracking, and structured experiment manifests. The engine scales horizontally because each simulation is an independent stateless process.',
+    a: 'In the open-source product, you run simulations locally and can batch scenarios and seeds in sequence. The engine is horizontally scalable because each simulation is an independent process, but hosted orchestration, cost tracking, and large concurrent fleets are still planned platform capabilities rather than a public service today.',
   },
   {
     q: 'What scenarios are available?',
-    a: 'Mars Genesis (100-colonist Mars colony over 50 years) is the flagship. Lunar Outpost (50-person crew at the lunar south pole) proves the engine works with different departments, progression, and milestones. The Scenario Compiler lets you create any closed-state, turn-based settlement simulation: Antarctic stations, orbital habitats, submarine habitats, generation ships, corporate acquisitions, defense wargames.',
+    a: 'Mars Genesis (100-colonist Mars colony over 50 years) is the flagship. Lunar Outpost (50-person crew at the lunar south pole) proves the engine works with different departments, progression, and milestones. The engine is designed to support broader closed-state, turn-based simulations such as Antarctic stations, orbital habitats, submarines, generation ships, corporate scenarios, and defense wargames, with scenario authoring expanding over time.',
   },
   {
     q: 'What verticals does Paracosm support?',
@@ -52,7 +52,7 @@ const FAQ: FaqItem[] = [
   },
   {
     q: 'Can I create my own scenario?',
-    a: 'Two ways. Write a ScenarioPackage in TypeScript with full control over hooks and progression logic. Or use the Scenario Compiler: write a JSON file describing your world and let the compiler generate all hooks via LLM. Both produce a package that runs through the same engine without editing engine code.',
+    a: 'Two ways. Write a ScenarioPackage in TypeScript with full control over hooks and progression logic today. Or use the Scenario Compiler flow, which exists in the product direction and early implementation work but is not yet a broadly available hosted self-serve workflow.',
   },
   {
     q: 'What is AgentOS?',
@@ -64,11 +64,11 @@ const FAQ: FaqItem[] = [
   },
   {
     q: 'Is this open source or commercial?',
-    a: 'Both. The core engine is open source under Apache-2.0. You can use it freely in any project, including commercial products, without restrictions. The enterprise platform (hosted dashboard, white-label UI, scenario authoring studio, multi-tenant orchestration) is a paid product built on the open core. This is the same model used by the most successful open-source AI platforms: free engine, paid infrastructure and services.',
+    a: 'Both, but at different maturity levels. The core engine is open source under Apache-2.0 and usable today. The hosted and enterprise layers are the commercial roadmap: auth, persistence, exports, orchestration, private deployment, and white-label packaging built on top of the open core.',
   },
   {
     q: 'Can I white-label Paracosm for my organization?',
-    a: 'Yes. The Platform tier provides full white-label capability: your brand, your domain, your dashboard theme. The entire simulation experience, including dashboards, reports, and scenario selection, carries your visual identity. The underlying engine runs the same deterministic simulation. Available with the Platform tier.',
+    a: 'That is the intended direction for the future Platform tier. White-label branding, custom domains, and customer-owned dashboard theming are not publicly available today.',
   },
 ];
 
@@ -98,58 +98,59 @@ const PRICING: PricingTier[] = [
       'Community support via Discord',
     ],
     cta: { label: 'View on GitHub', href: 'https://github.com/framersai/paracosm' },
+    badge: 'Available Now',
   },
   {
     name: 'Pro',
     price: '$49',
     period: '/month',
-    description: 'Zero-code scenario creation, hosted dashboard, API access.',
+    description: 'Planned hosted convenience tier for auth, persistence, API access, and zero-code workflows.',
     features: [
-      'Everything in Open Source',
-      'Scenario Compiler (JSON to hooks via LLM)',
-      'Hosted dashboard at paracosm.agentos.sh',
-      'Persistent run history (Postgres)',
-      'REST API for programmatic simulation',
-      'PDF report export',
-      'Priority model access (Claude, GPT-5.4)',
+      'Target tier, not generally available yet',
+      'Hosted auth + dashboard',
+      'Persistent run history + replay',
+      'Basic remote execution API',
+      'JSON export baseline',
+      'Scenario Compiler workflow',
+      'Expanded reporting over time',
     ],
-    cta: { label: 'Join Waitlist', href: 'mailto:team@frame.dev?subject=Paracosm Pro Waitlist' },
-    badge: 'Coming Soon',
+    cta: { label: 'Join Early Access', href: 'mailto:team@frame.dev?subject=Paracosm Pro Early Access' },
+    badge: 'Planned',
   },
   {
     name: 'Enterprise',
     price: '$499',
     period: '/month + usage',
-    description: 'Private deployment, custom scenarios, audit trails, SLA.',
+    description: 'Planned private-deployment and governance tier for teams that need control and compliance.',
     features: [
-      'Everything in Pro',
-      'Private deployment (Docker/K8s)',
-      'Custom Scenario Authoring Studio',
-      'SSO / SAML integration',
-      'Full audit trails with provenance',
-      'Multi-tenant with RBAC',
-      '99.9% uptime SLA',
+      'Target tier, not generally available yet',
+      'Private deployment package',
+      'Workspace / org model',
+      'SSO / SAML + RBAC',
+      'Audit trails with provenance persistence',
+      'Scenario authoring studio',
+      'Support / SLA packaging',
     ],
     cta: { label: 'Contact Sales', href: 'mailto:team@frame.dev?subject=Paracosm Enterprise Inquiry' },
     highlight: true,
-    badge: 'Coming Soon',
+    badge: 'Design Partners',
   },
   {
     name: 'Platform',
     price: 'Custom',
     period: 'pricing',
-    description: 'White-label, multi-simulation orchestration, marketplace.',
+    description: 'Longer-term platform package for orchestration, white-label, and marketplace distribution.',
     features: [
-      'Everything in Enterprise',
-      'White-label (your brand, your domain)',
-      '100+ concurrent simulation orchestration',
-      'Custom LLM integration (bring your own models)',
-      'Webhook ecosystem (Slack, Teams, Jira)',
-      'Scenario Marketplace (publish and sell)',
+      'Future roadmap tier',
+      'White-label domains and branding',
+      'Parallel run orchestration',
+      'Webhook ecosystem',
+      'Bring-your-own-model integrations',
+      'Scenario marketplace + billing flows',
       'Dedicated infrastructure',
     ],
     cta: { label: 'Contact Sales', href: 'mailto:team@frame.dev?subject=Paracosm Platform Inquiry' },
-    badge: 'Coming Soon',
+    badge: 'Future',
   },
 ];
 
@@ -157,10 +158,10 @@ export function AboutPage() {
   const scenario = useScenarioContext();
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', padding: '32px 48px', background: 'var(--bg-deep)', maxWidth: '100%' }}>
+    <div className="about-content" style={{ flex: 1, overflowY: 'auto', padding: '32px 48px', background: 'var(--bg-deep)', maxWidth: '100%' }}>
       <div style={{ maxWidth: '900px' }}>
         {/* Header */}
-        <div style={{ marginBottom: '24px' }}>
+        <header style={{ marginBottom: '24px' }}>
           <h1 style={{ fontSize: '22px', color: 'var(--amber)', fontFamily: 'var(--mono)', marginBottom: '8px' }}>
             Paracosm
           </h1>
@@ -169,23 +170,26 @@ export function AboutPage() {
             HEXACO personality evolution, and a deterministic kernel. Define any closed-state settlement simulation
             and run it without editing engine code. Currently running: <strong style={{ color: 'var(--amber)' }}>{scenario.labels.name}</strong>.
           </p>
-        </div>
+          <p style={{ color: 'var(--text-3)', lineHeight: 1.8, fontSize: '12px', marginTop: '10px' }}>
+            Availability note: the open-source engine is available now. Hosted Pro, Enterprise, and Platform offerings shown below are roadmap tiers and early-access packaging, not generally available SaaS products yet.
+          </p>
+        </header>
 
         {/* How it works */}
-        <section style={{ marginBottom: '24px' }}>
-          <h2 style={{ fontSize: '20px', color: 'var(--amber)', fontFamily: 'var(--mono)', paddingBottom: '8px', borderBottom: '1px solid var(--border)', marginBottom: '14px' }}>
+        <section style={{ marginBottom: '24px' }} aria-labelledby="how-heading">
+          <h2 id="how-heading" style={{ fontSize: '20px', color: 'var(--amber)', fontFamily: 'var(--mono)', paddingBottom: '8px', borderBottom: '1px solid var(--border)', marginBottom: '14px' }}>
             How It Works
           </h2>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+          <div className="responsive-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             {[
               { title: 'Crisis Director', desc: 'AI generates unique crises per timeline based on settlement state, decision history, and tool intelligence.' },
               { title: 'Tool Forging', desc: 'Department agents create computational tools at runtime. An LLM judge reviews each for safety and correctness.' },
               { title: 'Personality Drift', desc: 'HEXACO traits evolve through leader pull, role activation, and outcome reinforcement over the simulation.' },
               { title: 'Deterministic Kernel', desc: 'Seeded PRNG ensures reproducibility. Same seed, same roster. Only AI decisions create divergence.' },
-              { title: 'Scenario Compiler', desc: 'Describe your world in JSON. The compiler generates all runtime hooks via LLM. No TypeScript required.' },
-              { title: 'Unlimited Scenarios', desc: 'Mars, lunar, submarine, Antarctic, orbital, corporate, defense. Any closed-state settlement runs through the same engine.' },
+              { title: 'Scenario Compiler', desc: 'Compiler foundations exist now, with the polished zero-code hosted workflow planned as a future product layer.' },
+              { title: 'Scenario-Driven Engine', desc: 'Mars and lunar are live today. The engine is designed to expand into broader closed-state simulation domains over time.' },
             ].map(item => (
-              <div key={item.title} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '6px', padding: '12px 16px', boxShadow: 'var(--card-shadow)' }}>
+              <div key={item.title} className="hover-glow" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '6px', padding: '12px 16px', boxShadow: 'var(--card-shadow)' }}>
                 <h3 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-1)', fontFamily: 'var(--mono)', marginBottom: '4px' }}>{item.title}</h3>
                 <p style={{ fontSize: '13px', color: 'var(--text-2)', lineHeight: 1.6 }}>{item.desc}</p>
               </div>
@@ -194,7 +198,7 @@ export function AboutPage() {
         </section>
 
         {/* Enterprise / scalability banner */}
-        <section style={{ marginBottom: '24px' }}>
+        <section style={{ marginBottom: '24px' }} aria-labelledby="hosted-heading">
           <div style={{
             background: 'linear-gradient(135deg, var(--bg-card), var(--bg-elevated))',
             border: '1px solid var(--border-hl)',
@@ -202,39 +206,56 @@ export function AboutPage() {
             boxShadow: 'var(--raised-shadow), 0 0 30px var(--amber-glow)',
           }}>
             <div style={{ fontSize: '10px', fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '8px', color: 'var(--amber)', fontFamily: 'var(--mono)' }}>
-              Open Core + Enterprise
+              Open Core + Hosted Roadmap
             </div>
-            <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '10px', color: 'var(--text-1)', fontFamily: 'var(--mono)' }}>
-              Paracosm Enterprise
+            <h3 id="hosted-heading" style={{ fontSize: '18px', fontWeight: 700, marginBottom: '10px', color: 'var(--text-1)', fontFamily: 'var(--mono)' }}>
+              Planned Hosted Packaging
             </h3>
             <p style={{ color: 'var(--text-2)', lineHeight: 1.8, fontSize: '14px', marginBottom: '12px' }}>
-              The simulation engine is open source (Apache-2.0). The enterprise platform adds the infrastructure, tooling,
-              and white-label capabilities that organizations need to run simulation at scale. Same model
-              that powers the most successful open-source AI platforms: free core, paid infrastructure and services.
+              The simulation engine is open source and available today under Apache-2.0. The hosted layers are the commercial roadmap:
+              auth, persistence, APIs, governance controls, and white-label packaging built on top of the same engine.
             </p>
             <p style={{ color: 'var(--text-2)', lineHeight: 1.8, fontSize: '14px', marginBottom: '12px' }}>
-              Run hundreds of concurrent simulations with full orchestration, cost tracking, and reproducible experiment manifests.
-              The Scenario Compiler generates complete runtime hooks from a JSON description of your world for approximately $0.10
-              per compile. Define any settlement, organization, or strategic scenario without writing code.
+              The first sellable hosted tier is planned around practical product plumbing: hosted auth, persistent run history,
+              replay, basic remote execution API, and export flows. Beyond that, enterprise packaging adds private deployment,
+              provenance, workspace boundaries, and identity controls.
             </p>
             <p style={{ color: 'var(--text-2)', lineHeight: 1.8, fontSize: '14px', marginBottom: '16px' }}>
-              White-label the entire experience: your brand, your domain, your dashboard theme. Custom scenario authoring studio
-              for domain experts. Private deployment on your infrastructure with SSO, audit trails, and multi-tenant access control.
-              Batch experiments across scenario variants with statistical comparison of outcomes. Full REST API.
-              Scenario Marketplace for publishing and distributing custom simulation packages.
+              Longer-term roadmap items include white-label deployment, multi-simulation orchestration, marketplace distribution,
+              and broader scenario authoring workflows. Those are directionally important, but they should be treated as planned
+              platform capabilities rather than features available today.
             </p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+            <div className="responsive-stack" style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
               <a
                 href="mailto:team@frame.dev?subject=Paracosm Enterprise Inquiry"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '6px', fontSize: '13px', fontWeight: 700 }}
-                style={{ background: 'var(--accent-primary)', color: 'var(--text-contrast)' }}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '10px 20px',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  background: 'var(--amber)',
+                  color: 'var(--text-contrast)',
+                }}
               >
-                Contact team@frame.dev for early access
+                Contact team@frame.dev for roadmap access
               </a>
               <a
                 href="mailto:team@frame.dev?subject=Paracosm Partnership / Investment"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '6px', fontSize: '13px', fontWeight: 700 }}
-                style={{ background: 'var(--bg-elevated)', color: 'var(--accent-primary)', border: '1px solid var(--border-interactive)' }}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '10px 20px',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  background: 'var(--bg-elevated)',
+                  color: 'var(--amber)',
+                  border: '1px solid var(--border-hl)',
+                }}
               >
                 Partnership and investment inquiries
               </a>
@@ -243,43 +264,48 @@ export function AboutPage() {
         </section>
 
         {/* Pricing */}
-        <section style={{ marginBottom: '24px' }}>
-          <h2 style={{ fontSize: '20px', color: 'var(--amber)', fontFamily: 'var(--mono)', paddingBottom: '8px', borderBottom: '1px solid var(--border)', marginBottom: '10px' }}>Pricing</h2>
+        <section style={{ marginBottom: '24px' }} aria-labelledby="pricing-heading">
+          <h2 id="pricing-heading" style={{ fontSize: '20px', color: 'var(--amber)', fontFamily: 'var(--mono)', paddingBottom: '8px', borderBottom: '1px solid var(--border)', marginBottom: '10px' }}>Pricing</h2>
           <p style={{ fontSize: '13px', color: 'var(--text-3)', marginBottom: '14px' }}>
-            Open-core model: the simulation engine is free and open source (Apache-2.0) forever. Paid tiers add hosted infrastructure,
-            zero-code scenario creation, white-label dashboards, and enterprise features. No vendor lock-in.
+            Open-core model: the simulation engine is free and open source (Apache-2.0) forever. The paid tiers below are planned hosted
+            packaging for infrastructure, persistence, governance, and zero-code workflows. No vendor lock-in.
           </p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+          <div className="responsive-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             {PRICING.map(tier => (
-              <div
+              <article
                 key={tier.name}
-                style={{ borderRadius: '6px', padding: '16px', display: 'flex', flexDirection: 'column' }}
+                className="hover-lift"
                 style={{
+                  borderRadius: '6px',
+                  padding: '16px',
+                  display: 'flex',
+                  flexDirection: 'column',
                   background: 'var(--bg-card)',
-                  border: tier.highlight ? '2px solid var(--accent-primary)' : '1px solid var(--border-subtle)',
-                  boxShadow: tier.highlight ? '0 0 20px rgba(99, 102, 241, 0.15)' : undefined,
+                  border: tier.highlight ? '2px solid var(--amber)' : '1px solid var(--border)',
+                  boxShadow: tier.highlight ? '0 0 20px var(--amber-glow)' : 'var(--card-shadow)',
                 }}
               >
-                <div className="flex items-center gap-2 mb-2">
-                  <h3 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{tier.name}</h3>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                  <h3 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-1)' }}>{tier.name}</h3>
                   {tier.badge && (
-                    <span
-                      className="text-[9px] font-extrabold tracking-wider uppercase px-2 py-0.5 rounded-full"
-                      style={{ background: 'var(--bg-elevated)', color: 'var(--accent-primary)', border: '1px solid var(--border-interactive)' }}
-                    >
+                    <span style={{
+                      fontSize: '9px', fontWeight: 800, letterSpacing: '1px', textTransform: 'uppercase',
+                      padding: '2px 8px', borderRadius: '12px',
+                      background: 'var(--bg-elevated)', color: 'var(--amber)', border: '1px solid var(--border-hl)',
+                    }}>
                       {tier.badge}
                     </span>
                   )}
                 </div>
-                <div className="mb-2">
-                  <span className="text-xl font-extrabold" style={{ color: 'var(--text-primary)' }}>{tier.price}</span>
-                  <span className="text-xs ml-1" style={{ color: 'var(--text-muted)' }}>{tier.period}</span>
+                <div style={{ marginBottom: '8px' }}>
+                  <span style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-1)' }}>{tier.price}</span>
+                  <span style={{ fontSize: '12px', marginLeft: '4px', color: 'var(--text-3)' }}>{tier.period}</span>
                 </div>
-                <p className="text-xs mb-3" style={{ color: 'var(--text-secondary)' }}>{tier.description}</p>
-                <ul className="text-xs space-y-1.5 mb-4 flex-1" style={{ color: 'var(--text-muted)' }}>
+                <p style={{ fontSize: '12px', marginBottom: '12px', color: 'var(--text-2)' }}>{tier.description}</p>
+                <ul style={{ fontSize: '12px', listStyle: 'none', padding: 0, marginBottom: '16px', flex: 1, color: 'var(--text-3)' }}>
                   {tier.features.map(f => (
-                    <li key={f} className="flex items-start gap-1.5">
-                      <span style={{ color: 'var(--color-success, #22c55e)' }}>&#10003;</span>
+                    <li key={f} style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', marginBottom: '6px' }}>
+                      <span style={{ color: 'var(--green)', flexShrink: 0 }}>&#10003;</span>
                       <span>{f}</span>
                     </li>
                   ))}
@@ -288,30 +314,36 @@ export function AboutPage() {
                   href={tier.cta.href}
                   target={tier.cta.href.startsWith('mailto:') ? undefined : '_blank'}
                   rel="noopener"
-                  className="text-center px-4 py-2 rounded text-xs font-bold transition-all"
                   style={{
-                    background: tier.highlight ? 'var(--accent-primary)' : 'var(--bg-elevated)',
-                    color: tier.highlight ? 'var(--text-contrast)' : 'var(--accent-primary)',
-                    border: tier.highlight ? 'none' : '1px solid var(--border-interactive)',
+                    textAlign: 'center',
+                    padding: '8px 16px',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    display: 'block',
+                    textDecoration: 'none',
+                    background: tier.highlight ? 'var(--amber)' : 'var(--bg-elevated)',
+                    color: tier.highlight ? 'var(--text-contrast)' : 'var(--amber)',
+                    border: tier.highlight ? 'none' : '1px solid var(--border-hl)',
                   }}
                 >
                   {tier.cta.label}
                 </a>
-              </div>
+              </article>
             ))}
           </div>
         </section>
 
         {/* FAQ */}
-        <section style={{ marginBottom: '24px' }}>
-          <h2 style={{ fontSize: '20px', color: 'var(--amber)', fontFamily: 'var(--mono)', paddingBottom: '8px', borderBottom: '1px solid var(--border)', marginBottom: '14px' }}>Frequently Asked Questions</h2>
+        <section style={{ marginBottom: '24px' }} aria-labelledby="faq-heading">
+          <h2 id="faq-heading" style={{ fontSize: '20px', color: 'var(--amber)', fontFamily: 'var(--mono)', paddingBottom: '8px', borderBottom: '1px solid var(--border)', marginBottom: '14px' }}>Frequently Asked Questions</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {FAQ.map((item, i) => (
-              <details key={i} className="rounded-lg group" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
-                <summary className="px-4 py-3 text-sm font-semibold cursor-pointer select-none" style={{ color: 'var(--text-primary)' }}>
+              <details key={i} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '6px' }}>
+                <summary style={{ padding: '12px 16px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', color: 'var(--text-1)' }}>
                   {item.q}
                 </summary>
-                <div className="px-4 pb-4 text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                <div style={{ padding: '0 16px 12px', fontSize: '12px', lineHeight: 1.7, color: 'var(--text-2)' }}>
                   {item.a}
                 </div>
               </details>
@@ -320,9 +352,9 @@ export function AboutPage() {
         </section>
 
         {/* Tech stack */}
-        <section style={{ marginBottom: '24px' }}>
-          <h2 style={{ fontSize: '20px', color: 'var(--amber)', fontFamily: 'var(--mono)', paddingBottom: '8px', borderBottom: '1px solid var(--border)', marginBottom: '14px' }}>Technology</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', fontSize: '12px' }}>
+        <section style={{ marginBottom: '24px' }} aria-labelledby="tech-heading">
+          <h2 id="tech-heading" style={{ fontSize: '20px', color: 'var(--amber)', fontFamily: 'var(--mono)', paddingBottom: '8px', borderBottom: '1px solid var(--border)', marginBottom: '14px' }}>Technology</h2>
+          <div className="responsive-grid-3" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', fontSize: '12px' }}>
             {[
               { label: 'Runtime', value: 'AgentOS (TypeScript)' },
               { label: 'Package', value: 'npm: paracosm' },
@@ -337,28 +369,28 @@ export function AboutPage() {
               { label: 'Scalability', value: 'Stateless, horizontally scalable' },
               { label: 'Batch Runner', value: 'Multi-scenario experiments' },
             ].map(item => (
-              <div key={item.label} className="px-3 py-2 rounded" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}>
-                <div className="font-bold" style={{ color: 'var(--text-muted)' }}>{item.label}</div>
-                <div style={{ color: 'var(--text-primary)' }}>{item.value}</div>
+              <div key={item.label} style={{ padding: '8px 12px', borderRadius: '4px', background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}>
+                <div style={{ fontWeight: 700, color: 'var(--text-3)', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{item.label}</div>
+                <div style={{ color: 'var(--text-1)', marginTop: '2px' }}>{item.value}</div>
               </div>
             ))}
           </div>
         </section>
 
         {/* Links */}
-        <section style={{ marginBottom: '16px' }}>
-          <h2 style={{ fontSize: '20px', color: 'var(--amber)', fontFamily: 'var(--mono)', paddingBottom: '8px', borderBottom: '1px solid var(--border)', marginBottom: '14px' }}>Links</h2>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-            <a href="https://agentos.sh" target="_blank" rel="noopener" style={{ color: 'var(--accent-primary)' }}>agentos.sh</a>
-            <a href="https://docs.agentos.sh" target="_blank" rel="noopener" style={{ color: 'var(--accent-primary)' }}>Documentation</a>
-            <a href="https://github.com/framersai/paracosm" target="_blank" rel="noopener" style={{ color: 'var(--accent-primary)' }}>GitHub</a>
-            <a href="https://github.com/framersai/agentos" target="_blank" rel="noopener" style={{ color: 'var(--accent-primary)' }}>AgentOS GitHub</a>
-            <a href="https://www.npmjs.com/package/paracosm" target="_blank" rel="noopener" style={{ color: 'var(--accent-primary)' }}>npm</a>
-            <a href="https://frame.dev" target="_blank" rel="noopener" style={{ color: 'var(--accent-primary)' }}>Frame.dev</a>
-            <a href="https://manic.agency" target="_blank" rel="noopener" style={{ color: 'var(--accent-primary)' }}>Manic Agency</a>
-            <a href="https://wilds.ai/discord" target="_blank" rel="noopener" style={{ color: 'var(--accent-primary)' }}>Discord</a>
-            <a href="mailto:team@frame.dev" style={{ color: 'var(--accent-primary)' }}>team@frame.dev</a>
-          </div>
+        <section style={{ marginBottom: '16px' }} aria-labelledby="links-heading">
+          <h2 id="links-heading" style={{ fontSize: '20px', color: 'var(--amber)', fontFamily: 'var(--mono)', paddingBottom: '8px', borderBottom: '1px solid var(--border)', marginBottom: '14px' }}>Links</h2>
+          <nav aria-label="External links" style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+            <a href="https://agentos.sh" target="_blank" rel="noopener" style={{ color: 'var(--amber)' }}>agentos.sh</a>
+            <a href="https://docs.agentos.sh" target="_blank" rel="noopener" style={{ color: 'var(--amber)' }}>Documentation</a>
+            <a href="https://github.com/framersai/paracosm" target="_blank" rel="noopener" style={{ color: 'var(--amber)' }}>GitHub</a>
+            <a href="https://github.com/framersai/agentos" target="_blank" rel="noopener" style={{ color: 'var(--amber)' }}>AgentOS GitHub</a>
+            <a href="https://www.npmjs.com/package/paracosm" target="_blank" rel="noopener" style={{ color: 'var(--amber)' }}>npm</a>
+            <a href="https://frame.dev" target="_blank" rel="noopener" style={{ color: 'var(--amber)' }}>Frame.dev</a>
+            <a href="https://manic.agency" target="_blank" rel="noopener" style={{ color: 'var(--amber)' }}>Manic Agency</a>
+            <a href="https://wilds.ai/discord" target="_blank" rel="noopener" style={{ color: 'var(--amber)' }}>Discord</a>
+            <a href="mailto:team@frame.dev" style={{ color: 'var(--amber)' }}>team@frame.dev</a>
+          </nav>
         </section>
       </div>
     </div>

@@ -61,7 +61,7 @@ export function ReportView({ state }: ReportViewProps) {
   }
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', padding: '24px 32px', background: 'var(--bg-deep)' }}>
+    <div className="reports-content" role="region" aria-label="Turn-by-turn report" style={{ flex: 1, overflowY: 'auto', padding: '24px 32px', background: 'var(--bg-deep)' }}>
       <h2 style={{ fontSize: '22px', color: 'var(--amber)', fontFamily: 'var(--mono)', marginBottom: '16px' }}>
         Turn-by-Turn Report
       </h2>
@@ -88,7 +88,7 @@ export function ReportView({ state }: ReportViewProps) {
                 {diverged ? 'DIVERGENT' : a.emergent ? 'EMERGENT' : 'MILESTONE'}
               </span>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div className="responsive-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <TurnSide data={a} name={nameA} sideColor="var(--vis)" />
               <TurnSide data={b} name={nameB} sideColor="var(--eng)" />
             </div>
