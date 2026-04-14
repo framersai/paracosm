@@ -15,31 +15,26 @@ interface TopBarProps {
 function ParacosmLogo({ size = 20 }: { size?: number }) {
   return (
     <svg viewBox="0 0 64 64" width={size} height={size} xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Paracosm logo">
-      {/* Hub-to-node lines - thick, visible */}
-      <line x1="32" y1="32" x2="32" y2="11" stroke="#a89878" strokeWidth="3" />
-      <line x1="32" y1="32" x2="50" y2="21" stroke="#a89878" strokeWidth="3" />
-      <line x1="32" y1="32" x2="50" y2="43" stroke="#a89878" strokeWidth="3" />
-      <line x1="32" y1="32" x2="32" y2="53" stroke="#a89878" strokeWidth="3" />
-      <line x1="32" y1="32" x2="14" y2="43" stroke="#a89878" strokeWidth="3" />
-      <line x1="32" y1="32" x2="14" y2="21" stroke="#a89878" strokeWidth="3" />
-      {/* Cross connections - all 6 pairs */}
-      <line x1="32" y1="11" x2="50" y2="43" stroke="#6b5f50" strokeWidth="2" />
-      <line x1="50" y1="21" x2="32" y2="53" stroke="#6b5f50" strokeWidth="2" />
-      <line x1="50" y1="43" x2="14" y2="21" stroke="#6b5f50" strokeWidth="2" />
-      <line x1="32" y1="53" x2="14" y2="21" stroke="#6b5f50" strokeWidth="2" />
-      <line x1="14" y1="43" x2="32" y2="11" stroke="#6b5f50" strokeWidth="2" />
-      <line x1="14" y1="21" x2="50" y2="21" stroke="#6b5f50" strokeWidth="2" />
-      {/* Hub glow */}
-      <circle cx="32" cy="32" r="12" fill="#e8b44a" opacity="0.1" />
-      {/* Hub */}
-      <circle cx="32" cy="32" r="6.5" fill="#e8b44a" />
-      {/* Nodes */}
-      <circle cx="32" cy="11" r="5" fill="#e06530" />
-      <circle cx="50" cy="21" r="5" fill="#e8b44a" />
-      <circle cx="50" cy="43" r="5" fill="#4ca8a8" />
-      <circle cx="32" cy="53" r="5" fill="#e06530" />
-      <circle cx="14" cy="43" r="5" fill="#4ca8a8" />
-      <circle cx="14" cy="21" r="5" fill="#e8b44a" />
+      <line x1="32" y1="32" x2="37.63" y2="10.98" stroke="#f5f0e4" strokeWidth="1.6" opacity="0.55" />
+      <line x1="32" y1="32" x2="53.02" y2="26.37" stroke="#f5f0e4" strokeWidth="1.6" opacity="0.55" />
+      <line x1="32" y1="32" x2="47.39" y2="47.39" stroke="#f5f0e4" strokeWidth="1.6" opacity="0.55" />
+      <line x1="32" y1="32" x2="26.37" y2="53.02" stroke="#f5f0e4" strokeWidth="1.6" opacity="0.55" />
+      <line x1="32" y1="32" x2="10.98" y2="37.63" stroke="#f5f0e4" strokeWidth="1.6" opacity="0.55" />
+      <line x1="32" y1="32" x2="16.61" y2="16.61" stroke="#f5f0e4" strokeWidth="1.6" opacity="0.55" />
+      <line x1="37.63" y1="10.98" x2="47.39" y2="47.39" stroke="#f5f0e4" strokeWidth="1.12" opacity="0.25" />
+      <line x1="53.02" y1="26.37" x2="26.37" y2="53.02" stroke="#f5f0e4" strokeWidth="1.12" opacity="0.25" />
+      <line x1="47.39" y1="47.39" x2="10.98" y2="37.63" stroke="#f5f0e4" strokeWidth="1.12" opacity="0.25" />
+      <line x1="26.37" y1="53.02" x2="16.61" y2="16.61" stroke="#f5f0e4" strokeWidth="1.12" opacity="0.25" />
+      <line x1="10.98" y1="37.63" x2="37.63" y2="10.98" stroke="#f5f0e4" strokeWidth="1.12" opacity="0.25" />
+      <line x1="16.61" y1="16.61" x2="53.02" y2="26.37" stroke="#f5f0e4" strokeWidth="1.12" opacity="0.25" />
+      <circle cx="32" cy="32" r="9.22" fill="#e8b44a" opacity="0.08" />
+      <circle cx="32" cy="32" r="5.12" fill="#e8b44a" />
+      <circle cx="37.63" cy="10.98" r="3.52" fill="#e06530" />
+      <circle cx="53.02" cy="26.37" r="3.52" fill="#e8b44a" />
+      <circle cx="47.39" cy="47.39" r="3.52" fill="#4ca8a8" />
+      <circle cx="26.37" cy="53.02" r="3.52" fill="#e06530" />
+      <circle cx="10.98" cy="37.63" r="3.52" fill="#4ca8a8" />
+      <circle cx="16.61" cy="16.61" r="3.52" fill="#e8b44a" />
     </svg>
   );
 }
