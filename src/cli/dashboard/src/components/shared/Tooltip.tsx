@@ -56,10 +56,10 @@ export function Tooltip({ content, children, dot }: TooltipProps) {
           role="tooltip"
           style={{
             position: 'fixed', left: pos.x, top: pos.y, zIndex: 99999,
-            background: '#14110e', border: '2px solid var(--amber)', borderRadius: '8px',
-            padding: '14px 18px', fontSize: '12px', color: '#f5f0e4', lineHeight: 1.6,
+            background: 'var(--bg-card)', border: '2px solid var(--amber)', borderRadius: '8px',
+            padding: '14px 18px', fontSize: '12px', color: 'var(--text-1)', lineHeight: 1.6,
             width: '380px', maxWidth: '90vw', maxHeight: '70vh', overflowY: 'auto',
-            boxShadow: '0 8px 40px rgba(0,0,0,.7)', pointerEvents: 'none',
+            boxShadow: '0 8px 40px rgba(0,0,0,.4)', pointerEvents: 'none',
             whiteSpace: 'normal',
             animation: 'fadeUp 0.15s ease both',
           }}

@@ -54,11 +54,12 @@ export function StatsBar({ colonyA, colonyB, prevColonyA, prevColonyB, deathsA, 
   if (!colonyA && !colonyB) {
     return (
       <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '20px',
-        padding: '6px 16px', background: 'var(--bg-panel)', borderBottom: '1px solid var(--border)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px',
+        padding: '8px 16px', background: 'var(--bg-panel)', borderBottom: '1px solid var(--border)',
         fontFamily: 'var(--mono)', fontSize: '11px', color: 'var(--text-3)',
       }}>
-        Waiting...
+        <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', background: 'var(--amber)', animation: 'pulse 1.5s infinite' }} />
+        <span>Initializing simulation. Crisis Director is generating the first crisis. Departments will analyze once it arrives.</span>
       </div>
     );
   }

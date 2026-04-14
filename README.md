@@ -7,7 +7,7 @@
 <h1 align="center">Paracosm</h1>
 
 <p align="center">
-  Closed-state, turn-based settlement simulation engine with emergent crises, runtime tool forging, HEXACO personality evolution, and a deterministic kernel.
+  Open-source AI agent swarm simulation engine with emergent crises, runtime tool forging, HEXACO personality evolution, and a deterministic kernel. Define any scenario as JSON.
 </p>
 
 <p align="center">
@@ -29,11 +29,11 @@
 
 ## What Is Paracosm
 
-Paracosm is a scenario-driven simulation engine. You define a `ScenarioPackage` describing your world (departments, metrics, crises, progression hooks, research citations), and the engine runs it: emergent AI crisis generation, multi-agent department analysis, runtime tool forging, HEXACO personality drift, and deterministic state transitions.
+Paracosm is an AI agent swarm simulation engine. You define a `ScenarioPackage` describing your world (departments, metrics, crises, progression hooks, research citations), and the engine spawns an autonomous agent swarm to run it: emergent crisis generation, multi-agent department analysis, runtime tool forging, HEXACO personality drift, and deterministic state transitions.
 
 The engine handles orchestration. The scenario handles domain.
 
-**Engine archetype:** closed-state, turn-based settlement simulation. Covers Mars colony, lunar outpost, Antarctic station, orbital habitat, submarine habitat, generation ship. Does not cover graph-seeded social prediction or open-world sims.
+**Engine archetype:** closed-state, turn-based swarm simulation. Covers Mars colonies, lunar outposts, Antarctic stations, orbital habitats, submarine crews, corporate orgs, generation ships. Does not cover graph-seeded social prediction or open-world sims.
 
 ## Scenarios
 

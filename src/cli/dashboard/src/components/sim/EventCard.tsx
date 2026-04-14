@@ -33,8 +33,8 @@ export function EventCard({ event, side }: EventCardProps) {
         <Tooltip content={
           <div>
             <b style={{ color: sideColor, fontSize: '14px', display: 'block', marginBottom: '6px' }}>Promotion: {role}</b>
-            {name && <div style={{ marginBottom: '4px' }}><span style={{ color: '#d8ccb0' }}>Agent:</span> <span style={{ color: '#f5f0e4', fontWeight: 600 }}>{name}</span></div>}
-            {reason && <div style={{ color: '#d8ccb0', lineHeight: 1.6 }}>{reason}</div>}
+            {name && <div style={{ marginBottom: '4px' }}><span style={{ color: 'var(--text-2)' }}>Agent:</span> <span style={{ color: 'var(--text-1)', fontWeight: 600 }}>{name}</span></div>}
+            {reason && <div style={{ color: 'var(--text-2)', lineHeight: 1.6 }}>{reason}</div>}
           </div>
         }>
           <div style={{ padding: '1px 10px', fontSize: '11px', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'pointer' }}>
