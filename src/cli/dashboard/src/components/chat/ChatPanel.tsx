@@ -112,9 +112,9 @@ export function ChatPanel({ state }: ChatPanelProps) {
   };
 
   return (
-    <div style={{ display: 'flex', height: '100%', gap: '1px', background: 'var(--border)' }}>
+    <div className="chat-layout" role="region" aria-label="Agent chat" style={{ display: 'flex', height: '100%', gap: '1px', background: 'var(--border)' }}>
       {/* Sidebar */}
-      <div style={{ width: '240px', background: 'var(--bg-panel)', overflowY: 'auto', padding: '12px', flexShrink: 0 }}>
+      <div className="chat-sidebar" style={{ width: '240px', background: 'var(--bg-panel)', overflowY: 'auto', padding: '12px', flexShrink: 0 }}>
         <h3 style={{ fontSize: '14px', color: 'var(--amber)', fontFamily: 'var(--mono)', margin: '0 0 6px 0' }}>
           {agents.length ? `${agents.length} Agents` : 'Agent Chat'}
         </h3>
@@ -197,6 +197,7 @@ export function ChatPanel({ state }: ChatPanelProps) {
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && send()}
             disabled={!selectedId || sending}
+            aria-label={selectedId ? `Message ${selected?.name || 'agent'}` : 'Select an agent first'}
             placeholder={selectedId ? `Ask ${selected?.name || 'agent'}...` : `Select a ${scenario.labels.populationNoun.replace(/s$/, '')} first`}
             style={{
               flex: 1, background: 'var(--bg-card)', color: 'var(--text-1)',

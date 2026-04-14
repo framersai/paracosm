@@ -1,4 +1,4 @@
-import { useState, useCallback, createContext, useContext } from 'react';
+import { useState, useCallback, useEffect, createContext, useContext } from 'react';
 import { ThemeProvider } from './theme/ThemeProvider';
 import { useScenario, type ScenarioClientPayload } from './hooks/useScenario';
 import { useSSE } from './hooks/useSSE';
@@ -29,6 +29,11 @@ type Tab = 'sim' | 'settings' | 'reports' | 'chat' | 'log' | 'about';
 function AppContent() {
   const { scenario } = useScenario();
   const sse = useSSE();
+
+  // Dynamic page title
+  useEffect(() => {
+    document.title = `${scenario.labels.name} \u2014 Paracosm`;
+  }, [scenario.labels.name]);
   const gameState = useGameState(sse.events, sse.isComplete);
   const persistence = useGamePersistence(scenario.labels.shortName);
   const { toast } = useToast();
@@ -76,12 +81,12 @@ function AppContent() {
 
   return (
     <ScenarioContext.Provider value={scenario}>
-      <div className="flex flex-col h-screen w-screen overflow-hidden" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
+      <div className="flex flex-col h-screen w-screen overflow-hidden scanline-overlay" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
         <TopBar scenario={scenario} sse={sse} gameState={gameState} />
         <TabBar active={activeTab} onTabChange={setActiveTab} scenario={scenario} />
         <Toolbar state={gameState} onSave={handleSave} onLoad={handleLoad} onClear={handleClear} />
 
-        <div className="flex-1 overflow-hidden">
+        <main id="main-content" className="flex-1 overflow-hidden" role="main" aria-label={`${activeTab} view`}>
           {activeTab === 'sim' && <SimView state={gameState} />}
 
           {activeTab === 'settings' && <SettingsPanel />}
@@ -91,8 +96,8 @@ function AppContent() {
           {activeTab === 'chat' && <ChatPanel state={gameState} />}
 
           {activeTab === 'log' && (
-            <div className="flex-1 overflow-y-auto p-4 font-mono text-xs" style={{ background: 'var(--bg-secondary)', color: 'var(--text-muted)' }}>
-              <div className="mb-2 font-semibold" style={{ color: 'var(--text-primary)' }}>Event Log</div>
+            <div className="flex-1 overflow-y-auto p-4 font-mono text-xs" role="log" aria-label="Event log" aria-live="polite" style={{ background: 'var(--bg-secondary)', color: 'var(--text-muted)' }}>
+              <h2 className="mb-2 font-semibold" style={{ color: 'var(--text-primary)', fontSize: '13px' }}>Event Log</h2>
               {sse.events.length === 0 && <div>No events yet.</div>}
               {sse.events.map((e, i) => (
                 <div key={i} className="py-0.5">
@@ -101,14 +106,14 @@ function AppContent() {
                   {e.data?.turn && <span>T{String(e.data.turn)}</span>}
                   {e.data?.title && <span> {String(e.data.title)}</span>}
                   {e.data?.department && <span> {String(e.data.department)}</span>}
-                  {e.data?.outcome && <span> → {String(e.data.outcome)}</span>}
+                  {e.data?.outcome && <span> &rarr; {String(e.data.outcome)}</span>}
                 </div>
               ))}
             </div>
           )}
 
           {activeTab === 'about' && <AboutPage />}
-        </div>
+        </main>
         <Footer />
       </div>
     </ScenarioContext.Provider>

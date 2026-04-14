@@ -66,7 +66,7 @@ export function StatsBar({ colonyA, colonyB, prevColonyA, prevColonyB, deathsA, 
   const metrics = scenario.ui.headerMetrics.slice(0, 4);
 
   return (
-    <div style={{
+    <div className="stats-bar" role="region" aria-label="Colony statistics" style={{
       display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'nowrap',
       padding: '4px 12px', gap: '14px', overflow: 'hidden',
       background: 'var(--bg-panel)', borderBottom: '1px solid var(--border)',

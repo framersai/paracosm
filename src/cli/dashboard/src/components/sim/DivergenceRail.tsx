@@ -27,7 +27,7 @@ export function DivergenceRail({ state }: DivergenceRailProps) {
       }}>
         DIVERGENCE T{a.crisis.turn} {sameCrisis ? '(same crisis, different outcome)' : '(different crises)'}
       </div>
-      <div style={{ display: 'flex', gap: '12px' }}>
+      <div className="diverge-sides" style={{ display: 'flex', gap: '12px' }}>
         <div style={{ flex: 1, padding: '6px 10px', borderRadius: '4px', background: 'rgba(232,180,74,.08)', border: '1px solid rgba(232,180,74,.2)' }}>
           <b style={{ fontSize: '13px', color: 'var(--vis)', display: 'block', marginBottom: '2px' }}>{a.crisis.title}</b>
           <span style={{ color: 'var(--text-1)', fontSize: '12px' }}>

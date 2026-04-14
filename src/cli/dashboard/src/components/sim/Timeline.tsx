@@ -8,6 +8,7 @@ interface TurnEntry {
   turn: number;
   year: number;
   title: string;
+  summary?: string;
   outcome?: string;
   current?: boolean;
 }
@@ -21,6 +22,7 @@ function extractTurns(state: GameState, side: 'a' | 'b'): TurnEntry[] {
         turn: evt.data.turn as number,
         year: evt.data.year as number,
         title: evt.data.title as string,
+        summary: (evt.data.turnSummary as string) || (evt.data.crisis as string)?.slice(0, 120) || '',
       });
     }
     if (evt.type === 'outcome') {
@@ -53,7 +55,7 @@ export function Timeline({ state }: TimelineProps) {
   if (!turnsA.length && !turnsB.length) return null;
 
   return (
-    <div style={{
+    <div className="timeline-row" role="region" aria-label="Turn timeline" style={{
       borderTop: '1px solid var(--border)', background: 'var(--bg-panel)',
       display: 'flex', gap: '1px', maxHeight: '120px', overflow: 'hidden', flexShrink: 0,
     }}>
@@ -73,7 +75,7 @@ export function Timeline({ state }: TimelineProps) {
               {t.year}
             </span>
             <span style={{ flex: 1, margin: '0 6px', color: 'var(--text-2)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {t.title}
+              {t.title}{t.summary ? `: ${t.summary}` : ''}
             </span>
             {outcomeBadge(t.outcome)}
           </div>
@@ -95,7 +97,7 @@ export function Timeline({ state }: TimelineProps) {
               {t.year}
             </span>
             <span style={{ flex: 1, margin: '0 6px', color: 'var(--text-2)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {t.title}
+              {t.title}{t.summary ? `: ${t.summary}` : ''}
             </span>
             {outcomeBadge(t.outcome)}
           </div>
