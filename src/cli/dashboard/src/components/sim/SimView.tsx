@@ -10,6 +10,7 @@ import { Timeline } from './Timeline';
 
 interface SimViewProps {
   state: GameState;
+  sseStatus?: string;
 }
 
 function SideColumn({ side, sideState, state }: { side: Side; sideState: SideState; state: GameState }) {
@@ -85,7 +86,7 @@ function IntroBar({ onDismiss }: { onDismiss: () => void }) {
   );
 }
 
-export function SimView({ state }: SimViewProps) {
+export function SimView({ state, sseStatus }: SimViewProps) {
   const scenario = useScenarioContext();
 
   // Fallback leader info from scenario presets when no simulation data yet
@@ -140,8 +141,8 @@ export function SimView({ state }: SimViewProps) {
 
       <DivergenceRail state={state} />
 
-      {/* Empty state: no events, not running */}
-      {!state.isRunning && !state.isComplete && state.a.events.length === 0 && state.b.events.length === 0 && (
+      {/* Empty state: no events, not running, SSE not connected */}
+      {!state.isRunning && !state.isComplete && state.a.events.length === 0 && state.b.events.length === 0 && sseStatus !== 'connected' && (
         <div style={{
           flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
           padding: '40px 24px', textAlign: 'center', background: 'var(--bg-deep)',
@@ -172,7 +173,7 @@ export function SimView({ state }: SimViewProps) {
       )}
 
       {/* Two columns (only show when there are events or sim is running) */}
-      <div className="sim-columns" style={{ display: (state.isRunning || state.isComplete || state.a.events.length > 0 || state.b.events.length > 0) ? 'flex' : 'none', flex: 1, gap: '1px', background: 'var(--border)', overflow: 'hidden' }}>
+      <div className="sim-columns" style={{ display: (state.isRunning || state.isComplete || state.a.events.length > 0 || state.b.events.length > 0 || sseStatus === 'connected') ? 'flex' : 'none', flex: 1, gap: '1px', background: 'var(--border)', overflow: 'hidden' }}>
         <SideColumn side="a" sideState={state.a} state={state} />
         <SideColumn side="b" sideState={state.b} state={state} />
       </div>
