@@ -11,32 +11,9 @@ interface TopBarProps {
   onClear?: () => void;
 }
 
-/** Paracosm logo: orbital node graph with cross-connections */
+/** Paracosm logo: uses the brand-generated SVG file directly */
 function ParacosmLogo({ size = 20 }: { size?: number }) {
-  return (
-    <svg viewBox="0 0 64 64" width={size} height={size} xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Paracosm logo">
-      <line x1="32" y1="32" x2="37.63" y2="10.98" stroke="#8a7e6c" strokeWidth="2.5" strokeLinecap="round" />
-      <line x1="32" y1="32" x2="53.02" y2="26.37" stroke="#8a7e6c" strokeWidth="2.5" strokeLinecap="round" />
-      <line x1="32" y1="32" x2="47.39" y2="47.39" stroke="#8a7e6c" strokeWidth="2.5" strokeLinecap="round" />
-      <line x1="32" y1="32" x2="26.37" y2="53.02" stroke="#8a7e6c" strokeWidth="2.5" strokeLinecap="round" />
-      <line x1="32" y1="32" x2="10.98" y2="37.63" stroke="#8a7e6c" strokeWidth="2.5" strokeLinecap="round" />
-      <line x1="32" y1="32" x2="16.61" y2="16.61" stroke="#8a7e6c" strokeWidth="2.5" strokeLinecap="round" />
-      <line x1="37.63" y1="10.98" x2="47.39" y2="47.39" stroke="#6b5f50" strokeWidth="1.8" strokeLinecap="round" />
-      <line x1="53.02" y1="26.37" x2="26.37" y2="53.02" stroke="#6b5f50" strokeWidth="1.8" strokeLinecap="round" />
-      <line x1="47.39" y1="47.39" x2="10.98" y2="37.63" stroke="#6b5f50" strokeWidth="1.8" strokeLinecap="round" />
-      <line x1="26.37" y1="53.02" x2="16.61" y2="16.61" stroke="#6b5f50" strokeWidth="1.8" strokeLinecap="round" />
-      <line x1="10.98" y1="37.63" x2="37.63" y2="10.98" stroke="#6b5f50" strokeWidth="1.8" strokeLinecap="round" />
-      <line x1="16.61" y1="16.61" x2="53.02" y2="26.37" stroke="#6b5f50" strokeWidth="1.8" strokeLinecap="round" />
-      <circle cx="32" cy="32" r="11.26" fill="#e8b44a" opacity="0.12" />
-      <circle cx="32" cy="32" r="5.12" fill="#e8b44a" />
-      <circle cx="37.63" cy="10.98" r="3.52" fill="#e06530" />
-      <circle cx="53.02" cy="26.37" r="3.52" fill="#e8b44a" />
-      <circle cx="47.39" cy="47.39" r="3.52" fill="#4ca8a8" />
-      <circle cx="26.37" cy="53.02" r="3.52" fill="#e06530" />
-      <circle cx="10.98" cy="37.63" r="3.52" fill="#4ca8a8" />
-      <circle cx="16.61" cy="16.61" r="3.52" fill="#e8b44a" />
-    </svg>
-  );
+  return <img src="/brand/icons/paracosm-icon-64.svg" width={size} height={size} alt="Paracosm" style={{ display: 'block' }} />;
 }
 
 const toolBtnStyle: React.CSSProperties = {
