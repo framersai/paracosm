@@ -141,12 +141,12 @@
   .light {
     color-scheme: light;
 
-    /* Backgrounds — deep sepia, parchment warmth, never sterile white */
-    --bg-deep: #e8dcc8;
-    --bg-panel: #ddd0b8;
-    --bg-card: #efe6d4;
-    --bg-input: #f2ead8;
-    --bg-elevated: #e0d4be;
+    /* Backgrounds — layered sepia with clear visual separation */
+    --bg-deep: #f0e6d2;
+    --bg-panel: #d8cab0;
+    --bg-card: #f8f2e4;
+    --bg-input: #faf6ee;
+    --bg-elevated: #e4d8c0;
 
     /* Glassmorphic — warm frosted glass */
     --glass-bg: rgba(232, 220, 200, 0.88);
@@ -159,12 +159,12 @@
     --card-shadow: 0 2px 8px rgba(60, 40, 10, 0.1), 0 0 1px rgba(60, 40, 10, 0.06);
     --raised-shadow: 0 4px 16px rgba(60, 40, 10, 0.15), 0 1px 3px rgba(60, 40, 10, 0.1);
 
-    /* Text — high contrast on sepia (all pass WCAG AA on #e8dcc8) */
-    --text-1: #1a1208;     /* ~13:1 contrast — near black */
-    --text-2: #2e2418;     /* ~9:1 contrast — dark brown */
-    --text-3: #4a3e2c;     /* ~5.5:1 contrast — warm mid */
-    --text-4: #6a5c44;     /* ~3.5:1 contrast — muted */
-    --text-contrast: #f5edd8;
+    /* Text — high contrast on sepia (all pass WCAG AA on #f0e6d2) */
+    --text-1: #1a1208;     /* ~14:1 contrast — near black */
+    --text-2: #2e2418;     /* ~10:1 contrast — dark brown */
+    --text-3: #4a3e2c;     /* ~6:1 contrast — warm mid */
+    --text-4: #6a5c44;     /* ~4:1 contrast — muted */
+    --text-contrast: #faf6ee;
 
     /* Accents — rich and saturated on sepia */
     --rust: #a83810;       /* deep terracotta */
@@ -193,6 +193,27 @@
     /* Shadows — warm-tinted */
     --shadow-sm: 0 1px 2px rgba(60, 40, 10, 0.1);
     --shadow-md: 0 4px 12px rgba(60, 40, 10, 0.12);
+
+    /* Re-declare ALL aliases so they resolve to light values */
+    --text-primary: var(--text-1);
+    --text-secondary: var(--text-2);
+    --text-muted: var(--text-3);
+    --text-placeholder: var(--text-4);
+    --accent-primary: var(--amber);
+    --accent-secondary: var(--rust);
+    --accent-warm: var(--rust);
+    --accent-hover: #8a6a10;
+    --bg-primary: var(--bg-deep);
+    --bg-secondary: var(--bg-panel);
+    --bg-tertiary: var(--bg-card);
+    --border-primary: var(--border);
+    --border-interactive: var(--border-hl);
+    --border-subtle: #c8bca0;
+    --side-a: var(--vis);
+    --side-b: var(--eng);
+    --color-success: var(--green);
+    --color-warning: var(--amber);
+    --color-error: var(--rust);
   }
 
   /* === GLOBAL TYPOGRAPHY === */

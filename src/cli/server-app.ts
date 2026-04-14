@@ -281,7 +281,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
     }
 
     if (req.url === '/setup' && req.method === 'GET') {
-      res.writeHead(302, { Location: '/#settings' });
+      res.writeHead(302, { Location: '/sim?tab=settings' });
       res.end();
       return;
     }
@@ -414,7 +414,7 @@ Respond in character as this person. Be direct, personal, emotional. Reference y
         }
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ redirect: '/' }));
+        res.end(JSON.stringify({ redirect: '/sim' }));
       } catch (error) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: String(error) }));
@@ -423,7 +423,7 @@ Respond in character as this person. Be direct, personal, emotional. Reference y
     }
 
     if (req.url === '/about') {
-      res.writeHead(302, { Location: '/#about' });
+      res.writeHead(302, { Location: '/sim?tab=about' });
       res.end();
       return;
     }
@@ -447,52 +447,66 @@ Respond in character as this person. Be direct, personal, emotional. Reference y
       return;
     }
 
-    // Serve Vite build if dist/ exists, otherwise fall back to legacy dashboard
+    // ---------------------------------------------------------------------------
+    // Static file serving
+    // ---------------------------------------------------------------------------
     const distDir = resolve(__dirname, 'dashboard/dist');
-    const legacyMode = !existsSync(resolve(distDir, 'index.html'));
+    const hasViteBuild = existsSync(resolve(distDir, 'index.html'));
+    const pathname = (req.url || '/').split('?')[0];
 
-    if (legacyMode) {
-      // Legacy vanilla dashboard
-      if (req.url === '/main.js') {
-        const js = readFileSync(resolve(__dirname, 'dashboard/main.legacy.js'), 'utf-8');
-        res.writeHead(200, { 'Content-Type': 'application/javascript' });
-        res.end(js);
-        return;
-      }
-      const legacyPath = (req.url || '/').split('?')[0];
-      if (legacyPath === '/' || legacyPath === '/index.html') {
-        const html = readFileSync(resolve(__dirname, 'dashboard/index.legacy.html'), 'utf-8');
-        res.writeHead(200, { 'Content-Type': 'text/html' });
+    // Landing page at /
+    if (pathname === '/' || pathname === '/index.html') {
+      const landingPath = resolve(__dirname, 'dashboard/landing.html');
+      if (existsSync(landingPath)) {
+        const html = readFileSync(landingPath, 'utf-8');
+        res.writeHead(200, { 'Content-Type': 'text/html', 'Cache-Control': 'no-cache' });
         res.end(html);
         return;
       }
-    } else {
-      // Vite React dashboard
-      if (req.url?.startsWith('/assets/')) {
-        const assetPath = resolve(distDir, req.url.slice(1));
-        if (existsSync(assetPath)) {
-          const ext = assetPath.split('.').pop();
-          const mimeTypes: Record<string, string> = {
-            js: 'application/javascript', css: 'text/css', svg: 'image/svg+xml',
-            png: 'image/png', jpg: 'image/jpeg', woff2: 'font/woff2', woff: 'font/woff',
-          };
-          const content = readFileSync(assetPath);
-          res.writeHead(200, {
-            'Content-Type': mimeTypes[ext || ''] || 'application/octet-stream',
-            'Cache-Control': 'public, max-age=31536000, immutable',
-          });
-          res.end(content);
-          return;
-        }
+    }
+
+    // Vite assets (CSS, JS, fonts)
+    if (req.url?.startsWith('/assets/')) {
+      const assetPath = resolve(distDir, req.url.slice(1));
+      if (existsSync(assetPath)) {
+        const ext = assetPath.split('.').pop();
+        const mimeTypes: Record<string, string> = {
+          js: 'application/javascript', css: 'text/css', svg: 'image/svg+xml',
+          png: 'image/png', jpg: 'image/jpeg', woff2: 'font/woff2', woff: 'font/woff',
+        };
+        const content = readFileSync(assetPath);
+        res.writeHead(200, {
+          'Content-Type': mimeTypes[ext || ''] || 'application/octet-stream',
+          'Cache-Control': 'public, max-age=31536000, immutable',
+        });
+        res.end(content);
+        return;
       }
-      // SPA fallback: serve index.html for all non-API routes
-      const pathname = (req.url || '/').split('?')[0];
-      if (pathname === '/' || pathname === '/index.html' || !pathname.startsWith('/')) {
+    }
+
+    // Simulation dashboard at /sim (SPA)
+    if (pathname === '/sim' || pathname.startsWith('/sim/') || pathname === '/sim/index.html') {
+      if (hasViteBuild) {
         const html = readFileSync(resolve(distDir, 'index.html'), 'utf-8');
         res.writeHead(200, { 'Content-Type': 'text/html' });
         res.end(html);
         return;
       }
+      // Legacy fallback
+      if (existsSync(resolve(__dirname, 'dashboard/index.legacy.html'))) {
+        const html = readFileSync(resolve(__dirname, 'dashboard/index.legacy.html'), 'utf-8');
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(html);
+        return;
+      }
+    }
+
+    // Legacy JS fallback
+    if (req.url === '/main.js' && existsSync(resolve(__dirname, 'dashboard/main.legacy.js'))) {
+      const js = readFileSync(resolve(__dirname, 'dashboard/main.legacy.js'), 'utf-8');
+      res.writeHead(200, { 'Content-Type': 'application/javascript' });
+      res.end(js);
+      return;
     }
 
     res.writeHead(404);

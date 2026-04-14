@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Paracosm — Multi-Agent AI Simulation Engine</title>
+<meta name="description" content="Scenario-driven multi-agent simulation engine with emergent AI crisis generation, runtime tool forging, HEXACO personality evolution, and a deterministic kernel. Two AI commanders. Same settlement. Divergent civilizations.">
+<meta name="keywords" content="paracosm, AgentOS, AI simulation, multi-agent, emergent AI, autonomous agents, HEXACO personality, tool forging, LLM-as-judge, crisis simulation, TypeScript, deterministic kernel">
+<meta name="author" content="Manic Agency / Frame.dev">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://paracosm.agentos.sh">
+<meta property="og:title" content="Paracosm — Multi-Agent AI Simulation Engine">
+<meta property="og:description" content="Two AI commanders. Same settlement. Different personalities. Emergent crises, runtime tool forging, 100+ agent voices per turn.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://paracosm.agentos.sh">
+<meta property="og:site_name" content="Paracosm">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Paracosm — Multi-Agent AI Simulation Engine">
+<meta name="twitter:description" content="Two AI commanders. Same settlement. Emergent crises, runtime tool forging, divergent civilizations.">
+<meta name="theme-color" content="#0a0806">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='m' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23e06530'/%3E%3Cstop offset='50%25' stop-color='%23e8b44a'/%3E%3Cstop offset='100%25' stop-color='%234ca8a8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='32' cy='32' r='30' fill='%230a0806'/%3E%3Ccircle cx='32' cy='32' r='10' fill='url(%23m)'/%3E%3Ccircle cx='32' cy='10' r='5' fill='%23e06530'/%3E%3Ccircle cx='51' cy='21' r='5' fill='%23e8b44a'/%3E%3Ccircle cx='51' cy='43' r='5' fill='%23e8b44a'/%3E%3Ccircle cx='32' cy='54' r='5' fill='%234ca8a8'/%3E%3Ccircle cx='13' cy='43' r='5' fill='%23e06530'/%3E%3Ccircle cx='13' cy='21' r='5' fill='%23e06530'/%3E%3Cpath d='M32 32L32 10M32 32L51 21M32 32L51 43M32 32L32 54M32 32L13 43M32 32L13 21' stroke='url(%23m)' stroke-width='2' opacity='.5'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Paracosm","description":"Scenario-driven multi-agent AI simulation engine.","applicationCategory":"Simulation","operatingSystem":"Cross-platform","license":"https://opensource.org/licenses/Apache-2.0","url":"https://paracosm.agentos.sh","author":{"@type":"Organization","name":"Manic Agency / Frame.dev","url":"https://frame.dev"},"offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}
+</script>
+<style>
+:root{--bg:#0a0806;--bg2:#14110e;--bg3:#1c1915;--bg4:#242018;--border:#302a22;--border-hl:#4a3f30;--t1:#f5f0e4;--t2:#d8ccb0;--t3:#a89878;--t4:#6b5f50;--rust:#e06530;--rust-d:#8b3d1e;--amber:#e8b44a;--amber-d:#8b6a2e;--teal:#4ca8a8;--teal-d:#2a5f5f;--green:#6aad48;--mono:'JetBrains Mono','SF Mono',Menlo,monospace;--sans:'Inter',system-ui,-apple-system,sans-serif;--grad:linear-gradient(135deg,#e06530,#e8b44a,#4ca8a8)}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--t1);font-family:var(--sans);-webkit-font-smoothing:antialiased;overflow-x:hidden;font-size:14px;line-height:1.6;background-image:radial-gradient(ellipse 100% 60% at 50% 0%,rgba(20,17,14,1) 0%,var(--bg) 50%)}
+a{color:var(--amber);text-decoration:none}a:hover{text-decoration:underline}
+*:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--border-hl);border-radius:3px}
+
+/* NAV */
+.nav{position:fixed;top:0;left:0;right:0;z-index:100;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 clamp(16px,4vw,40px);background:rgba(10,8,6,.88);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid rgba(48,42,34,.4)}
+.nav-l{display:flex;align-items:center;gap:10px}
+.nav-l svg{width:24px;height:24px;flex-shrink:0}
+.nav-brand{font-family:var(--mono);font-size:15px;font-weight:700;color:var(--t1);text-decoration:none}.nav-brand:hover{color:var(--amber);text-decoration:none}
+.nav-tag{font-size:9px;font-weight:700;letter-spacing:1.5px;color:var(--rust);font-family:var(--mono)}
+.nav-r{display:flex;align-items:center;gap:28px}
+.nav-r a{font-size:13px;color:var(--t3);font-weight:500;transition:color .2s;text-decoration:none}.nav-r a:hover{color:var(--t1);text-decoration:none}
+.cta{display:inline-flex;align-items:center;gap:8px;padding:10px 24px;border-radius:6px;font-size:14px;font-weight:700;background:linear-gradient(135deg,var(--rust),#c44a1e);color:#fff;text-decoration:none;transition:all .25s;box-shadow:0 4px 20px rgba(224,101,48,.25);position:relative;overflow:hidden}
+.cta:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(224,101,48,.4);text-decoration:none}
+.cta::after{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:linear-gradient(135deg,transparent 40%,rgba(255,255,255,.08) 50%,transparent 60%);animation:ctaSheen 4s ease-in-out infinite}
+.cta svg{width:16px;height:16px;flex-shrink:0;transition:transform .2s}.cta:hover svg{transform:translateX(3px)}
+@keyframes ctaSheen{0%,100%{transform:translateX(-100%) rotate(25deg)}50%{transform:translateX(100%) rotate(25deg)}}
+@keyframes ctaPulse{0%,100%{box-shadow:0 4px 20px rgba(224,101,48,.25)}50%{box-shadow:0 4px 30px rgba(224,101,48,.45),0 0 60px rgba(224,101,48,.1)}}
+.cta-pulse{animation:ctaPulse 3s ease-in-out infinite}
+
+/* HERO */
+.hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:100px 24px 80px;position:relative}
+.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 50% at 50% 30%,rgba(232,180,74,.05) 0%,transparent 60%),radial-gradient(ellipse 50% 40% at 25% 70%,rgba(224,101,48,.03) 0%,transparent 50%),radial-gradient(ellipse 50% 40% at 75% 60%,rgba(76,168,168,.03) 0%,transparent 50%);pointer-events:none}
+.hero-logo{width:96px;height:96px;margin-bottom:32px}
+.hero h1{font-family:var(--mono);font-size:clamp(32px,7vw,72px);font-weight:900;letter-spacing:-2px;line-height:1.1;margin-bottom:20px;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero-sub{font-size:clamp(15px,2.2vw,20px);color:var(--t2);max-width:640px;line-height:1.8;margin-bottom:12px}
+.hero-mono{font-family:var(--mono);font-size:12px;color:var(--t4);letter-spacing:1px;margin-bottom:40px}
+.hero-ctas{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-bottom:56px}
+.btn-ghost{padding:10px 24px;border-radius:6px;font-size:14px;font-weight:600;color:var(--t2);border:1px solid var(--border-hl);background:transparent;text-decoration:none;transition:all .2s}
+.btn-ghost:hover{border-color:var(--amber);color:var(--t1);background:rgba(232,180,74,.05);text-decoration:none}
+
+/* removed stats - replaced by chips */
+
+/* SECTIONS */
+.sec{padding:100px 24px;position:relative}
+.sec-inner{max-width:1100px;margin:0 auto}
+.sec-alt{background:linear-gradient(180deg,var(--bg2) 0%,rgba(20,17,14,.6) 50%,var(--bg2) 100%);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.sec-label{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--rust);margin-bottom:12px}
+.sec-title{font-family:var(--mono);font-size:clamp(22px,4vw,34px);font-weight:800;color:var(--t1);margin-bottom:14px;letter-spacing:-.5px}
+.sec-desc{font-size:15px;color:var(--t2);max-width:640px;line-height:1.8;margin-bottom:48px}
+.sec-center{text-align:center}.sec-center .sec-desc{margin-left:auto;margin-right:auto}
+
+/* FEATURES */
+.feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.feat{background:rgba(28,25,21,.7);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(48,42,34,.6);border-radius:8px;padding:28px 24px;transition:all .35s;position:relative;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,240,200,.02)}
+.feat::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--grad);transform:scaleX(0);transform-origin:left;transition:transform .4s ease}
+.feat:hover{border-color:var(--border-hl);transform:translateY(-3px);box-shadow:0 12px 40px rgba(0,0,0,.5)}.feat:hover::before{transform:scaleX(1)}
+.feat-icon{width:36px;height:36px;margin-bottom:16px}
+.feat h3{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--t1);margin-bottom:8px}
+.feat p{font-size:13px;color:var(--t2);line-height:1.7}
+.feat-ref{font-size:10px;color:var(--t4);margin-top:10px;font-family:var(--mono);border-top:1px solid var(--border);padding-top:8px}
+
+/* FLOW DIAGRAM */
+.flow-wrap{position:relative;margin:48px 0;padding:40px 0}
+.flow-line{position:absolute;top:50%;left:60px;right:60px;height:2px;background:var(--border);z-index:0}
+.flow-line-fill{height:100%;width:0;background:var(--grad);transition:width 1.5s ease}
+.flow-line-fill.active{width:100%}
+.flow{display:flex;justify-content:space-between;position:relative;z-index:1}
+.flow-node{display:flex;flex-direction:column;align-items:center;text-align:center;width:22%;position:relative}
+.flow-ring{width:64px;height:64px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;background:var(--bg);transition:all .5s;margin-bottom:14px}
+.flow-ring svg{width:28px;height:28px;opacity:.7;transition:opacity .3s}
+.flow-ring.active{border-color:var(--amber)}
+.flow-ring.active svg{opacity:1}
+.flow-num{font-family:var(--mono);font-size:10px;font-weight:700;color:var(--t4);letter-spacing:1px;margin-bottom:4px}
+.flow-node h4{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--t1);margin-bottom:4px}
+.flow-node p{font-size:11px;color:var(--t3);line-height:1.5;max-width:180px}
+
+/* DIVERGENCE VIZ */
+.diverge{display:flex;gap:20px;margin-top:48px}
+.diverge-side{flex:1;border-radius:8px;padding:24px;border:1px solid var(--border);background:var(--bg3);transition:all .3s}
+.diverge-side:hover{border-color:var(--border-hl)}
+.diverge-side h4{font-family:var(--mono);font-size:14px;font-weight:700;margin-bottom:8px}
+.diverge-bar{height:6px;border-radius:3px;margin:6px 0;overflow:hidden;background:var(--border)}
+.diverge-fill{height:100%;border-radius:3px;transition:width 1s ease}
+
+/* SCENARIOS */
+.scenarios{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.sc-card{background:rgba(28,25,21,.7);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(48,42,34,.6);border-radius:8px;padding:28px;transition:all .3s;box-shadow:0 4px 20px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,240,200,.02)}
+.sc-card:hover{border-color:var(--border-hl);box-shadow:0 8px 30px rgba(0,0,0,.4)}
+.sc-badge{display:inline-block;font-family:var(--mono);font-size:9px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;padding:3px 10px;border-radius:12px;margin-bottom:14px}
+.sc-card h3{font-family:var(--mono);font-size:18px;font-weight:700;color:var(--t1);margin-bottom:8px}
+.sc-card p{font-size:13px;color:var(--t2);line-height:1.7;margin-bottom:14px}
+.sc-stats{display:flex;gap:16px;font-family:var(--mono);font-size:11px;color:var(--t3)}.sc-stats b{color:var(--t1)}
+
+/* ARCH */
+.arch{display:flex;flex-direction:column;gap:8px;margin-top:40px}
+.arch-row{display:flex;align-items:center;gap:16px;padding:18px 22px;border-radius:6px;border:1px solid rgba(48,42,34,.6);background:rgba(28,25,21,.6);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);transition:all .3s;box-shadow:0 2px 12px rgba(0,0,0,.2)}
+.arch-row:hover{border-color:var(--border-hl)}
+.arch-row svg{width:28px;height:28px;flex-shrink:0}
+.arch-label{font-family:var(--mono);font-size:12px;font-weight:700;min-width:100px;letter-spacing:.5px}
+.arch-desc{font-size:13px;color:var(--t2);flex:1}
+.arch-tech{font-family:var(--mono);font-size:10px;color:var(--t4);flex-shrink:0}
+
+/* PRICING */
+.pricing-banner{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:40px;text-align:center;max-width:700px;margin:0 auto;backdrop-filter:blur(12px)}
+.pricing-banner h3{font-family:var(--mono);font-size:20px;font-weight:700;color:var(--t1);margin-bottom:8px}
+.pricing-banner p{font-size:14px;color:var(--t2);line-height:1.8;margin-bottom:8px}
+.pricing-tiers{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:20px 0}
+.pricing-tier{font-family:var(--mono);font-size:12px;font-weight:700;padding:6px 16px;border-radius:6px;background:var(--bg4);color:var(--t2);border:1px solid var(--border)}
+
+/* CHIPS */
+.hero-chips{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:48px}
+.chip{font-family:var(--mono);font-size:11px;font-weight:600;padding:6px 14px;border-radius:20px;background:rgba(232,180,74,.06);color:var(--t2);border:1px solid var(--border);letter-spacing:.3px;transition:all .3s}
+.chip:hover{border-color:var(--amber-d);color:var(--t1);background:rgba(232,180,74,.1)}
+
+/* FAQ */
+.faq-list{max-width:760px;margin:0 auto}
+.faq-item{border-bottom:1px solid var(--border)}
+.faq-item summary{padding:18px 0;font-size:15px;font-weight:600;cursor:pointer;color:var(--t1);list-style:none;display:flex;justify-content:space-between;align-items:center;transition:color .2s}
+.faq-item summary:hover{color:var(--amber)}
+.faq-item summary::after{content:'';width:12px;height:12px;border-right:2px solid var(--t3);border-bottom:2px solid var(--t3);transform:rotate(45deg);transition:transform .2s;flex-shrink:0;margin-left:16px}
+.faq-item[open] summary::after{transform:rotate(-135deg)}
+.faq-body{padding:0 0 18px;font-size:13px;color:var(--t2);line-height:1.8}
+.faq-cite{font-size:10px;color:var(--t4);font-family:var(--mono);margin-top:8px;padding-top:6px;border-top:1px solid var(--border)}
+
+/* CONTACT */
+.contact-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:40px}
+.contact-card{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:24px;transition:all .3s}
+.contact-card:hover{border-color:var(--amber-d)}
+.contact-card h4{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--t1);margin-bottom:6px}
+.contact-card p{font-size:13px;color:var(--t2);margin-bottom:12px;line-height:1.6}
+.contact-card a{font-weight:600}
+
+/* CTA BANNER */
+.banner{text-align:center;padding:100px 24px;position:relative}
+.banner::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:var(--grad);opacity:.3}
+.banner h2{font-family:var(--mono);font-size:clamp(22px,4vw,32px);font-weight:800;margin-bottom:14px}
+.banner p{font-size:15px;color:var(--t2);margin-bottom:36px;max-width:560px;margin-left:auto;margin-right:auto;line-height:1.7}
+
+/* FOOTER */
+footer{padding:28px 24px;border-top:1px solid var(--border);background:var(--bg2)}
+.ft-inner{max-width:1100px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px}
+.ft-links{display:flex;gap:20px;font-size:12px;flex-wrap:wrap}.ft-links a{color:var(--t3);text-decoration:none;transition:color .2s}.ft-links a:hover{color:var(--amber)}
+.ft-copy{font-size:11px;color:var(--t4)}
+
+/* REVEAL */
+.rv{opacity:0;transform:translateY(24px);transition:opacity .7s ease,transform .7s ease}.rv.vis{opacity:1;transform:translateY(0)}
+.rv-d1{transition-delay:.1s}.rv-d2{transition-delay:.2s}.rv-d3{transition-delay:.25s}.rv-d4{transition-delay:.3s}.rv-d5{transition-delay:.35s}.rv-d6{transition-delay:.4s}
+
+/* RESPONSIVE */
+@media(max-width:900px){.feat-grid{grid-template-columns:1fr 1fr}.scenarios{grid-template-columns:1fr}.flow{flex-direction:column;align-items:center;gap:24px}.flow-line{display:none}.nav-r a:not(.cta){display:none}.diverge{flex-direction:column}.contact-grid{grid-template-columns:1fr}.hero-chips{gap:6px}.pricing-tiers{flex-direction:column;align-items:center}}
+@media(max-width:600px){.feat-grid{grid-template-columns:1fr}.sec{padding:64px 16px}.hero{padding:80px 16px 56px}.arch-row{flex-direction:column;text-align:center;gap:8px}.arch-label{min-width:auto}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition-duration:.01ms!important}.rv{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+
+<!-- === SVG DEFS (reusable icons) === -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+  <defs>
+    <linearGradient id="gr" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#e06530"/><stop offset="50%" stop-color="#e8b44a"/><stop offset="100%" stop-color="#4ca8a8"/></linearGradient>
+    <!-- Forge/hammer -->
+    <symbol id="i-forge" viewBox="0 0 24 24"><path d="M15 2l-4 4 2 2-7 7-2-2-2 2 4 4 2-2-2-2 7-7 2 2 4-4-4-4z" fill="none" stroke="url(#gr)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 21l3-3" fill="none" stroke="url(#gr)" stroke-width="1.5" stroke-linecap="round"/></symbol>
+    <!-- DNA/personality -->
+    <symbol id="i-dna" viewBox="0 0 24 24"><path d="M7 4c0 0 3 2 5 2s5-2 5-2M7 20c0 0 3-2 5-2s5 2 5 2M7 4v16M17 4v16M9 8h6M9 12h6M9 16h6" fill="none" stroke="url(#gr)" stroke-width="1.5" stroke-linecap="round"/></symbol>
+    <!-- Lightning/crisis -->
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="none" stroke="url(#gr)" stroke-width="1.5" stroke-linejoin="round"/></symbol>
+    <!-- Dice/deterministic -->
+    <symbol id="i-dice" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3" fill="none" stroke="url(#gr)" stroke-width="1.5"/><circle cx="8" cy="8" r="1.5" fill="#e8b44a"/><circle cx="16" cy="8" r="1.5" fill="#e8b44a"/><circle cx="12" cy="12" r="1.5" fill="#e06530"/><circle cx="8" cy="16" r="1.5" fill="#4ca8a8"/><circle cx="16" cy="16" r="1.5" fill="#4ca8a8"/></symbol>
+    <!-- Code/compiler -->
+    <symbol id="i-code" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6" fill="none" stroke="url(#gr)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><polyline points="8 6 2 12 8 18" fill="none" stroke="url(#gr)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><line x1="14" y1="4" x2="10" y2="20" stroke="#e8b44a" stroke-width="1.5" stroke-linecap="round"/></symbol>
+    <!-- Search/research -->
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10" cy="10" r="7" fill="none" stroke="url(#gr)" stroke-width="1.5"/><line x1="15" y1="15" x2="21" y2="21" stroke="url(#gr)" stroke-width="1.5" stroke-linecap="round"/><line x1="7" y1="10" x2="13" y2="10" stroke="#e8b44a" stroke-width="1" stroke-linecap="round"/><line x1="10" y1="7" x2="10" y2="13" stroke="#e8b44a" stroke-width="1" stroke-linecap="round"/></symbol>
+    <!-- Arrow right -->
+    <symbol id="i-arrow" viewBox="0 0 16 16"><path d="M3 8h10M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <!-- Check -->
+    <symbol id="i-check" viewBox="0 0 14 14"><path d="M2 7l3.5 3.5L12 4" fill="none" stroke="#6aad48" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <!-- Flow icons -->
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-brain" viewBox="0 0 24 24"><path d="M12 2a5 5 0 0 1 5 5c0 1.5-.7 2.8-1.7 3.7L12 14l-3.3-3.3A5 5 0 0 1 12 2z" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M12 14v8M8 18h8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+    <symbol id="i-cpu" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="9" width="6" height="6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M1 9h3M1 15h3M20 9h3M20 15h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+    <!-- Paracosm orbital logo -->
+    <symbol id="i-logo" viewBox="0 0 64 64"><circle cx="32" cy="32" r="8" fill="url(#gr)"/><circle cx="32" cy="12" r="4" fill="#e06530" opacity=".9"/><circle cx="48" cy="20" r="4" fill="#e8b44a" opacity=".9"/><circle cx="48" cy="44" r="4" fill="#4ca8a8" opacity=".9"/><circle cx="32" cy="52" r="4" fill="#4ca8a8" opacity=".9"/><circle cx="16" cy="44" r="4" fill="#e8b44a" opacity=".9"/><circle cx="16" cy="20" r="4" fill="#e06530" opacity=".9"/><path d="M32 32L32 12M32 32L48 20M32 32L48 44M32 32L32 52M32 32L16 44M32 32L16 20" stroke="url(#gr)" stroke-width="1.5" opacity=".4"/></symbol>
+  </defs>
+</svg>
+
+<!-- NAV -->
+<nav class="nav" role="navigation" aria-label="Main">
+  <div class="nav-l">
+    <svg viewBox="0 0 64 64"><use href="#i-logo"/></svg>
+    <a href="/" class="nav-brand">PARACOSM</a>
+    <a href="https://agentos.sh" target="_blank" rel="noopener" class="nav-tag" style="text-decoration:none">AGENTOS</a>
+  </div>
+  <div class="nav-r">
+    <a href="#features">Features</a>
+    <a href="#how-it-works">How It Works</a>
+    <a href="#scenarios">Scenarios</a>
+    <a href="#faq">FAQ</a>
+    <a href="/sim" class="cta">Launch Sim <svg><use href="#i-arrow"/></svg></a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero" id="top">
+  <svg class="hero-logo" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Paracosm">
+    <circle cx="32" cy="32" r="10" fill="url(#gr)" opacity=".9"/>
+    <g><circle cx="32" cy="10" r="5" fill="#e06530" opacity=".85"/><animateTransform attributeName="transform" type="rotate" from="0 32 32" to="360 32 32" dur="20s" repeatCount="indefinite"/></g>
+    <g><circle cx="50" cy="22" r="4.5" fill="#e8b44a" opacity=".85"/><animateTransform attributeName="transform" type="rotate" from="0 32 32" to="360 32 32" dur="28s" repeatCount="indefinite"/></g>
+    <g><circle cx="50" cy="42" r="4" fill="#e8b44a" opacity=".75"/><animateTransform attributeName="transform" type="rotate" from="0 32 32" to="-360 32 32" dur="35s" repeatCount="indefinite"/></g>
+    <g><circle cx="32" cy="54" r="5" fill="#4ca8a8" opacity=".85"/><animateTransform attributeName="transform" type="rotate" from="0 32 32" to="360 32 32" dur="24s" repeatCount="indefinite"/></g>
+    <g><circle cx="14" cy="42" r="4" fill="#e06530" opacity=".75"/><animateTransform attributeName="transform" type="rotate" from="0 32 32" to="-360 32 32" dur="32s" repeatCount="indefinite"/></g>
+    <g><circle cx="14" cy="22" r="4.5" fill="#e06530" opacity=".85"/><animateTransform attributeName="transform" type="rotate" from="0 32 32" to="360 32 32" dur="22s" repeatCount="indefinite"/></g>
+    <path d="M32 32L32 10M32 32L50 22M32 32L50 42M32 32L32 54M32 32L14 42M32 32L14 22" stroke="url(#gr)" stroke-width="1" opacity=".2"/>
+  </svg>
+
+  <h1>Paracosm</h1>
+  <p class="hero-sub">Two AI commanders with distinct personalities lead the same settlement through emergent crises. Runtime tool forging, HEXACO personality drift, and a deterministic kernel. Watch civilizations diverge.</p>
+  <p class="hero-mono">OPEN SOURCE &middot; APACHE-2.0 &middot; BUILT ON AGENTOS</p>
+
+  <div class="hero-ctas">
+    <a href="/sim" class="cta cta-pulse">Launch Simulation <svg><use href="#i-arrow"/></svg></a>
+    <a href="https://github.com/framersai/paracosm" class="btn-ghost" target="_blank" rel="noopener">View Source</a>
+    <a href="https://docs.agentos.sh" class="btn-ghost" target="_blank" rel="noopener">Documentation</a>
+  </div>
+
+  <div class="hero-chips">
+    <span class="chip">Emergent AI Crises</span>
+    <span class="chip">Runtime Tool Forging</span>
+    <span class="chip">HEXACO Personality Drift</span>
+    <span class="chip">Deterministic Kernel</span>
+    <span class="chip">Multi-Agent Analysis</span>
+    <span class="chip">DOI-Linked Citations</span>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="sec sec-alt" id="features">
+  <div class="sec-inner">
+    <div class="sec-label rv">Core Capabilities</div>
+    <h2 class="sec-title rv">What makes Paracosm different</h2>
+    <p class="sec-desc rv">Not a chatbot wrapper. A simulation engine where AI agents invent tools, evolve personalities, and generate crises nobody programmed.</p>
+
+    <div class="feat-grid">
+      <div class="feat rv rv-d1">
+        <svg class="feat-icon"><use href="#i-forge"/></svg>
+        <h3>Runtime Tool Forging</h3>
+        <p>Department agents create computational tools on the fly: radiation calculators, food projectors, morale models. Each tool is sandboxed in V8 and reviewed by an LLM-as-judge for safety and correctness.</p>
+        <div class="feat-ref">Built on AgentOS EmergentCapabilityEngine + EmergentJudge</div>
+      </div>
+      <div class="feat rv rv-d2">
+        <svg class="feat-icon"><use href="#i-dna"/></svg>
+        <h3>HEXACO Personality Drift</h3>
+        <p>Six-factor personality model from psychology research. Continuous 0-1 traits drift through leader pull, role activation, and outcome reinforcement across turns. Same person, two commanders, measurably different behavior.</p>
+        <div class="feat-ref">Ashton, M.C. &amp; Lee, K. (2007). Personality and Social Psychology Review, 11(2), 150-166</div>
+      </div>
+      <div class="feat rv rv-d3">
+        <svg class="feat-icon"><use href="#i-bolt"/></svg>
+        <h3>Emergent Crisis Director</h3>
+        <p>An LLM agent observes colony state, resource levels, decision history, and tool intelligence. It generates unique crises per timeline that exploit consequences of prior decisions and escalate over time.</p>
+        <div class="feat-ref">Adaptive narrative generation, cf. Riedl &amp; Bulitko (2013)</div>
+      </div>
+      <div class="feat rv rv-d1">
+        <svg class="feat-icon"><use href="#i-dice"/></svg>
+        <h3>Deterministic Kernel</h3>
+        <p>Seeded PRNG (Mulberry32) ensures reproducibility. Same seed produces the same colonist roster, births, deaths, and promotions. Divergence comes entirely from AI-driven decisions.</p>
+        <div class="feat-ref">Law, A.M. &amp; Kelton, W.D. (2000). Simulation Modeling and Analysis. McGraw-Hill</div>
+      </div>
+      <div class="feat rv rv-d2">
+        <svg class="feat-icon"><use href="#i-code"/></svg>
+        <h3>Scenario Compiler</h3>
+        <p>Define any closed-state settlement as JSON. The compiler generates all runtime hooks via LLM: progression logic, crisis templates, milestone conditions, political dynamics. ~$0.10 per compile, cached to disk.</p>
+        <div class="feat-ref">Zero-code scenario authoring via AgentOS generateText()</div>
+      </div>
+      <div class="feat rv rv-d3">
+        <svg class="feat-icon"><use href="#i-search"/></svg>
+        <h3>Research-Backed Decisions</h3>
+        <p>Department agents cite DOI-linked academic papers. Decisions are grounded in domain literature via semantic search across Serper, Tavily, Firecrawl, and Brave with Cohere neural reranking.</p>
+        <div class="feat-ref">Cohere Rerank v3.5 for citation relevance scoring</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="sec" id="how-it-works">
+  <div class="sec-inner sec-center">
+    <div class="sec-label rv">Simulation Loop</div>
+    <h2 class="sec-title rv">How a turn works</h2>
+    <p class="sec-desc rv">Each turn is a complete cycle. Crisis generation, multi-department analysis with tool forging, commander decision, deterministic state update, population reaction.</p>
+
+    <div class="flow-wrap rv">
+      <div class="flow-line"><div class="flow-line-fill" id="flow-fill"></div></div>
+      <div class="flow">
+        <div class="flow-node">
+          <div class="flow-ring" style="border-color:var(--rust)"><svg style="color:var(--rust)"><use href="#i-eye"/></svg></div>
+          <div class="flow-num" style="color:var(--rust)">01</div>
+          <h4>Crisis Director</h4>
+          <p>AI observes colony state and generates a unique crisis targeting current weaknesses</p>
+        </div>
+        <div class="flow-node">
+          <div class="flow-ring" style="border-color:var(--amber)"><svg style="color:var(--amber)"><use href="#i-layers"/></svg></div>
+          <div class="flow-num" style="color:var(--amber)">02</div>
+          <h4>Department Analysis</h4>
+          <p>Agents analyze, cite research, and forge computational tools in sandboxed V8</p>
+        </div>
+        <div class="flow-node">
+          <div class="flow-ring" style="border-color:var(--teal)"><svg style="color:var(--teal)"><use href="#i-brain"/></svg></div>
+          <div class="flow-num" style="color:var(--teal)">03</div>
+          <h4>Commander Decision</h4>
+          <p>HEXACO personality drives the choice. Same crisis, different outcomes per leader</p>
+        </div>
+        <div class="flow-node">
+          <div class="flow-ring" style="border-color:var(--green)"><svg style="color:var(--green)"><use href="#i-cpu"/></svg></div>
+          <div class="flow-num" style="color:var(--green)">04</div>
+          <h4>Kernel Resolution</h4>
+          <p>Deterministic state machine applies effects. Population reacts. Personalities drift.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Divergence visualization -->
+    <div class="sec-label rv" style="margin-top:64px">Divergence</div>
+    <h2 class="sec-title rv">Same crisis, different civilizations</h2>
+    <p class="sec-desc rv">Two commanders receive identical starting conditions. Their personality-driven decisions produce measurably different outcomes within 3 turns.</p>
+
+    <div class="diverge rv">
+      <div class="diverge-side" style="border-left:3px solid var(--amber)">
+        <h4 style="color:var(--amber)">The Visionary</h4>
+        <p style="font-size:13px;color:var(--t2)">High openness, low conscientiousness. Bold expansion, calculated risks. Favors innovation over safety margins.</p>
+        <div style="font-size:11px;color:var(--t3);font-family:var(--mono);margin-top:8px">
+          <div>Population <div class="diverge-bar"><div class="diverge-fill" style="width:78%;background:var(--amber)"></div></div></div>
+          <div>Morale <div class="diverge-bar"><div class="diverge-fill" style="width:62%;background:var(--amber)"></div></div></div>
+          <div>Innovation <div class="diverge-bar"><div class="diverge-fill" style="width:92%;background:var(--amber)"></div></div></div>
+        </div>
+      </div>
+      <div class="diverge-side" style="border-left:3px solid var(--teal)">
+        <h4 style="color:var(--teal)">The Engineer</h4>
+        <p style="font-size:13px;color:var(--t2)">High conscientiousness, low openness. Engineering discipline, safety margins. Favors proven methods over experimentation.</p>
+        <div style="font-size:11px;color:var(--t3);font-family:var(--mono);margin-top:8px">
+          <div>Population <div class="diverge-bar"><div class="diverge-fill" style="width:88%;background:var(--teal)"></div></div></div>
+          <div>Morale <div class="diverge-bar"><div class="diverge-fill" style="width:71%;background:var(--teal)"></div></div></div>
+          <div>Innovation <div class="diverge-bar"><div class="diverge-fill" style="width:45%;background:var(--teal)"></div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SCENARIOS -->
+<section class="sec sec-alt" id="scenarios">
+  <div class="sec-inner">
+    <div class="sec-label rv">Live Scenarios</div>
+    <h2 class="sec-title rv">Two worlds, one engine</h2>
+    <p class="sec-desc rv">Each scenario is a self-contained ScenarioPackage. Different departments, metrics, progression, milestones. Same engine, zero code changes.</p>
+
+    <div class="scenarios">
+      <div class="sc-card rv rv-d1">
+        <span class="sc-badge" style="background:rgba(224,101,48,.1);color:var(--rust);border:1px solid var(--rust-d)">Flagship</span>
+        <h3>Mars Genesis</h3>
+        <p>100-colonist Mars colony over 50 simulated years. Medical, engineering, agricultural, social, and science departments. Resource scarcity, radiation events, political factions, and technological breakthroughs.</p>
+        <div class="sc-stats"><span><b>100</b> colonists</span><span><b>5</b> depts</span><span><b>12</b> turns</span><span><b>50</b> years</span></div>
+      </div>
+      <div class="sc-card rv rv-d2">
+        <span class="sc-badge" style="background:rgba(76,168,168,.1);color:var(--teal);border:1px solid var(--teal-d)">Proven</span>
+        <h3>Lunar Outpost</h3>
+        <p>50-person crew at the lunar south pole. Mining, life-support, communications, research. Regolith toxicity, 1/6g atrophy, Earth-relay delays, and crew rotation dynamics.</p>
+        <div class="sc-stats"><span><b>50</b> crew</span><span><b>4</b> depts</span><span><b>8</b> turns</span><span><b>10</b> years</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ARCHITECTURE -->
+<section class="sec" id="architecture">
+  <div class="sec-inner">
+    <div class="sec-label rv">Under the Hood</div>
+    <h2 class="sec-title rv">Architecture</h2>
+    <p class="sec-desc rv">Three clean layers. Engine defines types. Runtime orchestrates. CLI provides the dashboard.</p>
+
+    <div class="arch rv">
+      <div class="arch-row" style="border-left:3px solid var(--amber)">
+        <svg style="color:var(--amber)" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3 9h18M9 3v18" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+        <div class="arch-label" style="color:var(--amber)">Dashboard</div>
+        <div class="arch-desc">React + Vite. Live SSE streaming. Dual-column divergence view, HEXACO sparklines, agent chat, save/load.</div>
+        <div class="arch-tech">React 19 / Vite 6 / Tailwind 4</div>
+      </div>
+      <div class="arch-row" style="border-left:3px solid var(--teal)">
+        <svg style="color:var(--teal)"><use href="#i-layers"/></svg>
+        <div class="arch-label" style="color:var(--teal)">Runtime</div>
+        <div class="arch-desc">Orchestrator, Director, Departments, Batch Runner. Scenario-agnostic via 8 hook interfaces. Parallel leader execution.</div>
+        <div class="arch-tech">AgentOS / generateText() / SSE</div>
+      </div>
+      <div class="arch-row" style="border-left:3px solid var(--rust)">
+        <svg style="color:var(--rust)"><use href="#i-cpu"/></svg>
+        <div class="arch-label" style="color:var(--rust)">Engine</div>
+        <div class="arch-desc">SimulationKernel, SeededRng, ScenarioPackage types, Effect/Metric registries. Fully deterministic state machine.</div>
+        <div class="arch-tech">TypeScript / Mulberry32 / Apache-2.0</div>
+      </div>
+      <div class="arch-row" style="border-left:3px solid var(--green)">
+        <svg style="color:var(--green)"><use href="#i-code"/></svg>
+        <div class="arch-label" style="color:var(--green)">AgentOS</div>
+        <div class="arch-desc">agent() API, EmergentCapabilityEngine, EmergentJudge, ForgeToolMetaTool, AgentMemory. The runtime that powers everything.</div>
+        <div class="arch-tech">@framers/agentos / npm</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="sec sec-alt" id="pricing">
+  <div class="sec-inner sec-center">
+    <div class="sec-label rv">Pricing</div>
+    <h2 class="sec-title rv">Open core, commercial roadmap</h2>
+    <p class="sec-desc rv">The engine is free and open source under Apache-2.0. Paid tiers are planned hosted packaging for infrastructure, persistence, and governance.</p>
+
+    <div class="pricing-banner rv">
+      <h3>Open Source Today. Hosted Tiers Coming Soon.</h3>
+      <p>The core simulation engine is free and open source under Apache-2.0. Run it locally, fork it, build on it.</p>
+      <p style="color:var(--t3);font-size:13px">Hosted Pro, Enterprise, and Platform tiers are on the roadmap. Private deployment, auth, persistence, scenario authoring studio, white-label packaging.</p>
+      <div class="pricing-tiers">
+        <span class="pricing-tier">Open Source (free)</span>
+        <span class="pricing-tier">Pro (TBD)</span>
+        <span class="pricing-tier">Enterprise (TBD)</span>
+        <span class="pricing-tier">Platform (TBD)</span>
+      </div>
+      <div style="margin-top:24px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+        <a href="https://github.com/framersai/paracosm" class="btn-ghost" target="_blank" rel="noopener">View on GitHub</a>
+        <a href="mailto:team@frame.dev?subject=Paracosm Enterprise / Partnership" class="cta">Contact team@frame.dev <svg><use href="#i-arrow"/></svg></a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="sec" id="faq">
+  <div class="sec-inner sec-center">
+    <div class="sec-label rv">FAQ</div>
+    <h2 class="sec-title rv">Frequently asked questions</h2>
+    <div class="faq-list rv">
+      <details class="faq-item"><summary>What is Paracosm?</summary><div class="faq-body">A scenario-driven multi-agent simulation engine. You define a ScenarioPackage describing your world, and the engine runs it with emergent AI crisis generation, multi-agent analysis, runtime tool forging, HEXACO personality drift, and deterministic state transitions.</div></details>
+      <details class="faq-item"><summary>How does tool forging work?</summary><div class="faq-body">Department agents create computational tools at runtime. Each tool is sandboxed in an isolated V8 environment, reviewed by an LLM-as-judge for safety and correctness, and produces real computed output that influences decisions. Nobody pre-programmed these tools.<div class="faq-cite">AgentOS EmergentCapabilityEngine + EmergentJudge</div></div></details>
+      <details class="faq-item"><summary>What is HEXACO personality?</summary><div class="faq-body">A six-factor personality model: Honesty-Humility, Emotionality, Extraversion, Agreeableness, Conscientiousness, and Openness to Experience. Each trait is a continuous 0-1 value that drifts over time through leader pull, role activation, and outcome reinforcement.<div class="faq-cite">Ashton, M.C. &amp; Lee, K. (2007). "Empirical, Theoretical, and Practical Advantages of the HEXACO Model." Personality and Social Psychology Review, 11(2), 150-166.</div></div></details>
+      <details class="faq-item"><summary>Is the simulation deterministic?</summary><div class="faq-body">The kernel is fully deterministic. Same seed produces the same colonist roster, births, deaths, and promotions via Mulberry32 PRNG. Divergence comes entirely from AI-driven decisions.<div class="faq-cite">Law, A.M. &amp; Kelton, W.D. (2000). "Simulation Modeling and Analysis." McGraw-Hill.</div></div></details>
+      <details class="faq-item"><summary>What LLM providers are supported?</summary><div class="faq-body">OpenAI (GPT-5.4, GPT-5.4-mini) and Anthropic (Claude Sonnet 4.6, Claude Haiku 4.5). Different models can be assigned to different roles: commander, departments, judge, and crisis director.</div></details>
+      <details class="faq-item"><summary>Can I create my own scenario?</summary><div class="faq-body">Two ways. Write a ScenarioPackage in TypeScript with full control over hooks. Or use the Scenario Compiler, which generates all runtime hooks from a JSON world definition via LLM (~$0.10 per compile, cached to disk).</div></details>
+      <details class="faq-item"><summary>What verticals does this support?</summary><div class="faq-body">Defense and intelligence (wargaming), corporate strategy (leadership modeling), game studios (procedural civilizations), academic research (AI decision experiments), government (policy simulation). Any domain where testing decisions before making them has value.</div></details>
+      <details class="faq-item"><summary>Is this open source or commercial?</summary><div class="faq-body">Both. The core engine is open source under Apache-2.0. The hosted and enterprise layers are the commercial roadmap: auth, persistence, exports, orchestration, private deployment, and white-label packaging built on top of the open core.</div></details>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section class="sec sec-alt" id="contact">
+  <div class="sec-inner">
+    <div class="sec-label rv">Get in Touch</div>
+    <h2 class="sec-title rv">Contact</h2>
+    <p class="sec-desc rv">Built by Manic Agency LLC / Frame.dev. We work with defense, enterprise, and research organizations on custom simulation deployments.</p>
+
+    <div class="contact-grid">
+      <div class="contact-card rv rv-d1">
+        <h4>Enterprise &amp; Partnerships</h4>
+        <p>Private deployment, custom scenarios, white-label packaging, and investment inquiries.</p>
+        <a href="mailto:team@frame.dev?subject=Paracosm Enterprise">team@frame.dev</a>
+      </div>
+      <div class="contact-card rv rv-d2">
+        <h4>Community &amp; Open Source</h4>
+        <p>Bug reports, feature requests, scenario contributions, and general discussion.</p>
+        <a href="https://github.com/framersai/paracosm" target="_blank" rel="noopener">GitHub Issues</a> &middot; <a href="https://wilds.ai/discord" target="_blank" rel="noopener">Discord</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA BANNER -->
+<section class="banner">
+  <h2 class="rv">Run your first simulation</h2>
+  <p class="rv">Two commanders. Same settlement. Different personalities. See what happens.</p>
+  <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap" class="rv">
+    <a href="/sim" class="cta cta-pulse">Launch Simulation <svg><use href="#i-arrow"/></svg></a>
+    <a href="https://github.com/framersai/paracosm" class="btn-ghost" target="_blank" rel="noopener">View Source</a>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer role="contentinfo">
+  <div class="ft-inner">
+    <nav class="ft-links" aria-label="Footer">
+      <a href="https://agentos.sh">agentos.sh</a>
+      <a href="https://docs.agentos.sh">Docs</a>
+      <a href="https://github.com/framersai/paracosm">GitHub</a>
+      <a href="https://www.npmjs.com/package/paracosm">npm</a>
+      <a href="https://frame.dev">Frame.dev</a>
+      <a href="https://manic.agency">Manic Agency</a>
+      <a href="https://wilds.ai/discord">Discord</a>
+      <a href="mailto:team@frame.dev">team@frame.dev</a>
+    </nav>
+    <span class="ft-copy">Apache-2.0 &middot; Manic Agency LLC / Frame.dev</span>
+  </div>
+</footer>
+
+<script>
+// Intersection Observer for scroll-triggered reveals
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('vis'); });
+}, { threshold: 0.08, rootMargin: '0px 0px -30px 0px' });
+document.querySelectorAll('.rv').forEach(el => obs.observe(el));
+
+// Animate flow line when How It Works section is visible
+const flowObs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      const fill = document.getElementById('flow-fill');
+      if (fill) fill.classList.add('active');
+    }
+  });
+}, { threshold: 0.3 });
+const flowWrap = document.querySelector('.flow-wrap');
+if (flowWrap) flowObs.observe(flowWrap);
+
+// Smooth scroll for anchor links
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    const t = document.querySelector(a.getAttribute('href'));
+    if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+});
+
+// Animate divergence bars on scroll
+const barObs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.querySelectorAll('.diverge-fill').forEach(bar => {
+        const w = bar.style.width;
+        bar.style.width = '0';
+        requestAnimationFrame(() => { bar.style.width = w; });
+      });
+    }
+  });
+}, { threshold: 0.5 });
+document.querySelectorAll('.diverge').forEach(el => barObs.observe(el));
+</script>
+</body>
+</html>

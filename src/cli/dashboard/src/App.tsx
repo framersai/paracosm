@@ -86,7 +86,7 @@ function AppContent() {
         <TabBar active={activeTab} onTabChange={setActiveTab} scenario={scenario} />
         <Toolbar state={gameState} onSave={handleSave} onLoad={handleLoad} onClear={handleClear} />
 
-        <main id="main-content" className="flex-1 overflow-hidden" role="main" aria-label={`${activeTab} view`}>
+        <main id="main-content" className="flex-1 overflow-hidden" role="main" aria-label={`${activeTab} view`} style={{ background: 'var(--bg-deep)', display: 'flex', flexDirection: 'column' }}>
           {activeTab === 'sim' && <SimView state={gameState} />}
 
           {activeTab === 'settings' && <SettingsPanel />}
