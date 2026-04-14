@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useMemo } from 'react';
 import type { GameState, Side, SideState, LeaderInfo } from '../../hooks/useGameState';
 import { useScenarioContext } from '../../App';
 import { LeaderBar } from '../layout/LeaderBar';
@@ -90,6 +90,17 @@ function IntroBar({ onDismiss }: { onDismiss: () => void }) {
 export function SimView({ state, sseStatus, onRun }: SimViewProps) {
   const scenario = useScenarioContext();
 
+  // Delay showing "loading" state so replayed events have time to arrive
+  const [showLoading, setShowLoading] = useState(false);
+  const hasEvents = state.a.events.length > 0 || state.b.events.length > 0;
+  useEffect(() => {
+    if (sseStatus === 'connected' && !hasEvents && !state.isRunning && !state.isComplete) {
+      const t = setTimeout(() => setShowLoading(true), 2000);
+      return () => clearTimeout(t);
+    }
+    setShowLoading(false);
+  }, [sseStatus, hasEvents, state.isRunning, state.isComplete]);
+
   // Fallback leader info from scenario presets when no simulation data yet
   const defaultPreset = scenario.presets.find(p => p.id === 'default');
   const presetLeaderA: LeaderInfo | null = defaultPreset?.leaders?.[0]
@@ -142,8 +153,8 @@ export function SimView({ state, sseStatus, onRun }: SimViewProps) {
 
       <DivergenceRail state={state} />
 
-      {/* Loading state: connected but no events yet (sim initializing) */}
-      {!state.isRunning && !state.isComplete && state.a.events.length === 0 && state.b.events.length === 0 && sseStatus === 'connected' && (
+      {/* Loading state: connected but no events after 2s grace period */}
+      {showLoading && (
         <div style={{
           flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
           padding: '40px 24px', textAlign: 'center', background: 'var(--bg-deep)',

@@ -92,7 +92,7 @@ a{color:var(--amber);text-decoration:none}a:hover{text-decoration:underline}
 .feat{background:rgba(28,25,21,.7);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(48,42,34,.6);border-radius:8px;padding:28px 24px;transition:all .35s;position:relative;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,240,200,.02)}
 .feat::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--grad);transform:scaleX(0);transform-origin:left;transition:transform .4s ease}
 .feat:hover{border-color:var(--border-hl);transform:translateY(-3px);box-shadow:0 12px 40px rgba(0,0,0,.5)}.feat:hover::before{transform:scaleX(1)}
-.feat-icon{width:36px;height:36px;margin-bottom:16px}
+.feat-icon{width:48px;height:48px;margin-bottom:16px;display:block}
 .feat h3{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--t1);margin-bottom:8px}
 .feat p{font-size:13px;color:var(--t2);line-height:1.7}
 .feat-ref{font-size:10px;color:var(--t4);margin-top:10px;font-family:var(--mono);border-top:1px solid var(--border);padding-top:8px}
@@ -422,37 +422,37 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
 
     <div class="feat-grid">
       <div class="feat rv rv-d1">
-        <svg class="feat-icon"><use href="#i-forge"/></svg>
+        <img class="feat-icon" src="/brand/feature-icons/forge.svg" width="48" height="48" alt="">
         <h3>Runtime Tool Forging</h3>
         <p>A medical officer invents a radiation dose calculator. An engineer writes a structural load analyzer. These tools don't exist in the codebase. The agent writes them, they execute in an isolated V8 sandbox, and an LLM judge reviews output before it enters the decision pipeline.</p>
         <div class="feat-ref">AgentOS ForgeToolMetaTool, 10s timeout, 128MB memory limit</div>
       </div>
       <div class="feat rv rv-d2">
-        <svg class="feat-icon"><use href="#i-dna"/></svg>
+        <img class="feat-icon" src="/brand/feature-icons/hexaco.svg" width="48" height="48" alt="">
         <h3>HEXACO Personality Drift</h3>
         <p>Each agent carries six continuous personality traits (Openness, Conscientiousness, Extraversion, Agreeableness, Emotionality, Honesty-Humility). These values shift over time through three mechanisms: leader influence, role-specific pressures, and crisis outcome reinforcement. The same colonist under two different commanders becomes a measurably different person by turn 12.</p>
         <div class="feat-ref">Ashton &amp; Lee, "Empirical, Theoretical, and Practical Advantages of the HEXACO Model," PSPR 11(2), 2007</div>
       </div>
       <div class="feat rv rv-d3">
-        <svg class="feat-icon"><use href="#i-bolt"/></svg>
+        <img class="feat-icon" src="/brand/feature-icons/crisis.svg" width="48" height="48" alt="">
         <h3>Emergent Crisis Director</h3>
         <p>The Crisis Director reads swarm metrics, resource reserves, population health, prior decisions, and the tools agents have built. It generates a crisis that targets actual weak points in the simulation state. If a commander neglected agriculture in turn 3, the food crisis in turn 7 is a consequence, not a coincidence.</p>
         <div class="feat-ref">cf. Riedl &amp; Bulitko, "Interactive Narrative: An Intelligent Systems Approach," AI Magazine 34(1), 2013</div>
       </div>
       <div class="feat rv rv-d1">
-        <svg class="feat-icon"><use href="#i-dice"/></svg>
+        <img class="feat-icon" src="/brand/feature-icons/kernel.svg" width="48" height="48" alt="">
         <h3>Deterministic Kernel</h3>
         <p>The simulation kernel uses Mulberry32, a 32-bit seeded PRNG. Given the same seed, the kernel produces identical agent rosters, lifecycle schedules, and promotion sequences. The only source of variation is the AI commander's decisions. Two runs with the same seed and different personalities produce different outcomes from provably identical starting conditions.</p>
         <div class="feat-ref">cf. Law &amp; Kelton, Simulation Modeling and Analysis, 5th ed., McGraw-Hill, 2015</div>
       </div>
       <div class="feat rv rv-d2">
-        <svg class="feat-icon"><use href="#i-code"/></svg>
+        <img class="feat-icon" src="/brand/feature-icons/compiler.svg" width="48" height="48" alt="">
         <h3>Scenario Compiler</h3>
         <p>Write a JSON file describing departments, metrics, and world rules. The compiler calls generateText() to produce TypeScript hooks for progression, crisis generation, milestones, and political dynamics. A Mars colony, a lunar outpost, an Antarctic station, a corporate org, a submarine crew: same compiler, different JSON, different swarm. Cost is roughly $0.10 per compile. Results cache to disk.</p>
         <div class="feat-ref">compileScenario() in paracosm/engine/compiler</div>
       </div>
       <div class="feat rv rv-d3">
-        <svg class="feat-icon"><use href="#i-search"/></svg>
+        <img class="feat-icon" src="/brand/feature-icons/research.svg" width="48" height="48" alt="">
         <h3>Semantic Research Pipeline</h3>
         <p>Swarm agents search academic literature before making recommendations. The pipeline queries Serper, Tavily, Firecrawl, and Brave in parallel, then applies Cohere Rerank v3.5 for neural relevance scoring. Citations include DOI links. A medical agent recommending radiation shielding cites actual NASA dosimetry guidelines, not a hallucinated source.</p>
         <div class="feat-ref">Deep research via AgentOS AgentMemory + Cohere Rerank v3.5</div>

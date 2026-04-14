@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <style>
+    .bracket{fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+    .bl{stroke:#4ca8a8}.br{stroke:#e06530}
+    .slash{stroke:#e8b44a;stroke-width:2;stroke-linecap:round}
+    .cursor{animation:cursorBlink 1s step-end infinite}
+    .compile-l{animation:bracketSlide 4s ease-in-out infinite}
+    .compile-r{animation:bracketSlide 4s ease-in-out 2s infinite}
+    .json-dot{r:1.5;animation:jsonFlow 3s ease-in-out infinite}
+    .jd1{fill:#e06530;animation-delay:0s}.jd2{fill:#e8b44a;animation-delay:.3s}.jd3{fill:#4ca8a8;animation-delay:.6s}
+    .jd4{fill:#e8b44a;animation-delay:.9s}.jd5{fill:#e06530;animation-delay:1.2s}
+    @keyframes cursorBlink{0%,100%{opacity:1}50%{opacity:0}}
+    @keyframes bracketSlide{0%,100%{transform:translateX(0)}50%{transform:translateX(-2px)}}
+    @keyframes jsonFlow{0%{opacity:.3;transform:translateY(2px)}50%{opacity:1;transform:translateY(-2px)}100%{opacity:.3;transform:translateY(2px)}}
+    @media(prefers-reduced-motion:reduce){.cursor,.compile-l,.compile-r,.json-dot{animation:none!important}}
+  </style>
+  <!-- Left bracket -->
+  <g class="compile-l">
+    <polyline class="bracket bl" points="14 10, 6 24, 14 38"/>
+  </g>
+  <!-- Right bracket -->
+  <g class="compile-r">
+    <polyline class="bracket br" points="34 10, 42 24, 34 38"/>
+  </g>
+  <!-- Slash -->
+  <line class="slash" x1="28" y1="8" x2="20" y2="40"/>
+  <!-- JSON data flowing -->
+  <circle class="json-dot jd1" cx="18" cy="16"/>
+  <circle class="json-dot jd2" cx="24" cy="20"/>
+  <circle class="json-dot jd3" cx="30" cy="24"/>
+  <circle class="json-dot jd4" cx="22" cy="28"/>
+  <circle class="json-dot jd5" cx="28" cy="32"/>
+  <!-- Cursor -->
+  <rect class="cursor" x="23" y="14" width="2" height="10" fill="#e8b44a" rx="1"/>
+</svg>
