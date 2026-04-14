@@ -169,11 +169,13 @@ export function SettingsPanel() {
             }}
           >
             {scenarios.map(s => (
-              <option key={s.id} value={s.id}>{s.name} ({s.departments} depts)</option>
+              <option key={s.id} value={s.id}>
+                {s.id === activeId ? '\u25CF ' : ''}{s.name} ({s.departments} depts){s.description?.includes('in-memory') ? ' [memory]' : ''}
+              </option>
             ))}
           </select>
-          <span style={{ fontSize: '11px', color: 'var(--text-3)' }}>
-            or compile a custom scenario below
+          <span style={{ fontSize: '10px', color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
+            Active: <strong style={{ color: 'var(--amber)' }}>{activeId}</strong>
           </span>
         </div>
       )}

@@ -332,6 +332,13 @@
   @keyframes toastIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
   @keyframes toastOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
 
+  /* Logo glow */
+  @keyframes logoGlow {
+    0%, 100% { opacity: 0.4; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(1.08); }
+  }
+  .pc-logo-glow { animation: logoGlow 4s ease-in-out infinite; }
+
   /* Additional animations from legacy / visual flair */
   @keyframes forgeSlide { from { transform: translateX(-6px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
   @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
