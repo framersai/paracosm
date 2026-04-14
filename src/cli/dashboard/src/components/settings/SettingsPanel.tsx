@@ -3,6 +3,7 @@ import { useDashboardNavigation, useScenarioContext } from '../../App';
 import { LeaderConfig, type LeaderFormData } from './LeaderConfig';
 import { ScenarioEditor } from './ScenarioEditor';
 import { getDashboardTabFromHref, resolveSetupRedirectHref } from '../../tab-routing';
+import { subscribeScenarioUpdates } from '../../scenario-sync';
 
 
 const DEFAULT_HEXACO: Record<string, number> = {
@@ -80,9 +81,20 @@ export function SettingsPanel() {
   const [scenarios, setScenarios] = useState<Array<{ id: string; name: string; description: string; departments: number }>>([]);
   const [activeId, setActiveId] = useState(scenario.id);
 
-  useEffect(() => {
-    fetch('/scenarios').then(r => r.json()).then(d => { setScenarios(d.scenarios || []); setActiveId(d.active); }).catch(() => {});
+  const refreshScenarioCatalog = useCallback(() => {
+    fetch('/scenarios')
+      .then(r => r.json())
+      .then(d => {
+        setScenarios(d.scenarios || []);
+        setActiveId(d.active);
+      })
+      .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    refreshScenarioCatalog();
+    return subscribeScenarioUpdates(window, refreshScenarioCatalog);
+  }, [refreshScenarioCatalog]);
 
   const switchScenario = async (id: string) => {
     if (id === activeId) return;
@@ -123,7 +135,8 @@ export function SettingsPanel() {
       if (data.redirect) {
         setStatus('Running...');
         const targetHref = resolveSetupRedirectHref(window.location.href, data.redirect);
-        navigateTab(getDashboardTabFromHref(targetHref) === 'about' ? 'sim' : getDashboardTabFromHref(targetHref));
+        const resolvedTab = getDashboardTabFromHref(targetHref);
+        navigateTab(resolvedTab === 'about' ? 'sim' : resolvedTab as Exclude<typeof resolvedTab, 'about'>);
       } else {
         setStatus(`Error: ${data.error || 'unknown'}`);
         setLaunching(false);

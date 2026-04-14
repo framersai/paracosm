@@ -118,6 +118,7 @@ export interface CreateMarsServerOptions {
   env?: NodeJS.ProcessEnv;
   runPairSimulations?: (config: NormalizedSimulationConfig, broadcast: BroadcastFn) => Promise<void>;
   generateText?: (args: { provider: string; model: string; prompt: string }) => Promise<{ text: string }>;
+  compileScenario?: (scenarioJson: Record<string, unknown>, options: Record<string, unknown>) => Promise<ScenarioPackage>;
   /** Max simulations per IP per day. 0 = unlimited. Default: 3. Set via RATE_LIMIT env var. */
   maxSimsPerDay?: number;
 }
@@ -157,6 +158,10 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
   const runGenerateText = options.generateText ?? (async args => {
     const { generateText } = await import('@framers/agentos');
     return generateText(args as any);
+  });
+  const runCompileScenario = options.compileScenario ?? (async (scenarioJson, compileOptions) => {
+    const { compileScenario } = await import('../engine/compiler/index.js');
+    return compileScenario(scenarioJson, compileOptions as any);
   });
 
   const server = createServer(async (req, res) => {
@@ -277,27 +282,27 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
     if (req.url === '/compile' && req.method === 'POST') {
       try {
         const body = JSON.parse(await readBody(req));
-        const { scenario: scenarioJson, seedText, seedUrl, webSearch } = body;
+        const { scenario: scenarioJson, seedText, seedUrl, webSearch, maxSearches } = body;
         if (!scenarioJson || typeof scenarioJson !== 'object') {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'scenario JSON object required' }));
           return;
         }
-        const { compileScenario } = await import('../engine/compiler/index.js');
-        const provider = (process.env.ANTHROPIC_API_KEY ? 'anthropic' : 'openai') as any;
-        const model = process.env.ANTHROPIC_API_KEY ? 'claude-sonnet-4-6' : 'gpt-5.4-mini';
+        const provider = (env.ANTHROPIC_API_KEY ? 'anthropic' : 'openai') as any;
+        const model = env.ANTHROPIC_API_KEY ? 'claude-sonnet-4-6' : 'gpt-5.4-mini';
 
         // SSE progress stream
         res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Access-Control-Allow-Origin': '*' });
         res.write('event: status\ndata: {"status":"compiling"}\n\n');
 
-        const compiled = await compileScenario(scenarioJson, {
+        const compiled = await runCompileScenario(scenarioJson, {
           provider,
           model,
           cache: true,
           seedText,
           seedUrl,
           webSearch: webSearch ?? true,
+          maxSearches,
           onProgress(hookName, status) {
             res.write(`event: progress\ndata: ${JSON.stringify({ hook: hookName, status })}\n\n`);
           },
@@ -305,6 +310,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
 
         // Update the active scenario for GET /scenario
         activeScenario = compiled;
+        memoryScenarios.set(compiled.id, compiled);
 
         res.write(`event: complete\ndata: ${JSON.stringify({ id: compiled.id, version: compiled.version, departments: compiled.departments.length, hooks: Object.keys(compiled.hooks).filter(k => (compiled.hooks as any)[k]).length })}\n\n`);
         res.end();
@@ -583,7 +589,7 @@ Respond in character as this person. Be direct, personal, emotional. Reference y
 <div class="paracosm-docs-header">
   <div class="pdh-left">
     <a href="/" style="display:flex;align-items:center;text-decoration:none" aria-label="Paracosm home">
-      <img src="/brand/icons/paracosm-icon-64.svg" width="22" height="22" alt="Paracosm" style="margin-right:8px;flex-shrink:0;display:block">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="22" height="22" style="margin-right:8px;flex-shrink:0;display:block" role="img" aria-label="Paracosm"><style>.po{animation:po-r 90s linear infinite;transform-origin:32px 32px}.pc{animation:po-c 120s linear infinite;transform-origin:32px 32px}.ph{animation:po-p 4s ease-in-out infinite}@keyframes po-r{to{transform:rotate(360deg)}}@keyframes po-c{to{transform:rotate(-360deg)}}@keyframes po-p{0%,100%{r:5.12;opacity:1}50%{r:5.73;opacity:.85}}@media(prefers-reduced-motion:reduce){.po,.pc,.ph{animation:none!important}}</style><g class="po"><line x1="32" y1="32" x2="37.63" y2="10.98" stroke="#f5f0e4" stroke-width="1.6" opacity=".5"/><line x1="32" y1="32" x2="53.02" y2="26.37" stroke="#f5f0e4" stroke-width="1.6" opacity=".5"/><line x1="32" y1="32" x2="47.39" y2="47.39" stroke="#f5f0e4" stroke-width="1.6" opacity=".5"/><line x1="32" y1="32" x2="26.37" y2="53.02" stroke="#f5f0e4" stroke-width="1.6" opacity=".5"/><line x1="32" y1="32" x2="10.98" y2="37.63" stroke="#f5f0e4" stroke-width="1.6" opacity=".5"/><line x1="32" y1="32" x2="16.61" y2="16.61" stroke="#f5f0e4" stroke-width="1.6" opacity=".5"/></g><g class="pc"><line x1="37.63" y1="10.98" x2="47.39" y2="47.39" stroke="#f5f0e4" stroke-width="1.1" opacity=".18"/><line x1="53.02" y1="26.37" x2="26.37" y2="53.02" stroke="#f5f0e4" stroke-width="1.1" opacity=".18"/><line x1="47.39" y1="47.39" x2="10.98" y2="37.63" stroke="#f5f0e4" stroke-width="1.1" opacity=".18"/><line x1="26.37" y1="53.02" x2="16.61" y2="16.61" stroke="#f5f0e4" stroke-width="1.1" opacity=".18"/><line x1="10.98" y1="37.63" x2="37.63" y2="10.98" stroke="#f5f0e4" stroke-width="1.1" opacity=".18"/><line x1="16.61" y1="16.61" x2="53.02" y2="26.37" stroke="#f5f0e4" stroke-width="1.1" opacity=".18"/></g><circle cx="32" cy="32" r="9.2" fill="#e8b44a" opacity=".08"/><circle class="ph" cx="32" cy="32" r="5.12" fill="#e8b44a"/><g class="po"><circle cx="37.63" cy="10.98" r="3.52" fill="#e06530"/><circle cx="53.02" cy="26.37" r="3.52" fill="#e8b44a"/><circle cx="47.39" cy="47.39" r="3.52" fill="#4ca8a8"/><circle cx="26.37" cy="53.02" r="3.52" fill="#e06530"/><circle cx="10.98" cy="37.63" r="3.52" fill="#4ca8a8"/><circle cx="16.61" cy="16.61" r="3.52" fill="#e8b44a"/></g></svg>
       <span class="pdh-brand">PARA<span style="color:#e8b44a">COSM</span></span>
     </a>
     <a href="https://agentos.sh" target="_blank" rel="noopener" class="pdh-tag">AGENTOS</a>
