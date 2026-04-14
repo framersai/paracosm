@@ -142,6 +142,22 @@ export function SimView({ state, sseStatus, onRun }: SimViewProps) {
 
       <DivergenceRail state={state} />
 
+      {/* Loading state: connected but no events yet (sim initializing) */}
+      {!state.isRunning && !state.isComplete && state.a.events.length === 0 && state.b.events.length === 0 && sseStatus === 'connected' && (
+        <div style={{
+          flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          padding: '40px 24px', textAlign: 'center', background: 'var(--bg-deep)',
+        }}>
+          <span className="spinner" style={{ width: '28px', height: '28px', borderWidth: '3px', marginBottom: '16px' }} />
+          <div style={{ fontFamily: 'var(--mono)', fontSize: '14px', fontWeight: 700, color: 'var(--text-1)', marginBottom: '8px' }}>
+            Simulation starting...
+          </div>
+          <div style={{ fontSize: '13px', color: 'var(--text-3)', maxWidth: '400px', lineHeight: 1.7 }}>
+            The Crisis Director is reading swarm state and generating the first crisis. Departments will analyze and forge tools once it arrives. This takes 30 to 60 seconds.
+          </div>
+        </div>
+      )}
+
       {/* Empty state: no events, not running, SSE not connected */}
       {!state.isRunning && !state.isComplete && state.a.events.length === 0 && state.b.events.length === 0 && sseStatus !== 'connected' && (
         <div style={{

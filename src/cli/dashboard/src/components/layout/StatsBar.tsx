@@ -84,10 +84,10 @@ export function StatsBar({ colonyA, colonyB, prevColonyA, prevColonyB, deathsA, 
 
         return (
           <span key={metric.id} style={{ display: 'flex', alignItems: 'baseline', gap: '4px', whiteSpace: 'nowrap', flexShrink: 0 }}>
-            <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-1)' }}>{fA}{suffix}</span>
+            <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--vis)' }}>{fA}{suffix}</span>
             {dA && <span style={{ fontSize: '9px', color: dA.startsWith('+') ? 'var(--green)' : 'var(--rust)' }}>{dA}</span>}
             <span style={{ color: 'var(--text-3)', fontSize: '10px' }}>vs</span>
-            <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-1)' }}>{fB}{suffix}</span>
+            <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--eng)' }}>{fB}{suffix}</span>
             {dB && <span style={{ fontSize: '9px', color: dB.startsWith('+') ? 'var(--green)' : 'var(--rust)' }}>{dB}</span>}
             <span style={{ fontSize: '11px', color: 'var(--amber)', letterSpacing: '0.5px', fontWeight: 800, marginLeft: '2px' }}>
               {label}
