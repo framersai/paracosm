@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { createMarsServer } from './server-app.js';
 import type { NormalizedSimulationConfig } from './sim-config.js';
 
@@ -37,6 +40,7 @@ const leaderB = {
 const customScenario = {
   id: 'deep-ocean-station',
   version: '1.0.0',
+  engineArchetype: 'closed_turn_based_settlement',
   labels: {
     name: 'Deep Ocean Station',
     shortName: 'ocean',
@@ -45,24 +49,66 @@ const customScenario = {
     currency: 'credits',
   },
   theme: { primaryColor: '#2563eb', accentColor: '#38bdf8', cssVariables: {} },
-  setup: { defaultTurns: 6, defaultSeed: 321, defaultStartYear: 2048, defaultPopulation: 40 },
+  setup: {
+    defaultTurns: 6,
+    defaultSeed: 321,
+    defaultStartYear: 2048,
+    defaultPopulation: 40,
+    configurableSections: ['leaders', 'departments', 'models'],
+  },
+  world: {
+    metrics: {
+      pressure: {
+        id: 'pressure',
+        label: 'Hull Pressure',
+        unit: 'bar',
+        type: 'number',
+        initial: 1,
+        min: 0,
+        max: 5,
+        category: 'metric',
+      },
+    },
+    capacities: {},
+    statuses: {},
+    politics: {},
+    environment: {},
+  },
   departments: [
-    { id: 'operations', label: 'Operations', role: 'Operations Lead', icon: 'O' },
-    { id: 'research', label: 'Research', role: 'Research Lead', icon: 'R' },
+    { id: 'operations', label: 'Operations', role: 'Operations Lead', icon: 'O', defaultModel: 'gpt-5.4-mini', instructions: 'Coordinate station operations.' },
+    { id: 'research', label: 'Research', role: 'Research Lead', icon: 'R', defaultModel: 'gpt-5.4-mini', instructions: 'Run scientific analysis.' },
   ],
+  metrics: [{ id: 'pressure', label: 'Hull Pressure', source: 'metrics.pressure', format: 'number' }],
+  events: [{ id: 'breach', label: 'Hull Breach', icon: '!' , color: '#2563eb' }],
+  effects: [{ id: 'ocean-category-effects', type: 'category_outcome', label: 'Ocean Category Effects', categoryDefaults: {} }],
   presets: [],
   ui: {
     headerMetrics: [{ id: 'population', format: 'number' }],
     tooltipFields: [],
+    reportSections: ['crisis', 'departments', 'decision'],
     departmentIcons: {},
+    eventRenderers: {},
     setupSections: ['leaders'],
   },
+  knowledge: { topics: {}, categoryMapping: {} },
   policies: {
     toolForging: { enabled: true },
+    liveSearch: { enabled: false, mode: 'off' },
     bulletin: { enabled: true },
     characterChat: { enabled: true },
+    sandbox: { timeoutMs: 10000, memoryMB: 128 },
   },
   hooks: {},
+};
+
+const draftScenario = {
+  id: 'draft-ocean-station',
+  labels: {
+    name: 'Draft Ocean Station',
+  },
+  departments: [
+    { id: 'operations', label: 'Operations' },
+  ],
 };
 
 test('GET /setup redirects to the live dashboard settings surface', async () => {
@@ -198,6 +244,7 @@ test('POST /scenario/store makes a custom scenario switchable through the live c
       id: customScenario.id,
       savedToDisk: false,
       adminWrite: false,
+      switchable: true,
     });
 
     const catalog = await fetch(`http://127.0.0.1:${port}/scenarios`);
@@ -222,6 +269,113 @@ test('POST /scenario/store makes a custom scenario switchable through the live c
   } finally {
     server.close();
     await once(server, 'close');
+  }
+});
+
+test('POST /scenario/store keeps non-runnable draft JSON out of the switchable catalog', async () => {
+  const server = createMarsServer({
+    runPairSimulations: async () => {},
+  });
+
+  server.listen(0);
+  await once(server, 'listening');
+  const address = server.address();
+  const port = typeof address === 'object' && address ? address.port : 0;
+
+  try {
+    const stored = await fetch(`http://127.0.0.1:${port}/scenario/store`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scenario: draftScenario, saveToDisk: false }),
+    });
+    assert.equal(stored.status, 200);
+    assert.deepEqual(await stored.json(), {
+      stored: true,
+      id: draftScenario.id,
+      savedToDisk: false,
+      adminWrite: false,
+      switchable: false,
+    });
+
+    const catalog = await fetch(`http://127.0.0.1:${port}/scenarios`);
+    const catalogJson = await catalog.json();
+    assert.equal(catalogJson.scenarios.some((scenario: any) => scenario.id === draftScenario.id), false);
+
+    const switched = await fetch(`http://127.0.0.1:${port}/scenario/switch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: draftScenario.id }),
+    });
+    assert.equal(switched.status, 400);
+    assert.match((await switched.json()).error, /Unknown scenario/);
+  } finally {
+    server.close();
+    await once(server, 'close');
+  }
+});
+
+test('disk-saved runnable scenarios are reloaded into the live catalog on restart', async () => {
+  const scenarioDir = mkdtempSync(join(tmpdir(), 'paracosm-scenarios-'));
+  const firstServer = createMarsServer({
+    env: { ...process.env, ADMIN_WRITE: 'true' },
+    runPairSimulations: async () => {},
+    scenarioDir,
+  } as any);
+
+  firstServer.listen(0);
+  await once(firstServer, 'listening');
+  const firstAddress = firstServer.address();
+  const firstPort = typeof firstAddress === 'object' && firstAddress ? firstAddress.port : 0;
+
+  try {
+    const stored = await fetch(`http://127.0.0.1:${firstPort}/scenario/store`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scenario: customScenario, saveToDisk: true }),
+    });
+    assert.equal(stored.status, 200);
+    assert.deepEqual(await stored.json(), {
+      stored: true,
+      id: customScenario.id,
+      savedToDisk: true,
+      adminWrite: true,
+      switchable: true,
+    });
+  } finally {
+    firstServer.close();
+    await once(firstServer, 'close');
+  }
+
+  const restartedServer = createMarsServer({
+    env: { ...process.env, ADMIN_WRITE: 'true' },
+    runPairSimulations: async () => {},
+    scenarioDir,
+  } as any);
+
+  restartedServer.listen(0);
+  await once(restartedServer, 'listening');
+  const restartedAddress = restartedServer.address();
+  const restartedPort = typeof restartedAddress === 'object' && restartedAddress ? restartedAddress.port : 0;
+
+  try {
+    const catalog = await fetch(`http://127.0.0.1:${restartedPort}/scenarios`);
+    const catalogJson = await catalog.json();
+    assert.ok(catalogJson.scenarios.some((scenario: any) => scenario.id === customScenario.id));
+
+    const switched = await fetch(`http://127.0.0.1:${restartedPort}/scenario/switch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: customScenario.id }),
+    });
+    assert.equal(switched.status, 200);
+    assert.deepEqual(await switched.json(), {
+      active: customScenario.id,
+      name: customScenario.labels.name,
+    });
+  } finally {
+    restartedServer.close();
+    await once(restartedServer, 'close');
+    rmSync(scenarioDir, { recursive: true, force: true });
   }
 });
 

@@ -97,7 +97,12 @@ export function ScenarioEditor() {
       const data = await res.json();
       if (data.stored) {
         emitScenarioUpdated(window);
-        setResult({ success: true, message: `Stored "${data.id}" in memory. Switch to it from the scenario selector above, then compile.` });
+        setResult({
+          success: true,
+          message: data.switchable
+            ? `Stored "${data.id}" in memory and added it to the scenario selector.`
+            : `Stored "${data.id}" as draft JSON in memory. Compile it to make it runnable and switchable.`,
+        });
         setAdminConfig(prev => ({ ...prev, memoryScenarios: [...new Set([...prev.memoryScenarios, data.id])] }));
       } else {
         setResult({ success: false, message: data.error || 'Store failed' });
@@ -117,7 +122,12 @@ export function ScenarioEditor() {
       const data = await res.json();
       if (data.savedToDisk) {
         emitScenarioUpdated(window);
-        setResult({ success: true, message: `Saved "${data.id}" to disk at scenarios/${data.id}.json` });
+        setResult({
+          success: true,
+          message: data.switchable
+            ? `Saved "${data.id}" to disk at scenarios/${data.id}.json and loaded it into the live scenario catalog.`
+            : `Saved "${data.id}" draft JSON to disk at scenarios/${data.id}.json. Compile it to make it runnable after restart.`,
+        });
       } else {
         setResult({ success: false, message: data.error || 'Disk write not enabled (ADMIN_WRITE=false)' });
       }

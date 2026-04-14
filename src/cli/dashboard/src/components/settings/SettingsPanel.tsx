@@ -168,11 +168,20 @@ export function SettingsPanel() {
               padding: '8px 12px', borderRadius: '6px', fontSize: '14px', fontFamily: 'var(--sans)', flex: 1,
             }}
           >
-            {scenarios.map(s => (
-              <option key={s.id} value={s.id}>
-                {s.id === activeId ? '\u25CF ' : ''}{s.name} ({s.departments} depts){s.description?.includes('in-memory') ? ' [memory]' : ''}
-              </option>
-            ))}
+            {scenarios.map(s => {
+              const sourceTag = s.description?.includes('(memory)')
+                ? ' [memory]'
+                : s.description?.includes('(disk)')
+                ? ' [disk]'
+                : s.description?.includes('compiled')
+                ? ' [compiled]'
+                : '';
+              return (
+                <option key={s.id} value={s.id}>
+                  {s.id === activeId ? '\u25CF ' : ''}{s.name} ({s.departments} depts){sourceTag}
+                </option>
+              );
+            })}
           </select>
           <span style={{ fontSize: '10px', color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
             Active: <strong style={{ color: 'var(--amber)' }}>{activeId}</strong>

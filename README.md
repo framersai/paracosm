@@ -108,7 +108,7 @@ The live dashboard is mounted at `/sim`, with `/setup` kept as a convenience ali
 npm run compile -- scenarios/submarine.json --seed-url https://example.com/report --no-web-search
 ```
 
-The compiler CLI now exposes the same seed-ingestion controls as the runtime API: `--seed-text`, `--seed-url`, `--no-web-search`, and `--max-searches`. Compiled custom scenarios are kept in the in-memory scenario catalog so they remain switchable from the settings selector after compilation.
+The compiler CLI now exposes the same seed-ingestion controls as the runtime API: `--seed-text`, `--seed-url`, `--no-web-search`, and `--max-searches`. Compiled custom scenarios are kept in the live scenario catalog so they remain switchable from the settings selector after compilation. If you save a fully runnable `ScenarioPackage` JSON to `scenarios/*.json`, the dashboard server now reloads it into that catalog on startup; draft authoring JSON is saved as-is but only appears in the selector after it has been compiled into a runnable package.
 
 ## Architecture
 

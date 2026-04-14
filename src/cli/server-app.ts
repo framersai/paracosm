@@ -7,6 +7,11 @@ import { runPairSimulations, type BroadcastFn } from './pair-runner.js';
 import { marsScenario } from '../engine/mars/index.js';
 import { lunarScenario } from '../engine/lunar/index.js';
 import type { ScenarioPackage } from '../engine/types.js';
+import {
+  describeCustomScenarioSource,
+  isRunnableScenarioPackage,
+  loadDiskCustomScenarios,
+} from './custom-scenarios.js';
 
 function projectScenarioForClient(sc: ScenarioPackage) {
   return {
@@ -119,6 +124,7 @@ export interface CreateMarsServerOptions {
   runPairSimulations?: (config: NormalizedSimulationConfig, broadcast: BroadcastFn) => Promise<void>;
   generateText?: (args: { provider: string; model: string; prompt: string }) => Promise<{ text: string }>;
   compileScenario?: (scenarioJson: Record<string, unknown>, options: Record<string, unknown>) => Promise<ScenarioPackage>;
+  scenarioDir?: string;
   /** Max simulations per IP per day. 0 = unlimited. Default: 3. Set via RATE_LIMIT env var. */
   maxSimsPerDay?: number;
 }
@@ -131,12 +137,15 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
   const env = options.env ?? process.env;
   const maxSims = options.maxSimsPerDay ?? parseInt(env.RATE_LIMIT || '3', 10);
   const adminWrite = (env.ADMIN_WRITE || 'false').toLowerCase() === 'true';
+  const scenarioDir = options.scenarioDir ?? resolve(__dirname, '..', '..', 'scenarios');
   const rateLimiter = maxSims > 0 ? new IpRateLimiter(maxSims) : null;
   let simConfig: NormalizedSimulationConfig | null = null;
   let simRunning = false;
-  let activeScenario: any = marsScenario;
-  // In-memory custom scenarios (not persisted to disk unless ADMIN_WRITE=true)
-  const memoryScenarios = new Map<string, any>();
+  let activeScenario: ScenarioPackage = marsScenario;
+  // Raw custom scenario JSON payloads authored during this session.
+  const memoryScenarios = new Map<string, unknown>();
+  // Runnable custom scenarios that can appear in the catalog and be switched to.
+  const customScenarioCatalog = loadDiskCustomScenarios(scenarioDir);
   const clients: Set<ServerResponse> = new Set();
 
   // Event buffer: stores all broadcast events so new clients can catch up
@@ -207,14 +216,20 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         { id: 'mars-genesis', name: 'Mars Genesis', description: '100-colonist Mars colony over 50 years', departments: marsScenario.departments.length },
         { id: 'lunar-outpost', name: 'Lunar Outpost', description: '50-person crew at the lunar south pole', departments: lunarScenario.departments.length },
       ];
-      // Add in-memory custom scenarios
-      for (const [id, sc] of memoryScenarios) {
+      // Add runnable custom scenarios from memory, disk, or compilation.
+      for (const [id, entry] of customScenarioCatalog) {
+        const sc = entry.scenario;
         if (id !== 'mars-genesis' && id !== 'lunar-outpost') {
-          scenarios.push({ id, name: sc.labels?.name || id, description: 'Custom scenario (in-memory)', departments: sc.departments?.length || 0 });
+          scenarios.push({
+            id,
+            name: sc.labels?.name || id,
+            description: describeCustomScenarioSource(entry.source),
+            departments: sc.departments?.length || 0,
+          });
         }
       }
       // Add active compiled scenario if it's not already listed
-      if (activeScenario.id !== 'mars-genesis' && activeScenario.id !== 'lunar-outpost' && !memoryScenarios.has(activeScenario.id)) {
+      if (activeScenario.id !== 'mars-genesis' && activeScenario.id !== 'lunar-outpost' && !customScenarioCatalog.has(activeScenario.id)) {
         scenarios.push({ id: activeScenario.id, name: activeScenario.labels?.name || activeScenario.id, description: 'Custom compiled scenario', departments: activeScenario.departments?.length || 0 });
       }
       res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
@@ -238,21 +253,33 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
           res.end(JSON.stringify({ error: 'scenario with id required' }));
           return;
         }
-        // Store in memory
+        // Store raw JSON in memory for this authoring session.
         memoryScenarios.set(scenarioJson.id, scenarioJson);
+        const switchable = isRunnableScenarioPackage(scenarioJson);
+        if (switchable) {
+          customScenarioCatalog.set(scenarioJson.id, {
+            scenario: scenarioJson,
+            source: saveToDisk && adminWrite ? 'disk' : 'memory',
+          });
+        }
 
         // Optionally save to disk if admin
         let savedToDisk = false;
         if (saveToDisk && adminWrite) {
           const { writeFileSync, mkdirSync } = await import('node:fs');
-          const scenarioDir = resolve(__dirname, '..', '..', 'scenarios');
           mkdirSync(scenarioDir, { recursive: true });
           writeFileSync(resolve(scenarioDir, `${scenarioJson.id}.json`), JSON.stringify(scenarioJson, null, 2));
           savedToDisk = true;
+          if (switchable) {
+            customScenarioCatalog.set(scenarioJson.id, {
+              scenario: scenarioJson,
+              source: 'disk',
+            });
+          }
         }
 
         res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-        res.end(JSON.stringify({ stored: true, id: scenarioJson.id, savedToDisk, adminWrite }));
+        res.end(JSON.stringify({ stored: true, id: scenarioJson.id, savedToDisk, adminWrite, switchable }));
       } catch (err) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: String(err) }));
@@ -265,7 +292,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       const { id } = JSON.parse(await readBody(req));
       if (id === 'mars-genesis') activeScenario = marsScenario;
       else if (id === 'lunar-outpost') activeScenario = lunarScenario;
-      else if (memoryScenarios.has(id)) activeScenario = memoryScenarios.get(id);
+      else if (customScenarioCatalog.has(id)) activeScenario = customScenarioCatalog.get(id)!.scenario;
       else {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: `Unknown scenario: ${id}. Use /compile or /scenario/store for custom scenarios.` }));
@@ -311,6 +338,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         // Update the active scenario for GET /scenario
         activeScenario = compiled;
         memoryScenarios.set(compiled.id, compiled);
+        customScenarioCatalog.set(compiled.id, { scenario: compiled, source: 'compiled' });
 
         res.write(`event: complete\ndata: ${JSON.stringify({ id: compiled.id, version: compiled.version, departments: compiled.departments.length, hooks: Object.keys(compiled.hooks).filter(k => (compiled.hooks as any)[k]).length })}\n\n`);
         res.end();
@@ -580,9 +608,13 @@ Respond in character as this person. Be direct, personal, emotional. Reference y
             html = html.replace(/src="\.\.\/media\//g, 'src="/docs/media/');
             html = html.replace(/href="media\//g, 'href="/docs/media/');
             html = html.replace(/src="media\//g, 'src="/docs/media/');
+            // Remove TypeDoc's toolbar entirely (we inject our own header)
+            // Keep the search dialog but move it outside the toolbar
+            const searchDialog = html.match(/<dialog id="tsd-search"[\s\S]*?<\/dialog>/)?.[0] || '';
+            html = html.replace(/<header class="tsd-page-toolbar">[\s\S]*?<\/header>/, searchDialog);
             // Add our CSS override + fonts + favicon
             html = html.replace('</head>',
-              `<link rel="icon" type="image/svg+xml" href="/icon.svg"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="/docs/assets/paracosm-override.css"><style>body{padding-top:44px!important}.paracosm-docs-header{position:fixed!important;top:0!important;left:0!important;right:0!important;z-index:9999!important}header.tsd-page-toolbar{top:44px!important}</style></head>`
+              `<link rel="icon" type="image/svg+xml" href="/icon.svg"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="/docs/assets/paracosm-override.css"><style>body{padding-top:44px!important}header.tsd-page-toolbar{display:none!important}.paracosm-docs-header{position:fixed!important;top:0!important;left:0!important;right:0!important;z-index:9999!important}.pdh-search{background:none;border:1px solid #302a22;color:#a89878;width:28px;height:28px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}.pdh-search:hover{border-color:#e8b44a;color:#f5f0e4}</style></head>`
             );
             // Inject nav header after <body>
             html = html.replace(/<body[^>]*>/, `$&
@@ -602,6 +634,7 @@ Respond in character as this person. Be direct, personal, emotional. Reference y
     <a href="/docs">API Docs</a>
     <a href="https://github.com/framersai/paracosm" target="_blank" rel="noopener">GitHub</a>
     <a href="https://www.npmjs.com/package/paracosm" target="_blank" rel="noopener">npm</a>
+    <button class="pdh-search" onclick="var d=document.getElementById('tsd-search');if(d&&d.showModal)d.showModal()" aria-label="Search docs"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.5"/><line x1="11" y1="11" x2="15" y2="15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
   </div>
 </div>`);
             // Inject footer before </body>
