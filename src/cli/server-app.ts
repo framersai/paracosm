@@ -476,11 +476,32 @@ Respond in character as this person. Be direct, personal, emotional. Reference y
       return;
     }
 
-    if (req.url === '/favicon.svg' || req.url === '/favicon.png' || req.url === '/favicon.ico' || req.url === '/icon.svg') {
+    // Serve brand assets
+    if (req.url?.startsWith('/brand/')) {
+      const brandPath = resolve(__dirname, '..', '..', 'assets', req.url.replace('/brand/', ''));
+      if (existsSync(brandPath)) {
+        const ext = brandPath.split('.').pop() || '';
+        const types: Record<string,string> = { svg:'image/svg+xml', png:'image/png', jpg:'image/jpeg' };
+        res.writeHead(200, { 'Content-Type': types[ext] || 'application/octet-stream', 'Cache-Control': 'public, max-age=86400' });
+        res.end(readFileSync(brandPath));
+        return;
+      }
+    }
+
+    if (req.url === '/favicon.svg' || req.url === '/favicon.png' || req.url === '/favicon.ico' || req.url === '/icon.svg' || req.url === '/apple-touch-icon.png') {
       try {
         const svgPath = resolve(__dirname, '..', '..', 'assets', 'favicons', 'icon.svg');
         const fallbackSvg = resolve(__dirname, '..', '..', 'assets', 'mars-genesis-icon.svg');
         const pngPath = resolve(__dirname, '..', '..', 'assets', 'agentos-icon.png');
+        // Apple touch icon as PNG
+        if (req.url === '/apple-touch-icon.png') {
+          const touchPath = resolve(__dirname, '..', '..', 'assets', 'favicons', 'favicon-180.png');
+          if (existsSync(touchPath)) {
+            res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=86400' });
+            res.end(readFileSync(touchPath));
+            return;
+          }
+        }
         const iconPath = existsSync(svgPath) ? svgPath : existsSync(fallbackSvg) ? fallbackSvg : null;
         if (iconPath) {
           const svg = readFileSync(iconPath, 'utf-8');
