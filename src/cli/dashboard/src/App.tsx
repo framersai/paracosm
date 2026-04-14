@@ -81,7 +81,7 @@ function AppContent() {
 
   return (
     <ScenarioContext.Provider value={scenario}>
-      <div className="flex flex-col h-screen w-screen overflow-hidden scanline-overlay" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
+      <div className="flex flex-col h-screen w-screen overflow-hidden scanline-overlay" style={{ background: 'var(--bg-deep)', color: 'var(--text-1)' }}>
         <TopBar scenario={scenario} sse={sse} gameState={gameState} />
         <TabBar active={activeTab} onTabChange={setActiveTab} scenario={scenario} />
         <Toolbar state={gameState} onSave={handleSave} onLoad={handleLoad} onClear={handleClear} />
@@ -96,13 +96,13 @@ function AppContent() {
           {activeTab === 'chat' && <ChatPanel state={gameState} />}
 
           {activeTab === 'log' && (
-            <div className="flex-1 overflow-y-auto p-4 font-mono text-xs" role="log" aria-label="Event log" aria-live="polite" style={{ background: 'var(--bg-secondary)', color: 'var(--text-muted)' }}>
-              <h2 className="mb-2 font-semibold" style={{ color: 'var(--text-primary)', fontSize: '13px' }}>Event Log</h2>
+            <div className="flex-1 overflow-y-auto p-4 font-mono text-xs" role="log" aria-label="Event log" aria-live="polite" style={{ background: 'var(--bg-panel)', color: 'var(--text-3)' }}>
+              <h2 className="mb-2 font-semibold" style={{ color: 'var(--text-1)', fontSize: '14px' }}>Event Log</h2>
               {sse.events.length === 0 && <div>No events yet.</div>}
               {sse.events.map((e, i) => (
                 <div key={i} className="py-0.5">
-                  <span style={{ color: 'var(--accent-primary)' }}>[{e.type}]</span>{' '}
-                  <span style={{ color: 'var(--text-secondary)' }}>{e.leader}</span>{' '}
+                  <span style={{ color: 'var(--amber)' }}>[{e.type}]</span>{' '}
+                  <span style={{ color: 'var(--text-2)' }}>{e.leader}</span>{' '}
                   {e.data?.turn && <span>T{String(e.data.turn)}</span>}
                   {e.data?.title && <span> {String(e.data.title)}</span>}
                   {e.data?.department && <span> {String(e.data.department)}</span>}

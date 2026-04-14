@@ -121,18 +121,18 @@ export function CustomScenario() {
   };
 
   return (
-    <div className="rounded-lg p-4 mb-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-primary)' }}>
+    <div className="rounded-lg p-4 mb-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Custom Scenario</h3>
+        <h3 className="text-sm font-bold" style={{ color: 'var(--text-1)' }}>Custom Scenario</h3>
         <button
           onClick={loadExample}
           className="text-[10px] px-2 py-1 rounded cursor-pointer"
-          style={{ background: 'var(--bg-elevated)', color: 'var(--accent-primary)', border: '1px solid var(--border-subtle)' }}
+          style={{ background: 'var(--bg-elevated)', color: 'var(--amber)', border: '1px solid var(--border)' }}
         >
           Load Example
         </button>
       </div>
-      <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
+      <p className="text-xs mb-3" style={{ color: 'var(--text-3)' }}>
         Paste a scenario JSON. The compiler generates all runtime hooks via LLM (~$0.10, cached after first compile).
       </p>
 
@@ -143,17 +143,17 @@ export function CustomScenario() {
         placeholder='{"id": "my-scenario", "labels": { "name": "My World" }, "departments": [...], ...}'
         rows={8}
         className="w-full px-3 py-2 rounded text-xs font-mono mb-3 resize-y"
-        style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}
+        style={{ background: 'var(--bg-deep)', color: 'var(--text-1)', border: '1px solid var(--border)' }}
       />
 
       {/* Seed enrichment */}
       <details className="mb-3">
-        <summary className="text-xs font-semibold cursor-pointer select-none" style={{ color: 'var(--text-secondary)' }}>
+        <summary className="text-xs font-semibold cursor-pointer select-none" style={{ color: 'var(--text-2)' }}>
           Seed Enrichment (optional)
         </summary>
         <div className="mt-2 space-y-2">
           <div>
-            <label className="text-[10px] uppercase tracking-wider font-semibold block mb-1" style={{ color: 'var(--text-muted)' }}>
+            <label className="text-[10px] uppercase tracking-wider font-semibold block mb-1" style={{ color: 'var(--text-3)' }}>
               Seed URL (fetched via Firecrawl)
             </label>
             <input
@@ -161,11 +161,11 @@ export function CustomScenario() {
               onChange={e => setSeedUrl(e.target.value)}
               placeholder="https://example.com/article"
               className="w-full px-2 py-1.5 rounded text-xs"
-              style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}
+              style={{ background: 'var(--bg-deep)', color: 'var(--text-1)', border: '1px solid var(--border)' }}
             />
           </div>
           <div>
-            <label className="text-[10px] uppercase tracking-wider font-semibold block mb-1" style={{ color: 'var(--text-muted)' }}>
+            <label className="text-[10px] uppercase tracking-wider font-semibold block mb-1" style={{ color: 'var(--text-3)' }}>
               Or paste seed text
             </label>
             <textarea
@@ -174,12 +174,12 @@ export function CustomScenario() {
               placeholder="Paste a document, report, or article to enrich the scenario knowledge bundle..."
               rows={3}
               className="w-full px-2 py-1.5 rounded text-xs resize-y"
-              style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}
+              style={{ background: 'var(--bg-deep)', color: 'var(--text-1)', border: '1px solid var(--border)' }}
             />
           </div>
           <div className="flex items-center gap-2">
             <input type="checkbox" checked={webSearch} onChange={e => setWebSearch(e.target.checked)} id="webSearch" />
-            <label htmlFor="webSearch" className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+            <label htmlFor="webSearch" className="text-xs" style={{ color: 'var(--text-2)' }}>
               Web search enrichment (requires Serper/Tavily/Firecrawl API keys)
             </label>
           </div>
@@ -190,10 +190,10 @@ export function CustomScenario() {
       {progress.length > 0 && (
         <div className="mb-3 rounded p-2 space-y-1" style={{ background: 'var(--bg-elevated)' }}>
           {progress.map(p => (
-            <div key={p.hook} className="text-[11px] font-mono flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
+            <div key={p.hook} className="text-[11px] font-mono flex items-center gap-2" style={{ color: 'var(--text-2)' }}>
               <span>{statusIcon(p.status)}</span>
               <span>{p.hook}</span>
-              <span style={{ color: 'var(--text-muted)' }}>{p.status}</span>
+              <span style={{ color: 'var(--text-3)' }}>{p.status}</span>
             </div>
           ))}
         </div>
@@ -218,7 +218,7 @@ export function CustomScenario() {
         onClick={compile}
         disabled={compiling || !jsonText.trim()}
         className="px-5 py-2 rounded-lg text-sm font-bold cursor-pointer disabled:opacity-50 transition-all"
-        style={{ background: 'var(--accent-primary)', color: 'var(--text-contrast)' }}
+        style={{ background: 'var(--amber)', color: 'var(--bg-deep)' }}
       >
         {compiling ? 'Compiling...' : 'Compile Scenario'}
       </button>

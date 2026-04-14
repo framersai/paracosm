@@ -30,8 +30,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     }, 6000);
   }, []);
 
-  const borderColors = { info: 'var(--color-warning)', error: 'var(--color-error)', success: 'var(--color-success)' };
-  const titleColors = { info: 'var(--color-warning)', error: 'var(--color-error)', success: 'var(--color-success)' };
+  const borderColors = { info: 'var(--amber)', error: 'var(--rust)', success: 'var(--green)' };
+  const titleColors = { info: 'var(--amber)', error: 'var(--rust)', success: 'var(--green)' };
 
   return (
     <ToastContext.Provider value={{ toast }}>
@@ -44,12 +44,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             style={{
               background: 'var(--bg-card)',
               border: `1px solid ${borderColors[t.type]}`,
-              color: 'var(--text-primary)',
+              color: 'var(--text-1)',
               boxShadow: 'var(--shadow-md)',
             }}
           >
             <div className="font-bold text-sm mb-0.5" style={{ color: titleColors[t.type] }}>{t.title}</div>
-            <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>{t.message}</div>
+            <div className="text-xs" style={{ color: 'var(--text-2)' }}>{t.message}</div>
           </div>
         ))}
       </div>

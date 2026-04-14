@@ -237,7 +237,7 @@ export function AboutPage() {
                   fontSize: '13px',
                   fontWeight: 700,
                   background: 'var(--amber)',
-                  color: 'var(--text-contrast)',
+                  color: 'var(--bg-deep)',
                 }}
               >
                 Contact team@frame.dev for roadmap access
@@ -323,7 +323,7 @@ export function AboutPage() {
                     display: 'block',
                     textDecoration: 'none',
                     background: tier.highlight ? 'var(--amber)' : 'var(--bg-elevated)',
-                    color: tier.highlight ? 'var(--text-contrast)' : 'var(--amber)',
+                    color: tier.highlight ? 'var(--bg-deep)' : 'var(--amber)',
                     border: tier.highlight ? 'none' : '1px solid var(--border-hl)',
                   }}
                 >
