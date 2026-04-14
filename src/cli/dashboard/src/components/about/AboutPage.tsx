@@ -158,8 +158,8 @@ export function AboutPage() {
   const scenario = useScenarioContext();
 
   return (
-    <div className="about-content" style={{ flex: 1, overflowY: 'auto', padding: '32px 48px', background: 'var(--bg-deep)', maxWidth: '100%' }}>
-      <div style={{ maxWidth: '900px' }}>
+    <div className="about-content" style={{ flex: 1, overflowY: 'auto', padding: '32px 48px', background: 'var(--bg-deep)', width: '100%' }}>
+      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
         {/* Header */}
         <header style={{ marginBottom: '24px' }}>
           <h1 style={{ fontSize: '22px', color: 'var(--amber)', fontFamily: 'var(--mono)', marginBottom: '8px' }}>
