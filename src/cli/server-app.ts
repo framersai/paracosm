@@ -608,15 +608,10 @@ Respond in character as this person. Be direct, personal, emotional. Reference y
             html = html.replace(/src="\.\.\/media\//g, 'src="/docs/media/');
             html = html.replace(/href="media\//g, 'href="/docs/media/');
             html = html.replace(/src="media\//g, 'src="/docs/media/');
-            // Remove TypeDoc's toolbar entirely (we inject our own header)
-            // Keep the search dialog but move it outside the toolbar
-            const searchDialog = html.match(/<dialog id="tsd-search"[\s\S]*?<\/dialog>/)?.[0] || '';
-            html = html.replace(/<header class="tsd-page-toolbar">[\s\S]*?<\/header>/, searchDialog);
-            // Remove TypeDoc's page title bar (redundant with our header)
-            html = html.replace(/<div class="tsd-page-title">[\s\S]*?<\/div>\s*<\/div>/, '');
+            // TypeDoc toolbar + page title hidden via CSS (kept in DOM so JS doesn't crash)
             // Add our CSS override + fonts + favicon
             html = html.replace('</head>',
-              `<link rel="icon" type="image/svg+xml" href="/icon.svg"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="/docs/assets/paracosm-override.css"><style>body{padding-top:44px!important}header.tsd-page-toolbar{display:none!important}.tsd-page-title{background:transparent!important;border:none!important;padding-top:8px!important}.paracosm-docs-header{position:fixed!important;top:0!important;left:0!important;right:0!important;z-index:9999!important}.pdh-search{background:none;border:1px solid #302a22;color:#a89878;width:28px;height:28px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}.pdh-search:hover{border-color:#e8b44a;color:#f5f0e4}</style></head>`
+              `<link rel="icon" type="image/svg+xml" href="/icon.svg"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="/docs/assets/paracosm-override.css"><style>body{padding-top:44px!important}header.tsd-page-toolbar{height:0!important;overflow:hidden!important;border:none!important;padding:0!important;margin:0!important;visibility:hidden!important}.tsd-page-title{display:none!important}.paracosm-docs-header{position:fixed!important;top:0!important;left:0!important;right:0!important;z-index:99999!important;background:linear-gradient(180deg,#14110e 0%,#0a0806 100%)!important;border-bottom:2px solid #302a22!important;box-shadow:0 4px 20px rgba(0,0,0,.7),0 1px 0 rgba(232,180,74,.06) inset!important;backdrop-filter:blur(12px)!important;-webkit-backdrop-filter:blur(12px)!important}[data-theme=light] .paracosm-docs-header{background:linear-gradient(180deg,#d8cab0 0%,#c8bca0 100%)!important;border-bottom-color:#9a8868!important;box-shadow:0 4px 20px rgba(60,40,10,.15),0 1px 0 rgba(255,245,220,.4) inset!important}:root{--dim-header-height:44px!important;--dim-toolbar-contents-height:0px!important;--dim-toolbar-border-bottom-width:0px!important}.page-menu,.site-menu{z-index:1!important}.pdh-search{background:none;border:1px solid #302a22;color:#a89878;width:28px;height:28px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}.pdh-search:hover{border-color:#e8b44a;color:#f5f0e4}dialog#tsd-search[open]{display:flex!important;flex-direction:column!important;border:1px solid #302a22!important;background:var(--color-background-secondary)!important;padding:0!important;overflow:hidden!important}#tsd-search-input{width:100%!important;padding:12px 16px!important;border:none!important;border-bottom:1px solid #302a22!important;background:var(--color-background)!important;color:var(--color-text)!important;font-size:14px!important;font-family:'Inter',system-ui,sans-serif!important;outline:none!important;box-sizing:border-box!important}#tsd-search-results{max-height:360px!important;overflow-y:auto!important;padding:4px!important;margin:0!important;list-style:none!important}#tsd-search-results li{padding:0!important;margin:0!important}#tsd-search-results a{display:block!important;padding:8px 12px!important;border-radius:4px!important;color:var(--color-text)!important;text-decoration:none!important;font-size:13px!important}#tsd-search-results a:hover,#tsd-search-results li.current a{background:var(--color-background-active)!important}#tsd-search-status{padding:12px 16px!important;font-size:12px!important;color:var(--color-text-aside)!important}</style></head>`
             );
             // Inject nav header after <body>
             html = html.replace(/<body[^>]*>/, `$&
@@ -636,9 +631,22 @@ Respond in character as this person. Be direct, personal, emotional. Reference y
     <a href="/docs">API Docs</a>
     <a href="https://github.com/framersai/paracosm" target="_blank" rel="noopener">GitHub</a>
     <a href="https://www.npmjs.com/package/paracosm" target="_blank" rel="noopener">npm</a>
-    <button class="pdh-search" onclick="var d=document.getElementById('tsd-search');if(d&&d.showModal)d.showModal()" aria-label="Search docs"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.5"/><line x1="11" y1="11" x2="15" y2="15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+    <button class="pdh-search" onclick="document.getElementById('tsd-search-trigger')?.click()" aria-label="Search docs"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.5"/><line x1="11" y1="11" x2="15" y2="15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
   </div>
-</div>`);
+</div>
+<script>
+// Intercept showModal on the search dialog to use show() instead, allowing CSS positioning
+(function(){
+  var d=document.getElementById('tsd-search');
+  if(!d)return;
+  var orig=d.showModal.bind(d);
+  d.showModal=function(){d.show();d.style.position='fixed';d.style.top='54px';d.style.right='24px';d.style.left='auto';d.style.bottom='auto';d.style.width='420px';d.style.maxWidth='calc(100vw - 48px)';d.style.maxHeight='480px';d.style.margin='0';d.style.borderRadius='8px';d.style.boxShadow='0 12px 40px rgba(0,0,0,.5)';d.style.zIndex='99999';var i=d.querySelector('input');if(i)i.focus();};
+  // Close on click outside
+  document.addEventListener('click',function(e){if(d.open&&!d.contains(e.target)&&!e.target.closest('.pdh-search'))d.close();});
+  // Close on Escape
+  d.addEventListener('keydown',function(e){if(e.key==='Escape'){d.close();e.stopPropagation();}});
+})();
+</script>`);
             // Inject footer before </body>
             html = html.replace('</body>',
               `<div class="paracosm-docs-footer">
