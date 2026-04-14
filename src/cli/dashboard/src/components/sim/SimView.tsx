@@ -136,12 +136,43 @@ export function SimView({ state }: SimViewProps) {
         crisisText={crisisText}
       />
 
-      {showIntro && <IntroBar onDismiss={dismissIntro} />}
+      {showIntro && state.a.events.length > 0 && <IntroBar onDismiss={dismissIntro} />}
 
       <DivergenceRail state={state} />
 
-      {/* Two columns */}
-      <div className="sim-columns" style={{ display: 'flex', flex: 1, gap: '1px', background: 'var(--border)', overflow: 'hidden' }}>
+      {/* Empty state: no events, not running */}
+      {!state.isRunning && !state.isComplete && state.a.events.length === 0 && state.b.events.length === 0 && (
+        <div style={{
+          flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          padding: '40px 24px', textAlign: 'center', background: 'var(--bg-deep)',
+        }}>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: '16px', fontWeight: 700, color: 'var(--text-1)', marginBottom: '12px' }}>
+            No simulation running
+          </div>
+          <div style={{ fontSize: '13px', color: 'var(--text-3)', maxWidth: '420px', lineHeight: 1.7, marginBottom: '20px' }}>
+            Configure two commanders with different HEXACO personality profiles, choose a scenario, and launch from the Settings tab. Or load a previously saved simulation.
+          </div>
+          <button
+            onClick={() => {
+              const url = new URL(window.location.href);
+              url.searchParams.set('tab', 'settings');
+              window.history.replaceState({}, '', url.toString());
+              window.location.reload();
+            }}
+            style={{
+              background: 'linear-gradient(135deg, var(--rust), #c44a1e)', color: '#fff',
+              border: 'none', padding: '10px 28px', borderRadius: '6px',
+              fontSize: '14px', fontWeight: 700, cursor: 'pointer',
+              boxShadow: '0 4px 16px rgba(224,101,48,.25)',
+            }}
+          >
+            Go to Settings
+          </button>
+        </div>
+      )}
+
+      {/* Two columns (only show when there are events or sim is running) */}
+      <div className="sim-columns" style={{ display: (state.isRunning || state.isComplete || state.a.events.length > 0 || state.b.events.length > 0) ? 'flex' : 'none', flex: 1, gap: '1px', background: 'var(--border)', overflow: 'hidden' }}>
         <SideColumn side="a" sideState={state.a} state={state} />
         <SideColumn side="b" sideState={state.b} state={state} />
       </div>

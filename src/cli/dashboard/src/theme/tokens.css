@@ -334,6 +334,15 @@
 
   /* Additional animations from legacy / visual flair */
   @keyframes forgeSlide { from { transform: translateX(-6px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--amber);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    flex-shrink: 0;
+  }
   @keyframes criticalFlash { 0% { border-color: var(--rust); } 50% { border-color: rgba(224, 101, 48, 0.4); } 100% { border-color: var(--rust); } }
   @keyframes barGrow { from { width: 0; } }
   @keyframes shimmer {
