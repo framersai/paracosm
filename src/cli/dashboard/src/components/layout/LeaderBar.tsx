@@ -10,12 +10,12 @@ interface LeaderBarProps {
   moraleHistory: number[];
 }
 
-/** Render HEXACO bar: "O████░.95" */
+/** Render HEXACO bar: "O ████░ .95" */
 function traitStr(label: string, val: number): string {
   const filled = Math.round(val * 4);
   const bar = '\u2588'.repeat(filled) + '\u2591'.repeat(4 - filled);
   const num = val.toFixed(2);
-  return `${label}${bar}${num}`;
+  return `${label} ${bar} ${num}`;
 }
 
 export function LeaderBar({ side, leader, popHistory, moraleHistory }: LeaderBarProps) {

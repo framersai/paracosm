@@ -16,6 +16,11 @@ const cardBase = {
   boxShadow: 'var(--card-shadow)',
 };
 
+const moodColors: Record<string, string> = {
+  positive: 'var(--green)', negative: 'var(--rust)', anxious: 'var(--amber)',
+  defiant: 'var(--rust)', hopeful: 'var(--green)', resigned: 'var(--text-3)', neutral: 'var(--text-2)',
+};
+
 export function EventCard({ event, side }: EventCardProps) {
   const scenario = useScenarioContext();
   const sideColor = side === 'a' ? 'var(--vis)' : 'var(--eng)';
@@ -221,10 +226,6 @@ export function EventCard({ event, side }: EventCardProps) {
 
       const moodCounts: Record<string, number> = {};
       for (const r of reactions) moodCounts[r.mood] = (moodCounts[r.mood] || 0) + 1;
-      const moodColors: Record<string, string> = {
-        positive: 'var(--green)', negative: 'var(--rust)', anxious: 'var(--amber)',
-        defiant: 'var(--rust)', hopeful: 'var(--green)', resigned: 'var(--text-3)', neutral: 'var(--text-2)',
-      };
       const moodBgColors: Record<string, string> = {
         positive: '#6aad48', negative: '#e06530', anxious: '#e8b44a',
         defiant: '#e06530', hopeful: '#6aad48', resigned: '#a89878', neutral: '#a89878',
