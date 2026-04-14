@@ -1,6 +1,6 @@
 /**
  * Mars-specific colonist reaction context.
- * Extracted from colonist-reactions.ts buildColonistPrompt lines 51, 67-68.
+ * Extracted from agent-reactions.ts buildAgentPrompt lines 51, 67-68.
  * Returns location/identity phrasing and domain-specific health context.
  */
 export function marsReactionContext(colonist: any, ctx: any): string {

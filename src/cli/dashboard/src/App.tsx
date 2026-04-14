@@ -32,7 +32,24 @@ function AppContent() {
   const gameState = useGameState(sse.events, sse.isComplete);
   const persistence = useGamePersistence(scenario.labels.shortName);
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<Tab>('sim');
+  // Tab state from URL query param ?tab=sim
+  const getTabFromUrl = (): Tab => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab');
+    if (tab && ['sim', 'settings', 'reports', 'chat', 'log', 'about'].includes(tab)) return tab as Tab;
+    // Also check hash for backward compat
+    const hash = window.location.hash.replace('#', '');
+    if (hash && ['sim', 'settings', 'reports', 'chat', 'log', 'about'].includes(hash)) return hash as Tab;
+    return 'sim';
+  };
+  const [activeTab, setActiveTabState] = useState<Tab>(getTabFromUrl);
+  const setActiveTab = (tab: Tab) => {
+    setActiveTabState(tab);
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', tab);
+    url.hash = '';
+    window.history.replaceState({}, '', url.toString());
+  };
 
   const handleSave = useCallback(() => {
     persistence.save(sse.events, sse.results);

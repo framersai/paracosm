@@ -39,24 +39,18 @@ export { EventTaxonomy } from './event-taxonomy.js';
 // Core kernel
 export { SimulationKernel } from './core/kernel.js';
 export { SeededRng } from './core/rng.js';
-export { generateInitialPopulation } from './core/colonist-generator.js';
+export { generateInitialPopulation } from './core/agent-generator.js';
 export { progressBetweenTurns, applyPersonalityDrift, classifyOutcome, classifyOutcomeById } from './core/progression.js';
 
 // Core types + generic aliases
 export type {
-  Colonist, ColonistCore, ColonistHealth, ColonistCareer, ColonistSocial, ColonistNarrative,
-  ColonySystems, ColonyPolitics, SimulationState, SimulationMetadata,
+  Agent, AgentCore, AgentHealth, AgentCareer, AgentSocial, AgentNarrative, AgentMemory, AgentMemoryEntry,
+  WorldSystems, WorldPolitics, SimulationState, SimulationMetadata,
   HexacoProfile, TurnEvent, TurnOutcome, Department, PromotionRecord,
 } from './core/state.js';
 
-// Generic aliases for external consumers
-export type { Colonist as Agent } from './core/state.js';
-export type { ColonistCore as AgentCore } from './core/state.js';
-export type { ColonistHealth as AgentHealth } from './core/state.js';
-export type { ColonistCareer as AgentCareer } from './core/state.js';
-export type { ColonistSocial as AgentSocial } from './core/state.js';
-export type { ColonistNarrative as AgentNarrative } from './core/state.js';
-export type { KeyPersonnel } from './core/colonist-generator.js';
+// Additional types
+export type { KeyPersonnel } from './core/agent-generator.js';
 export type { ColonyPatch, PolicyEffect, SimulationInitOverrides } from './core/kernel.js';
 export type { HexacoSnapshot, LifeEvent } from './core/state.js';
 export type { LeaderConfig, LlmProvider, SimulationModelConfig, Scenario, CrisisOptionDef, MilestoneCrisisDef, TurnOutcomeType } from './types.js';

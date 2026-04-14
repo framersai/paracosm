@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { normalizeSimulationConfig, type NormalizedSimulationConfig } from './sim-config.js';
 import { runPairSimulations, type BroadcastFn } from './pair-runner.js';
 import { marsScenario } from '../engine/mars/index.js';
+import { lunarScenario } from '../engine/lunar/index.js';
 import type { ScenarioPackage } from '../engine/types.js';
 
 function projectScenarioForClient(sc: ScenarioPackage) {
@@ -116,6 +117,7 @@ function readBody(req: IncomingMessage): Promise<string> {
 export interface CreateMarsServerOptions {
   env?: NodeJS.ProcessEnv;
   runPairSimulations?: (config: NormalizedSimulationConfig, broadcast: BroadcastFn) => Promise<void>;
+  generateText?: (args: { provider: string; model: string; prompt: string }) => Promise<{ text: string }>;
   /** Max simulations per IP per day. 0 = unlimited. Default: 3. Set via RATE_LIMIT env var. */
   maxSimsPerDay?: number;
 }
@@ -130,6 +132,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
   const rateLimiter = maxSims > 0 ? new IpRateLimiter(maxSims) : null;
   let simConfig: NormalizedSimulationConfig | null = null;
   let simRunning = false;
+  let activeScenario: any = marsScenario;
   const clients: Set<ServerResponse> = new Set();
 
   // Event buffer: stores all broadcast events so new clients can catch up
@@ -148,8 +151,24 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
   };
 
   const startSimulations = options.runPairSimulations ?? runPairSimulations;
+  const runGenerateText = options.generateText ?? (async args => {
+    const { generateText } = await import('@framers/agentos');
+    return generateText(args as any);
+  });
 
   const server = createServer(async (req, res) => {
+    // CORS preflight for browser-based POST requests (compile, setup, chat, clear)
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204, {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Max-Age': '86400',
+      });
+      res.end();
+      return;
+    }
+
     if (req.url === '/events') {
       res.writeHead(200, {
         'Content-Type': 'text/event-stream',
@@ -168,9 +187,88 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
     }
 
     if (req.url === '/scenario' && req.method === 'GET') {
-      const payload = JSON.stringify(projectScenarioForClient(marsScenario));
+      const payload = JSON.stringify(projectScenarioForClient(activeScenario));
       res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
       res.end(payload);
+      return;
+    }
+
+    // List available built-in scenarios
+    if (req.url === '/scenarios' && req.method === 'GET') {
+      const scenarios = [
+        { id: 'mars-genesis', name: 'Mars Genesis', description: '100-colonist Mars colony over 50 years', departments: marsScenario.departments.length },
+        { id: 'lunar-outpost', name: 'Lunar Outpost', description: '50-person crew at the lunar south pole', departments: lunarScenario.departments.length },
+      ];
+      // Add active custom scenario if it's not one of the built-ins
+      if (activeScenario.id !== 'mars-genesis' && activeScenario.id !== 'lunar-outpost') {
+        scenarios.push({ id: activeScenario.id, name: activeScenario.labels?.name || activeScenario.id, description: 'Custom compiled scenario', departments: activeScenario.departments?.length || 0 });
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+      res.end(JSON.stringify({ scenarios, active: activeScenario.id }));
+      return;
+    }
+
+    // Switch active scenario
+    if (req.url === '/scenario/switch' && req.method === 'POST') {
+      const { id } = JSON.parse(await readBody(req));
+      if (id === 'mars-genesis') activeScenario = marsScenario;
+      else if (id === 'lunar-outpost') activeScenario = lunarScenario;
+      else {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: `Unknown scenario: ${id}. Use /compile for custom scenarios.` }));
+        return;
+      }
+      eventBuffer.length = 0;
+      simConfig = null;
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+      res.end(JSON.stringify({ active: activeScenario.id, name: activeScenario.labels?.name }));
+      return;
+    }
+
+    // Compile a custom scenario JSON into a ScenarioPackage
+    if (req.url === '/compile' && req.method === 'POST') {
+      try {
+        const body = JSON.parse(await readBody(req));
+        const { scenario: scenarioJson, seedText, seedUrl, webSearch } = body;
+        if (!scenarioJson || typeof scenarioJson !== 'object') {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'scenario JSON object required' }));
+          return;
+        }
+        const { compileScenario } = await import('../engine/compiler/index.js');
+        const provider = (process.env.ANTHROPIC_API_KEY ? 'anthropic' : 'openai') as any;
+        const model = process.env.ANTHROPIC_API_KEY ? 'claude-sonnet-4-6' : 'gpt-5.4-mini';
+
+        // SSE progress stream
+        res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Access-Control-Allow-Origin': '*' });
+        res.write('event: status\ndata: {"status":"compiling"}\n\n');
+
+        const compiled = await compileScenario(scenarioJson, {
+          provider,
+          model,
+          cache: true,
+          seedText,
+          seedUrl,
+          webSearch: webSearch ?? true,
+          onProgress(hookName, status) {
+            res.write(`event: progress\ndata: ${JSON.stringify({ hook: hookName, status })}\n\n`);
+          },
+        });
+
+        // Update the active scenario for GET /scenario
+        activeScenario = compiled;
+
+        res.write(`event: complete\ndata: ${JSON.stringify({ id: compiled.id, version: compiled.version, departments: compiled.departments.length, hooks: Object.keys(compiled.hooks).filter(k => (compiled.hooks as any)[k]).length })}\n\n`);
+        res.end();
+      } catch (err) {
+        if (!res.headersSent) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: String(err) }));
+        } else {
+          res.write(`event: error\ndata: ${JSON.stringify({ error: String(err) })}\n\n`);
+          res.end();
+        }
+      }
       return;
     }
 
@@ -192,10 +290,10 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
     // Post-simulation colonist chat
     if (req.url === '/chat' && req.method === 'POST') {
       try {
-        const { colonistId, message, history } = JSON.parse(await readBody(req));
-        if (!colonistId || !message) {
+        const { agentId, message, history } = JSON.parse(await readBody(req));
+        if (!agentId || !message) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'colonistId and message required' }));
+          res.end(JSON.stringify({ error: 'agentId and message required' }));
           return;
         }
         // Find colonist in the last broadcast result
@@ -205,25 +303,26 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
           res.end(JSON.stringify({ error: 'No simulation data available. Run a simulation first.' }));
           return;
         }
-        // Lazy import to avoid loading LLM at server start
-        const { generateText } = await import('@framers/agentos');
         // Extract colonist data from broadcast events
         const simEvents = eventBuffer
           .filter(msg => msg.startsWith('event: sim\n'))
           .map(msg => { try { return JSON.parse(msg.split('data: ')[1]); } catch { return null; } })
           .filter(Boolean);
         // Find colonist reactions across all turns
-        const colonistReactions = simEvents
-          .filter((e: any) => e.type === 'colonist_reactions')
-          .flatMap((e: any) => (e.data?.reactions || []).filter((r: any) => r.colonistId === colonistId || r.name?.toLowerCase().includes(colonistId.toLowerCase())));
-        const colonist = colonistReactions[0];
-        const allQuotes = colonistReactions.map((r: any) => `Turn ${r.turn || '?'}: "${r.quote}" (${r.mood})`).join('\n');
+        const agentReactions = simEvents
+          .filter((e: any) => e.type === 'agent_reactions')
+          .flatMap((e: any) => (e.data?.reactions || []).filter((r: any) => r.agentId === agentId || r.name?.toLowerCase().includes(agentId.toLowerCase())));
+        const colonist = agentReactions[0];
+        const allQuotes = agentReactions.map((r: any) => `Turn ${r.turn || '?'}: "${r.quote}" (${r.mood})`).join('\n');
         const chatHistory = (history || []).slice(-6).map((h: any) => `${h.role === 'user' ? 'Human' : colonist?.name || 'Colonist'}: ${h.content}`).join('\n');
+        const colonistProfile = colonist ? [
+          `Age: ${colonist.age ?? '?'}. ${colonist.marsborn ? 'Born on Mars.' : 'Born on Earth.'} Role: ${colonist.role || 'Unknown role'} in ${colonist.department || 'unknown department'}. Specialization: ${colonist.specialization || 'general'}.`,
+          `HEXACO: O=${colonist.hexaco?.O ?? '?'} C=${colonist.hexaco?.C ?? '?'} E=${colonist.hexaco?.E ?? '?'} A=${colonist.hexaco?.A ?? '?'} Em=${colonist.hexaco?.Em ?? '?'} HH=${colonist.hexaco?.HH ?? '?'}`,
+          `Psych score: ${colonist.psychScore ?? '?'}. Bone density: ${colonist.boneDensity ?? '?'}%. Radiation: ${colonist.radiation ?? '?'} mSv.`,
+        ].join('\n') : '';
 
-        const prompt = `You are ${colonist?.name || colonistId}, a colonist on Mars. Stay in character.
-${colonist ? `Age: ${colonist.age}. ${colonist.marsborn ? 'Born on Mars.' : 'Born on Earth.'} Role: ${colonist.role} in ${colonist.department}. Specialization: ${colonist.specialization || 'general'}.
-HEXACO: O=${colonist.hexaco?.O} C=${colonist.hexaco?.C} E=${colonist.hexaco?.E} A=${colonist.hexaco?.A} Em=${colonist.hexaco?.Em} HH=${colonist.hexaco?.HH}
-Psych score: ${colonist.psychScore}. Bone density: ${colonist.boneDensity}%. Radiation: ${colonist.radiation} mSv.` : ''}
+        const prompt = `You are ${colonist?.name || agentId}, a colonist on Mars. Stay in character.
+${colonistProfile}
 ${allQuotes ? `Your reactions during the simulation:\n${allQuotes}` : ''}
 ${chatHistory ? `Conversation so far:\n${chatHistory}` : ''}
 
@@ -233,9 +332,9 @@ Respond in character as this person. Be direct, personal, emotional. Reference y
 
         const provider = (env.ANTHROPIC_API_KEY ? 'anthropic' : 'openai') as any;
         const model = env.ANTHROPIC_API_KEY ? 'claude-haiku-4-5-20251001' : 'gpt-4o-mini';
-        const result = await generateText({ provider, model, prompt });
+        const result = await runGenerateText({ provider, model, prompt });
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ reply: result.text, colonist: colonist?.name || colonistId }));
+        res.end(JSON.stringify({ reply: result.text, colonist: colonist?.name || agentId }));
       } catch (err) {
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: String(err) }));

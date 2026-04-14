@@ -1,16 +1,16 @@
-import type { SimulationState, Colonist, TurnEvent, HexacoProfile, TurnOutcome, Department } from './state.js';
-import type { ColonySystems, ColonyPolitics } from './state.js';
+import type { SimulationState, Agent, TurnEvent, HexacoProfile, TurnOutcome, Department } from './state.js';
+import type { WorldSystems, WorldPolitics } from './state.js';
 import { SeededRng } from './rng.js';
-import { generateInitialPopulation, type KeyPersonnel } from './colonist-generator.js';
+import { generateInitialPopulation, type KeyPersonnel } from './agent-generator.js';
 import { progressBetweenTurns, applyPersonalityDrift, ROLE_ACTIVATIONS } from './progression.js';
 
 export interface ColonyPatch {
-  colony?: Partial<ColonySystems>;
-  politics?: Partial<ColonyPolitics>;
-  colonistUpdates?: Array<{
-    colonistId: string;
-    health?: Partial<Colonist['health']>;
-    career?: Partial<Colonist['career']>;
+  colony?: Partial<WorldSystems>;
+  politics?: Partial<WorldPolitics>;
+  agentUpdates?: Array<{
+    agentId: string;
+    health?: Partial<Agent['health']>;
+    career?: Partial<Agent['career']>;
   }>;
 }
 
@@ -23,8 +23,8 @@ export interface PolicyEffect {
 export interface SimulationInitOverrides {
   startYear?: number;
   initialPopulation?: number;
-  startingResources?: Partial<ColonySystems>;
-  startingPolitics?: Partial<ColonyPolitics>;
+  startingResources?: Partial<WorldSystems>;
+  startingPolitics?: Partial<WorldPolitics>;
 }
 
 export class SimulationKernel {
@@ -34,7 +34,7 @@ export class SimulationKernel {
   constructor(seed: number, leaderId: string, keyPersonnel: KeyPersonnel[], init: SimulationInitOverrides = {}) {
     this.rng = new SeededRng(seed);
     const startYear = init.startYear ?? 2035;
-    const colonists = generateInitialPopulation(seed, startYear, keyPersonnel, init.initialPopulation ?? 100);
+    const agents = generateInitialPopulation(seed, startYear, keyPersonnel, init.initialPopulation ?? 100);
 
     this.state = {
       metadata: {
@@ -43,7 +43,7 @@ export class SimulationKernel {
         startYear, currentYear: startYear, currentTurn: 0,
       },
       colony: {
-        population: colonists.length,
+        population: agents.length,
         powerKw: init.startingResources?.powerKw ?? 400,
         foodMonthsReserve: init.startingResources?.foodMonthsReserve ?? 18,
         waterLitersPerDay: init.startingResources?.waterLitersPerDay ?? 800,
@@ -53,7 +53,7 @@ export class SimulationKernel {
         scienceOutput: init.startingResources?.scienceOutput ?? 0,
         morale: init.startingResources?.morale ?? 0.85,
       },
-      colonists,
+      agents,
       politics: {
         earthDependencyPct: init.startingPolitics?.earthDependencyPct ?? 95,
         governanceStatus: init.startingPolitics?.governanceStatus ?? 'earth-governed',
@@ -67,20 +67,20 @@ export class SimulationKernel {
 
 
 
-  getFeaturedColonists(): Colonist[] {
-    return this.state.colonists.filter(c => c.narrative.featured && c.health.alive);
+  getFeaturedAgents(): Agent[] {
+    return this.state.agents.filter(c => c.narrative.featured && c.health.alive);
   }
 
-  getAliveColonists(): Colonist[] {
-    return this.state.colonists.filter(c => c.health.alive);
+  getAliveAgents(): Agent[] {
+    return this.state.agents.filter(c => c.health.alive);
   }
 
   getAliveCount(): number {
-    return this.state.colonists.filter(c => c.health.alive).length;
+    return this.state.agents.filter(c => c.health.alive).length;
   }
 
   getDepartmentSummary(dept: string) {
-    const m = this.state.colonists.filter(c => c.health.alive && c.core.department === dept);
+    const m = this.state.agents.filter(c => c.health.alive && c.core.department === dept);
     if (!m.length) return { count: 0, avgMorale: 0, avgBoneDensity: 0, avgRadiation: 0 };
     return {
       count: m.length,
@@ -114,9 +114,9 @@ export class SimulationKernel {
       p.independencePressure = Math.max(0, Math.min(1, p.independencePressure));
     }
 
-    if (patches.colonistUpdates) {
-      for (const u of patches.colonistUpdates) {
-        const col = this.state.colonists.find(c => c.core.id === u.colonistId);
+    if (patches.agentUpdates) {
+      for (const u of patches.agentUpdates) {
+        const col = this.state.agents.find(c => c.core.id === u.agentId);
         if (!col) continue;
         if (u.health) Object.assign(col.health, u.health);
         if (u.career) Object.assign(col.career, u.career);
@@ -127,7 +127,7 @@ export class SimulationKernel {
   }
 
   /** Advance to the next turn. Runs between-turn progression. */
-  advanceTurn(nextTurn: number, nextYear: number, progressionHook?: (ctx: { colonists: any[]; yearDelta: number; year: number; turn: number; startYear: number; rng: any }) => void): SimulationState {
+  advanceTurn(nextTurn: number, nextYear: number, progressionHook?: (ctx: { agents: any[]; yearDelta: number; year: number; turn: number; startYear: number; rng: any }) => void): SimulationState {
     const prevYear = this.state.metadata.currentYear;
     const yearDelta = nextYear - prevYear;
     const turnRng = this.rng.turnSeed(nextTurn);
@@ -139,17 +139,17 @@ export class SimulationKernel {
     const { state: progressed, events } = progressBetweenTurns(this.state, yearDelta, turnRng, progressionHook);
     this.state = progressed;
     this.state.colony.population = this.getAliveCount();
-    this.updateFeaturedColonists(events);
+    this.updateFeaturedAgents(events);
 
     return this.getState();
   }
 
-  private updateFeaturedColonists(recentEvents: TurnEvent[]): void {
-    const eventIds = new Set(recentEvents.filter(e => e.colonistId).map(e => e.colonistId!));
-    for (const c of this.state.colonists) {
+  private updateFeaturedAgents(recentEvents: TurnEvent[]): void {
+    const eventIds = new Set(recentEvents.filter(e => e.agentId).map(e => e.agentId!));
+    for (const c of this.state.agents) {
       if (eventIds.has(c.core.id) && c.health.alive) c.narrative.featured = true;
     }
-    const featured = this.state.colonists.filter(c => c.narrative.featured && c.health.alive);
+    const featured = this.state.agents.filter(c => c.narrative.featured && c.health.alive);
     if (featured.length > 16) {
       const sorted = featured.sort((a, b) => b.narrative.lifeEvents.length - a.narrative.lifeEvents.length);
       for (let i = 16; i < sorted.length; i++) sorted[i].narrative.featured = false;
@@ -157,9 +157,9 @@ export class SimulationKernel {
   }
 
   /** Get top N candidates for a department role, scored by trait fit. */
-  getCandidates(dept: Department, topN: number = 5): Colonist[] {
+  getCandidates(dept: Department, topN: number = 5): Agent[] {
     const activation = ROLE_ACTIVATIONS[dept] ?? {};
-    return this.state.colonists
+    return this.state.agents
       .filter(c => c.health.alive && !c.promotion)
       .map(c => ({
         colonist: c,
@@ -172,9 +172,9 @@ export class SimulationKernel {
   }
 
   /** Promote a colonist to a department head role. */
-  promoteColonist(colonistId: string, dept: Department, role: string, promotedBy: string): void {
-    const c = this.state.colonists.find(col => col.core.id === colonistId);
-    if (!c) throw new Error(`Colonist ${colonistId} not found`);
+  promoteAgent(agentId: string, dept: Department, role: string, promotedBy: string): void {
+    const c = this.state.agents.find(col => col.core.id === agentId);
+    if (!c) throw new Error(`Agent ${agentId} not found`);
     c.promotion = { department: dept, role, turnPromoted: this.state.metadata.currentTurn, promotedBy };
     c.core.department = dept;
     c.core.role = role;
@@ -190,13 +190,13 @@ export class SimulationKernel {
       year: this.state.metadata.currentYear,
       type: 'promotion',
       description: `${c.core.name} promoted to ${role}`,
-      colonistId,
+      agentId,
       data: { department: dept, promotedBy },
     });
   }
 
   /** Apply additive deltas to colony systems (not absolute values). */
-  applyColonyDeltas(deltas: Partial<ColonySystems>, events: TurnEvent[] = []): void {
+  applyColonyDeltas(deltas: Partial<WorldSystems>, events: TurnEvent[] = []): void {
     const c = this.state.colony;
     for (const [k, v] of Object.entries(deltas)) {
       if (v !== undefined && typeof v === 'number' && k in c) {
@@ -213,7 +213,7 @@ export class SimulationKernel {
   }
 
   /** Apply additive deltas to colony politics. */
-  applyPoliticsDeltas(deltas: Partial<ColonyPolitics>, events: TurnEvent[] = []): void {
+  applyPoliticsDeltas(deltas: Partial<WorldPolitics>, events: TurnEvent[] = []): void {
     const p = this.state.politics;
     for (const [k, v] of Object.entries(deltas)) {
       if (v !== undefined && typeof v === 'number' && k in p) {
@@ -228,15 +228,15 @@ export class SimulationKernel {
   /** Apply personality drift to all promoted colonists. */
   applyDrift(commanderHexaco: HexacoProfile, outcome: TurnOutcome | null, yearDelta: number): void {
     applyPersonalityDrift(
-      this.state.colonists, commanderHexaco, outcome, yearDelta,
+      this.state.agents, commanderHexaco, outcome, yearDelta,
       this.state.metadata.currentTurn, this.state.metadata.currentYear,
     );
   }
 
   /** Apply featured colonist updates from department reports. */
-  applyColonistUpdates(updates: Array<{ colonistId: string; health?: Partial<Colonist['health']>; career?: Partial<Colonist['career']>; narrativeEvent?: string }>): void {
+  applyAgentUpdates(updates: Array<{ agentId: string; health?: Partial<Agent['health']>; career?: Partial<Agent['career']>; narrativeEvent?: string }>): void {
     for (const u of updates) {
-      const col = this.state.colonists.find(c => c.core.id === u.colonistId);
+      const col = this.state.agents.find(c => c.core.id === u.agentId);
       if (!col || !col.health.alive) continue;
 
       if (u.health) {

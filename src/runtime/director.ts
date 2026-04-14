@@ -63,8 +63,8 @@ export interface DirectorContext {
   driftSummary: Array<{ name: string; role: string; openness: number; conscientiousness: number }>;
   /** Key outputs from forged tools last turn, so director can generate crises that follow from computed analysis */
   recentToolOutputs: Array<{ name: string; department: string; output: string }>;
-  /** Colonist mood summary from last turn */
-  colonistMoodSummary?: string;
+  /** Agent mood summary from last turn */
+  agentMoodSummary?: string;
 }
 
 const DIRECTOR_INSTRUCTIONS = `You are the Crisis Director for a Mars colony simulation. You observe colony state and generate crises that test the colony's weaknesses, exploit consequences of prior decisions, and create interesting narrative tension.
@@ -133,7 +133,7 @@ A: ${ctx.leaderHexaco.agreeableness.toFixed(2)} Em: ${ctx.leaderHexaco.emotional
 DECISION HISTORY:
 ${prevCrises}
 ${ctx.recentToolOutputs.length ? `\nTOOL INTELLIGENCE (what department agents computed last turn):\n${ctx.recentToolOutputs.slice(0, 4).map(t => `  [${t.department}] ${t.name}: ${t.output.slice(0, 120)}`).join('\n')}\nUse these findings to generate a crisis that follows from what the tools revealed.` : ''}
-${ctx.colonistMoodSummary ? `\nCOLONIST MOOD: ${ctx.colonistMoodSummary}` : ''}
+${ctx.agentMoodSummary ? `\nAGENT MOOD: ${ctx.agentMoodSummary}` : ''}
 
 CONSTRAINT: Do NOT use category "${lastCategory}" (used last turn). Pick a different category.
 

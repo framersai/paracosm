@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SimulationKernel } from './kernel.js';
-import type { KeyPersonnel } from './colonist-generator.js';
+import type { KeyPersonnel } from './agent-generator.js';
 
 const keyPersonnel: KeyPersonnel[] = [
   {
@@ -37,7 +37,7 @@ test('SimulationKernel respects initial population and starting resources', () =
   assert.equal(state.metadata.startYear, 2042);
   assert.equal(state.metadata.currentYear, 2042);
   assert.equal(state.colony.population, 120);
-  assert.equal(state.colonists.length, 120);
+  assert.equal(state.agents.length, 120);
   assert.equal(state.colony.foodMonthsReserve, 24);
   assert.equal(state.colony.waterLitersPerDay, 950);
   assert.equal(state.colony.powerKw, 600);

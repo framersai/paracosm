@@ -57,7 +57,7 @@ test('marsScenario knowledge bundle has topics', () => {
   assert.ok(Object.keys(marsScenario.knowledge.categoryMapping).length > 0);
 });
 
-test('marsScenario world schema declares all ColonySystems fields', () => {
+test('marsScenario world schema declares all WorldSystems fields', () => {
   const metricIds = Object.keys(marsScenario.world.metrics);
   assert.ok(metricIds.includes('population'));
   assert.ok(metricIds.includes('morale'));

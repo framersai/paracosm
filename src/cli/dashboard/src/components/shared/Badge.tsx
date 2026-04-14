@@ -2,22 +2,23 @@ interface BadgeProps {
   outcome: string;
 }
 
-const OUTCOME_STYLES: Record<string, { bg: string; color: string; label: string; icon: string }> = {
-  risky_success: { bg: 'rgba(106,173,72,.15)', color: 'var(--color-success)', label: 'RISKY WIN', icon: '✓' },
-  risky_failure: { bg: 'rgba(224,101,48,.15)', color: 'var(--color-error)', label: 'RISKY LOSS', icon: '✗' },
-  conservative_success: { bg: 'rgba(106,173,72,.1)', color: 'var(--color-success)', label: 'SAFE WIN', icon: '✓' },
-  conservative_failure: { bg: 'rgba(224,101,48,.1)', color: 'var(--color-error)', label: 'SAFE LOSS', icon: '✗' },
+const OUTCOME_STYLES: Record<string, { bg: string; color: string; border: string; label: string }> = {
+  risky_success:        { bg: 'rgba(232,180,74,.12)', color: 'var(--vis)',   border: 'var(--amber-dim)', label: 'RISKY WIN' },
+  risky_failure:        { bg: 'rgba(224,101,48,.12)', color: 'var(--rust)',  border: 'var(--rust-dim)',  label: 'RISKY LOSS' },
+  conservative_success: { bg: 'rgba(106,173,72,.12)', color: 'var(--green)', border: 'rgba(106,173,72,.25)', label: 'SAFE WIN' },
+  conservative_failure: { bg: 'rgba(224,101,48,.08)', color: 'var(--rust)',  border: 'var(--rust-dim)',  label: 'SAFE LOSS' },
 };
 
 export function Badge({ outcome }: BadgeProps) {
-  const style = OUTCOME_STYLES[outcome] || { bg: 'var(--bg-tertiary)', color: 'var(--text-muted)', label: outcome.replace(/_/g, ' ').toUpperCase(), icon: '?' };
+  const s = OUTCOME_STYLES[outcome] || { bg: 'var(--bg-card)', color: 'var(--text-3)', border: 'var(--border)', label: outcome.replace(/_/g, ' ').toUpperCase() };
 
   return (
-    <span
-      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wide shrink-0"
-      style={{ background: style.bg, color: style.color, border: `1px solid ${style.color}` }}
-    >
-      {style.icon} {style.label}
+    <span style={{
+      padding: '3px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: 800,
+      fontFamily: 'var(--mono)', display: 'inline-block', whiteSpace: 'nowrap',
+      background: s.bg, color: s.color, border: `1px solid ${s.border}`,
+    }}>
+      {s.label}
     </span>
   );
 }

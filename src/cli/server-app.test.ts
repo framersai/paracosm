@@ -144,3 +144,80 @@ test('POST /setup normalizes config and hands it to the simulation runner', asyn
     await once(server, 'close');
   }
 });
+
+test('POST /chat replies using simulation colonist data after a completed run', async () => {
+  const server = createMarsServer({
+    runPairSimulations: async (_config, broadcast) => {
+      broadcast('sim', {
+        type: 'agent_reactions',
+        leader: leaderA.name,
+        data: {
+          turn: 1,
+          reactions: [
+            {
+              agentId: 'agent-1',
+              name: 'Maya Ortiz',
+              role: 'Life Support Engineer',
+              department: 'engineering',
+              mood: 'hopeful',
+              age: 34,
+              marsborn: false,
+              specialization: 'habitat systems',
+              hexaco: { O: 0.7, C: 0.8, E: 0.4, A: 0.6, Em: 0.3, HH: 0.7 },
+              psychScore: 0.91,
+              boneDensity: 97,
+              radiation: 12,
+              quote: 'We kept the scrubbers online.',
+            },
+          ],
+        },
+      });
+      broadcast('sim', {
+        type: 'result',
+        leader: leaderA.name,
+        data: { finalState: { ok: true } },
+      });
+    },
+    generateText: async ({ prompt }: { prompt: string }) => ({
+      text: prompt.includes('Maya Ortiz') && prompt.includes('Life Support Engineer')
+        ? 'Still here. We kept the habitat alive.'
+        : 'Prompt missing colonist context.',
+    }),
+  } as any);
+
+  server.listen(0);
+  await once(server, 'listening');
+  const address = server.address();
+  const port = typeof address === 'object' && address ? address.port : 0;
+
+  try {
+    const setup = await fetch(`http://127.0.0.1:${port}/setup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        leaders: [leaderA, leaderB],
+        turns: 1,
+      }),
+    });
+    assert.equal(setup.status, 200);
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    const response = await fetch(`http://127.0.0.1:${port}/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        agentId: 'agent-1',
+        message: 'How are you holding up?',
+        history: [],
+      }),
+    });
+    const json = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(json.reply, 'Still here. We kept the habitat alive.');
+    assert.equal(json.colonist, 'Maya Ortiz');
+  } finally {
+    server.close();
+    await once(server, 'close');
+  }
+});

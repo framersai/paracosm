@@ -8,9 +8,9 @@ const MARS_RADIATION_MSV_PER_YEAR = 0.67 * 365; // ~244.55 mSv/year
  * Called as a scenario hook during progressBetweenTurns.
  */
 export function marsProgressionHook(ctx: ProgressionHookContext): void {
-  const { colonists, yearDelta, year, startYear } = ctx;
+  const { agents, yearDelta, year, startYear } = ctx;
 
-  for (const c of colonists) {
+  for (const c of agents) {
     if (!c.health.alive) continue;
 
     // Radiation accumulation

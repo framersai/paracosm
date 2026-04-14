@@ -4,7 +4,7 @@
  * All types needed to define a ScenarioPackage and interact with the engine.
  */
 
-import type { HexacoProfile, Colonist, SimulationState } from './core/state.js';
+import type { HexacoProfile, Agent, SimulationState } from './core/state.js';
 
 // ---------------------------------------------------------------------------
 // Primitive value types
@@ -225,8 +225,8 @@ export interface ScenarioPreset {
 
 /** Context passed to the scenario progression hook during between-turn advancement. */
 export interface ProgressionHookContext {
-  /** All colonists (mutable: the hook modifies health fields in place) */
-  colonists: Colonist[];
+  /** All agents (mutable: the hook modifies health fields in place) */
+  agents: Agent[];
   yearDelta: number;
   year: number;
   turn: number;
@@ -260,7 +260,7 @@ export interface ScenarioHooks {
   /** Builds the Crisis Director's per-turn context prompt */
   directorPromptHook?: (ctx: Record<string, unknown>) => string;
   /** Returns location/identity/health phrasing for colonist reaction prompts */
-  reactionContextHook?: (colonist: Colonist, ctx: { year: number; turn: number }) => string;
+  reactionContextHook?: (colonist: Agent, ctx: { year: number; turn: number }) => string;
   /** Computes a timeline fingerprint classification from final simulation state */
   fingerprintHook?: (finalState: SimulationState, outcomeLog: Array<{ turn: number; year: number; outcome: string }>, leader: LeaderConfig, toolRegs: Record<string, string[]>, maxTurns: number) => Record<string, string>;
   /** Returns a milestone crisis for narrative anchor turns (turn 1, final turn) */
@@ -333,7 +333,7 @@ export interface SimulationModelConfig {
   departments: string;
   judge: string;
   director: string;
-  colonistReactions?: string;
+  agentReactions?: string;
 }
 
 // ---------------------------------------------------------------------------

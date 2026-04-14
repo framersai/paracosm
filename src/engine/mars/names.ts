@@ -1,6 +1,6 @@
 /**
  * Mars colonist name lists and department distribution.
- * Extracted from kernel/colonist-generator.ts.
+ * Extracted from kernel/agent-generator.ts.
  */
 
 export const MARS_FIRST_NAMES = [

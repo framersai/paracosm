@@ -11,13 +11,14 @@ import { SeededRng } from '../engine/core/rng.js';
 import { classifyOutcome, classifyOutcomeById } from '../engine/core/progression.js';
 import type { DepartmentReport, CommanderDecision, TurnArtifact } from './contracts.js';
 import { SimulationKernel, type PolicyEffect } from '../engine/core/kernel.js';
-import type { KeyPersonnel } from '../engine/core/colonist-generator.js';
+import type { KeyPersonnel } from '../engine/core/agent-generator.js';
 import { getResearchPacket } from './research/research.js';
 import { getResearchFromBundle } from './research/scenario-research.js';
 import { initResearchMemory, recallResearch, closeResearchMemory } from './research/research-memory.js';
 import { buildDepartmentContext, getDepartmentsForTurn } from './departments.js';
 import { CrisisDirector, type DirectorCrisis, type DirectorContext } from './director.js';
-import { generateColonistReactions } from './colonist-reactions.js';
+import { generateAgentReactions } from './agent-reactions.js';
+import { recordReactionMemory, consolidateMemory, updateRelationshipsFromReactions } from './agent-memory.js';
 import type { ScenarioPackage } from '../engine/types.js';
 import type { LlmProvider, SimulationModelConfig } from '../engine/types.js';
 import {
@@ -270,7 +271,7 @@ function parseCmdDecision(text: string, depts: Department[]): CommanderDecision 
 }
 
 function emptyReport(d: Department): DepartmentReport {
-  return { department: d, summary: '', citations: [], risks: [], opportunities: [], recommendedActions: [], proposedPatches: {}, forgedToolsUsed: [], featuredColonistUpdates: [], confidence: 0.7, openQuestions: [], recommendedEffects: [] };
+  return { department: d, summary: '', citations: [], risks: [], opportunities: [], recommendedActions: [], proposedPatches: {}, forgedToolsUsed: [], featuredAgentUpdates: [], confidence: 0.7, openQuestions: [], recommendedEffects: [] };
 }
 function emptyDecision(d: Department[]): CommanderDecision {
   return { decision: '', rationale: '', departmentsConsulted: d, selectedPolicies: [], rejectedPolicies: [], expectedTradeoffs: [], watchMetricsNextTurn: [] };
@@ -283,7 +284,7 @@ function decisionToPolicy(decision: CommanderDecision, reports: DepartmentReport
   for (const r of reports) {
     if (r.proposedPatches.colony) patches.colony = { ...patches.colony, ...r.proposedPatches.colony };
     if (r.proposedPatches.politics) patches.politics = { ...patches.politics, ...r.proposedPatches.politics };
-    if (r.proposedPatches.colonistUpdates) patches.colonistUpdates = [...(patches.colonistUpdates || []), ...r.proposedPatches.colonistUpdates];
+    if (r.proposedPatches.agentUpdates) patches.agentUpdates = [...(patches.agentUpdates || []), ...r.proposedPatches.agentUpdates];
   }
 
   // Apply typed effects selected by commander
@@ -321,7 +322,7 @@ function decisionToPolicy(decision: CommanderDecision, reports: DepartmentReport
 // ---------------------------------------------------------------------------
 
 export type SimEvent = {
-  type: 'turn_start' | 'dept_start' | 'dept_done' | 'forge_attempt' | 'commander_deciding' | 'commander_decided' | 'outcome' | 'drift' | 'colonist_reactions' | 'bulletin' | 'turn_done' | 'promotion';
+  type: 'turn_start' | 'dept_start' | 'dept_done' | 'forge_attempt' | 'commander_deciding' | 'commander_decided' | 'outcome' | 'drift' | 'agent_reactions' | 'bulletin' | 'turn_done' | 'promotion';
   leader: string;
   turn?: number;
   year?: number;
@@ -388,7 +389,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   const cmdSess = commander.session(`${sid}-cmd`);
   await cmdSess.send('You are the colony commander. You receive department reports and make strategic decisions. When the crisis includes options with IDs, you MUST include selectedOptionId in your JSON response. Return JSON with selectedOptionId, decision, rationale, selectedPolicies, rejectedPolicies, expectedTradeoffs, watchMetricsNextTurn. Acknowledge.');
 
-  // Turn 0: Commander promotes department heads from colonist roster
+  // Turn 0: Commander promotes department heads from agent roster
   console.log('  [Turn 0] Commander evaluating roster for promotions...');
   const promotionDepts: Department[] = sc.departments.map(d => d.id as Department);
   const roleNames: Record<string, string> = Object.fromEntries(sc.departments.map(d => [d.id, d.role]));
@@ -411,29 +412,29 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
       const pd = JSON.parse(promoMatch[0]);
       for (const p of pd.promotions || []) {
         try {
-          kernel.promoteColonist(p.colonistId, p.department, p.role, leader.name);
-          console.log(`  ✦ ${p.colonistId} → ${p.role}: ${p.reason?.slice(0, 80)}`);
-          emit('promotion', { colonistId: p.colonistId, department: p.department, role: p.role, reason: p.reason?.slice(0, 120) });
+          kernel.promoteAgent(p.agentId, p.department, p.role, leader.name);
+          console.log(`  ✦ ${p.agentId} → ${p.role}: ${p.reason?.slice(0, 80)}`);
+          emit('promotion', { agentId: p.agentId, department: p.department, role: p.role, reason: p.reason?.slice(0, 120) });
         } catch (err) { console.log(`  ✦ Promotion failed: ${err}`); }
       }
     } catch { /* fallback below */ }
   }
   // Fallback: promote top candidate per dept if commander didn't produce valid JSON
   for (const dept of promotionDepts) {
-    const hasLeader = kernel.getState().colonists.some(c => c.promotion?.department === dept);
+    const hasLeader = kernel.getState().agents.some(c => c.promotion?.department === dept);
     if (!hasLeader) {
       const top = kernel.getCandidates(dept, 1)[0];
       if (top) {
-        kernel.promoteColonist(top.core.id, dept, roleNames[dept] || `Head of ${dept}`, leader.name);
+        kernel.promoteAgent(top.core.id, dept, roleNames[dept] || `Head of ${dept}`, leader.name);
         console.log(`  ✦ [fallback] ${top.core.name} → ${roleNames[dept]}`);
       }
     }
   }
 
-  // Create department agent sessions from promoted colonists
+  // Create department agent sessions from promoted agents
   const deptAgents = new Map<Department, any>();
   const deptSess = new Map<Department, any>();
-  const promoted = kernel.getState().colonists.filter(c => c.promotion);
+  const promoted = kernel.getState().agents.filter(c => c.promotion);
   for (const p of promoted) {
     const dept = p.promotion!.department;
     const cfg = sc.departments.find(c => c.id === dept);
@@ -475,7 +476,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     } else {
       // Build director context from current colony state
       const preState = kernel.getState();
-      const alive = preState.colonists.filter(c => c.health.alive);
+      const alive = preState.agents.filter(c => c.health.alive);
       const dirCtx: DirectorContext = {
         turn, year,
         leaderName: leader.name, leaderArchetype: leader.archetype, leaderHexaco: leader.hexaco,
@@ -486,10 +487,10 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
         recentBirths: preState.eventLog.filter(e => e.turn === turn - 1 && e.type === 'birth').length,
         previousCrises: crisisHistory,
         toolsForged: Object.values(toolRegs).flat(),
-        driftSummary: preState.colonists.filter(c => c.promotion && c.health.alive).slice(0, 4)
+        driftSummary: preState.agents.filter(c => c.promotion && c.health.alive).slice(0, 4)
           .map(c => ({ name: c.core.name, role: c.core.role, openness: c.hexaco.openness, conscientiousness: c.hexaco.conscientiousness })),
         recentToolOutputs: lastTurnToolOutputs,
-        colonistMoodSummary: lastTurnMoodSummary,
+        agentMoodSummary: lastTurnMoodSummary,
       };
       emit('turn_start', { turn, year, title: 'Director generating...', crisis: '', births: 0, deaths: 0, colony: preState.colony });
       const dirInstructions = sc.hooks.directorInstructions?.();
@@ -671,16 +672,16 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
 
     kernel.applyPolicy(decisionToPolicy(decision, reports, turn, year));
 
-    // Apply featured colonist updates
-    const colonistUpdates = reports.flatMap(r =>
-      (r.featuredColonistUpdates || []).filter(u => u && u.colonistId && u.updates).map(u => ({
-        colonistId: u.colonistId,
+    // Apply featured agent updates
+    const agentUpdates = reports.flatMap(r =>
+      (r.featuredAgentUpdates || []).filter(u => u && u.agentId && u.updates).map(u => ({
+        agentId: u.agentId,
         health: u.updates?.health,
         career: u.updates?.career,
         narrativeEvent: u.updates?.narrative?.event,
       }))
     );
-    if (colonistUpdates.length) kernel.applyColonistUpdates(colonistUpdates);
+    if (agentUpdates.length) kernel.applyAgentUpdates(agentUpdates);
 
     // Classify outcome using structured option IDs
     const outcomeRng = new SeededRng(seed).turnSeed(turn + 1000);
@@ -736,15 +737,15 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     emit('outcome', { turn, year, outcome, riskyOption: scenario.riskyOption, category: crisis.category, emergent: !milestone, colonyDeltas });
 
     // Log drift
-    const drifted = kernel.getState().colonists.filter(c => c.promotion && c.health.alive);
+    const drifted = kernel.getState().agents.filter(c => c.promotion && c.health.alive);
     const driftData: Record<string, { name: string; hexaco: any }> = {};
     for (const p of drifted.slice(0, 5)) {
       const h = p.hexaco;
       driftData[p.core.id] = { name: p.core.name, hexaco: { O: +h.openness.toFixed(2), C: +h.conscientiousness.toFixed(2), E: +h.extraversion.toFixed(2), A: +h.agreeableness.toFixed(2) } };
     }
-    emit('drift', { turn, year, colonists: driftData });
+    emit('drift', { turn, year, agents: driftData });
 
-    // Generate colonist reactions in parallel (all alive colonists, cheap model)
+    // Generate colonist reactions in parallel (all alive agents, cheap model)
     const reactionCtx = {
       crisisTitle: crisis.title, crisisCategory: crisis.category,
       outcome, decision: decision.decision.slice(0, 200),
@@ -752,22 +753,50 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
       colonyPopulation: kernel.getState().colony.population,
     };
     try {
-      const reactions = await generateColonistReactions(
-        kernel.getState().colonists, reactionCtx,
-        { provider, model: modelConfig.colonistReactions || 'gpt-4o-mini', maxConcurrent: 25, reactionContextHook: sc.hooks.reactionContextHook },
+      const reactions = await generateAgentReactions(
+        kernel.getState().agents, reactionCtx,
+        { provider, model: modelConfig.agentReactions || 'gpt-4o-mini', maxConcurrent: 25, reactionContextHook: sc.hooks.reactionContextHook },
       );
       if (reactions.length) {
         // Emit top 8 most intense reactions for dashboard display
-        emit('colonist_reactions', {
+        // Build memory summaries for display
+        const agentMap = new Map(kernel.getState().agents.map(c => [c.core.id, c]));
+        emit('agent_reactions', {
           turn, year,
-          reactions: reactions.slice(0, 8).map(r => ({
-            name: r.name, age: r.age, department: r.department, role: r.role,
-            specialization: r.specialization, marsborn: r.marsborn,
-            quote: r.quote, mood: r.mood, intensity: r.intensity,
-            hexaco: r.hexaco, psychScore: r.psychScore, boneDensity: r.boneDensity, radiation: r.radiation,
-          })),
+          reactions: reactions.slice(0, 8).map(r => {
+            const agent = agentMap.get(r.agentId);
+            const mem = agent?.memory;
+            return {
+              name: r.name, age: r.age, department: r.department, role: r.role,
+              specialization: r.specialization, marsborn: r.marsborn,
+              quote: r.quote, mood: r.mood, intensity: r.intensity,
+              hexaco: r.hexaco, psychScore: r.psychScore, boneDensity: r.boneDensity, radiation: r.radiation,
+              agentId: r.agentId,
+              memory: mem ? {
+                recentMemories: mem.shortTerm.slice(-3).map(m => ({ year: m.year, content: m.content, valence: m.valence })),
+                beliefs: mem.longTerm.slice(-3),
+                stances: Object.entries(mem.stances).filter(([, v]) => Math.abs(v) > 0.2).map(([k, v]) => ({ topic: k, value: v })),
+                relationships: Object.entries(mem.relationships)
+                  .filter(([, v]) => Math.abs(v) > 0.2)
+                  .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+                  .slice(0, 3)
+                  .map(([id, v]) => ({ name: agentMap.get(id)?.core.name || id, sentiment: v })),
+              } : null,
+            };
+          }),
           totalReactions: reactions.length,
         });
+        // Record reactions into persistent memory
+        for (const r of reactions) {
+          const c = agentMap.get(r.agentId);
+          if (c) recordReactionMemory(c, r, crisis.title, crisis.category, outcome, turn, year);
+        }
+        updateRelationshipsFromReactions(kernel.getState().agents, reactions);
+        // Consolidate any overflowing short-term memories
+        for (const c of kernel.getState().agents) {
+          if (c.health.alive) consolidateMemory(c);
+        }
+
         // Summarize mood for next turn's director
         const moodCounts: Record<string, number> = {};
         for (const r of reactions) moodCounts[r.mood] = (moodCounts[r.mood] || 0) + 1;
@@ -786,7 +815,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
         emit('bulletin', { turn, year, posts: bulletinPosts });
       }
     } catch (err) {
-      console.log(`  [colonists] Reaction generation failed: ${err}`);
+      console.log(`  [agents] Reaction generation failed: ${err}`);
     }
 
     const after = kernel.getState();
@@ -808,7 +837,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
 
   // Build colonist trajectories for promoted leaders
   const trajectories = Object.fromEntries(
-    final.colonists
+    final.agents
       .filter(c => c.promotion && c.hexacoHistory.length > 1)
       .map(c => [c.core.id, {
         name: c.core.name,
@@ -827,7 +856,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   const output = {
     simulation: `${sc.id}-v3`, leader: { name: leader.name, archetype: leader.archetype, colony: leader.colony, hexaco: leader.hexaco },
     turnArtifacts: artifacts, finalState: final, toolRegistries: toolRegs,
-    colonistTrajectories: trajectories,
+    agentTrajectories: trajectories,
     outcomeClassifications: outcomeLog,
     fingerprint,
     totalCitations: artifacts.reduce((s, t) => s + t.departmentReports.reduce((s2, r) => s2 + r.citations.length, 0), 0),

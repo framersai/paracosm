@@ -15,7 +15,7 @@ const makeState = (overrides: any = {}) => ({
     lifeSupportCapacity: 120, infrastructureModules: 3,
     scienceOutput: 0, morale: 0.85,
   },
-  colonists: [{
+  agents: [{
     core: { id: 'col-1', name: 'Alex Rivera', birthYear: 2020, marsborn: false, department: 'science', role: 'Analyst' },
     hexaco: { openness: 0.5, conscientiousness: 0.5, extraversion: 0.5, agreeableness: 0.5, emotionality: 0.5, honestyHumility: 0.5 },
     hexacoHistory: [],
@@ -23,6 +23,7 @@ const makeState = (overrides: any = {}) => ({
     career: { yearsExperience: 2, specialization: 'Operations', rank: 'junior', achievements: [] },
     social: { earthContacts: 2, childrenIds: [], friendIds: [] },
     narrative: { featured: false, lifeEvents: [] },
+    memory: { shortTerm: [], longTerm: [], stances: {}, relationships: {} },
   }],
   politics: { earthDependencyPct: 95, governanceStatus: 'earth-governed', independencePressure: 0.05 },
   eventLog: [],
@@ -31,17 +32,17 @@ const makeState = (overrides: any = {}) => ({
 
 test('progressBetweenTurns with Mars hook applies radiation and bone density', () => {
   const { state } = progressBetweenTurns(makeState() as any, 1, new SeededRng(950), marsProgressionHook);
-  assert.equal(state.colonists[0].health.boneDensityPct, 99.5);
-  assert.ok(state.colonists[0].health.cumulativeRadiationMsv > 200);
+  assert.equal(state.agents[0].health.boneDensityPct, 99.5);
+  assert.ok(state.agents[0].health.cumulativeRadiationMsv > 200);
 });
 
 test('progressBetweenTurns without hook does not apply radiation or bone density', () => {
   const { state } = progressBetweenTurns(makeState() as any, 1, new SeededRng(950));
-  assert.equal(state.colonists[0].health.boneDensityPct, 100);
-  assert.equal(state.colonists[0].health.cumulativeRadiationMsv, 0);
+  assert.equal(state.agents[0].health.boneDensityPct, 100);
+  assert.equal(state.agents[0].health.cumulativeRadiationMsv, 0);
 });
 
 test('progressBetweenTurns still ages colonists and progresses careers without hook', () => {
   const { state } = progressBetweenTurns(makeState() as any, 1, new SeededRng(950));
-  assert.equal(state.colonists[0].career.yearsExperience, 3);
+  assert.equal(state.agents[0].career.yearsExperience, 3);
 });

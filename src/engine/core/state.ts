@@ -35,7 +35,7 @@ export interface LifeEvent {
   source: Department | 'kernel' | 'commander';
 }
 
-export interface ColonistCore {
+export interface AgentCore {
   id: string;
   name: string;
   birthYear: number;
@@ -44,7 +44,7 @@ export interface ColonistCore {
   role: string;
 }
 
-export interface ColonistHealth {
+export interface AgentHealth {
   alive: boolean;
   deathYear?: number;
   deathCause?: string;
@@ -54,7 +54,7 @@ export interface ColonistHealth {
   conditions: string[];
 }
 
-export interface ColonistCareer {
+export interface AgentCareer {
   specialization: string;
   yearsExperience: number;
   rank: 'junior' | 'senior' | 'lead' | 'chief';
@@ -62,30 +62,60 @@ export interface ColonistCareer {
   currentProject?: string;
 }
 
-export interface ColonistSocial {
+export interface AgentSocial {
   partnerId?: string;
   childrenIds: string[];
   friendIds: string[];
   earthContacts: number;
 }
 
-export interface ColonistNarrative {
+export interface AgentNarrative {
   lifeEvents: LifeEvent[];
   featured: boolean;
 }
 
-export interface Colonist {
-  core: ColonistCore;
-  health: ColonistHealth;
-  career: ColonistCareer;
-  social: ColonistSocial;
-  narrative: ColonistNarrative;
+/** A single memory entry from a agent's persistent memory. */
+export interface AgentMemoryEntry {
+  /** Turn when this memory was formed */
+  turn: number;
+  /** Simulated year */
+  year: number;
+  /** What the agent remembers (1-2 sentences) */
+  content: string;
+  /** Emotional valence of the memory */
+  valence: 'positive' | 'negative' | 'neutral';
+  /** Category of event that created this memory */
+  category: string;
+  /** Salience score 0-1 (higher = more likely to be recalled in future prompts) */
+  salience: number;
+}
+
+/** Persistent memory state for a agent across simulation turns. */
+export interface AgentMemory {
+  /** Recent memories (last 3-5 turns, full detail) */
+  shortTerm: AgentMemoryEntry[];
+  /** Consolidated long-term beliefs and relationships (auto-summarized) */
+  longTerm: string[];
+  /** Stance on recurring themes, -1 to 1 (e.g., "independence": 0.7) */
+  stances: Record<string, number>;
+  /** Relationship sentiment toward other agents by ID, -1 to 1 */
+  relationships: Record<string, number>;
+}
+
+export interface Agent {
+  core: AgentCore;
+  health: AgentHealth;
+  career: AgentCareer;
+  social: AgentSocial;
+  narrative: AgentNarrative;
   hexaco: HexacoProfile;
   promotion?: PromotionRecord;
   hexacoHistory: HexacoSnapshot[];
+  /** Persistent memory that accumulates across turns */
+  memory: AgentMemory;
 }
 
-export interface ColonySystems {
+export interface WorldSystems {
   population: number;
   powerKw: number;
   foodMonthsReserve: number;
@@ -97,7 +127,7 @@ export interface ColonySystems {
   morale: number;
 }
 
-export interface ColonyPolitics {
+export interface WorldPolitics {
   earthDependencyPct: number;
   governanceStatus: 'earth-governed' | 'commonwealth' | 'independent';
   independencePressure: number;
@@ -117,14 +147,14 @@ export interface TurnEvent {
   year: number;
   type: 'crisis' | 'decision' | 'birth' | 'death' | 'promotion' | 'relationship' | 'tool_forge' | 'system';
   description: string;
-  colonistId?: string;
+  agentId?: string;
   data?: Record<string, unknown>;
 }
 
 export interface SimulationState {
   metadata: SimulationMetadata;
-  colony: ColonySystems;
-  colonists: Colonist[];
-  politics: ColonyPolitics;
+  colony: WorldSystems;
+  agents: Agent[];
+  politics: WorldPolitics;
   eventLog: TurnEvent[];
 }

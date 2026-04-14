@@ -1,15 +1,15 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 
-type Theme = 'light' | 'dark' | 'system';
+type Theme = 'light' | 'dark';
 
 interface ThemeContextValue {
   theme: Theme;
-  resolved: 'light' | 'dark';
+  resolved: Theme;
   setTheme: (theme: Theme) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue>({
-  theme: 'system',
+  theme: 'dark',
   resolved: 'dark',
   setTheme: () => {},
 });
@@ -18,22 +18,11 @@ export function useTheme() {
   return useContext(ThemeContext);
 }
 
-function getSystemTheme(): 'light' | 'dark' {
-  if (typeof window === 'undefined') return 'dark';
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-}
-
-function resolveTheme(theme: Theme): 'light' | 'dark' {
-  return theme === 'system' ? getSystemTheme() : theme;
-}
-
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
-    if (typeof window === 'undefined') return 'system';
-    return (localStorage.getItem('paracosm-theme') as Theme) || 'system';
+    if (typeof window === 'undefined') return 'dark';
+    return (localStorage.getItem('paracosm-theme') as Theme) || 'dark';
   });
-
-  const resolved = resolveTheme(theme);
 
   const setTheme = (t: Theme) => {
     setThemeState(t);
@@ -42,20 +31,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const root = document.documentElement;
-    root.classList.toggle('dark', resolved === 'dark');
-    root.classList.toggle('light', resolved === 'light');
-  }, [resolved]);
-
-  useEffect(() => {
-    if (theme !== 'system') return;
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const handler = () => setThemeState('system'); // trigger re-render
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
+    // Dark is the CSS default (:root). Light is a class override.
+    root.classList.toggle('light', theme === 'light');
   }, [theme]);
 
   return (
-    <ThemeContext.Provider value={{ theme, resolved, setTheme }}>
+    <ThemeContext.Provider value={{ theme, resolved: theme, setTheme }}>
       {children}
     </ThemeContext.Provider>
   );

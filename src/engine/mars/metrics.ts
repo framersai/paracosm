@@ -11,7 +11,7 @@ export interface ScenarioMetric {
   format: 'number' | 'percent' | 'currency' | 'duration' | 'string';
 }
 
-/** Colony systems metrics (from ColonySystems in kernel/state.ts) */
+/** Colony systems metrics (from WorldSystems in kernel/state.ts) */
 export const MARS_WORLD_METRICS: ScenarioMetric[] = [
   { id: 'population', label: 'Population', unit: '', type: 'number', initial: 100, min: 0, category: 'metric', showInHeader: true, format: 'number' },
   { id: 'powerKw', label: 'Power', unit: 'kW', type: 'number', initial: 400, min: 0, category: 'metric', showInHeader: true, format: 'number' },
@@ -23,17 +23,17 @@ export const MARS_WORLD_METRICS: ScenarioMetric[] = [
   { id: 'morale', label: 'Morale', unit: '%', type: 'number', initial: 0.85, min: 0, max: 1, category: 'metric', showInHeader: true, format: 'percent' },
 ];
 
-/** Capacity metrics (from ColonySystems) */
+/** Capacity metrics (from WorldSystems) */
 export const MARS_CAPACITY_METRICS: ScenarioMetric[] = [
   { id: 'lifeSupportCapacity', label: 'Life Support Cap', unit: '', type: 'number', initial: 120, min: 0, category: 'capacity', showInHeader: false, format: 'number' },
 ];
 
-/** Status metrics (from ColonyPolitics) */
+/** Status metrics (from WorldPolitics) */
 export const MARS_STATUS_METRICS: ScenarioMetric[] = [
   { id: 'governanceStatus', label: 'Governance', unit: '', type: 'string', initial: 'earth-governed', category: 'status', showInHeader: false, format: 'string' },
 ];
 
-/** Politics metrics (from ColonyPolitics) */
+/** Politics metrics (from WorldPolitics) */
 export const MARS_POLITICS_METRICS: ScenarioMetric[] = [
   { id: 'earthDependencyPct', label: 'Earth Dependency', unit: '%', type: 'number', initial: 95, min: 0, max: 100, category: 'politic', showInHeader: false, format: 'percent' },
   { id: 'independencePressure', label: 'Independence Pressure', unit: '%', type: 'number', initial: 0.05, min: 0, max: 1, category: 'politic', showInHeader: false, format: 'percent' },

@@ -22,7 +22,7 @@ test('golden-run: 3-turn kernel produces deterministic population and state', ()
   });
 
   const initial = kernel.getState();
-  assert.equal(initial.colonists.length, 100);
+  assert.equal(initial.agents.length, 100);
   assert.equal(initial.colony.population, 100);
   assert.equal(initial.metadata.seed, SEED);
   assert.equal(initial.metadata.startYear, 2035);
@@ -44,13 +44,13 @@ test('golden-run: 3-turn kernel produces deterministic population and state', ()
 
   // Golden assertions: these values are deterministic from seed 950
   // If any of these fail after a code change, the kernel behavior changed
-  const alive = t3.colonists.filter(c => c.health.alive);
-  const dead = t3.colonists.filter(c => !c.health.alive);
-  const marsBorn = t3.colonists.filter(c => c.core.marsborn);
+  const alive = t3.agents.filter(c => c.health.alive);
+  const dead = t3.agents.filter(c => !c.health.alive);
+  const marsBorn = t3.agents.filter(c => c.core.marsborn);
 
   // Population should be close to 100 (some births, some deaths possible over 8 years)
   assert.ok(alive.length >= 90, `Expected >= 90 alive, got ${alive.length}`);
-  assert.ok(t3.colonists.length >= 100, `Expected >= 100 total colonists (births), got ${t3.colonists.length}`);
+  assert.ok(t3.agents.length >= 100, `Expected >= 100 total colonists (births), got ${t3.agents.length}`);
 
   // Radiation should accumulate over 8 years (2035 -> 2043)
   const avgRad = alive.reduce((s, c) => s + c.health.cumulativeRadiationMsv, 0) / alive.length;
@@ -77,11 +77,11 @@ test('golden-run: same seed produces identical colonist roster', () => {
   const s2 = k2.getState();
 
   // Same seed = same colonists (names, departments, HEXACO)
-  assert.equal(s1.colonists.length, s2.colonists.length);
-  for (let i = 0; i < s1.colonists.length; i++) {
-    assert.equal(s1.colonists[i].core.name, s2.colonists[i].core.name);
-    assert.equal(s1.colonists[i].core.department, s2.colonists[i].core.department);
-    assert.deepEqual(s1.colonists[i].hexaco, s2.colonists[i].hexaco);
+  assert.equal(s1.agents.length, s2.agents.length);
+  for (let i = 0; i < s1.agents.length; i++) {
+    assert.equal(s1.agents[i].core.name, s2.agents[i].core.name);
+    assert.equal(s1.agents[i].core.department, s2.agents[i].core.department);
+    assert.deepEqual(s1.agents[i].hexaco, s2.agents[i].hexaco);
   }
 });
 
@@ -94,8 +94,8 @@ test('golden-run: different seeds produce different rosters', () => {
 
   // Different seeds should produce different colonist names (at least some)
   let differences = 0;
-  for (let i = 0; i < Math.min(s1.colonists.length, s2.colonists.length); i++) {
-    if (s1.colonists[i].core.name !== s2.colonists[i].core.name) differences++;
+  for (let i = 0; i < Math.min(s1.agents.length, s2.agents.length); i++) {
+    if (s1.agents[i].core.name !== s2.agents[i].core.name) differences++;
   }
   assert.ok(differences > 10, `Expected many different names between seeds, got ${differences} differences`);
 });

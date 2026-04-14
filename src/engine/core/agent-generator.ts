@@ -1,4 +1,4 @@
-import type { Colonist, Department, HexacoProfile } from './state.js';
+import type { Agent, Department, HexacoProfile } from './state.js';
 import { SeededRng } from './rng.js';
 
 function randomHexaco(rng: SeededRng): HexacoProfile {
@@ -65,9 +65,9 @@ export function generateInitialPopulation(
   startYear: number,
   keyPersonnel: KeyPersonnel[],
   totalPopulation: number = 100,
-): Colonist[] {
+): Agent[] {
   const rng = new SeededRng(seed);
-  const colonists: Colonist[] = [];
+  const colonists: Agent[] = [];
   const usedNames = new Set<string>();
 
   for (const kp of keyPersonnel) {
@@ -105,7 +105,7 @@ function createColonist(
   name: string, birthYear: number, department: Department,
   role: string, specialization: string, marsborn: boolean, featured: boolean,
   hexaco: HexacoProfile, startYear: number,
-): Colonist {
+): Agent {
   return {
     core: { id: `col-${name.toLowerCase().replace(/\s+/g, '-')}`, name, birthYear, marsborn, department, role },
     health: { alive: true, boneDensityPct: marsborn ? 88 : 100, cumulativeRadiationMsv: 0, psychScore: 0.8, conditions: [] },
@@ -114,5 +114,6 @@ function createColonist(
     narrative: { lifeEvents: [], featured },
     hexaco,
     hexacoHistory: [{ turn: 0, year: startYear, hexaco: { ...hexaco } }],
+    memory: { shortTerm: [], longTerm: [], stances: {}, relationships: {} },
   };
 }

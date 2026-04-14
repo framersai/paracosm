@@ -1,5 +1,5 @@
 export function buildPromotionPrompt(candidateSummaries: string): string {
-  return `You must promote 5 colonists to department head roles. Evaluate these candidates based on their personality traits and specialization. Choose people who align with YOUR leadership style.\n\n${candidateSummaries}\n\nReturn JSON: {"promotions":[{"colonistId":"col-...","department":"medical","role":"Chief Medical Officer","reason":"..."},...]}`;
+  return `You must promote 5 colonists to department head roles. Evaluate these candidates based on their personality traits and specialization. Choose people who align with YOUR leadership style.\n\n${candidateSummaries}\n\nReturn JSON: {"promotions":[{"agentId":"col-...","department":"medical","role":"Chief Medical Officer","reason":"..."},...]}`;
 }
 
 export function applyCustomEventToCrisis<T extends { crisis: string; turnSummary: string }>(

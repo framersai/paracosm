@@ -8,45 +8,45 @@ interface ToolbarProps {
   onClear: () => void;
 }
 
+const btnStyle = {
+  background: 'var(--bg-card)',
+  color: 'var(--text-secondary)',
+  border: '1px solid var(--border-primary)',
+  padding: '3px 12px',
+  borderRadius: '3px',
+  fontSize: '10px',
+  cursor: 'pointer',
+  fontWeight: 600,
+  fontFamily: 'var(--font-sans)',
+};
+
 export function Toolbar({ state, onSave, onLoad, onClear }: ToolbarProps) {
   const scenario = useScenarioContext();
   const hasEvents = state.a.events.length > 0 || state.b.events.length > 0;
 
   return (
     <div
-      className="flex items-center gap-2 px-4 py-1.5 border-b text-xs shrink-0"
-      style={{ background: 'var(--bg-tertiary)', borderColor: 'var(--border-subtle)' }}
+      className="shrink-0"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px',
+        padding: '3px 16px',
+        background: 'var(--bg-secondary)',
+        borderBottom: '1px solid var(--border-primary)',
+        fontSize: '10px',
+      }}
     >
-      <span className="font-mono font-bold text-[10px] tracking-wider" style={{ color: 'var(--accent-primary)' }}>
-        {scenario.id.toUpperCase()}
+      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--amber)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+        {scenario.id}
       </span>
-
-      <div className="flex-1" />
-
+      <div style={{ flex: 1 }} />
       {hasEvents && (
-        <button
-          onClick={onSave}
-          className="px-2.5 py-1 rounded text-[11px] font-semibold cursor-pointer transition-colors"
-          style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}
-        >
-          Save Game
-        </button>
+        <button onClick={onSave} style={btnStyle}>Save</button>
       )}
-      <button
-        onClick={onLoad}
-        className="px-2.5 py-1 rounded text-[11px] font-semibold cursor-pointer transition-colors"
-        style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}
-      >
-        Load Game
-      </button>
+      <button onClick={onLoad} style={btnStyle}>Load Game</button>
       {hasEvents && (
-        <button
-          onClick={onClear}
-          className="px-2.5 py-1 rounded text-[11px] font-semibold cursor-pointer transition-colors"
-          style={{ background: 'var(--bg-elevated)', color: 'var(--color-error)', border: '1px solid var(--border-subtle)' }}
-        >
-          Clear
-        </button>
+        <button onClick={onClear} style={{ ...btnStyle, color: 'var(--rust)' }}>Clear</button>
       )}
     </div>
   );

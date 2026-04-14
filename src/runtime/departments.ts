@@ -1,4 +1,4 @@
-import type { Department, SimulationState, Colonist } from '../engine/core/state.js';
+import type { Department, SimulationState, Agent } from '../engine/core/state.js';
 import type { DepartmentReport, CrisisResearchPacket } from './contracts.js';
 import type { Scenario } from '../engine/types.js';
 
@@ -20,7 +20,7 @@ You MUST use forge_tool at least once per turn to create a computational model r
 
 After forging the tool, report what it computed in forgedToolsUsed.
 
-Return your analysis as JSON: {"department":"medical","summary":"...","citations":[{"text":"...","url":"...","context":"..."}],"risks":[{"severity":"low|medium|high|critical","description":"..."}],"opportunities":[{"impact":"low|medium|high","description":"..."}],"recommendedActions":["..."],"proposedPatches":{},"forgedToolsUsed":[{"name":"tool_name","mode":"sandbox","description":"what it does","output":{},"confidence":0.9}],"featuredColonistUpdates":[],"confidence":0.85,"openQuestions":[],"recommendedEffects":[{"id":"effect_1","type":"resource_shift|capacity_expansion|risk_mitigation|social_investment|research_bet","description":"...","colonyDelta":{"morale":0.05}}]}`,
+Return your analysis as JSON: {"department":"medical","summary":"...","citations":[{"text":"...","url":"...","context":"..."}],"risks":[{"severity":"low|medium|high|critical","description":"..."}],"opportunities":[{"impact":"low|medium|high","description":"..."}],"recommendedActions":["..."],"proposedPatches":{},"forgedToolsUsed":[{"name":"tool_name","mode":"sandbox","description":"what it does","output":{},"confidence":0.9}],"featuredAgentUpdates":[],"confidence":0.85,"openQuestions":[],"recommendedEffects":[{"id":"effect_1","type":"resource_shift|capacity_expansion|risk_mitigation|social_investment|research_bet","description":"...","colonyDelta":{"morale":0.05}}]}`,
   },
   {
     department: 'engineering',
@@ -83,12 +83,12 @@ export function buildDepartmentContext(
   previousTurns?: DepartmentTurnMemory[],
   departmentPromptHook?: (ctx: { department: string; state: SimulationState; scenario: Scenario; researchPacket: CrisisResearchPacket }) => string[],
 ): string {
-  const alive = state.colonists.filter(c => c.health.alive);
+  const alive = state.agents.filter(c => c.health.alive);
   const featured = alive.filter(c => c.narrative.featured);
   const deptNote = researchPacket.departmentNotes[dept] || '';
 
   // Inject promoted leader's evolving HEXACO profile
-  const leader = state.colonists.find(c => c.promotion?.department === dept && c.health.alive);
+  const leader = state.agents.find(c => c.promotion?.department === dept && c.health.alive);
   const hexacoBlock: string[] = [];
   if (leader) {
     const h = leader.hexaco;

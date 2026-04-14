@@ -4,7 +4,7 @@ import type { SimulationState } from '../core/state.js';
  * Lunar-specific department prompt context lines.
  */
 export function lunarDepartmentPromptLines(dept: string, state: SimulationState): string[] {
-  const alive = state.colonists.filter(c => c.health.alive);
+  const alive = state.agents.filter(c => c.health.alive);
   const lines: string[] = [];
 
   switch (dept) {

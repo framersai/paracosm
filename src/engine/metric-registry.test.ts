@@ -43,7 +43,7 @@ test('MetricRegistry.getHeaderMetrics returns only metrics flagged for header', 
   }
 });
 
-test('Mars world metrics include all ColonySystems fields', () => {
+test('Mars world metrics include all WorldSystems fields', () => {
   const ids = MARS_WORLD_METRICS.map(m => m.id);
   assert.ok(ids.includes('population'));
   assert.ok(ids.includes('powerKw'));
