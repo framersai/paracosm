@@ -34,13 +34,13 @@ function SideColumn({ side, sideState, state }: { side: Side; sideState: SideSta
 
       <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '5px 8px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
         {!isWaiting && sideState.events.length === 0 && state.isRunning && (
-          <div style={{ color: 'var(--text-3)', fontSize: '12px', padding: '12px 10px' }} role="status">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-              <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', background: sideColor, animation: 'pulse 1.5s infinite' }} />
-              <span style={{ fontFamily: 'var(--mono)', fontSize: '11px', fontWeight: 600 }}>Generating crisis...</span>
+          <div style={{ color: 'var(--text-3)', fontSize: '12px', padding: '16px 12px' }} role="status">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+              <span className="spinner" style={{ borderTopColor: sideColor }} />
+              <span style={{ fontFamily: 'var(--mono)', fontSize: '12px', fontWeight: 600, color: 'var(--text-2)' }}>Generating crisis...</span>
             </div>
-            <div style={{ fontSize: '11px', color: 'var(--text-4)', lineHeight: 1.5 }}>
-              The Crisis Director is analyzing colony state and decision history to generate a unique crisis for this turn.
+            <div style={{ fontSize: '12px', color: 'var(--text-3)', lineHeight: 1.6 }}>
+              The Crisis Director is reading swarm state and decision history to generate a crisis targeting current weaknesses.
             </div>
           </div>
         )}

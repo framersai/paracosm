@@ -12,98 +12,22 @@ interface TopBarProps {
 }
 
 /**
- * Animated Paracosm orbital node graph.
- * Hub pulses, nodes orbit slowly, structural lines breathe.
+ * Animated Paracosm logo. Exact brand SVG structure with subtle
+ * glow/pulse/breathe animations. Node positions never move.
  */
 function ParacosmLogo({ size = 20 }: { size?: number }) {
   const { resolved } = useTheme();
   const light = resolved === 'light';
-
-  const hub = light ? '#7a5200' : '#e8b44a';
-  const rust = light ? '#a83810' : '#e06530';
-  const amber = light ? '#7a5200' : '#e8b44a';
-  const teal = light ? '#186060' : '#4ca8a8';
-  const line = light ? '#8a7e6c' : '#f5f0e4';
-
-  // Node positions: 6 nodes at 60deg intervals, starting at -75deg
-  const cx = 32, cy = 32, orbitR = 21.76, hubR = 5.12, nodeR = 3.52;
-  const nodes = Array.from({ length: 6 }, (_, i) => {
-    const a = (i * 60 - 75) * Math.PI / 180;
-    return { x: cx + Math.cos(a) * orbitR, y: cy + Math.sin(a) * orbitR };
-  });
-  const colors = [rust, amber, teal, rust, teal, amber];
+  const src = light ? '/brand/icons/paracosm-icon-64-light.svg' : '/brand/icons/paracosm-icon-64.svg';
 
   return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 64 64"
-      width={size}
-      height={size}
-      role="img"
-      aria-label="Paracosm"
-      style={{ display: 'block' }}
-    >
-      <defs>
-        <radialGradient id="hub-glow">
-          <stop offset="0%" stopColor={hub} stopOpacity="0.25" />
-          <stop offset="100%" stopColor={hub} stopOpacity="0" />
-        </radialGradient>
-      </defs>
-
-      <style>{`
-        @keyframes pc-orbit { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        @keyframes pc-orbit-rev { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
-        @keyframes pc-hub-pulse { 0%, 100% { r: ${hubR}; opacity: 1; } 50% { r: ${hubR * 1.12}; opacity: 0.85; } }
-        @keyframes pc-glow-pulse { 0%, 100% { r: ${hubR * 1.8}; opacity: 0.06; } 50% { r: ${hubR * 2.4}; opacity: 0.12; } }
-        @keyframes pc-line-breathe { 0%, 100% { opacity: 0.5; } 50% { opacity: 0.3; } }
-        @keyframes pc-cross-breathe { 0%, 100% { opacity: 0.18; } 50% { opacity: 0.08; } }
-        @keyframes pc-node-float { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(0, -0.4px); } }
-        .pc-orbit-ring { animation: pc-orbit 90s linear infinite; transform-origin: 32px 32px; }
-        .pc-cross-ring { animation: pc-orbit-rev 120s linear infinite; transform-origin: 32px 32px; }
-        .pc-hub { animation: pc-hub-pulse 4s ease-in-out infinite; }
-        .pc-hub-glow { animation: pc-glow-pulse 4s ease-in-out infinite; }
-        .pc-spoke { animation: pc-line-breathe 6s ease-in-out infinite; }
-        .pc-cross { animation: pc-cross-breathe 8s ease-in-out infinite; }
-        .pc-n0 { animation: pc-node-float 5s ease-in-out infinite; }
-        .pc-n1 { animation: pc-node-float 5s ease-in-out 0.8s infinite; }
-        .pc-n2 { animation: pc-node-float 5s ease-in-out 1.6s infinite; }
-        .pc-n3 { animation: pc-node-float 5s ease-in-out 2.4s infinite; }
-        .pc-n4 { animation: pc-node-float 5s ease-in-out 3.2s infinite; }
-        .pc-n5 { animation: pc-node-float 5s ease-in-out 4.0s infinite; }
-        @media (prefers-reduced-motion: reduce) {
-          .pc-orbit-ring, .pc-cross-ring, .pc-hub, .pc-hub-glow, .pc-spoke, .pc-cross,
-          .pc-n0, .pc-n1, .pc-n2, .pc-n3, .pc-n4, .pc-n5 { animation: none !important; }
-        }
-      `}</style>
-
-      {/* Hub-to-node spokes — rotate slowly */}
-      <g className="pc-orbit-ring">
-        {nodes.map((n, i) => (
-          <line key={`s${i}`} className="pc-spoke" x1={cx} y1={cy} x2={n.x} y2={n.y} stroke={line} strokeWidth="1.6" />
-        ))}
-      </g>
-
-      {/* Cross-connections — counter-rotate */}
-      <g className="pc-cross-ring">
-        {nodes.map((n, i) => {
-          const j = (i + 2) % 6;
-          return <line key={`c${i}`} className="pc-cross" x1={n.x} y1={n.y} x2={nodes[j].x} y2={nodes[j].y} stroke={line} strokeWidth="1.1" />;
-        })}
-      </g>
-
-      {/* Hub glow */}
-      <circle className="pc-hub-glow" cx={cx} cy={cy} r={hubR * 1.8} fill="url(#hub-glow)" />
-
-      {/* Hub */}
-      <circle className="pc-hub" cx={cx} cy={cy} r={hubR} fill={hub} />
-
-      {/* Nodes — orbit with the spokes, float individually */}
-      <g className="pc-orbit-ring">
-        {nodes.map((n, i) => (
-          <circle key={`n${i}`} className={`pc-n${i}`} cx={n.x} cy={n.y} r={nodeR} fill={colors[i]} />
-        ))}
-      </g>
-    </svg>
+    <span style={{ display: 'block', width: size, height: size, position: 'relative' }}>
+      <img src={src} width={size} height={size} alt="Paracosm" style={{ display: 'block' }} />
+      <span className="pc-logo-glow" style={{
+        position: 'absolute', inset: '-30%', borderRadius: '50%', pointerEvents: 'none',
+        background: `radial-gradient(circle, ${light ? 'rgba(122,82,0,.12)' : 'rgba(232,180,74,.15)'} 0%, transparent 70%)`,
+      }} />
+    </span>
   );
 }
 
