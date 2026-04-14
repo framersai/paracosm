@@ -12,21 +12,29 @@ interface TopBarProps {
 function ParacosmLogo({ size = 20 }: { size?: number }) {
   return (
     <svg viewBox="0 0 64 64" width={size} height={size} xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Paracosm logo">
-      <defs>
-        <linearGradient id="plogo" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="var(--rust, #e06530)" />
-          <stop offset="50%" stopColor="var(--amber, #e8b44a)" />
-          <stop offset="100%" stopColor="var(--teal, #4ca8a8)" />
-        </linearGradient>
-      </defs>
-      <circle cx="32" cy="32" r="8" fill="url(#plogo)" />
-      <circle cx="32" cy="12" r="4" fill="var(--rust, #e06530)" opacity="0.9" />
-      <circle cx="48" cy="20" r="4" fill="var(--amber, #e8b44a)" opacity="0.9" />
-      <circle cx="48" cy="44" r="4" fill="var(--teal, #4ca8a8)" opacity="0.9" />
-      <circle cx="32" cy="52" r="4" fill="var(--teal, #4ca8a8)" opacity="0.9" />
-      <circle cx="16" cy="44" r="4" fill="var(--amber, #e8b44a)" opacity="0.9" />
-      <circle cx="16" cy="20" r="4" fill="var(--rust, #e06530)" opacity="0.9" />
-      <path d="M32 32L32 12M32 32L48 20M32 32L48 44M32 32L32 52M32 32L16 44M32 32L16 20" stroke="url(#plogo)" strokeWidth="1.5" opacity="0.5" />
+      {/* Hub-to-node lines */}
+      <line x1="32" y1="32" x2="32" y2="11" stroke="#f5f0e4" strokeWidth="1.6" opacity="0.55" />
+      <line x1="32" y1="32" x2="50" y2="21" stroke="#f5f0e4" strokeWidth="1.6" opacity="0.55" />
+      <line x1="32" y1="32" x2="50" y2="43" stroke="#f5f0e4" strokeWidth="1.6" opacity="0.55" />
+      <line x1="32" y1="32" x2="32" y2="53" stroke="#f5f0e4" strokeWidth="1.6" opacity="0.55" />
+      <line x1="32" y1="32" x2="14" y2="43" stroke="#f5f0e4" strokeWidth="1.6" opacity="0.55" />
+      <line x1="32" y1="32" x2="14" y2="21" stroke="#f5f0e4" strokeWidth="1.6" opacity="0.55" />
+      {/* Cross connections */}
+      <line x1="32" y1="11" x2="50" y2="43" stroke="#f5f0e4" strokeWidth="1.1" opacity="0.25" />
+      <line x1="50" y1="21" x2="32" y2="53" stroke="#f5f0e4" strokeWidth="1.1" opacity="0.25" />
+      <line x1="50" y1="43" x2="14" y2="21" stroke="#f5f0e4" strokeWidth="1.1" opacity="0.25" />
+      <line x1="32" y1="53" x2="14" y2="21" stroke="#f5f0e4" strokeWidth="1.1" opacity="0.25" />
+      {/* Hub glow */}
+      <circle cx="32" cy="32" r="12" fill="#e8b44a" opacity="0.08" />
+      {/* Hub */}
+      <circle cx="32" cy="32" r="6" fill="#e8b44a" />
+      {/* Nodes */}
+      <circle cx="32" cy="11" r="4.5" fill="#e06530" />
+      <circle cx="50" cy="21" r="4.5" fill="#e8b44a" />
+      <circle cx="50" cy="43" r="4.5" fill="#4ca8a8" />
+      <circle cx="32" cy="53" r="4.5" fill="#e06530" />
+      <circle cx="14" cy="43" r="4.5" fill="#4ca8a8" />
+      <circle cx="14" cy="21" r="4.5" fill="#e8b44a" />
     </svg>
   );
 }

@@ -254,7 +254,31 @@ footer{padding:28px 24px;border-top:1px solid var(--border);background:var(--bg2
     <symbol id="i-brain" viewBox="0 0 24 24"><path d="M12 2a5 5 0 0 1 5 5c0 1.5-.7 2.8-1.7 3.7L12 14l-3.3-3.3A5 5 0 0 1 12 2z" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M12 14v8M8 18h8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
     <symbol id="i-cpu" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="9" width="6" height="6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M1 9h3M1 15h3M20 9h3M20 15h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
     <!-- Paracosm orbital logo -->
-    <symbol id="i-logo" viewBox="0 0 64 64"><circle cx="32" cy="32" r="8" fill="url(#gr)"/><circle cx="32" cy="12" r="4" fill="#e06530" opacity=".9"/><circle cx="48" cy="20" r="4" fill="#e8b44a" opacity=".9"/><circle cx="48" cy="44" r="4" fill="#4ca8a8" opacity=".9"/><circle cx="32" cy="52" r="4" fill="#4ca8a8" opacity=".9"/><circle cx="16" cy="44" r="4" fill="#e8b44a" opacity=".9"/><circle cx="16" cy="20" r="4" fill="#e06530" opacity=".9"/><path d="M32 32L32 12M32 32L48 20M32 32L48 44M32 32L32 52M32 32L16 44M32 32L16 20" stroke="url(#gr)" stroke-width="1.5" opacity=".4"/></symbol>
+    <symbol id="i-logo" viewBox="0 0 64 64">
+      <!-- Hub-to-node lines -->
+      <line x1="32" y1="32" x2="32" y2="11" stroke="#f5f0e4" stroke-width="1.6" opacity=".55"/>
+      <line x1="32" y1="32" x2="50" y2="21" stroke="#f5f0e4" stroke-width="1.6" opacity=".55"/>
+      <line x1="32" y1="32" x2="50" y2="43" stroke="#f5f0e4" stroke-width="1.6" opacity=".55"/>
+      <line x1="32" y1="32" x2="32" y2="53" stroke="#f5f0e4" stroke-width="1.6" opacity=".55"/>
+      <line x1="32" y1="32" x2="14" y2="43" stroke="#f5f0e4" stroke-width="1.6" opacity=".55"/>
+      <line x1="32" y1="32" x2="14" y2="21" stroke="#f5f0e4" stroke-width="1.6" opacity=".55"/>
+      <!-- Cross connections -->
+      <line x1="32" y1="11" x2="50" y2="43" stroke="#f5f0e4" stroke-width="1.1" opacity=".25"/>
+      <line x1="50" y1="21" x2="32" y2="53" stroke="#f5f0e4" stroke-width="1.1" opacity=".25"/>
+      <line x1="50" y1="43" x2="14" y2="21" stroke="#f5f0e4" stroke-width="1.1" opacity=".25"/>
+      <line x1="32" y1="53" x2="14" y2="21" stroke="#f5f0e4" stroke-width="1.1" opacity=".25"/>
+      <!-- Hub glow -->
+      <circle cx="32" cy="32" r="12" fill="#e8b44a" opacity=".08"/>
+      <!-- Hub -->
+      <circle cx="32" cy="32" r="6" fill="#e8b44a"/>
+      <!-- Nodes -->
+      <circle cx="32" cy="11" r="4.5" fill="#e06530"/>
+      <circle cx="50" cy="21" r="4.5" fill="#e8b44a"/>
+      <circle cx="50" cy="43" r="4.5" fill="#4ca8a8"/>
+      <circle cx="32" cy="53" r="4.5" fill="#e06530"/>
+      <circle cx="14" cy="43" r="4.5" fill="#4ca8a8"/>
+      <circle cx="14" cy="21" r="4.5" fill="#e8b44a"/>
+    </symbol>
   </defs>
 </svg>
 
@@ -279,14 +303,29 @@ footer{padding:28px 24px;border-top:1px solid var(--border);background:var(--bg2
 <!-- HERO -->
 <section class="hero" id="top">
   <svg class="hero-logo" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Paracosm">
-    <circle cx="32" cy="32" r="10" fill="url(#gr)" opacity=".9"/>
-    <g><circle cx="32" cy="10" r="5" fill="#e06530" opacity=".85"/><animateTransform attributeName="transform" type="rotate" from="0 32 32" to="360 32 32" dur="20s" repeatCount="indefinite"/></g>
-    <g><circle cx="50" cy="22" r="4.5" fill="#e8b44a" opacity=".85"/><animateTransform attributeName="transform" type="rotate" from="0 32 32" to="360 32 32" dur="28s" repeatCount="indefinite"/></g>
-    <g><circle cx="50" cy="42" r="4" fill="#e8b44a" opacity=".75"/><animateTransform attributeName="transform" type="rotate" from="0 32 32" to="-360 32 32" dur="35s" repeatCount="indefinite"/></g>
-    <g><circle cx="32" cy="54" r="5" fill="#4ca8a8" opacity=".85"/><animateTransform attributeName="transform" type="rotate" from="0 32 32" to="360 32 32" dur="24s" repeatCount="indefinite"/></g>
-    <g><circle cx="14" cy="42" r="4" fill="#e06530" opacity=".75"/><animateTransform attributeName="transform" type="rotate" from="0 32 32" to="-360 32 32" dur="32s" repeatCount="indefinite"/></g>
-    <g><circle cx="14" cy="22" r="4.5" fill="#e06530" opacity=".85"/><animateTransform attributeName="transform" type="rotate" from="0 32 32" to="360 32 32" dur="22s" repeatCount="indefinite"/></g>
-    <path d="M32 32L32 10M32 32L50 22M32 32L50 42M32 32L32 54M32 32L14 42M32 32L14 22" stroke="url(#gr)" stroke-width="1" opacity=".2"/>
+    <!-- Hub-to-node lines -->
+    <line x1="32" y1="32" x2="32" y2="11" stroke="#f5f0e4" stroke-width="1.6" opacity=".5"/>
+    <line x1="32" y1="32" x2="50" y2="21" stroke="#f5f0e4" stroke-width="1.6" opacity=".5"/>
+    <line x1="32" y1="32" x2="50" y2="43" stroke="#f5f0e4" stroke-width="1.6" opacity=".5"/>
+    <line x1="32" y1="32" x2="32" y2="53" stroke="#f5f0e4" stroke-width="1.6" opacity=".5"/>
+    <line x1="32" y1="32" x2="14" y2="43" stroke="#f5f0e4" stroke-width="1.6" opacity=".5"/>
+    <line x1="32" y1="32" x2="14" y2="21" stroke="#f5f0e4" stroke-width="1.6" opacity=".5"/>
+    <!-- Cross connections -->
+    <line x1="32" y1="11" x2="50" y2="43" stroke="#f5f0e4" stroke-width="1.1" opacity=".2"/>
+    <line x1="50" y1="21" x2="32" y2="53" stroke="#f5f0e4" stroke-width="1.1" opacity=".2"/>
+    <line x1="50" y1="43" x2="14" y2="21" stroke="#f5f0e4" stroke-width="1.1" opacity=".2"/>
+    <line x1="32" y1="53" x2="14" y2="21" stroke="#f5f0e4" stroke-width="1.1" opacity=".2"/>
+    <!-- Hub glow -->
+    <circle cx="32" cy="32" r="14" fill="#e8b44a" opacity=".06"/>
+    <!-- Hub -->
+    <circle cx="32" cy="32" r="7" fill="#e8b44a"/>
+    <!-- Orbiting nodes with animation -->
+    <g><circle cx="32" cy="11" r="5" fill="#e06530"/><animateTransform attributeName="transform" type="rotate" from="0 32 32" to="360 32 32" dur="20s" repeatCount="indefinite"/></g>
+    <g><circle cx="50" cy="21" r="4.5" fill="#e8b44a"/><animateTransform attributeName="transform" type="rotate" from="0 32 32" to="360 32 32" dur="28s" repeatCount="indefinite"/></g>
+    <g><circle cx="50" cy="43" r="4" fill="#4ca8a8"/><animateTransform attributeName="transform" type="rotate" from="0 32 32" to="-360 32 32" dur="35s" repeatCount="indefinite"/></g>
+    <g><circle cx="32" cy="53" r="5" fill="#e06530"/><animateTransform attributeName="transform" type="rotate" from="0 32 32" to="360 32 32" dur="24s" repeatCount="indefinite"/></g>
+    <g><circle cx="14" cy="43" r="4" fill="#4ca8a8"/><animateTransform attributeName="transform" type="rotate" from="0 32 32" to="-360 32 32" dur="32s" repeatCount="indefinite"/></g>
+    <g><circle cx="14" cy="21" r="4.5" fill="#e8b44a"/><animateTransform attributeName="transform" type="rotate" from="0 32 32" to="360 32 32" dur="22s" repeatCount="indefinite"/></g>
   </svg>
 
   <h1>PARACOSM</h1>
