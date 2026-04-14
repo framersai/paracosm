@@ -52,7 +52,7 @@ export function TopBar({ scenario, sse, gameState }: TopBarProps) {
     <header
       className="topbar flex items-center justify-between px-4 gap-4 shrink-0"
       role="banner"
-      style={{ background: 'var(--bg-panel)', borderBottom: '1px solid var(--border)', height: '36px' }}
+      style={{ background: 'var(--bg-panel)', borderBottom: '1px solid var(--border)', height: '44px' }}
     >
       {/* Left: Logos + scenario name */}
       <div className="flex items-center gap-2 shrink-0">

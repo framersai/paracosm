@@ -40,7 +40,7 @@
     background: var(--bg-deep);
     color: var(--text-1);
     font-family: var(--sans);
-    font-size: 12px;
+    font-size: 14px;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -225,7 +225,7 @@
 
   input, textarea, select, button {
     font-family: var(--sans);
-    font-size: 12px;
+    font-size: 14px;
   }
 
   code, pre, .mono {
@@ -418,8 +418,9 @@
     .sim-columns { flex-direction: column !important; }
     .sim-columns > div { min-height: 200px; }
 
-    /* Leaders stack */
+    /* Leaders stack into two rows, each full width */
     .leaders-row { flex-direction: column !important; }
+    .leaders-row > div { width: 100% !important; }
 
     /* Chat sidebar collapses */
     .chat-layout { flex-direction: column !important; }
@@ -458,9 +459,11 @@
     .responsive-grid-3 { grid-template-columns: 1fr !important; }
     .responsive-grid-4 { grid-template-columns: 1fr !important; }
 
-    /* Leader bar compact */
+    /* Leader bar compact on phone */
     .leader-traits { display: none !important; }
     .leader-sparklines { display: none !important; }
+    .leaders-row { flex-direction: column !important; }
+    .leaders-row > div { width: 100% !important; }
 
     /* TopBar minimal */
     .topbar-meta { display: none !important; }

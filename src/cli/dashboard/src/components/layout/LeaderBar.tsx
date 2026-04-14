@@ -36,7 +36,7 @@ export function LeaderBar({ side, leader, popHistory, moraleHistory }: LeaderBar
     : '';
 
   return (
-    <div style={{ flex: 1, padding: '4px 12px', background: 'var(--bg-panel)' }}>
+    <div style={{ flex: 1, padding: '4px 12px', background: 'var(--bg-panel)', minWidth: 0, overflow: 'hidden' }}>
       {/* Row 1 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
         {archetype && (

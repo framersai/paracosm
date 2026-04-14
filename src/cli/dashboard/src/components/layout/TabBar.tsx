@@ -37,10 +37,10 @@ export function TabBar({ active, onTabChange, scenario }: TabBarProps) {
           id={`tab-${tab.id}`}
           className="cursor-pointer transition-colors"
           style={{
-            padding: '6px 0',
+            padding: '10px 0',
             flex: 1,
             fontFamily: 'var(--sans)',
-            fontSize: '10px',
+            fontSize: '12px',
             fontWeight: 700,
             letterSpacing: '0.5px',
             textTransform: 'uppercase' as const,

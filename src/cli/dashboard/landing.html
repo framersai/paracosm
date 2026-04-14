@@ -26,7 +26,8 @@
 {"@context":"https://schema.org","@type":"SoftwareApplication","name":"Paracosm","description":"Scenario-driven multi-agent AI simulation engine.","applicationCategory":"Simulation","operatingSystem":"Cross-platform","license":"https://opensource.org/licenses/Apache-2.0","url":"https://paracosm.agentos.sh","author":{"@type":"Organization","name":"Manic Agency / Frame.dev","url":"https://frame.dev"},"offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}
 </script>
 <style>
-:root{--bg:#0a0806;--bg2:#14110e;--bg3:#1c1915;--bg4:#242018;--border:#302a22;--border-hl:#4a3f30;--t1:#f5f0e4;--t2:#d8ccb0;--t3:#a89878;--t4:#6b5f50;--rust:#e06530;--rust-d:#8b3d1e;--amber:#e8b44a;--amber-d:#8b6a2e;--teal:#4ca8a8;--teal-d:#2a5f5f;--green:#6aad48;--mono:'JetBrains Mono','SF Mono',Menlo,monospace;--sans:'Inter',system-ui,-apple-system,sans-serif;--grad:linear-gradient(135deg,#e06530,#e8b44a,#4ca8a8)}
+:root{--bg:#0a0806;--bg2:#14110e;--bg3:#1c1915;--bg4:#242018;--border:#302a22;--border-hl:#4a3f30;--t1:#f5f0e4;--t2:#d8ccb0;--t3:#a89878;--t4:#6b5f50;--rust:#e06530;--rust-d:#8b3d1e;--amber:#e8b44a;--amber-d:#8b6a2e;--teal:#4ca8a8;--teal-d:#2a5f5f;--green:#6aad48;--mono:'JetBrains Mono','SF Mono',Menlo,monospace;--sans:'Inter',system-ui,-apple-system,sans-serif;--grad:linear-gradient(135deg,#e06530,#e8b44a,#4ca8a8);color-scheme:dark}
+.light{--bg:#f0e6d2;--bg2:#d8cab0;--bg3:#f8f2e4;--bg4:#e4d8c0;--border:#b8a888;--border-hl:#9a8868;--t1:#1a1208;--t2:#2e2418;--t3:#4a3e2c;--t4:#6a5c44;--rust:#a83810;--rust-d:#6a2808;--amber:#7a5200;--amber-d:#523800;--teal:#186060;--teal-d:#0e4040;--green:#305a10;--grad:linear-gradient(135deg,#a83810,#7a5200,#186060);color-scheme:light}
 *{margin:0;padding:0;box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{background:var(--bg);color:var(--t1);font-family:var(--sans);-webkit-font-smoothing:antialiased;overflow-x:hidden;font-size:14px;line-height:1.6;background-image:radial-gradient(ellipse 100% 60% at 50% 0%,rgba(20,17,14,1) 0%,var(--bg) 50%)}
@@ -36,18 +37,22 @@ a{color:var(--amber);text-decoration:none}a:hover{text-decoration:underline}
 
 /* NAV */
 .nav{position:fixed;top:0;left:0;right:0;z-index:100;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 clamp(16px,4vw,40px);background:rgba(10,8,6,.88);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid rgba(48,42,34,.4)}
+.light .nav{background:rgba(216,202,176,.88);border-bottom-color:rgba(184,168,136,.5)}
 .nav-l{display:flex;align-items:center;gap:10px}
 .nav-l svg{width:24px;height:24px;flex-shrink:0}
 .nav-brand{font-family:var(--mono);font-size:15px;font-weight:700;color:var(--t1);text-decoration:none}.nav-brand:hover{color:var(--amber);text-decoration:none}
 .nav-tag{font-size:9px;font-weight:700;letter-spacing:1.5px;color:var(--rust);font-family:var(--mono)}
 .nav-r{display:flex;align-items:center;gap:28px}
 .nav-r a{font-size:13px;color:var(--t3);font-weight:500;transition:color .2s;text-decoration:none}.nav-r a:hover{color:var(--t1);text-decoration:none}
-.cta{display:inline-flex;align-items:center;gap:8px;padding:10px 24px;border-radius:6px;font-size:14px;font-weight:700;background:linear-gradient(135deg,var(--rust),#c44a1e);color:#fff;text-decoration:none;transition:all .25s;box-shadow:0 4px 20px rgba(224,101,48,.25);position:relative;overflow:hidden}
-.cta:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(224,101,48,.4);text-decoration:none}
-.cta::after{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:linear-gradient(135deg,transparent 40%,rgba(255,255,255,.08) 50%,transparent 60%);animation:ctaSheen 4s ease-in-out infinite}
+.nav-r a.cta,.nav-r a.cta:hover{color:#f5f0e4}
+.cta{display:inline-flex;align-items:center;gap:8px;padding:12px 28px;border-radius:8px;font-size:14px;font-weight:800;color:#f5f0e4;text-decoration:none;transition:all .25s;position:relative;overflow:hidden;border:none;cursor:pointer;background:linear-gradient(180deg,#c85828 0%,#a84018 60%,#882c0c 100%);box-shadow:0 1px 0 0 rgba(255,160,120,.2) inset,0 -2px 0 0 rgba(60,20,0,.3) inset,0 4px 16px rgba(0,0,0,.4);letter-spacing:.3px}
+.nav .cta{padding:8px 20px;font-size:13px}
+.cta:hover{transform:translateY(-2px);box-shadow:0 1px 0 0 rgba(255,160,120,.25) inset,0 -2px 0 0 rgba(60,20,0,.3) inset,0 8px 24px rgba(0,0,0,.5),0 0 20px rgba(200,88,40,.15);text-decoration:none}
+.cta:active{transform:translateY(0);box-shadow:0 -1px 0 0 rgba(60,20,0,.2) inset,0 2px 0 0 rgba(255,160,120,.15) inset,0 2px 8px rgba(0,0,0,.4)}
+.cta::after{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:linear-gradient(135deg,transparent 40%,rgba(255,255,255,.06) 50%,transparent 60%);animation:ctaSheen 5s ease-in-out infinite}
 .cta svg{width:16px;height:16px;flex-shrink:0;transition:transform .2s}.cta:hover svg{transform:translateX(3px)}
 @keyframes ctaSheen{0%,100%{transform:translateX(-100%) rotate(25deg)}50%{transform:translateX(100%) rotate(25deg)}}
-@keyframes ctaPulse{0%,100%{box-shadow:0 4px 20px rgba(224,101,48,.25)}50%{box-shadow:0 4px 30px rgba(224,101,48,.45),0 0 60px rgba(224,101,48,.1)}}
+@keyframes ctaPulse{0%,100%{box-shadow:0 1px 0 0 rgba(255,160,120,.2) inset,0 -2px 0 0 rgba(60,20,0,.3) inset,0 4px 16px rgba(0,0,0,.4)}50%{box-shadow:0 1px 0 0 rgba(255,160,120,.25) inset,0 -2px 0 0 rgba(60,20,0,.3) inset,0 6px 20px rgba(0,0,0,.4),0 0 40px rgba(200,88,40,.1)}}
 .cta-pulse{animation:ctaPulse 3s ease-in-out infinite}
 
 /* HERO */
@@ -58,8 +63,9 @@ a{color:var(--amber);text-decoration:none}a:hover{text-decoration:underline}
 .hero-sub{font-size:clamp(15px,2.2vw,20px);color:var(--t2);max-width:640px;line-height:1.8;margin-bottom:12px}
 .hero-mono{font-family:var(--mono);font-size:12px;color:var(--t4);letter-spacing:1px;margin-bottom:40px}
 .hero-ctas{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-bottom:56px}
-.btn-ghost{padding:10px 24px;border-radius:6px;font-size:14px;font-weight:600;color:var(--t2);border:1px solid var(--border-hl);background:transparent;text-decoration:none;transition:all .2s}
-.btn-ghost:hover{border-color:var(--amber);color:var(--t1);background:rgba(232,180,74,.05);text-decoration:none}
+.btn-ghost{padding:12px 28px;border-radius:8px;font-size:14px;font-weight:600;color:var(--t2);border:1px solid var(--border-hl);background:linear-gradient(180deg,rgba(36,32,24,.8) 0%,rgba(20,17,14,.9) 100%);text-decoration:none;transition:all .25s;box-shadow:0 1px 0 0 rgba(255,240,200,.04) inset,0 -1px 0 0 rgba(0,0,0,.2) inset,0 2px 8px rgba(0,0,0,.3);text-shadow:0 1px 2px rgba(0,0,0,.3)}
+.btn-ghost:hover{border-color:var(--amber-d);color:var(--t1);transform:translateY(-2px);box-shadow:0 1px 0 0 rgba(255,240,200,.06) inset,0 -1px 0 0 rgba(0,0,0,.2) inset,0 6px 16px rgba(0,0,0,.4);text-decoration:none}
+.btn-ghost:active{transform:translateY(0);box-shadow:0 -1px 0 0 rgba(255,240,200,.02) inset,0 1px 0 0 rgba(0,0,0,.15) inset,0 1px 4px rgba(0,0,0,.3)}
 
 /* removed stats - replaced by chips */
 
@@ -67,6 +73,7 @@ a{color:var(--amber);text-decoration:none}a:hover{text-decoration:underline}
 .sec{padding:100px 24px;position:relative}
 .sec-inner{max-width:1100px;margin:0 auto}
 .sec-alt{background:linear-gradient(180deg,var(--bg2) 0%,rgba(20,17,14,.6) 50%,var(--bg2) 100%);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.light .sec-alt{background:linear-gradient(180deg,var(--bg2) 0%,rgba(216,202,176,.6) 50%,var(--bg2) 100%)}
 .sec-label{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--rust);margin-bottom:12px}
 .sec-title{font-family:var(--mono);font-size:clamp(22px,4vw,34px);font-weight:800;color:var(--t1);margin-bottom:14px;letter-spacing:-.5px}
 .sec-desc{font-size:15px;color:var(--t2);max-width:640px;line-height:1.8;margin-bottom:48px}
@@ -172,6 +179,30 @@ footer{padding:28px 24px;border-top:1px solid var(--border);background:var(--bg2
 /* RESPONSIVE */
 @media(max-width:900px){.feat-grid{grid-template-columns:1fr 1fr}.scenarios{grid-template-columns:1fr}.flow{flex-direction:column;align-items:center;gap:24px}.flow-line{display:none}.nav-r a:not(.cta){display:none}.diverge{flex-direction:column}.contact-grid{grid-template-columns:1fr}.hero-chips{gap:6px}.pricing-tiers{flex-direction:column;align-items:center}}
 @media(max-width:600px){.feat-grid{grid-template-columns:1fr}.sec{padding:64px 16px}.hero{padding:80px 16px 56px}.arch-row{flex-direction:column;text-align:center;gap:8px}.arch-label{min-width:auto}}
+/* LIGHT MODE OVERRIDES */
+.light body,.light{background-image:none}
+.light .hero::before{background:radial-gradient(ellipse 80% 50% at 50% 30%,rgba(122,82,0,.06) 0%,transparent 60%),radial-gradient(ellipse 50% 40% at 25% 70%,rgba(168,56,16,.04) 0%,transparent 50%),radial-gradient(ellipse 50% 40% at 75% 60%,rgba(24,96,96,.04) 0%,transparent 50%)}
+.light .feat,.light .sc-card{background:rgba(248,242,228,.8);backdrop-filter:blur(8px);border-color:var(--border);box-shadow:0 2px 12px rgba(60,40,10,.08),inset 0 1px 0 rgba(255,250,240,.5)}
+.light .feat:hover,.light .sc-card:hover{box-shadow:0 8px 24px rgba(60,40,10,.12);border-color:var(--border-hl)}
+.light .arch-row{background:rgba(248,242,228,.7);border-color:var(--border);box-shadow:0 2px 8px rgba(60,40,10,.06)}
+.light .flow-ring{background:var(--bg);border-color:var(--border)}
+.light .diverge-side{background:var(--bg3);border-color:var(--border)}
+.light .pricing-banner{background:var(--bg3);border-color:var(--border)}
+.light .contact-card{background:var(--bg3);border-color:var(--border)}
+.light .faq-item{border-bottom-color:var(--border)}
+.light .cta{background:linear-gradient(180deg,#b04820 0%,#903818 60%,#6a2808 100%);color:#fff;box-shadow:0 1px 0 0 rgba(220,130,80,.2) inset,0 -2px 0 0 rgba(60,20,0,.25) inset,0 4px 16px rgba(60,20,0,.2)}
+.light .cta:hover{box-shadow:0 1px 0 0 rgba(220,130,80,.25) inset,0 -2px 0 0 rgba(60,20,0,.25) inset,0 8px 24px rgba(60,20,0,.25),0 0 20px rgba(176,72,32,.1)}
+.light .btn-ghost{background:linear-gradient(180deg,rgba(248,242,228,.9) 0%,rgba(232,220,200,.95) 100%);border-color:var(--border);color:var(--t1);box-shadow:0 1px 0 0 rgba(255,250,240,.5) inset,0 -1px 0 0 rgba(60,40,10,.08) inset,0 2px 8px rgba(60,40,10,.08)}
+.light .btn-ghost:hover{border-color:var(--border-hl);box-shadow:0 1px 0 0 rgba(255,250,240,.6) inset,0 -1px 0 0 rgba(60,40,10,.08) inset,0 6px 16px rgba(60,40,10,.1)}
+.light .chip{background:rgba(122,82,0,.06);border-color:var(--border);color:var(--t2)}
+.light .chip:hover{background:rgba(122,82,0,.1);border-color:var(--border-hl);color:var(--t1)}
+.light footer{background:var(--bg2);border-top-color:var(--border)}
+.light .banner::before{opacity:.15}
+.light .pc-badge{background:var(--bg4);color:var(--amber);border-color:var(--border)}
+.light .pricing-tier{background:var(--bg);color:var(--t2);border-color:var(--border)}
+.light .theme-toggle{color:var(--t3);border-color:var(--border)}
+.light .theme-toggle:hover{color:var(--t1);border-color:var(--border-hl)}
+
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition-duration:.01ms!important}.rv{opacity:1;transform:none}}
 </style>
 </head>
@@ -220,6 +251,7 @@ footer{padding:28px 24px;border-top:1px solid var(--border);background:var(--bg2
     <a href="#scenarios">Scenarios</a>
     <a href="#faq">FAQ</a>
     <a href="/sim" class="cta">Launch Sim <svg><use href="#i-arrow"/></svg></a>
+    <button class="theme-toggle" id="theme-toggle" aria-label="Toggle light/dark mode" style="background:none;border:1px solid var(--border);color:var(--t3);width:32px;height:32px;border-radius:6px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0"></button>
   </div>
 </nav>
 
@@ -236,8 +268,8 @@ footer{padding:28px 24px;border-top:1px solid var(--border);background:var(--bg2
     <path d="M32 32L32 10M32 32L50 22M32 32L50 42M32 32L32 54M32 32L14 42M32 32L14 22" stroke="url(#gr)" stroke-width="1" opacity=".2"/>
   </svg>
 
-  <h1>Paracosm</h1>
-  <p class="hero-sub">Two AI commanders with distinct personalities lead the same settlement through emergent crises. Runtime tool forging, HEXACO personality drift, and a deterministic kernel. Watch civilizations diverge.</p>
+  <h1>PARACOSM</h1>
+  <p class="hero-sub">Scenario-driven multi-agent simulation engine. Define any closed-state world as a ScenarioPackage. The engine handles emergent crisis generation, runtime tool forging, personality evolution, and deterministic state resolution.</p>
   <p class="hero-mono">OPEN SOURCE &middot; APACHE-2.0 &middot; BUILT ON AGENTOS</p>
 
   <div class="hero-ctas">
@@ -539,6 +571,20 @@ const flowObs = new IntersectionObserver(entries => {
 }, { threshold: 0.3 });
 const flowWrap = document.querySelector('.flow-wrap');
 if (flowWrap) flowObs.observe(flowWrap);
+
+// Theme toggle synced with dashboard
+const themeBtn = document.getElementById('theme-toggle');
+const savedTheme = localStorage.getItem('paracosm-theme') || 'dark';
+function applyTheme(t) {
+  document.documentElement.classList.toggle('light', t === 'light');
+  themeBtn.textContent = t === 'dark' ? '\u2600' : '\u263D';
+  localStorage.setItem('paracosm-theme', t);
+}
+applyTheme(savedTheme);
+themeBtn.addEventListener('click', () => {
+  const next = document.documentElement.classList.contains('light') ? 'dark' : 'light';
+  applyTheme(next);
+});
 
 // Smooth scroll for anchor links
 document.querySelectorAll('a[href^="#"]').forEach(a => {
