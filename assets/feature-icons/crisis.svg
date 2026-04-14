@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <style>
+    .bolt{fill:#e8b44a}
+    .bolt-stroke{fill:none;stroke:#e06530;stroke-width:1.5}
+    .flash{animation:boltFlash 3s ease-in-out infinite}
+    .ring1{animation:shockwave 3s ease-out infinite;transform-origin:24px 24px}
+    .ring2{animation:shockwave 3s ease-out .3s infinite;transform-origin:24px 24px}
+    .ring3{animation:shockwave 3s ease-out .6s infinite;transform-origin:24px 24px}
+    .glow{animation:crisisGlow 3s ease-in-out infinite}
+    @keyframes boltFlash{0%,80%,100%{opacity:1}85%{opacity:.3}90%{opacity:1}95%{opacity:.5}}
+    @keyframes shockwave{0%{transform:scale(.5);opacity:.6}100%{transform:scale(2);opacity:0}}
+    @keyframes crisisGlow{0%,100%{opacity:.1}50%{opacity:.25}}
+    @media(prefers-reduced-motion:reduce){.flash,.ring1,.ring2,.ring3,.glow{animation:none!important}}
+  </style>
+  <!-- Glow -->
+  <circle class="glow" cx="24" cy="22" r="16" fill="#e8b44a"/>
+  <!-- Shockwave rings -->
+  <circle class="ring1" cx="24" cy="22" r="8" fill="none" stroke="#e06530" stroke-width="1" opacity=".4"/>
+  <circle class="ring2" cx="24" cy="22" r="8" fill="none" stroke="#e8b44a" stroke-width=".8" opacity=".3"/>
+  <circle class="ring3" cx="24" cy="22" r="8" fill="none" stroke="#4ca8a8" stroke-width=".6" opacity=".2"/>
+  <!-- Lightning bolt -->
+  <g class="flash">
+    <path class="bolt" d="M26 4L16 22h8l-2 18 12-22h-8z"/>
+    <path class="bolt-stroke" d="M26 4L16 22h8l-2 18 12-22h-8z"/>
+  </g>
+</svg>

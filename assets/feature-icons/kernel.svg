@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <style>
+    .die{fill:none;stroke:#e8b44a;stroke-width:1.5;rx:4}
+    .pip{r:2}
+    .roll{animation:dieRotate 6s ease-in-out infinite;transform-origin:24px 24px}
+    .p1{fill:#e06530;animation:pipPulse 2s ease-in-out infinite}
+    .p2{fill:#e8b44a;animation:pipPulse 2s ease-in-out .3s infinite}
+    .p3{fill:#4ca8a8;animation:pipPulse 2s ease-in-out .6s infinite}
+    .p4{fill:#e06530;animation:pipPulse 2s ease-in-out .9s infinite}
+    .p5{fill:#4ca8a8;animation:pipPulse 2s ease-in-out 1.2s infinite}
+    .seed{animation:seedGlow 4s ease-in-out infinite}
+    @keyframes dieRotate{0%,100%{transform:rotate(0deg)}25%{transform:rotate(2deg)}75%{transform:rotate(-2deg)}}
+    @keyframes pipPulse{0%,100%{r:2;opacity:.8}50%{r:2.8;opacity:1}}
+    @keyframes seedGlow{0%,100%{opacity:.08}50%{opacity:.2}}
+    @media(prefers-reduced-motion:reduce){.roll,.p1,.p2,.p3,.p4,.p5,.seed{animation:none!important}}
+  </style>
+  <!-- Seed glow -->
+  <circle class="seed" cx="24" cy="24" r="18" fill="#e8b44a"/>
+  <!-- Die face -->
+  <g class="roll">
+    <rect class="die" x="8" y="8" width="32" height="32" rx="4"/>
+    <!-- 5 pips -->
+    <circle class="pip p1" cx="16" cy="16"/>
+    <circle class="pip p2" cx="32" cy="16"/>
+    <circle class="pip p3" cx="24" cy="24"/>
+    <circle class="pip p4" cx="16" cy="32"/>
+    <circle class="pip p5" cx="32" cy="32"/>
+  </g>
+  <!-- Seed number -->
+  <text x="24" y="46" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="6" fill="#e8b44a" opacity=".5">seed:42</text>
+</svg>
