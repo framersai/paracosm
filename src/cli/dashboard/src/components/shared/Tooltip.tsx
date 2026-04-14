@@ -16,12 +16,15 @@ export function Tooltip({ content, children, dot }: TooltipProps) {
   const show = useCallback((e: React.MouseEvent) => {
     clearTimeout(timer.current);
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    // Position below and to the right, clamped to viewport
     let x = rect.left;
-    let y = rect.bottom + 6;
+    // Default: position ABOVE the element
+    const tooltipHeight = 250; // estimate
+    let y = rect.top - tooltipHeight - 6;
+    // If no room above, flip below
+    if (y < 10) y = rect.bottom + 6;
+    // Clamp horizontal
     if (x + 380 > window.innerWidth) x = window.innerWidth - 390;
     if (x < 10) x = 10;
-    if (y + 200 > window.innerHeight) y = rect.top - 6; // flip above
     setPos({ x, y });
     setVisible(true);
   }, []);

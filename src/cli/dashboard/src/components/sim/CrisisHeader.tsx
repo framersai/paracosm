@@ -1,4 +1,5 @@
 import type { CrisisInfo, Side } from '../../hooks/useGameState';
+import { Tooltip } from '../shared/Tooltip';
 
 interface CrisisHeaderProps {
   side: Side;
@@ -8,38 +9,54 @@ interface CrisisHeaderProps {
 export function CrisisHeader({ side, crisis }: CrisisHeaderProps) {
   if (!crisis) return null;
 
+  const sideColor = side === 'a' ? 'var(--vis)' : 'var(--eng)';
+  const fullText = crisis.description || crisis.turnSummary || '';
+
   return (
-    <div style={{
-      padding: '6px 12px', lineHeight: 1.5, fontSize: '13px', color: 'var(--text-1)',
-      background: 'linear-gradient(135deg, rgba(224,101,48,.1), transparent)',
-      borderBottom: '1px solid var(--border)',
-    }}>
-      <span style={{ fontWeight: 800, color: 'var(--rust)', fontSize: '14px' }}>
-        T{crisis.turn}: {crisis.title}
-      </span>
-      <span style={{
-        fontSize: '10px', color: 'var(--text-3)', background: 'var(--bg-deep)',
-        padding: '1px 6px', borderRadius: '3px', marginLeft: '6px',
-        fontFamily: 'var(--mono)', verticalAlign: 'middle',
+    <Tooltip content={
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+          <b style={{ color: 'var(--rust)', fontSize: '15px' }}>T{crisis.turn}: {crisis.title}</b>
+          <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '3px', background: 'var(--bg-deep)', color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
+            {crisis.category}
+          </span>
+          {crisis.emergent && <span style={{ fontSize: '9px', fontWeight: 800, color: 'var(--rust)', fontFamily: 'var(--mono)' }}>EMERGENT</span>}
+        </div>
+        <div style={{ fontSize: '13px', color: 'var(--text-1)', lineHeight: 1.7 }}>
+          {fullText}
+        </div>
+        <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
+          Year {crisis.year} &middot; {side === 'a' ? 'Leader A' : 'Leader B'}
+        </div>
+      </div>
+    }>
+      <div style={{
+        padding: '6px 12px', lineHeight: 1.5, fontSize: '13px', color: 'var(--text-1)',
+        background: 'linear-gradient(135deg, rgba(224,101,48,.1), transparent)',
+        borderBottom: '1px solid var(--border)', cursor: 'pointer',
+        overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
       }}>
-        {crisis.category}
-      </span>
-      {crisis.emergent && (
-        <span style={{ fontSize: '9px', fontWeight: 800, color: 'var(--rust)', marginLeft: '6px', fontFamily: 'var(--mono)' }}>
-          EMERGENT
+        <span style={{ fontWeight: 800, color: 'var(--rust)', fontSize: '14px' }}>
+          T{crisis.turn}: {crisis.title}
         </span>
-      )}
-      {/* Full crisis description, not just the summary */}
-      {crisis.description && (
-        <span style={{ fontSize: '12px', color: 'var(--text-2)', fontStyle: 'italic', marginLeft: '8px' }}>
-          {crisis.description}
+        <span style={{
+          fontSize: '10px', color: 'var(--text-3)', background: 'var(--bg-deep)',
+          padding: '1px 6px', borderRadius: '3px', marginLeft: '6px',
+          fontFamily: 'var(--mono)', verticalAlign: 'middle',
+        }}>
+          {crisis.category}
         </span>
-      )}
-      {!crisis.description && crisis.turnSummary && (
-        <span style={{ fontSize: '12px', color: 'var(--text-2)', fontStyle: 'italic', marginLeft: '8px' }}>
-          {crisis.turnSummary}
-        </span>
-      )}
-    </div>
+        {crisis.emergent && (
+          <span style={{ fontSize: '9px', fontWeight: 800, color: 'var(--rust)', marginLeft: '6px', fontFamily: 'var(--mono)' }}>
+            EMERGENT
+          </span>
+        )}
+        {fullText && (
+          <span style={{ fontSize: '12px', color: 'var(--text-2)', fontStyle: 'italic', marginLeft: '8px' }}>
+            {fullText.slice(0, 120)}{fullText.length > 120 ? '...' : ''}
+          </span>
+        )}
+      </div>
+    </Tooltip>
   );
 }
