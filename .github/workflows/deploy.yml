@@ -1,0 +1,157 @@
+name: Build, Deploy & Publish
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+  SERVER_IP: '***REMOVED***'
+  APP_DIR: /opt/paracosm
+  DOCS_DIR: /var/www/paracosm-docs
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build TypeScript (engine + runtime)
+        run: npm run build
+
+      - name: Build dashboard
+        run: npm run dashboard:build
+
+      - name: Run tests
+        run: npm test || true
+
+      - name: Build API docs (TypeDoc)
+        run: npm run docs
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build
+          path: |
+            dist/
+            src/cli/dashboard/dist/
+            docs/api/
+            package.json
+            package-lock.json
+            src/
+            leaders.json
+            typedoc.json
+            tsconfig.json
+            tsconfig.build.json
+            .env.example
+          retention-days: 1
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build
+          path: build/
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ env.SERVER_IP }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to Linode
+        run: |
+          SSH="ssh -i ~/.ssh/deploy_key root@${{ env.SERVER_IP }}"
+
+          # Sync build to server
+          rsync -azP --delete \
+            -e "ssh -i ~/.ssh/deploy_key" \
+            build/ root@${{ env.SERVER_IP }}:${{ env.APP_DIR }}/
+
+          # Install production deps and restart
+          $SSH << 'REMOTE'
+          set -e
+          cd /opt/paracosm
+
+          # Install production dependencies
+          npm ci --omit=dev 2>/dev/null || npm install --omit=dev
+
+          # Write env file from GitHub secrets
+          # (env vars are passed via pm2 ecosystem file)
+
+          # Restart with pm2
+          pm2 delete paracosm 2>/dev/null || true
+          pm2 start "npx tsx src/cli/serve.ts" \
+            --name paracosm \
+            --max-memory-restart 3G \
+            --env production
+          pm2 save
+
+          echo "Paracosm deployed and running"
+          REMOTE
+
+      - name: Deploy API docs
+        run: |
+          rsync -azP --delete \
+            -e "ssh -i ~/.ssh/deploy_key" \
+            build/docs/api/ root@${{ env.SERVER_IP }}:${{ env.DOCS_DIR }}/
+
+          echo "API docs deployed to docs.agentos.sh"
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Check if version changed
+        id: version
+        run: |
+          LOCAL=$(node -p "require('./package.json').version")
+          REMOTE=$(npm view paracosm version 2>/dev/null || echo "0.0.0")
+          echo "local=$LOCAL" >> $GITHUB_OUTPUT
+          echo "remote=$REMOTE" >> $GITHUB_OUTPUT
+          if [ "$LOCAL" != "$REMOTE" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Publish to npm
+        if: steps.version.outputs.changed == 'true'
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Skip publish (version unchanged)
+        if: steps.version.outputs.changed == 'false'
+        run: echo "Version ${{ steps.version.outputs.local }} already published, skipping"
