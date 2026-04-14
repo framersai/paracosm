@@ -9,11 +9,14 @@ concurrency:
   group: deploy
   cancel-in-progress: true
 
+permissions:
+  contents: write
+  pages: write
+
 env:
   NODE_VERSION: '22'
   SERVER_IP: '***REMOVED***'
   APP_DIR: /opt/paracosm
-  DOCS_DIR: /var/www/paracosm-docs
 
 jobs:
   build:
@@ -96,9 +99,6 @@ jobs:
           # Install production dependencies
           npm ci --omit=dev 2>/dev/null || npm install --omit=dev
 
-          # Write env file from GitHub secrets
-          # (env vars are passed via pm2 ecosystem file)
-
           # Restart with pm2
           pm2 delete paracosm 2>/dev/null || true
           pm2 start "npx tsx src/cli/serve.ts" \
@@ -110,13 +110,24 @@ jobs:
           echo "Paracosm deployed and running"
           REMOTE
 
-      - name: Deploy API docs
-        run: |
-          rsync -azP --delete \
-            -e "ssh -i ~/.ssh/deploy_key" \
-            build/docs/api/ root@${{ env.SERVER_IP }}:${{ env.DOCS_DIR }}/
+  docs:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-          echo "API docs deployed to docs.agentos.sh"
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build
+          path: build/
+
+      - name: Deploy API docs to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: build/docs/api
+          cname: docs.agentos.sh
 
   publish:
     needs: build
