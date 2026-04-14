@@ -3,7 +3,7 @@
  *
  * Usage:
  *   npx tsx src/serve.ts [turns]
- *   Open http://localhost:3456/#settings or /setup
+ *   Open http://localhost:3456/sim?tab=settings or /setup
  */
 
 import { readFileSync, existsSync } from 'node:fs';
@@ -30,12 +30,12 @@ const cliOptions = parseCliRunOptions(process.argv.slice(2));
 
 server.listen(PORT, async () => {
   console.log(`\n  Mars Genesis Dashboard: http://localhost:${PORT}`);
-  console.log(`  Settings route: http://localhost:${PORT}/#settings`);
+  console.log(`  Settings route: http://localhost:${PORT}/sim?tab=settings`);
   console.log(`  Setup alias: http://localhost:${PORT}/setup`);
   console.log(`  SSE endpoint: http://localhost:${PORT}/events\n`);
 
   if (!cliOptions.maxTurns) {
-    console.log('  Waiting for setup at /#settings or /setup. No simulation started yet.\n');
+    console.log('  Waiting for setup at /sim?tab=settings or /setup. No simulation started yet.\n');
     return;
   }
 
@@ -65,5 +65,5 @@ server.listen(PORT, async () => {
 
   await server.startWithConfig(simConfig);
   console.log('\n  Simulations complete. Dashboard at http://localhost:' + PORT);
-  console.log('  Run again at http://localhost:' + PORT + '/#settings\n');
+  console.log('  Run again at http://localhost:' + PORT + '/sim?tab=settings\n');
 });

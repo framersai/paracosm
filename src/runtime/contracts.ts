@@ -72,7 +72,7 @@ export interface CommanderDecision {
 export interface CrisisResearchPacket {
   canonicalFacts: Array<{ claim: string; source: string; url: string; doi?: string }>;
   counterpoints: Array<{ claim: string; source: string; url: string }>;
-  departmentNotes: Partial<Record<Department, string>>;
+  departmentNotes: Record<string, string>;
 }
 
 export interface TurnArtifact {

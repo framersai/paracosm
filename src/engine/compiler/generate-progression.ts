@@ -43,7 +43,7 @@ Return ONLY the complete function as a TypeScript arrow function, no explanation
 }
 
 /** Parse the LLM response into an executable function. */
-function parseResponse(text: string): ((ctx: ProgressionHookContext) => void) | null {
+export function parseResponse(text: string): ((ctx: ProgressionHookContext) => void) | null {
   let cleaned = text.trim();
   // Strip markdown fences if present
   cleaned = cleaned.replace(/^```(?:typescript|ts)?\n?/i, '').replace(/\n?```$/i, '').trim();

@@ -11,9 +11,11 @@ interface TopBarProps {
   onClear?: () => void;
 }
 
-/** Paracosm logo: uses the brand-generated SVG file directly */
+/** Paracosm logo: swaps between dark/light variants based on theme */
 function ParacosmLogo({ size = 20 }: { size?: number }) {
-  return <img src="/brand/icons/paracosm-icon-64.svg" width={size} height={size} alt="Paracosm" style={{ display: 'block' }} />;
+  const { resolved } = useTheme();
+  const src = resolved === 'light' ? '/brand/icons/paracosm-icon-64-light.svg' : '/brand/icons/paracosm-icon-64.svg';
+  return <img src={src} width={size} height={size} alt="Paracosm" style={{ display: 'block' }} />;
 }
 
 const toolBtnStyle: React.CSSProperties = {
@@ -57,8 +59,8 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear }: To
         <a href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }} aria-label="Paracosm home">
           <ParacosmLogo size={20} />
         </a>
-        <a href="/" style={{ fontFamily: 'var(--mono)', fontSize: '13px', fontWeight: 700, color: 'var(--text-1)', textDecoration: 'none' }}>
-          PARACOSM
+        <a href="/" style={{ fontFamily: 'var(--mono)', fontSize: '13px', fontWeight: 700, color: 'var(--text-1)', textDecoration: 'none', letterSpacing: '.08em' }}>
+          PARA<span style={{ color: 'var(--amber)' }}>COSM</span>
         </a>
         <a href="https://agentos.sh" target="_blank" rel="noopener" style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1px', color: 'var(--rust)', fontFamily: 'var(--mono)', textDecoration: 'none' }} title="AgentOS Runtime">
           AGENTOS

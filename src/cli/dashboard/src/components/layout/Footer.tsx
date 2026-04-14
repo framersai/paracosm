@@ -22,7 +22,10 @@ export function Footer() {
         <a href="https://www.npmjs.com/package/paracosm" target="_blank" rel="noopener" style={{ color: 'var(--rust)', fontWeight: 600 }}>npm</a>
         <a href="https://docs.agentos.sh" target="_blank" rel="noopener" style={{ color: 'var(--rust)', fontWeight: 600 }}>docs</a>
       </nav>
-      <span>Apache-2.0 &middot; <a href="https://manic.agency" target="_blank" rel="noopener" style={{ color: 'var(--text-3)' }}>Manic Agency</a> / <a href="https://frame.dev" target="_blank" rel="noopener" style={{ color: 'var(--text-3)' }}>Frame.dev</a> &middot; <a href="mailto:team@frame.dev" style={{ color: 'var(--amber)' }}>team@frame.dev</a></span>
+      <span>
+        <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, letterSpacing: '.08em', fontSize: '10px' }}>PARA<span style={{ color: 'var(--amber)' }}>COSM</span></span>
+        {' '}&middot; Apache-2.0 &middot; <a href="https://manic.agency" target="_blank" rel="noopener" style={{ color: 'var(--text-3)' }}>Manic Agency</a> / <a href="https://frame.dev" target="_blank" rel="noopener" style={{ color: 'var(--text-3)' }}>Frame.dev</a>
+      </span>
     </footer>
   );
 }

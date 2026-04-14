@@ -35,7 +35,7 @@ Rules:
 Return ONLY the function, no markdown fences, no explanation.`;
 }
 
-function parseResponse(text: string): ((finalState: any, outcomeLog: any[], leader: any, toolRegs: Record<string, string[]>, maxTurns: number) => Record<string, string>) | null {
+export function parseResponse(text: string): ((finalState: any, outcomeLog: any[], leader: any, toolRegs: Record<string, string[]>, maxTurns: number) => Record<string, string>) | null {
   let cleaned = text.trim();
   cleaned = cleaned.replace(/^```(?:typescript|ts)?\n?/i, '').replace(/\n?```$/i, '').trim();
   if (cleaned.endsWith(';')) cleaned = cleaned.slice(0, -1).trim();

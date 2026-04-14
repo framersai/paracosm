@@ -22,14 +22,15 @@
 import type { ScenarioPackage, ScenarioHooks, LlmProvider } from '../types.js';
 import type { CompileOptions, GenerateTextFn } from './types.js';
 import { readCache, writeCache } from './cache.js';
-import { generateProgressionHook } from './generate-progression.js';
+import { generateProgressionHook, parseResponse as parseProgression } from './generate-progression.js';
 import { generateDirectorInstructions } from './generate-director.js';
-import { generateMilestones } from './generate-milestones.js';
-import { generateFingerprintHook } from './generate-fingerprint.js';
-import { generatePoliticsHook } from './generate-politics.js';
-import { generateReactionContextHook } from './generate-reactions.js';
+import { generateMilestones, parseMilestones } from './generate-milestones.js';
+import { generateFingerprintHook, parseResponse as parseFingerprint } from './generate-fingerprint.js';
+import { generatePoliticsHook, parseResponse as parsePolitics } from './generate-politics.js';
+import { generateReactionContextHook, parseResponse as parseReactions } from './generate-reactions.js';
 import { ingestSeed, ingestFromUrl } from './seed-ingestion.js';
-import { generateDepartmentPromptHook } from './generate-prompts.js';
+import { generateDepartmentPromptHook, parseResponse as parsePrompts } from './generate-prompts.js';
+import type { MilestoneCrisisDef } from '../types.js';
 
 export type { CompileOptions, GenerateTextFn };
 export { ingestSeed, ingestFromUrl } from './seed-ingestion.js';
@@ -55,6 +56,54 @@ const HOOK_NAMES = [
   'reactions',
 ] as const;
 
+/** Restore a hook from cached source text. Returns the hook assignment or null if parse fails. */
+function restoreHookFromCache(hookName: string, source: string): Partial<ScenarioHooks> | null {
+  try {
+    switch (hookName) {
+      case 'progression': {
+        const fn = parseProgression(source);
+        return fn ? { progressionHook: fn } : null;
+      }
+      case 'director': {
+        const cleaned = source.trim();
+        return cleaned.length > 50 ? { directorInstructions: () => cleaned } : null;
+      }
+      case 'prompts': {
+        const fn = parsePrompts(source);
+        return fn ? { departmentPromptHook: fn } : null;
+      }
+      case 'milestones': {
+        const result = parseMilestones(source);
+        if (!result) return null;
+        const [founding, legacy] = result;
+        return {
+          getMilestoneCrisis: (turn: number, maxTurns: number): MilestoneCrisisDef | null => {
+            if (turn === 1) return founding;
+            if (turn === maxTurns) return legacy;
+            return null;
+          },
+        };
+      }
+      case 'fingerprint': {
+        const fn = parseFingerprint(source);
+        return fn ? { fingerprintHook: fn } : null;
+      }
+      case 'politics': {
+        const fn = parsePolitics(source);
+        return fn ? { politicsHook: fn } : null;
+      }
+      case 'reactions': {
+        const fn = parseReactions(source);
+        return fn ? { reactionContextHook: fn } : null;
+      }
+      default:
+        return null;
+    }
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Compile a scenario JSON into a complete ScenarioPackage with generated hooks.
  *
@@ -78,16 +127,18 @@ export async function compileScenario(
   const json = scenarioJson as Record<string, any>;
   const hooks: ScenarioHooks = {};
 
-  // Generate each hook, checking cache first
+  // Generate each hook, using cache when available
   for (const hookName of HOOK_NAMES) {
-    // Check cache
+    // Try to restore from cache first
     if (cache) {
       const cached = readCache(json, hookName, model, cacheDir);
       if (cached !== null) {
-        onProgress?.(hookName, 'cached');
-        // For cached hooks, we skip since we can't deserialize functions from cache
-        // The cache stores source for inspection, but hooks must be regenerated
-        // unless we implement a source-to-function eval (deferred for now)
+        const restored = restoreHookFromCache(hookName, cached);
+        if (restored) {
+          onProgress?.(hookName, 'cached');
+          Object.assign(hooks, restored);
+          continue;
+        }
       }
     }
 

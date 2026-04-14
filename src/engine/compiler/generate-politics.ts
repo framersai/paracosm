@@ -41,7 +41,7 @@ Rules:
 Return ONLY the arrow function, no markdown fences, no explanation.`;
 }
 
-function parseResponse(text: string): ((category: string, outcome: string) => Record<string, number> | null) | null {
+export function parseResponse(text: string): ((category: string, outcome: string) => Record<string, number> | null) | null {
   let cleaned = text.trim();
   cleaned = cleaned.replace(/^```(?:typescript|ts)?\n?/i, '').replace(/\n?```$/i, '').trim();
   if (cleaned.endsWith(';')) cleaned = cleaned.slice(0, -1).trim();

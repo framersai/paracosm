@@ -45,7 +45,7 @@ a{color:var(--amber);text-decoration:none}a:hover{text-decoration:underline}
 .light .nav{background:rgba(216,202,176,.88);border-bottom-color:rgba(184,168,136,.5)}
 .nav-l{display:flex;align-items:center;gap:10px}
 .nav-l svg{width:24px;height:24px;flex-shrink:0}
-.nav-brand{font-family:var(--mono);font-size:15px;font-weight:700;color:var(--t1);text-decoration:none}.nav-brand:hover{color:var(--amber);text-decoration:none}
+.nav-brand{font-family:var(--mono);font-size:15px;font-weight:700;color:var(--t1);text-decoration:none;letter-spacing:.08em}.nav-brand:hover{color:var(--amber);text-decoration:none}.nav-brand-accent{color:var(--amber)}
 .nav-tag{font-size:9px;font-weight:700;letter-spacing:1.5px;color:var(--rust);font-family:var(--mono)}
 .nav-r{display:flex;align-items:center;gap:28px}
 .nav-r a{font-size:13px;color:var(--t3);font-weight:500;transition:color .2s;text-decoration:none}.nav-r a:hover{color:var(--t1);text-decoration:none}
@@ -64,7 +64,7 @@ a{color:var(--amber);text-decoration:none}a:hover{text-decoration:underline}
 .hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:100px 24px 80px;position:relative}
 .hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 50% at 50% 30%,rgba(232,180,74,.05) 0%,transparent 60%),radial-gradient(ellipse 50% 40% at 25% 70%,rgba(224,101,48,.03) 0%,transparent 50%),radial-gradient(ellipse 50% 40% at 75% 60%,rgba(76,168,168,.03) 0%,transparent 50%);pointer-events:none}
 .hero-logo{width:96px;height:96px;margin-bottom:32px}
-.hero h1{font-family:var(--mono);font-size:clamp(32px,7vw,72px);font-weight:900;letter-spacing:-2px;line-height:1.1;margin-bottom:20px;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero h1{font-family:var(--mono);font-size:clamp(32px,7vw,72px);font-weight:700;letter-spacing:.12em;line-height:1.1;margin-bottom:20px;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .hero-sub{font-size:clamp(15px,2.2vw,20px);color:var(--t2);max-width:640px;line-height:1.8;margin-bottom:12px}
 .hero-mono{font-family:var(--mono);font-size:12px;color:var(--t4);letter-spacing:1px;margin-bottom:40px}
 .hero-ctas{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-bottom:56px}
@@ -283,8 +283,8 @@ footer{padding:28px 24px;border-top:1px solid var(--border);background:var(--bg2
 <!-- NAV -->
 <nav class="nav" role="navigation" aria-label="Main">
   <div class="nav-l">
-    <img src="/brand/icons/paracosm-icon-64.svg" width="24" height="24" alt="Paracosm" style="display:block">
-    <a href="/" class="nav-brand">PARACOSM</a>
+    <img id="nav-icon" src="/brand/icons/paracosm-icon-64.svg" width="24" height="24" alt="Paracosm" style="display:block">
+    <a href="/" class="nav-brand">PARA<span class="nav-brand-accent">COSM</span></a>
     <a href="https://agentos.sh" target="_blank" rel="noopener" class="nav-tag" style="text-decoration:none">AGENTOS</a>
   </div>
   <div class="nav-r">
@@ -300,7 +300,7 @@ footer{padding:28px 24px;border-top:1px solid var(--border);background:var(--bg2
 
 <!-- HERO -->
 <section class="hero" id="top">
-  <img class="hero-logo" src="/brand/icons/paracosm-icon-color.svg" width="96" height="96" alt="Paracosm" style="display:block">
+  <img id="hero-icon" class="hero-logo" src="/brand/icons/paracosm-icon-color.svg" width="96" height="96" alt="Paracosm" style="display:block">
 
   <h1>PARACOSM</h1>
   <p class="hero-sub">Define a world as JSON. The engine spawns an autonomous agent swarm, generates crises from simulation state, forges computational tools at runtime, and resolves outcomes through a deterministic kernel. Same starting conditions, different AI personalities, divergent outcomes.</p>
@@ -663,7 +663,7 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
       <a href="https://wilds.ai/discord">Discord</a>
       <a href="mailto:team@frame.dev">team@frame.dev</a>
     </nav>
-    <span class="ft-copy">Apache-2.0 &middot; Manic Agency LLC / Frame.dev</span>
+    <span class="ft-copy"><span style="font-weight:700;letter-spacing:.08em">PARA<span style="color:var(--amber)">COSM</span></span> &middot; Apache-2.0 &middot; Manic Agency LLC / Frame.dev</span>
   </div>
 </footer>
 
@@ -693,6 +693,11 @@ function applyTheme(t) {
   document.documentElement.classList.toggle('light', t === 'light');
   themeBtn.textContent = t === 'dark' ? '\u2600' : '\u263D';
   localStorage.setItem('paracosm-theme', t);
+  // Swap icon SVGs for light/dark line visibility
+  const navIcon = document.getElementById('nav-icon');
+  const heroIcon = document.getElementById('hero-icon');
+  if (navIcon) navIcon.src = t === 'light' ? '/brand/icons/paracosm-icon-64-light.svg' : '/brand/icons/paracosm-icon-64.svg';
+  if (heroIcon) heroIcon.src = t === 'light' ? '/brand/icons/paracosm-icon-color-light.svg' : '/brand/icons/paracosm-icon-color.svg';
 }
 applyTheme(savedTheme);
 themeBtn.addEventListener('click', () => {

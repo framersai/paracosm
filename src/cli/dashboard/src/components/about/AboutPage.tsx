@@ -162,8 +162,8 @@ export function AboutPage() {
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
         {/* Header */}
         <header style={{ marginBottom: '24px' }}>
-          <h1 style={{ fontSize: '22px', color: 'var(--amber)', fontFamily: 'var(--mono)', marginBottom: '8px' }}>
-            Paracosm
+          <h1 style={{ fontSize: '22px', color: 'var(--text-1)', fontFamily: 'var(--mono)', marginBottom: '8px', letterSpacing: '.12em', fontWeight: 700 }}>
+            PARA<span style={{ color: 'var(--amber)' }}>COSM</span>
           </h1>
           <p style={{ color: 'var(--text-2)', lineHeight: 1.8, fontSize: '14px' }}>
             Scenario-driven multi-agent simulation engine with emergent AI crisis generation, runtime tool forging,

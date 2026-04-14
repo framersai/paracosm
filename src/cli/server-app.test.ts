@@ -47,7 +47,7 @@ test('GET /setup redirects to the live dashboard settings surface', async () => 
   try {
     const response = await fetch(`http://127.0.0.1:${port}/setup`, { redirect: 'manual' });
     assert.equal(response.status, 302);
-    assert.equal(response.headers.get('location'), '/#settings');
+    assert.equal(response.headers.get('location'), '/sim?tab=settings');
   } finally {
     server.close();
     await once(server, 'close');
@@ -126,7 +126,7 @@ test('POST /setup normalizes config and hands it to the simulation runner', asyn
     });
     const json = await response.json();
 
-    assert.deepEqual(json, { redirect: '/' });
+    assert.deepEqual(json, { redirect: '/sim' });
     await new Promise(resolve => setTimeout(resolve, 10));
     assert.ok(captured);
     const cfg = captured as NormalizedSimulationConfig;

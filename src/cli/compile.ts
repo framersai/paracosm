@@ -11,11 +11,13 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { compileScenario } from '../engine/compiler/index.js';
+import { parseCompileCliOptions } from './compile-cli-options.js';
 
 async function main() {
-  const args = process.argv.slice(2);
+  const rawArgs = process.argv.slice(2);
+  const options = parseCompileCliOptions(rawArgs);
 
-  if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
+  if (rawArgs.length === 0 || rawArgs.includes('--help') || rawArgs.includes('-h')) {
     console.log(`
 paracosm compile — Generate runtime hooks for a scenario JSON
 
@@ -27,19 +29,30 @@ Options:
   --model <model>         Model name (default: claude-sonnet-4-6)
   --no-cache              Skip disk cache
   --cache-dir <dir>       Cache directory (default: .paracosm/cache)
+  --seed-text <text>      Seed scenario knowledge from inline text before hook generation
+  --seed-url <url>        Seed scenario knowledge from a URL before hook generation
+  --no-web-search         Skip live citation grounding during seed ingestion
+  --max-searches <n>      Cap the number of live grounding searches during seed ingestion
   -h, --help              Show this help
 `);
     process.exit(0);
   }
 
-  const jsonPath = resolve(args[0]);
-  const provider = getArg(args, '--provider') ?? 'anthropic';
-  const model = getArg(args, '--model') ?? 'claude-sonnet-4-6';
-  const cache = !args.includes('--no-cache');
-  const cacheDir = getArg(args, '--cache-dir') ?? '.paracosm/cache';
+  if (!options.scenarioPath) {
+    console.error('  Scenario JSON path required. Run with --help for usage.');
+    process.exit(1);
+  }
+
+  const jsonPath = resolve(options.scenarioPath);
 
   console.log(`\n  Compiling scenario: ${jsonPath}`);
-  console.log(`  Provider: ${provider} | Model: ${model} | Cache: ${cache}\n`);
+  console.log(`  Provider: ${options.provider} | Model: ${options.model} | Cache: ${options.cache}`);
+  if (options.seedUrl) {
+    console.log(`  Seed URL: ${options.seedUrl} | Web search: ${options.webSearch} | Max searches: ${options.maxSearches ?? 5}`);
+  } else if (options.seedText) {
+    console.log(`  Seed text: ${Math.min(options.seedText.length, 160)} chars | Web search: ${options.webSearch} | Max searches: ${options.maxSearches ?? 5}`);
+  }
+  console.log();
 
   let scenarioJson: Record<string, unknown>;
   try {
@@ -50,10 +63,14 @@ Options:
   }
 
   const scenario = await compileScenario(scenarioJson, {
-    provider: provider as any,
-    model,
-    cache,
-    cacheDir,
+    provider: options.provider,
+    model: options.model,
+    cache: options.cache,
+    cacheDir: options.cacheDir,
+    seedText: options.seedText,
+    seedUrl: options.seedUrl,
+    webSearch: options.webSearch,
+    maxSearches: options.maxSearches,
     onProgress(hookName, status) {
       const icons: Record<string, string> = {
         generating: '...',
@@ -73,11 +90,6 @@ Options:
   console.log(`  Departments: ${scenario.departments.map(d => d.id).join(', ')}`);
   console.log(`  Hooks: ${Object.keys(scenario.hooks).filter(k => (scenario.hooks as any)[k]).join(', ')}`);
   console.log(`  Ready for: runSimulation(leader, personnel, { scenario })\n`);
-}
-
-function getArg(args: string[], flag: string): string | undefined {
-  const idx = args.indexOf(flag);
-  return idx >= 0 && idx + 1 < args.length ? args[idx + 1] : undefined;
 }
 
 main().catch((err) => {

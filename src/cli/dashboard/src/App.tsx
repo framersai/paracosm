@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, createContext, useContext } from 'react';
+import { useState, useCallback, useEffect, createContext, useContext, Component, type ReactNode, type ErrorInfo } from 'react';
 import { ThemeProvider } from './theme/ThemeProvider';
 import { useScenario, type ScenarioClientPayload } from './hooks/useScenario';
 import { useSSE } from './hooks/useSSE';
@@ -15,6 +15,11 @@ import { ChatPanel } from './components/chat/ChatPanel';
 import { Footer } from './components/layout/Footer';
 import { ToastProvider, useToast } from './components/shared/Toast';
 import { Analytics } from './components/shared/Analytics';
+import {
+  createDashboardTabHref,
+  getDashboardTabFromHref,
+  type DashboardTab,
+} from './tab-routing';
 
 // Scenario context available to all components
 const ScenarioContext = createContext<ScenarioClientPayload | null>(null);
@@ -24,7 +29,12 @@ export function useScenarioContext() {
   return ctx;
 }
 
-type Tab = 'sim' | 'settings' | 'reports' | 'chat' | 'log' | 'about';
+const DashboardNavigationContext = createContext<((tab: Exclude<DashboardTab, 'about'>) => void) | null>(null);
+export function useDashboardNavigation() {
+  const ctx = useContext(DashboardNavigationContext);
+  if (!ctx) throw new Error('useDashboardNavigation must be used within App');
+  return ctx;
+}
 
 function AppContent() {
   const { scenario } = useScenario();
@@ -37,28 +47,15 @@ function AppContent() {
   const gameState = useGameState(sse.events, sse.isComplete);
   const persistence = useGamePersistence(scenario.labels.shortName);
   const { toast } = useToast();
-  // Tab state from URL query param ?tab=sim
-  const getTabFromUrl = (): Tab => {
-    const params = new URLSearchParams(window.location.search);
-    const tab = params.get('tab');
-    if (tab && ['sim', 'settings', 'reports', 'chat', 'log', 'about'].includes(tab)) return tab as Tab;
-    // Also check hash for backward compat
-    const hash = window.location.hash.replace('#', '');
-    if (hash && ['sim', 'settings', 'reports', 'chat', 'log', 'about'].includes(hash)) return hash as Tab;
-    return 'sim';
-  };
-  const [activeTab, setActiveTabState] = useState<Tab>(getTabFromUrl);
-  const setActiveTab = (tab: Tab) => {
+  const [activeTab, setActiveTabState] = useState<DashboardTab>(() => getDashboardTabFromHref(window.location.href));
+  const setActiveTab = useCallback((tab: DashboardTab) => {
     if (tab === 'about') {
       window.location.href = '/';
       return;
     }
     setActiveTabState(tab);
-    const url = new URL(window.location.href);
-    url.searchParams.set('tab', tab);
-    url.hash = '';
-    window.history.replaceState({}, '', url.toString());
-  };
+    window.history.replaceState({}, '', createDashboardTabHref(window.location.href, tab));
+  }, []);
 
   const handleSave = useCallback(() => {
     persistence.save(sse.events, sse.results);
@@ -84,52 +81,97 @@ function AppContent() {
   }, [persistence, sse, toast]);
 
   return (
-    <ScenarioContext.Provider value={scenario}>
-      <div className="flex flex-col h-screen w-screen overflow-hidden scanline-overlay" style={{ background: 'var(--bg-deep)', color: 'var(--text-1)' }}>
-        <TopBar scenario={scenario} sse={sse} gameState={gameState} onSave={handleSave} onLoad={handleLoad} onClear={handleClear} />
-        <TabBar active={activeTab} onTabChange={setActiveTab} scenario={scenario} />
+    <DashboardNavigationContext.Provider value={setActiveTab}>
+      <ScenarioContext.Provider value={scenario}>
+        <div className="flex flex-col h-screen w-screen overflow-hidden scanline-overlay" style={{ background: 'var(--bg-deep)', color: 'var(--text-1)' }}>
+          <TopBar scenario={scenario} sse={sse} gameState={gameState} onSave={handleSave} onLoad={handleLoad} onClear={handleClear} />
+          <TabBar active={activeTab} onTabChange={setActiveTab} scenario={scenario} />
 
-        <main id="main-content" className="flex-1 overflow-hidden" role="main" aria-label={`${activeTab} view`} style={{ background: 'var(--bg-deep)', display: 'flex', flexDirection: 'column' }}>
-          {activeTab === 'sim' && <SimView state={gameState} />}
+          <main id="main-content" className="flex-1 overflow-hidden" role="main" aria-label={`${activeTab} view`} style={{ background: 'var(--bg-deep)', display: 'flex', flexDirection: 'column' }}>
+            {activeTab === 'sim' && <SimView state={gameState} />}
 
-          {activeTab === 'settings' && <SettingsPanel />}
+            {activeTab === 'settings' && <SettingsPanel />}
 
-          {activeTab === 'reports' && <ReportView state={gameState} />}
+            {activeTab === 'reports' && <ReportView state={gameState} />}
 
-          {activeTab === 'chat' && <ChatPanel state={gameState} />}
+            {activeTab === 'chat' && <ChatPanel state={gameState} />}
 
-          {activeTab === 'log' && (
-            <div className="flex-1 overflow-y-auto p-4 font-mono text-xs" role="log" aria-label="Event log" aria-live="polite" style={{ background: 'var(--bg-panel)', color: 'var(--text-3)' }}>
-              <h2 className="mb-2 font-semibold" style={{ color: 'var(--text-1)', fontSize: '14px' }}>Event Log</h2>
-              {sse.events.length === 0 && <div>No events yet.</div>}
-              {sse.events.map((e, i) => (
-                <div key={i} className="py-0.5">
-                  <span style={{ color: 'var(--amber)' }}>[{e.type}]</span>{' '}
-                  <span style={{ color: 'var(--text-2)' }}>{e.leader}</span>{' '}
-                  {e.data?.turn && <span>T{String(e.data.turn)}</span>}
-                  {e.data?.title && <span> {String(e.data.title)}</span>}
-                  {e.data?.department && <span> {String(e.data.department)}</span>}
-                  {e.data?.outcome && <span> &rarr; {String(e.data.outcome)}</span>}
-                </div>
-              ))}
-            </div>
-          )}
+            {activeTab === 'log' && (
+              <div className="flex-1 overflow-y-auto p-4 font-mono text-xs" role="log" aria-label="Event log" aria-live="polite" style={{ background: 'var(--bg-panel)', color: 'var(--text-3)' }}>
+                <h2 className="mb-2 font-semibold" style={{ color: 'var(--text-1)', fontSize: '14px' }}>Event Log</h2>
+                {sse.events.length === 0 && <div>No events yet.</div>}
+                {sse.events.map((e, i) => (
+                  <div key={i} className="py-0.5">
+                    <span style={{ color: 'var(--amber)' }}>[{e.type}]</span>{' '}
+                    <span style={{ color: 'var(--text-2)' }}>{e.leader}</span>{' '}
+                    {e.data?.turn && <span>T{String(e.data.turn)}</span>}
+                    {e.data?.title && <span> {String(e.data.title)}</span>}
+                    {e.data?.department && <span> {String(e.data.department)}</span>}
+                    {e.data?.outcome && <span> &rarr; {String(e.data.outcome)}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
 
-          {/* About tab redirects to the landing page */}
-        </main>
-        <Footer />
-      </div>
-    </ScenarioContext.Provider>
+            {/* About tab redirects to the landing page */}
+          </main>
+          <Footer />
+        </div>
+      </ScenarioContext.Provider>
+    </DashboardNavigationContext.Provider>
   );
+}
+
+class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state: { error: Error | null } = { error: null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error('[Paracosm] Uncaught error:', error, info.componentStack);
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          height: '100vh', background: '#0a0806', color: '#f5f0e4', fontFamily: "'JetBrains Mono', monospace",
+          padding: '24px', textAlign: 'center',
+        }}>
+          <div style={{ fontSize: '14px', fontWeight: 700, color: '#e06530', marginBottom: '12px', letterSpacing: '.08em' }}>
+            SIMULATION ERROR
+          </div>
+          <div style={{ fontSize: '12px', color: '#a89878', maxWidth: '500px', lineHeight: 1.7, marginBottom: '16px' }}>
+            {this.state.error.message}
+          </div>
+          <button
+            onClick={() => { this.setState({ error: null }); window.location.reload(); }}
+            style={{
+              background: '#e06530', color: '#f5f0e4', border: 'none', padding: '10px 24px',
+              borderRadius: '6px', fontSize: '13px', fontWeight: 700, cursor: 'pointer',
+            }}
+          >
+            Reload Dashboard
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 export function App() {
   return (
-    <ThemeProvider>
-      <ToastProvider>
-        <Analytics />
-        <AppContent />
-      </ToastProvider>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <ToastProvider>
+          <Analytics />
+          <AppContent />
+        </ToastProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }

@@ -369,7 +369,9 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
           `Psych score: ${colonist.psychScore ?? '?'}. Bone density: ${colonist.boneDensity ?? '?'}%. Radiation: ${colonist.radiation ?? '?'} mSv.`,
         ].join('\n') : '';
 
-        const prompt = `You are ${colonist?.name || agentId}, a colonist on Mars. Stay in character.
+        const settlementNoun = activeScenario.labels?.settlementNoun ?? 'settlement';
+        const populationNoun = activeScenario.labels?.populationNoun ?? 'member';
+        const prompt = `You are ${colonist?.name || agentId}, a ${populationNoun.replace(/s$/, '')} at the ${settlementNoun}. Stay in character.
 ${colonistProfile}
 ${allQuotes ? `Your reactions during the simulation:\n${allQuotes}` : ''}
 ${chatHistory ? `Conversation so far:\n${chatHistory}` : ''}
@@ -582,7 +584,7 @@ Respond in character as this person. Be direct, personal, emotional. Reference y
   <div class="pdh-left">
     <a href="/" style="display:flex;align-items:center;text-decoration:none" aria-label="Paracosm home">
       <img src="/brand/icons/paracosm-icon-64.svg" width="22" height="22" alt="Paracosm" style="margin-right:8px;flex-shrink:0;display:block">
-      <span class="pdh-brand">PARACOSM</span>
+      <span class="pdh-brand">PARA<span style="color:#e8b44a">COSM</span></span>
     </a>
     <a href="https://agentos.sh" target="_blank" rel="noopener" class="pdh-tag">AGENTOS</a>
     <span class="pdh-sep">|</span>
@@ -606,7 +608,7 @@ Respond in character as this person. Be direct, personal, emotional. Reference y
     <a href="https://frame.dev">Frame.dev</a>
     <a href="https://manic.agency">Manic Agency</a>
   </div>
-  <span>Apache-2.0 &middot; <a href="https://manic.agency">Manic Agency</a> / <a href="https://frame.dev">Frame.dev</a></span>
+  <span><span style="font-family:'JetBrains Mono','SF Mono',Menlo,monospace;font-weight:700;letter-spacing:.08em;font-size:10px">PARA<span style="color:#e8b44a">COSM</span></span> &middot; Apache-2.0 &middot; <a href="https://manic.agency">Manic Agency</a> / <a href="https://frame.dev">Frame.dev</a></span>
 </div></body>`);
             res.writeHead(200, { 'Content-Type': 'text/html', 'Cache-Control': 'public, max-age=3600' });
             res.end(html);

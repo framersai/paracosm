@@ -48,7 +48,7 @@ Two commanders receive the same colony of 100 colonists and the same starting re
 
 ```bash
 npm run dashboard
-# Open http://localhost:3456
+# Open http://localhost:3456/sim?tab=settings
 ```
 
 ### Lunar Outpost
@@ -100,6 +100,8 @@ npm run dashboard        # full dashboard with settings
 npm run dashboard:smoke  # 3-turn smoke test
 ```
 
+The live dashboard is mounted at `/sim`, with `/setup` kept as a convenience alias that redirects to the settings tab.
+
 ## Architecture
 
 ```
@@ -118,7 +120,7 @@ src/
 
   cli/              server + dashboard + CLI (not exported by package)
     serve.ts        HTTP + SSE server
-    dashboard/      live visualization (static HTML/JS)
+    dashboard/      live visualization (React/Vite, with legacy fallback)
 ```
 
 ### Design Principle

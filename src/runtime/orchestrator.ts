@@ -463,7 +463,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   const effectRegistry = new EffectRegistry(sc.effects[0]?.categoryDefaults ?? {});
   // Department memory: stores previous turn summaries per department for session continuity
   const deptMemory = new Map<Department, import('./departments.js').DepartmentTurnMemory[]>();
-  const activeDepartments = new Set<Department>(opts.activeDepartments ?? ['medical', 'engineering', 'agriculture', 'psychology', 'governance']);
+  const activeDepartments = new Set<Department>(opts.activeDepartments ?? sc.departments.map(d => d.id));
 
   for (let turn = 1; turn <= maxTurns; turn++) {
     const year = yearSchedule[turn - 1] ?? (yearSchedule[yearSchedule.length - 1] + (turn - yearSchedule.length) * 5);

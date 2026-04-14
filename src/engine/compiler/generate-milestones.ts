@@ -42,7 +42,7 @@ Each milestone must have this exact JSON shape:
 Return ONLY a JSON array of exactly 2 objects: [founding, legacy]. No markdown fences.`;
 }
 
-function parseMilestones(text: string): [MilestoneCrisisDef, MilestoneCrisisDef] | null {
+export function parseMilestones(text: string): [MilestoneCrisisDef, MilestoneCrisisDef] | null {
   let cleaned = text.trim();
   cleaned = cleaned.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '').trim();
 

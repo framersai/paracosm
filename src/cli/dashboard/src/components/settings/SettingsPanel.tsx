@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect } from 'react';
-import { useScenarioContext } from '../../App';
+import { useDashboardNavigation, useScenarioContext } from '../../App';
 import { LeaderConfig, type LeaderFormData } from './LeaderConfig';
 import { ScenarioEditor } from './ScenarioEditor';
+import { getDashboardTabFromHref, resolveSetupRedirectHref } from '../../tab-routing';
 
 
 const DEFAULT_HEXACO: Record<string, number> = {
@@ -33,6 +34,7 @@ const labelStyle = {
 
 export function SettingsPanel() {
   const scenario = useScenarioContext();
+  const navigateTab = useDashboardNavigation();
 
   const defaultPreset = scenario.presets.find(p => p.id === 'default');
   const initLeaderA = defaultPreset?.leaders?.[0]
@@ -120,7 +122,8 @@ export function SettingsPanel() {
       }
       if (data.redirect) {
         setStatus('Running...');
-        window.location.hash = '';
+        const targetHref = resolveSetupRedirectHref(window.location.href, data.redirect);
+        navigateTab(getDashboardTabFromHref(targetHref) === 'about' ? 'sim' : getDashboardTabFromHref(targetHref));
       } else {
         setStatus(`Error: ${data.error || 'unknown'}`);
         setLaunching(false);
@@ -129,7 +132,7 @@ export function SettingsPanel() {
       setStatus(`Failed: ${err}`);
       setLaunching(false);
     }
-  }, [leaderA, leaderB, turns, seed, startYear, population, provider, liveSearch, scenario]);
+  }, [leaderA, leaderB, turns, seed, startYear, population, provider, liveSearch, navigateTab, scenario]);
 
   return (
     <div className="settings-content" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '20px 24px', background: 'var(--bg-deep)' }}>

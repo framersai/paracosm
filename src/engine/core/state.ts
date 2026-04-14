@@ -1,4 +1,5 @@
-export type Department = 'medical' | 'engineering' | 'agriculture' | 'science' | 'administration' | 'psychology' | 'governance';
+/** Department ID. Scenario-defined, not a fixed union. */
+export type Department = string;
 
 export interface HexacoProfile {
   openness: number;
