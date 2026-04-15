@@ -180,11 +180,11 @@ function AppContent() {
           <TabBar active={activeTab} onTabChange={setActiveTab} scenario={scenario} />
 
           <main id="main-content" className="flex-1 overflow-hidden" role="main" aria-label={`${activeTab} view`} style={{ background: 'var(--bg-deep)', display: 'flex', flexDirection: 'column' }}>
-            {activeTab === 'sim' && <SimView state={gameState} sseStatus={sse.status} onRun={handleRun} />}
+            {activeTab === 'sim' && <SimView state={gameState} sseStatus={sse.status} onRun={handleRun} verdict={sse.verdict} />}
 
             {activeTab === 'settings' && <SettingsPanel />}
 
-            {activeTab === 'reports' && <ReportView state={gameState} />}
+            {activeTab === 'reports' && <ReportView state={gameState} verdict={sse.verdict} />}
 
             {activeTab === 'chat' && <ChatPanel state={gameState} />}
 

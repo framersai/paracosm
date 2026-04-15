@@ -1,9 +1,11 @@
 import { useMemo, useEffect, useRef } from 'react';
 import type { GameState } from '../../hooks/useGameState';
 import { Badge } from '../shared/Badge';
+import { VerdictCard } from '../sim/VerdictCard';
 
 interface ReportViewProps {
   state: GameState;
+  verdict?: Record<string, unknown> | null;
 }
 
 interface TurnData {
@@ -22,7 +24,7 @@ interface TurnData {
   totalReactions: number;
 }
 
-export function ReportView({ state }: ReportViewProps) {
+export function ReportView({ state, verdict }: ReportViewProps) {
   const turns = useMemo(() => {
     const map: Record<number, { a: TurnData; b: TurnData }> = {};
     for (const side of ['a', 'b'] as const) {
@@ -89,6 +91,8 @@ export function ReportView({ state }: ReportViewProps) {
       <h2 style={{ fontSize: '22px', color: 'var(--amber)', fontFamily: 'var(--mono)', marginBottom: '16px' }}>
         Turn-by-Turn Report
       </h2>
+
+      {verdict && <VerdictCard verdict={verdict} />}
 
       {turns.map(([turnNum, sides]) => {
         const a = sides.a;

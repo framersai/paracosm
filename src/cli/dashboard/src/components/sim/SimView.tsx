@@ -7,11 +7,13 @@ import { CrisisHeader } from './CrisisHeader';
 import { EventCard } from './EventCard';
 import { DivergenceRail } from './DivergenceRail';
 import { Timeline } from './Timeline';
+import { VerdictCard } from './VerdictCard';
 
 interface SimViewProps {
   state: GameState;
   sseStatus?: string;
   onRun?: () => void;
+  verdict?: Record<string, unknown> | null;
 }
 
 function SideColumn({ side, sideState, state }: { side: Side; sideState: SideState; state: GameState }) {
@@ -112,7 +114,7 @@ function IntroBar({ onDismiss }: { onDismiss: () => void }) {
   );
 }
 
-export function SimView({ state, sseStatus, onRun }: SimViewProps) {
+export function SimView({ state, sseStatus, onRun, verdict }: SimViewProps) {
   const scenario = useScenarioContext();
   const [launching, setLaunching] = useState(false);
 
@@ -279,6 +281,9 @@ export function SimView({ state, sseStatus, onRun }: SimViewProps) {
         <SideColumn side="a" sideState={state.a} state={state} />
         <SideColumn side="b" sideState={state.b} state={state} />
       </div>
+
+      {/* Verdict card after simulation completes */}
+      {verdict && <VerdictCard verdict={verdict} />}
 
       {/* Timeline at bottom */}
       <Timeline state={state} />
