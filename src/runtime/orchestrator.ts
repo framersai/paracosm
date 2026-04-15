@@ -333,6 +333,7 @@ export interface RunOptions {
   maxTurns?: number;
   seed?: number;
   startYear?: number;
+  yearsPerTurn?: number;
   liveSearch?: boolean;
   activeDepartments?: Department[];
   provider?: LlmProvider;
@@ -444,10 +445,9 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     const a = agent({
       provider,
       model: modelConfig.departments || cfg.defaultModel,
-      instructions: cfg.instructions,
+      instructions: cfg.instructions + '\n\nIMPORTANT: You MUST respond with valid JSON only. No markdown, no prose, no explanation outside the JSON object.',
       tools,
       maxSteps: opts.execution?.departmentMaxSteps ?? DEFAULT_EXECUTION.departmentMaxSteps,
-      responseFormat: { type: 'json_object' },
     });
     deptAgents.set(dept, a);
     deptSess.set(dept, a.session(`${sid}-${dept}`));
@@ -455,7 +455,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   console.log(`  Promoted ${promoted.length} department heads. Agents created.\n`);
 
   const artifacts: TurnArtifact[] = [];
-  const yearSchedule = buildYearSchedule(startYear, maxTurns);
+  const yearSchedule = buildYearSchedule(startYear, maxTurns, opts.yearsPerTurn);
   const outcomeLog: Array<{ turn: number; year: number; outcome: TurnOutcome }> = [];
   const eventHistory: DirectorContext['previousEvents'] = [];
   let lastTurnToolOutputs: Array<{ name: string; department: string; output: string }> = [];
