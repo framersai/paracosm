@@ -524,8 +524,8 @@ Respond in character as this person. Be direct, personal, emotional. Reference y
     }
 
     // Serve brand assets
-    if (req.url?.startsWith('/brand/')) {
-      const brandPath = resolve(__dirname, '..', '..', 'assets', req.url.replace('/brand/', ''));
+    if (req.url?.split('?')[0].startsWith('/brand/')) {
+      const brandPath = resolve(__dirname, '..', '..', 'assets', req.url.split('?')[0].replace('/brand/', ''));
       if (existsSync(brandPath)) {
         const ext = brandPath.split('.').pop() || '';
         const types: Record<string,string> = { svg:'image/svg+xml', png:'image/png', jpg:'image/jpeg', css:'text/css', js:'application/javascript', woff2:'font/woff2' };
