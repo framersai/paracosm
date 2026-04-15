@@ -735,21 +735,6 @@ Respond in character as this person. Be direct, personal, emotional. Reference y
         res.end(html);
         return;
       }
-      // Legacy fallback
-      if (existsSync(resolve(__dirname, 'dashboard/index.legacy.html'))) {
-        const html = readFileSync(resolve(__dirname, 'dashboard/index.legacy.html'), 'utf-8');
-        res.writeHead(200, { 'Content-Type': 'text/html' });
-        res.end(html);
-        return;
-      }
-    }
-
-    // Legacy JS fallback
-    if (req.url === '/main.js' && existsSync(resolve(__dirname, 'dashboard/main.legacy.js'))) {
-      const js = readFileSync(resolve(__dirname, 'dashboard/main.legacy.js'), 'utf-8');
-      res.writeHead(200, { 'Content-Type': 'application/javascript' });
-      res.end(js);
-      return;
     }
 
     res.writeHead(404);

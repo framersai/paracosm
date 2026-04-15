@@ -106,6 +106,21 @@
     <a href="/sim" class="cta">Launch Sim <svg><use href="#i-arrow"/></svg></a>
     <button class="theme-toggle" id="theme-toggle" aria-label="Toggle light/dark mode" style="background:none;border:1px solid var(--border);color:var(--t3);width:32px;height:32px;border-radius:6px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0"></button>
   </div>
+  <button class="nav-hamburger" id="nav-hamburger" aria-label="Toggle navigation menu" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
+  <div class="nav-mobile" id="nav-mobile" aria-hidden="true">
+    <a href="#features">Features</a>
+    <a href="#how-it-works">How It Works</a>
+    <a href="#scenarios">Scenarios</a>
+    <a href="#faq">FAQ</a>
+    <a href="#about">About</a>
+    <a href="/docs">API Docs</a>
+    <a href="https://agentos.sh/blog" target="_blank" rel="noopener">Blog</a>
+    <a href="https://github.com/framersai/paracosm" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://www.npmjs.com/package/paracosm" target="_blank" rel="noopener">npm</a>
+    <a href="/sim" class="cta" style="margin-top:8px;text-align:center">Launch Sim <svg width="16" height="16"><use href="#i-arrow"/></svg></a>
+  </div>
 </nav>
 
 <!-- HERO -->
@@ -587,6 +602,23 @@ const barObs = new IntersectionObserver(entries => {
   });
 }, { threshold: 0.5 });
 document.querySelectorAll('.diverge').forEach(el => barObs.observe(el));
+
+// Hamburger menu toggle
+const hamburger = document.getElementById('nav-hamburger');
+const mobileNav = document.getElementById('nav-mobile');
+if (hamburger && mobileNav) {
+  hamburger.addEventListener('click', () => {
+    const expanded = hamburger.getAttribute('aria-expanded') === 'true';
+    hamburger.setAttribute('aria-expanded', String(!expanded));
+    mobileNav.setAttribute('aria-hidden', String(expanded));
+  });
+  mobileNav.querySelectorAll('a').forEach(link => {
+    link.addEventListener('click', () => {
+      hamburger.setAttribute('aria-expanded', 'false');
+      mobileNav.setAttribute('aria-hidden', 'true');
+    });
+  });
+}
 </script>
 </body>
 </html>
