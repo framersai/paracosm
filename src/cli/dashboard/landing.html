@@ -381,7 +381,7 @@ footer{padding:28px 24px;border-top:1px solid var(--border);background:var(--bg2
 }</div>
     </div>
     <div class="code-block">
-      <div class="code-header"><span>3. Compile the world, define two leaders, run them in parallel</span><button class="code-copy" onclick="copyCode(this, document.getElementById('api-code').textContent)">Copy</button></div>
+      <div class="code-header"><span>3. Compile, define leaders, run</span><button class="code-copy" onclick="copyCode(this, document.getElementById('api-code').textContent)">Copy</button></div>
       <div class="code-body" id="api-code"><span class="kw">import</span> { compileScenario } <span class="kw">from</span> <span class="str">'paracosm/compiler'</span>;
 <span class="kw">import</span> { runSimulation } <span class="kw">from</span> <span class="str">'paracosm/runtime'</span>;
 <span class="kw">import</span> worldJson <span class="kw">from</span> <span class="str">'./my-world.json'</span>;
@@ -392,37 +392,42 @@ footer{padding:28px 24px;border-top:1px solid var(--border);background:var(--bg2
   model: <span class="str">'claude-sonnet-4-6'</span>,
 });
 
-<span class="cm">// 2. Define two commanders with different HEXACO personalities</span>
-<span class="cm">//    Same world, same crises — different decisions</span>
-<span class="kw">const</span> leaderA = {
-  name: <span class="str">'Captain Reyes'</span>,
-  archetype: <span class="str">'The Pragmatist'</span>,
-  colony: <span class="str">'Station Alpha'</span>,
-  hexaco: { openness: <span class="num">0.4</span>, conscientiousness: <span class="num">0.9</span>,
-            extraversion: <span class="num">0.3</span>, agreeableness: <span class="num">0.6</span>,
-            emotionality: <span class="num">0.5</span>, honestyHumility: <span class="num">0.8</span> },
-  instructions: <span class="str">'You lead by protocol. Safety margins first.'</span>,
-};
+<span class="cm">// 2. Define leaders with HEXACO personality profiles</span>
+<span class="cm">//    Each leader is one simulation run. Run one, two, or many.</span>
+<span class="cm">//    The dashboard runs two side-by-side for comparison,</span>
+<span class="cm">//    but the API has no limit.</span>
+<span class="kw">const</span> leaders = [
+  {
+    name: <span class="str">'Captain Reyes'</span>,
+    archetype: <span class="str">'The Pragmatist'</span>,
+    colony: <span class="str">'Station Alpha'</span>,
+    hexaco: { openness: <span class="num">0.4</span>, conscientiousness: <span class="num">0.9</span>,
+              extraversion: <span class="num">0.3</span>, agreeableness: <span class="num">0.6</span>,
+              emotionality: <span class="num">0.5</span>, honestyHumility: <span class="num">0.8</span> },
+    instructions: <span class="str">'You lead by protocol. Safety margins first.'</span>,
+  },
+  {
+    name: <span class="str">'Captain Okafor'</span>,
+    archetype: <span class="str">'The Innovator'</span>,
+    colony: <span class="str">'Station Beta'</span>,
+    hexaco: { openness: <span class="num">0.9</span>, conscientiousness: <span class="num">0.4</span>,
+              extraversion: <span class="num">0.8</span>, agreeableness: <span class="num">0.5</span>,
+              emotionality: <span class="num">0.3</span>, honestyHumility: <span class="num">0.6</span> },
+    instructions: <span class="str">'You lead by experimentation. Push boundaries.'</span>,
+  },
+];
 
-<span class="kw">const</span> leaderB = {
-  name: <span class="str">'Captain Okafor'</span>,
-  archetype: <span class="str">'The Innovator'</span>,
-  colony: <span class="str">'Station Beta'</span>,
-  hexaco: { openness: <span class="num">0.9</span>, conscientiousness: <span class="num">0.4</span>,
-            extraversion: <span class="num">0.8</span>, agreeableness: <span class="num">0.5</span>,
-            emotionality: <span class="num">0.3</span>, honestyHumility: <span class="num">0.6</span> },
-  instructions: <span class="str">'You lead by experimentation. Push boundaries.'</span>,
-};
-
-<span class="cm">// 3. Run both in parallel — same seed, same crises, different outcomes</span>
-<span class="kw">const</span> [resultA, resultB] = <span class="kw">await</span> Promise.<span class="fn">all</span>([
-  <span class="fn">runSimulation</span>(leaderA, [], { scenario, maxTurns: <span class="num">8</span>, seed: <span class="num">42</span>,
-    <span class="fn">onEvent</span>(e) { console.<span class="fn">log</span>(<span class="str">'A:'</span>, e.type, e.data?.title); } }),
-  <span class="fn">runSimulation</span>(leaderB, [], { scenario, maxTurns: <span class="num">8</span>, seed: <span class="num">42</span>,
-    <span class="fn">onEvent</span>(e) { console.<span class="fn">log</span>(<span class="str">'B:'</span>, e.type, e.data?.title); } }),
-]);
-
-<span class="cm">// resultA.finalState vs resultB.finalState — the divergence</span></div>
+<span class="cm">// 3. Run in parallel: same seed, same crises, different outcomes</span>
+<span class="kw">const</span> results = <span class="kw">await</span> Promise.<span class="fn">all</span>(
+  leaders.<span class="fn">map</span>(leader =>
+    <span class="fn">runSimulation</span>(leader, [], {
+      scenario,
+      maxTurns: <span class="num">8</span>,
+      seed: <span class="num">42</span>,
+      <span class="fn">onEvent</span>(e) { console.<span class="fn">log</span>(leader.name, e.type, e.data?.title); },
+    })
+  )
+);</div>
     </div>
     <div class="code-block">
       <div class="code-header"><span>Or: quick start with the dashboard</span><button class="code-copy" onclick="copyCode(this, document.getElementById('dash-code').textContent)">Copy</button></div>
