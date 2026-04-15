@@ -28,17 +28,19 @@ export function Footer({ cost }: FooterProps) {
         <a href="https://agentos.sh/blog" target="_blank" rel="noopener" style={{ color: 'var(--rust)', fontWeight: 600 }}>blog</a>
       </nav>
 
-      {cost && cost.llmCalls > 0 && (
-        <span style={{ display: 'flex', alignItems: 'baseline', gap: '4px', fontFamily: 'var(--mono)', fontSize: '10px' }}>
-          <span style={{ color: 'var(--green)', fontWeight: 800 }}>
+      {cost && (cost.totalTokens > 0 || cost.llmCalls > 0) && (
+        <span style={{ display: 'flex', alignItems: 'baseline', gap: '6px', fontFamily: 'var(--mono)', fontSize: '10px' }}>
+          <span style={{ color: 'var(--green)', fontWeight: 800, fontSize: '11px' }}>
             ${cost.totalCostUSD < 0.01 ? cost.totalCostUSD.toFixed(4) : cost.totalCostUSD.toFixed(2)}
           </span>
           <span style={{ color: 'var(--text-3)' }}>
-            {(cost.totalTokens / 1000).toFixed(0)}k tok
+            {(cost.totalTokens / 1000).toFixed(0)}k tokens
           </span>
-          <span style={{ color: 'var(--text-3)' }}>
-            {cost.llmCalls} calls
-          </span>
+          {cost.llmCalls > 0 && (
+            <span style={{ color: 'var(--text-3)' }}>
+              {cost.llmCalls} calls
+            </span>
+          )}
         </span>
       )}
 
