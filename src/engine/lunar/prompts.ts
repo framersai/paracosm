@@ -9,8 +9,8 @@ export function lunarDepartmentPromptLines(dept: string, state: SimulationState)
 
   switch (dept) {
     case 'medical': {
-      const avgDust = alive.length ? alive.reduce((s, c) => s + c.health.cumulativeRadiationMsv, 0) / alive.length : 0;
-      const avgBone = alive.length ? alive.reduce((s, c) => s + c.health.boneDensityPct, 0) / alive.length : 0;
+      const avgDust = alive.length ? alive.reduce((s, c) => s + (c.health.cumulativeRadiationMsv ?? 0), 0) / alive.length : 0;
+      const avgBone = alive.length ? alive.reduce((s, c) => s + (c.health.boneDensityPct ?? 0), 0) / alive.length : 0;
       lines.push('HEALTH:', `Avg regolith exposure: ${avgDust.toFixed(0)} | Avg bone/muscle: ${avgBone.toFixed(1)}%`, '');
       break;
     }

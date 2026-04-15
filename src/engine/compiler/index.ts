@@ -30,7 +30,7 @@ import { generatePoliticsHook, parseResponse as parsePolitics } from './generate
 import { generateReactionContextHook, parseResponse as parseReactions } from './generate-reactions.js';
 import { ingestSeed, ingestFromUrl } from './seed-ingestion.js';
 import { generateDepartmentPromptHook, parseResponse as parsePrompts } from './generate-prompts.js';
-import type { MilestoneCrisisDef } from '../types.js';
+import type { MilestoneEventDef } from '../types.js';
 
 export type { CompileOptions, GenerateTextFn };
 export { ingestSeed, ingestFromUrl } from './seed-ingestion.js';
@@ -77,7 +77,7 @@ function restoreHookFromCache(hookName: string, source: string): Partial<Scenari
         if (!result) return null;
         const [founding, legacy] = result;
         return {
-          getMilestoneCrisis: (turn: number, maxTurns: number): MilestoneCrisisDef | null => {
+          getMilestoneEvent: (turn: number, maxTurns: number): MilestoneEventDef | null => {
             if (turn === 1) return founding;
             if (turn === maxTurns) return legacy;
             return null;
@@ -165,7 +165,7 @@ export async function compileScenario(
       }
       case 'milestones': {
         const result = await generateMilestones(json, genText);
-        hooks.getMilestoneCrisis = result.hook;
+        hooks.getMilestoneEvent = result.hook;
         if (cache) writeCache(json, hookName, result.source, model, cacheDir);
         break;
       }

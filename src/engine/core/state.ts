@@ -49,10 +49,14 @@ export interface AgentHealth {
   alive: boolean;
   deathYear?: number;
   deathCause?: string;
-  boneDensityPct: number;
-  cumulativeRadiationMsv: number;
   psychScore: number;
   conditions: string[];
+  /** Bone density percentage (scenario-specific, used by Mars/Lunar) */
+  boneDensityPct?: number;
+  /** Cumulative radiation exposure in millisieverts (scenario-specific, used by Mars/Lunar) */
+  cumulativeRadiationMsv?: number;
+  /** Scenario-defined health fields beyond the standard set */
+  [key: string]: unknown;
 }
 
 export interface AgentCareer {

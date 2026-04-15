@@ -266,8 +266,6 @@ export interface ScenarioHooks {
   fingerprintHook?: (finalState: SimulationState, outcomeLog: Array<{ turn: number; year: number; outcome: string }>, leader: LeaderConfig, toolRegs: Record<string, string[]>, maxTurns: number) => Record<string, string>;
   /** Returns a milestone event for narrative anchor turns (turn 1, final turn) */
   getMilestoneEvent?: (turn: number, maxTurns: number) => MilestoneEventDef | null;
-  /** @deprecated Use getMilestoneEvent */
-  getMilestoneCrisis?: (turn: number, maxTurns: number) => MilestoneCrisisDef | null;
   /** Returns politics deltas for political/social events, null if not applicable */
   politicsHook?: (category: string, outcome: string) => Record<string, number> | null;
 }
@@ -288,7 +286,7 @@ export interface EventOptionDef {
 export interface MilestoneEventDef {
   title: string;
   description: string;
-  /** @deprecated Use description */
+  /** Full detailed narrative text for the milestone event */
   crisis?: string;
   options: EventOptionDef[];
   riskyOptionId: string;
@@ -311,12 +309,6 @@ export interface Scenario {
   riskSuccessProbability: number;
   options?: EventOptionDef[];
 }
-
-// Backward-compatible aliases
-/** @deprecated Use EventOptionDef */
-export type CrisisOptionDef = EventOptionDef;
-/** @deprecated Use MilestoneEventDef */
-export type MilestoneCrisisDef = MilestoneEventDef;
 
 // ---------------------------------------------------------------------------
 // Leader config
