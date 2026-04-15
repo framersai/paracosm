@@ -8,7 +8,9 @@
     "shortName": "mars",
     "populationNoun": "colonists",
     "settlementNoun": "colony",
-    "currency": "credits"
+    "currency": "credits",
+    "eventNoun": "crises",
+    "eventNounSingular": "crisis"
   },
 
   "theme": {
