@@ -12,6 +12,7 @@ interface SSEState {
   status: 'connecting' | 'connected' | 'error';
   events: SimEvent[];
   results: Array<{ leader: string; summary: Record<string, unknown>; fingerprint: Record<string, string> | null }>;
+  verdict: Record<string, unknown> | null;
   isComplete: boolean;
 }
 
@@ -20,12 +21,13 @@ export function useSSE() {
     status: 'connecting',
     events: [],
     results: [],
+    verdict: null,
     isComplete: false,
   });
   const esRef = useRef<EventSource | null>(null);
 
   const reset = useCallback(() => {
-    setState({ status: 'connecting', events: [], results: [], isComplete: false });
+    setState({ status: 'connecting', events: [], results: [], verdict: null, isComplete: false });
   }, []);
 
   useEffect(() => {
@@ -47,6 +49,13 @@ export function useSSE() {
       try {
         const data = JSON.parse(e.data);
         setState(prev => ({ ...prev, results: [...prev.results, data] }));
+      } catch {}
+    });
+
+    es.addEventListener('verdict', (e: MessageEvent) => {
+      try {
+        const data = JSON.parse(e.data);
+        setState(prev => ({ ...prev, verdict: data }));
       } catch {}
     });
 

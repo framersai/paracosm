@@ -152,6 +152,7 @@ function AppContent() {
           leaders,
           provider: 'openai',
           turns: scenario.setup.defaultTurns,
+          yearsPerTurn: scenario.setup.defaultYearsPerTurn,
           seed: scenario.setup.defaultSeed,
           startYear: scenario.setup.defaultStartYear,
           population: scenario.setup.defaultPopulation,
