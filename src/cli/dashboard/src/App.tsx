@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, createContext, useContext, Component, type ReactNode, type ErrorInfo } from 'react';
+import { useState, useCallback, useEffect, useRef, createContext, useContext, Component, type ReactNode, type ErrorInfo } from 'react';
 import { ThemeProvider } from './theme/ThemeProvider';
 import { useScenario, type ScenarioClientPayload } from './hooks/useScenario';
 import { useSSE } from './hooks/useSSE';
@@ -87,6 +87,20 @@ function AppContent() {
     toast('info', 'Cleared', 'Simulation data cleared.');
     setActiveTab('settings');
   }, [persistence, sse, toast]);
+
+  // Show simulation errors as toasts
+  const lastErrorCount = useRef(0);
+  useEffect(() => {
+    if (sse.errors.length > lastErrorCount.current) {
+      const newErrors = sse.errors.slice(lastErrorCount.current);
+      for (const err of newErrors) {
+        // Shorten long provider errors for the toast
+        const short = err.length > 120 ? err.slice(0, 120) + '...' : err;
+        toast('error', 'Simulation Error', short);
+      }
+      lastErrorCount.current = sse.errors.length;
+    }
+  }, [sse.errors, toast]);
 
   const handleTourStart = useCallback(() => {
     setTourActive(true);

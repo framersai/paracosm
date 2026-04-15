@@ -13,6 +13,7 @@ interface SSEState {
   events: SimEvent[];
   results: Array<{ leader: string; summary: Record<string, unknown>; fingerprint: Record<string, string> | null }>;
   verdict: Record<string, unknown> | null;
+  errors: string[];
   isComplete: boolean;
 }
 
@@ -22,12 +23,13 @@ export function useSSE() {
     events: [],
     results: [],
     verdict: null,
+    errors: [],
     isComplete: false,
   });
   const esRef = useRef<EventSource | null>(null);
 
   const reset = useCallback(() => {
-    setState({ status: 'connecting', events: [], results: [], verdict: null, isComplete: false });
+    setState({ status: 'connecting', events: [], results: [], verdict: null, errors: [], isComplete: false });
   }, []);
 
   const loadEvents = useCallback((events: SimEvent[], results?: unknown[], verdict?: Record<string, unknown> | null) => {
@@ -76,7 +78,9 @@ export function useSSE() {
     es.addEventListener('sim_error', (e: MessageEvent) => {
       try {
         const data = JSON.parse(e.data);
-        console.error('[SSE] Simulation error:', data.error);
+        const msg = String(data.error || 'Unknown simulation error');
+        console.error('[SSE] Simulation error:', msg);
+        setState(prev => ({ ...prev, errors: [...prev.errors, msg] }));
       } catch {}
     });
 
