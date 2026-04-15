@@ -622,18 +622,22 @@ Respond in character as this person. Be direct, personal, emotional. Reference y
             html = html.replace('</head>',
               `<link rel="icon" href="/favicon.png" sizes="32x32"><link rel="icon" type="image/svg+xml" href="/icon.svg"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="/docs/assets/paracosm-override.css">
 <style>
-/* Mobile sidebar + theme sync (injected by server, survives TypeDoc rebuild) */
+/* Hamburger button in Paracosm header (hidden on desktop, shown on mobile) */
+.pdh-hamburger{display:none;background:none;border:1px solid var(--color-text-aside);border-radius:6px;width:32px;height:32px;cursor:pointer;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:7px;flex-shrink:0;opacity:.6;transition:opacity .2s}
+.pdh-hamburger:hover{opacity:1}
+.pdh-hamburger span{display:block;width:16px;height:2px;background:var(--color-text);border-radius:1px;transition:transform .25s,opacity .25s}
+.pdh-hamburger.open span:nth-child(1){transform:translateY(6px) rotate(45deg)}
+.pdh-hamburger.open span:nth-child(2){opacity:0}
+.pdh-hamburger.open span:nth-child(3){transform:translateY(-6px) rotate(-45deg)}
+/* Mobile: collapse sidebar behind hamburger, hide TypeDoc toolbar always */
 @media(max-width:900px){
+  header.tsd-page-toolbar{height:0!important;overflow:hidden!important;visibility:hidden!important;padding:0!important;margin:0!important;border:none!important}
   .container-main{display:block!important;grid-template-columns:none!important}
   .col-sidebar{display:none!important}
   body.has-menu .col-sidebar{display:block!important;position:fixed!important;top:44px!important;left:0!important;right:0!important;bottom:0!important;z-index:9999!important;background:var(--color-background)!important;overflow-y:auto!important;padding:16px!important}
-  .site-menu{position:static!important;max-height:none!important;border-right:none!important}
-  header.tsd-page-toolbar{height:40px!important;overflow:visible!important;visibility:visible!important;position:fixed!important;top:44px!important;left:0!important;right:0!important;z-index:9998!important;display:flex!important;align-items:center!important;padding:0 12px!important;background:var(--color-background-secondary)!important;border-bottom:1px solid var(--color-background-active)!important;border-top:none!important;margin:0!important}
-  body{padding-top:84px!important}
-  body.has-menu .col-sidebar{top:84px!important}
-  .tsd-page-toolbar .tsd-toolbar-contents{display:flex!important;align-items:center!important;gap:8px!important}
-  .tsd-widget.menu{display:inline-flex!important}
-  .pdh-right a:not(.pdh-theme-btn){display:none!important}
+  body.has-menu .site-menu{position:static!important;max-height:none!important;border-right:none!important}
+  .pdh-hamburger{display:flex}
+  .pdh-right a,.pdh-right .pdh-search{display:none!important}
 }
 </style></head>`
             );
@@ -657,6 +661,7 @@ Respond in character as this person. Be direct, personal, emotional. Reference y
     <a href="https://www.npmjs.com/package/paracosm" target="_blank" rel="noopener">npm</a>
     <button class="pdh-search" onclick="document.getElementById('tsd-search-trigger')?.click()" aria-label="Search docs"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.5"/><line x1="11" y1="11" x2="15" y2="15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
     <button class="pdh-theme" id="pdh-theme-toggle" aria-label="Toggle theme"></button>
+    <button class="pdh-hamburger" id="pdh-hamburger" aria-label="Toggle sidebar"><span></span><span></span><span></span></button>
   </div>
 </div>
 <script>
@@ -681,6 +686,19 @@ Respond in character as this person. Be direct, personal, emotional. Reference y
     btn.addEventListener('click',function(){
       var next=document.documentElement.dataset.theme==='dark'?'light':'dark';
       applyTheme(next);
+    });
+  }
+  // Hamburger: toggle body.has-menu for sidebar
+  var hb=document.getElementById('pdh-hamburger');
+  if(hb){
+    hb.addEventListener('click',function(){
+      document.body.classList.toggle('has-menu');
+      hb.classList.toggle('open');
+    });
+    // Close sidebar when a nav link is clicked
+    var sidebar=document.querySelector('.col-sidebar');
+    if(sidebar) sidebar.addEventListener('click',function(e){
+      if(e.target.tagName==='A'){document.body.classList.remove('has-menu');hb.classList.remove('open');}
     });
   }
 })();
