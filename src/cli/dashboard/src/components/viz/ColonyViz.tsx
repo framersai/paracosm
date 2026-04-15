@@ -71,13 +71,14 @@ export function ColonyViz({ state }: ColonyVizProps) {
   const leaderB = state.b.leader;
 
   if (maxTurn === 0) {
-    const isRunning = state.isRunning && !state.isComplete;
+    const hasActivity = state.isRunning || state.a.leader || state.b.leader || state.a.events.length > 0 || state.b.events.length > 0;
+    const isWaiting = hasActivity && !state.isComplete;
     return (
       <div style={{
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
         flex: 1, color: 'var(--text-3)', fontSize: 13, gap: 8,
       }}>
-        {isRunning ? (
+        {isWaiting ? (
           <>
             <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--rust)', letterSpacing: '.08em', textTransform: 'uppercase' }}>
               Simulation Running
