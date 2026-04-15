@@ -152,7 +152,7 @@ Options: `--seed-text`, `--seed-url`, `--no-web-search`, `--max-searches`. Compi
 
 | Scenario | Description |
 |----------|-------------|
-| **Mars Genesis** | 100 colonists, 12 turns over 50 years. 5 departments, emergent dust storms, water crises, first Marsborn generation. |
+| **Mars Genesis** | 100 colonists, 6 turns over 48 years. 5 departments, emergent dust storms, water crises, first Marsborn generation. |
 | **Lunar Outpost** | 50-person crew at the south pole. Mining, life support, communications. Regolith toxicity, 1/6g atrophy. |
 
 Both are included as `paracosm/mars` and `paracosm/lunar` exports. Use them as references for building your own scenarios.
@@ -211,6 +211,17 @@ Paracosm uses [AgentOS](https://agentos.sh) for agent orchestration, LLM calls, 
 | npm | [npmjs.com/package/paracosm](https://www.npmjs.com/package/paracosm) |
 | AgentOS | [agentos.sh](https://agentos.sh) |
 | Discord | [wilds.ai/discord](https://wilds.ai/discord) |
+
+## Roadmap
+
+### Enterprise Edition (Planned)
+
+| Feature | Description |
+|---------|-------------|
+| **Alternate Timelines** | Fork a simulation mid-run to explore "what if" branches. Split at any turn, change commander or settings, compare divergent futures from a single decision point. |
+| **Custom Scenario Forms** | Visual form-based scenario editor instead of raw JSON. Drag-and-drop departments, metric configuration, event category builder. |
+| **Persistent Agents** | Colonist chat agents that persist across sessions with durable memory. Resume conversations days later with full recall. |
+| **Multi-Scenario Comparison** | Run the same leaders across different scenarios (Mars, Lunar, custom) and compare how personality adapts to different domains. |
 
 ## License
 
