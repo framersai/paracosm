@@ -61,68 +61,83 @@ export function EventCard({ event, side }: EventCardProps) {
       const dept = String(dd.department || '');
       const tools = (dd._filteredTools as Array<Record<string, unknown>>) || [];
       const risks = Array.isArray(dd.risks) ? dd.risks : [];
+      const recs = Array.isArray(dd.recommendedActions) ? dd.recommendedActions.map(String) : [];
       const severity = risks.some((r: any) => r.severity === 'critical') ? 'critical' : risks.some((r: any) => r.severity === 'high') ? 'high' : '';
 
       const summary = String(dd.summary || '');
       const citeCount = Number(dd.citations) || 0;
-      const hasStats = citeCount > 0 || tools.length > 0;
-      const statsText = hasStats ? ` ${citeCount}c ${tools.length}t` : '';
 
       return (
         <div style={{ margin: '0 8px 4px' }}>
           <div style={{
-            padding: '6px 10px', borderRadius: '6px', fontSize: '11px',
+            padding: '8px 10px', borderRadius: '6px', fontSize: '11px',
             background: severity === 'critical' ? 'rgba(224,101,48,.08)' : severity === 'high' ? 'rgba(232,180,74,.06)' : 'var(--bg-card)',
             border: `1px solid ${severity === 'critical' ? 'rgba(224,101,48,.25)' : severity === 'high' ? 'rgba(232,180,74,.2)' : 'var(--border)'}`,
             borderLeft: `3px solid ${severity === 'critical' ? 'var(--rust)' : severity === 'high' ? 'var(--amber)' : 'var(--teal)'}`,
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: summary ? '4px' : 0 }}>
+            {/* Header: dept name, stats, severity */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
               <span style={{ fontWeight: 800, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--teal)' }}>
                 {scenario.ui.departmentIcons[dept] || ''} {dept}
               </span>
-              {hasStats && (
-                <span style={{ fontSize: '10px', color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
-                  {citeCount > 0 ? `${citeCount} cite` : ''}{citeCount > 0 && tools.length > 0 ? ' · ' : ''}{tools.length > 0 ? `${tools.length} tools` : ''}
-                </span>
-              )}
+              <span style={{ fontSize: '10px', color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
+                {[citeCount > 0 && `${citeCount} citations`, tools.length > 0 && `${tools.length} tools forged`].filter(Boolean).join(' · ') || ''}
+              </span>
               {severity && (
-                <span style={{ fontSize: '9px', fontWeight: 800, fontFamily: 'var(--mono)', padding: '0 4px', borderRadius: '2px', background: severity === 'critical' ? 'rgba(224,101,48,.15)' : 'rgba(232,180,74,.1)', color: severity === 'critical' ? 'var(--rust)' : 'var(--amber)' }}>
-                  {severity.toUpperCase()}
+                <span style={{ fontSize: '9px', fontWeight: 800, fontFamily: 'var(--mono)', padding: '1px 5px', borderRadius: '2px', background: severity === 'critical' ? 'rgba(224,101,48,.15)' : 'rgba(232,180,74,.1)', color: severity === 'critical' ? 'var(--rust)' : 'var(--amber)' }}>
+                  {severity.toUpperCase()} RISK
                 </span>
               )}
             </div>
+
+            {/* Summary */}
             {summary && (
-              <div style={{ fontSize: '11px', color: 'var(--text-2)', lineHeight: 1.5 }}>
+              <div style={{ fontSize: '12px', color: 'var(--text-1)', lineHeight: 1.5, marginBottom: '6px' }}>
                 {summary}
               </div>
             )}
+
+            {/* Risks */}
             {risks.length > 0 && (
-              <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '3px', lineHeight: 1.4 }}>
-                {risks.slice(0, 2).map((r: any, i: number) => (
-                  <div key={i} style={{ display: 'flex', gap: '4px' }}>
-                    <span style={{ color: (r.severity === 'critical' || r.severity === 'high') ? 'var(--rust)' : 'var(--amber)', fontFamily: 'var(--mono)', fontSize: '9px', fontWeight: 700, flexShrink: 0 }}>
-                      {String(r.severity || '').toUpperCase()}
+              <div style={{ marginBottom: '6px' }}>
+                <div style={{ fontSize: '9px', fontWeight: 800, color: 'var(--rust)', letterSpacing: '0.5px', fontFamily: 'var(--mono)', marginBottom: '2px' }}>RISKS</div>
+                {risks.slice(0, 3).map((r: any, i: number) => (
+                  <div key={i} style={{ fontSize: '11px', color: 'var(--text-2)', lineHeight: 1.4, display: 'flex', gap: '4px', marginBottom: '1px' }}>
+                    <span style={{ color: (r.severity === 'critical' || r.severity === 'high') ? 'var(--rust)' : 'var(--amber)', fontFamily: 'var(--mono)', fontSize: '9px', fontWeight: 700, flexShrink: 0, marginTop: '1px' }}>
+                      {String(r.severity || 'med').toUpperCase()}
                     </span>
                     <span>{String(r.description || '')}</span>
                   </div>
                 ))}
               </div>
             )}
-          </div>
 
-          {/* Citation links */}
-          {Array.isArray(dd.citationList) && (dd.citationList as Array<Record<string, string>>).length > 0 && (
-            <div style={{ padding: '0 10px 3px' }}>
-              {(dd.citationList as Array<Record<string, string>>).map((c, i) => (
-                <div key={i} style={{ fontSize: '11px', margin: '1px 0' }}>
-                  <a href={c.url} target="_blank" rel="noopener" style={{ color: 'var(--amber)', textDecoration: 'underline', textUnderlineOffset: '2px' }}>
-                    {c.text}
-                  </a>
-                  {c.doi && <span style={{ marginLeft: '4px', fontFamily: 'var(--mono)', fontSize: '10px', color: 'var(--text-4)' }}>DOI:{c.doi}</span>}
-                </div>
-              ))}
-            </div>
-          )}
+            {/* Recommended Actions */}
+            {recs.length > 0 && (
+              <div style={{ marginBottom: '4px' }}>
+                <div style={{ fontSize: '9px', fontWeight: 800, color: 'var(--green)', letterSpacing: '0.5px', fontFamily: 'var(--mono)', marginBottom: '2px' }}>RECOMMENDATIONS</div>
+                {recs.slice(0, 3).map((rec, i) => (
+                  <div key={i} style={{ fontSize: '11px', color: 'var(--text-2)', lineHeight: 1.4, paddingLeft: '8px', borderLeft: '2px solid var(--border)', marginBottom: '2px' }}>
+                    {rec}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Inline citations */}
+            {Array.isArray(dd.citationList) && (dd.citationList as Array<Record<string, string>>).length > 0 && (
+              <div style={{ marginTop: '4px', paddingTop: '4px', borderTop: '1px solid var(--border)' }}>
+                {(dd.citationList as Array<Record<string, string>>).map((c, i) => (
+                  <div key={i} style={{ fontSize: '10px', lineHeight: 1.4 }}>
+                    <a href={c.url} target="_blank" rel="noopener" style={{ color: 'var(--amber)', textDecoration: 'underline', textUnderlineOffset: '2px' }}>
+                      {c.text}
+                    </a>
+                    {c.doi && <span style={{ marginLeft: '4px', fontFamily: 'var(--mono)', fontSize: '9px', color: 'var(--text-4)' }}>DOI:{c.doi}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Tool forge cards with expandable detail */}
           {tools.map((t: any, i: number) => (
