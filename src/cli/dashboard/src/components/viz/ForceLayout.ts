@@ -1,266 +1,144 @@
-import type { ForceNode } from './viz-types';
+import type { CellSnapshot } from './viz-types';
 import { RANK_SIZES } from './viz-types';
 
-export interface ClusterCenter {
-  id: string;
-  x: number;
-  y: number;
-  radius: number;
-  label: string;
+/**
+ * Hex grid cellular automata layout.
+ * Each colonist occupies a discrete hex cell. No physics. No movement.
+ * Growth patterns emerge from births filling adjacent cells.
+ */
+
+export interface HexCell {
+  /** Grid column */
+  col: number;
+  /** Grid row */
+  row: number;
+  /** Pixel center x */
+  px: number;
+  /** Pixel center y */
+  py: number;
+  /** Colonist occupying this cell, or null if empty */
+  occupant: CellSnapshot | null;
+  /** Department of occupant (for coloring empty neighbor cells faintly) */
+  department: string | null;
+}
+
+export interface HexGrid {
+  cells: HexCell[];
+  cellSize: number;
+  cols: number;
+  rows: number;
 }
 
 /**
- * Compute fixed cluster center positions for departments.
- * Uses a 2-3 column grid layout within the canvas.
+ * Compute hex cell pixel position from grid coordinates.
+ * Odd rows are offset right by half a cell (pointy-top hex grid).
  */
-export function computeClusterCenters(
-  departments: string[],
+function hexToPixel(col: number, row: number, size: number, offsetX: number, offsetY: number): { x: number; y: number } {
+  const w = size * 2;
+  const h = Math.sqrt(3) * size;
+  const x = offsetX + col * w * 0.75;
+  const y = offsetY + row * h + (col % 2 === 1 ? h / 2 : 0);
+  return { x, y };
+}
+
+/**
+ * Build a hex grid that fills the canvas, then place colonists into cells.
+ *
+ * Colonists are grouped by department. Each department fills a contiguous
+ * region of the grid. The grid is divided into horizontal bands, one per
+ * department, and colonists fill cells left-to-right within their band.
+ * Empty cells remain as dim outlines, creating the CA visual pattern.
+ */
+export function buildHexGrid(
+  cells: CellSnapshot[],
   width: number,
   height: number,
-  populationCounts: Record<string, number>,
-): ClusterCenter[] {
-  const n = departments.length;
-  if (n === 0) return [];
+): HexGrid {
+  // Cell size adapts to canvas and population
+  const totalAlive = cells.filter(c => c.alive).length;
+  const cellSize = Math.max(5, Math.min(10, Math.sqrt((width * height) / Math.max(totalAlive * 8, 100))));
 
-  const cols = n <= 4 ? 2 : 3;
-  const rows = Math.ceil(n / cols);
-  const padX = width * 0.08;
-  const padY = height * 0.08;
-  const cellW = (width - padX * 2) / cols;
-  const cellH = (height - padY * 2) / rows;
+  const hexW = cellSize * 2;
+  const hexH = Math.sqrt(3) * cellSize;
+  const cols = Math.floor((width - cellSize) / (hexW * 0.75)) + 1;
+  const rows = Math.floor((height - cellSize) / hexH);
 
-  return departments.map((id, i) => {
-    const col = i % cols;
-    const row = Math.floor(i / cols);
-    const pop = populationCounts[id] || 1;
-    const maxPop = Math.max(...Object.values(populationCounts), 1);
-    const radius = 30 + (pop / maxPop) * 50;
+  const padX = (width - (cols - 1) * hexW * 0.75) / 2;
+  const padY = (height - rows * hexH) / 2;
 
-    return {
-      id,
-      x: padX + cellW * (col + 0.5),
-      y: padY + cellH * (row + 0.5),
-      radius,
-      label: id.charAt(0).toUpperCase() + id.slice(1),
-    };
-  });
-}
+  // Build empty grid
+  const grid: HexCell[] = [];
+  for (let c = 0; c < cols; c++) {
+    for (let r = 0; r < rows; r++) {
+      const { x, y } = hexToPixel(c, r, cellSize, padX + cellSize, padY + cellSize);
+      grid.push({ col: c, row: r, px: x, py: y, occupant: null, department: null });
+    }
+  }
 
-/**
- * Place cells in a hex-packed grid around their cluster center.
- * Each cell gets a stable grid position. No random placement.
- */
-function hexPackPositions(count: number, cx: number, cy: number, spacing: number): Array<{ x: number; y: number }> {
-  if (count === 0) return [];
-  const positions: Array<{ x: number; y: number }> = [];
+  // Group alive colonists by department
+  const departments = [...new Set(cells.filter(c => c.alive).map(c => c.department))];
+  const byDept: Record<string, CellSnapshot[]> = {};
+  for (const c of cells) {
+    if (!c.alive) continue;
+    if (!byDept[c.department]) byDept[c.department] = [];
+    byDept[c.department].push(c);
+  }
 
-  // Spiral hex packing from center outward
-  positions.push({ x: cx, y: cy });
-  let ring = 1;
-  while (positions.length < count) {
-    const rowHeight = spacing * 0.866; // sqrt(3)/2
-    for (let side = 0; side < 6 && positions.length < count; side++) {
-      for (let step = 0; step < ring && positions.length < count; step++) {
-        // Hex directions
-        const dirs = [
-          [1, 0], [0.5, rowHeight / spacing], [-0.5, rowHeight / spacing],
-          [-1, 0], [-0.5, -rowHeight / spacing], [0.5, -rowHeight / spacing],
-        ];
-        const prevDir = dirs[(side + 4) % 6];
-        const curDir = dirs[side];
-        const x = cx + (prevDir[0] * ring + curDir[0] * step) * spacing;
-        const y = cy + (prevDir[1] * ring + curDir[1] * step) * spacing;
-        positions.push({ x, y });
+  // Assign department bands: divide grid rows among departments
+  const deptCount = departments.length || 1;
+  const rowsPerDept = Math.floor(rows / deptCount);
+
+  let placed = 0;
+  for (let di = 0; di < departments.length; di++) {
+    const dept = departments[di];
+    const deptCells = byDept[dept] || [];
+    const startRow = di * rowsPerDept;
+    const endRow = di === departments.length - 1 ? rows : (di + 1) * rowsPerDept;
+
+    // Sort colonists: chiefs first (larger), then by rank
+    const rankOrder: Record<string, number> = { chief: 0, lead: 1, senior: 2, junior: 3 };
+    deptCells.sort((a, b) => (rankOrder[a.rank] ?? 3) - (rankOrder[b.rank] ?? 3));
+
+    let ci = 0;
+    for (let r = startRow; r < endRow && ci < deptCells.length; r++) {
+      for (let c = 0; c < cols && ci < deptCells.length; c++) {
+        const idx = c * rows + r; // column-major to fill within band
+        if (idx < grid.length) {
+          grid[idx].occupant = deptCells[ci];
+          grid[idx].department = dept;
+          ci++;
+          placed++;
+        }
       }
     }
-    ring++;
-  }
 
-  return positions.slice(0, count);
-}
-
-/**
- * Initialize ForceNodes with hex-packed positions within clusters.
- */
-export function initNodes(
-  cells: Array<{ agentId: string; department: string; rank: string; alive: boolean; marsborn: boolean; psychScore: number; partnerId?: string; childrenIds: string[]; featured: boolean; mood: string }>,
-  clusters: ClusterCenter[],
-): ForceNode[] {
-  const clusterMap = new Map(clusters.map(c => [c.id, c]));
-
-  // Group cells by department
-  const byDept: Record<string, typeof cells> = {};
-  for (const cell of cells) {
-    if (!byDept[cell.department]) byDept[cell.department] = [];
-    byDept[cell.department].push(cell);
-  }
-
-  const nodes: ForceNode[] = [];
-
-  for (const [dept, deptCells] of Object.entries(byDept)) {
-    const cluster = clusterMap.get(dept);
-    const cx = cluster?.x ?? 200;
-    const cy = cluster?.y ?? 200;
-    const spacing = 14; // Cell spacing in pixels
-    const positions = hexPackPositions(deptCells.length, cx, cy, spacing);
-
-    for (let i = 0; i < deptCells.length; i++) {
-      const cell = deptCells[i];
-      const pos = positions[i];
-      nodes.push({
-        id: cell.agentId,
-        x: pos.x, y: pos.y,
-        vx: 0, vy: 0,
-        prevX: pos.x, prevY: pos.y,
-        department: cell.department,
-        rank: cell.rank as ForceNode['rank'],
-        alive: cell.alive,
-        marsborn: cell.marsborn,
-        psychScore: cell.psychScore,
-        partnerId: cell.partnerId,
-        childrenIds: cell.childrenIds,
-        featured: cell.featured,
-        mood: cell.mood,
-      });
-    }
-  }
-
-  return nodes;
-}
-
-/** Target positions for each node, computed from hex grid. */
-const targetPositions = new Map<string, { x: number; y: number }>();
-
-/**
- * Run one tick. Cells gently drift toward their hex grid target.
- * Almost no movement once settled. Subtle organic breathing only.
- */
-export function tickForce(
-  nodes: ForceNode[],
-  clusters: ClusterCenter[],
-  canvasWidth: number,
-  canvasHeight: number,
-): void {
-  const clusterMap = new Map(clusters.map(c => [c.id, c]));
-  const alive = nodes.filter(n => n.alive);
-
-  // Recompute targets if cluster layout changed
-  const byDept: Record<string, ForceNode[]> = {};
-  for (const node of alive) {
-    if (!byDept[node.department]) byDept[node.department] = [];
-    byDept[node.department].push(node);
-  }
-
-  for (const [dept, deptNodes] of Object.entries(byDept)) {
-    const cluster = clusterMap.get(dept);
-    if (!cluster) continue;
-    const spacing = 14;
-    const positions = hexPackPositions(deptNodes.length, cluster.x, cluster.y, spacing);
-    for (let i = 0; i < deptNodes.length; i++) {
-      targetPositions.set(deptNodes[i].id, positions[i]);
-    }
-  }
-
-  // Move toward target with heavy damping
-  for (const node of alive) {
-    const target = targetPositions.get(node.id);
-    if (!target) continue;
-
-    const dx = target.x - node.x;
-    const dy = target.y - node.y;
-
-    // Strong spring toward hex grid position
-    node.vx += dx * 0.08;
-    node.vy += dy * 0.08;
-
-    // Very subtle breathing (not random jitter)
-    const t = Date.now() / 3000;
-    const breathX = Math.sin(t + node.x * 0.01) * 0.02;
-    const breathY = Math.cos(t + node.y * 0.01) * 0.02;
-    node.vx += breathX;
-    node.vy += breathY;
-
-    // Heavy damping so cells settle fast
-    node.vx *= 0.6;
-    node.vy *= 0.6;
-
-    // Kill micro-movement (prevents perpetual jiggle)
-    if (Math.abs(node.vx) < 0.01) node.vx = 0;
-    if (Math.abs(node.vy) < 0.01) node.vy = 0;
-
-    node.prevX = node.x;
-    node.prevY = node.y;
-    node.x += node.vx;
-    node.y += node.vy;
-
-    // Clamp
-    node.x = Math.max(6, Math.min(canvasWidth - 6, node.x));
-    node.y = Math.max(6, Math.min(canvasHeight - 6, node.y));
-  }
-}
-
-/**
- * Update nodes for a new turn snapshot.
- * Existing nodes keep position, new nodes get placed in hex grid.
- */
-export function syncNodes(
-  nodes: ForceNode[],
-  cells: Array<{ agentId: string; department: string; rank: string; alive: boolean; marsborn: boolean; psychScore: number; partnerId?: string; childrenIds: string[]; featured: boolean; mood: string }>,
-  clusters: ClusterCenter[],
-): ForceNode[] {
-  const existingMap = new Map(nodes.map(n => [n.id, n]));
-  const clusterMap = new Map(clusters.map(c => [c.id, c]));
-
-  // Group new cells by department for hex placement of births
-  const byDept: Record<string, typeof cells> = {};
-  for (const cell of cells) {
-    if (!byDept[cell.department]) byDept[cell.department] = [];
-    byDept[cell.department].push(cell);
-  }
-
-  const result: ForceNode[] = [];
-
-  for (const [dept, deptCells] of Object.entries(byDept)) {
-    const cluster = clusterMap.get(dept);
-    const cx = cluster?.x ?? 200;
-    const cy = cluster?.y ?? 200;
-    const positions = hexPackPositions(deptCells.length, cx, cy, 14);
-
-    for (let i = 0; i < deptCells.length; i++) {
-      const cell = deptCells[i];
-      const existing = existingMap.get(cell.agentId);
-
-      if (existing) {
-        existing.department = cell.department;
-        existing.rank = cell.rank as ForceNode['rank'];
-        existing.alive = cell.alive;
-        existing.marsborn = cell.marsborn;
-        existing.psychScore = cell.psychScore;
-        existing.partnerId = cell.partnerId;
-        existing.childrenIds = cell.childrenIds;
-        existing.featured = cell.featured;
-        existing.mood = cell.mood;
-        result.push(existing);
-      } else {
-        // Birth: start at cluster center, will drift to hex position
-        result.push({
-          id: cell.agentId,
-          x: cx, y: cy,
-          vx: 0, vy: 0,
-          prevX: cx, prevY: cy,
-          department: cell.department,
-          rank: cell.rank as ForceNode['rank'],
-          alive: cell.alive,
-          marsborn: cell.marsborn,
-          psychScore: cell.psychScore,
-          partnerId: cell.partnerId,
-          childrenIds: cell.childrenIds,
-          featured: cell.featured,
-          mood: cell.mood,
-        });
+    // Mark remaining cells in band as belonging to department (for dim outlines)
+    for (let r = startRow; r < endRow; r++) {
+      for (let c = 0; c < cols; c++) {
+        const idx = c * rows + r;
+        if (idx < grid.length && !grid[idx].department) {
+          grid[idx].department = dept;
+        }
       }
     }
   }
 
-  return result;
+  return { cells: grid, cellSize, cols, rows };
+}
+
+/**
+ * Hit-test: find which hex cell is under the given pixel point.
+ * Returns the occupant's agentId or null.
+ */
+export function hexHitTest(grid: HexGrid, x: number, y: number): string | null {
+  const threshold = grid.cellSize * 1.2;
+  for (const cell of grid.cells) {
+    if (!cell.occupant) continue;
+    const dx = cell.px - x;
+    const dy = cell.py - y;
+    if (dx * dx + dy * dy < threshold * threshold) {
+      return cell.occupant.agentId;
+    }
+  }
+  return null;
 }

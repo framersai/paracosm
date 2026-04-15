@@ -1,12 +1,9 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
-import type { TurnSnapshot, ForceNode } from './viz-types';
-import { DEPARTMENT_COLORS, DEFAULT_DEPT_COLOR } from './viz-types';
-import { computeClusterCenters, initNodes, tickForce, syncNodes } from './ForceLayout';
-import { renderCells, hitTest, drawLegend } from './CellRenderer';
-import type { ClusterCenter } from './ForceLayout';
+import type { TurnSnapshot } from './viz-types';
+import { buildHexGrid, hexHitTest, type HexGrid } from './ForceLayout';
+import { renderHexGrid, drawLegend } from './CellRenderer';
 import { GlowRenderer } from './GlowRenderer';
 import { renderMetricOverlay } from './MetricOverlay';
-import { CellTooltip } from './CellTooltip';
 import { CellDetail } from './CellDetail';
 
 interface ColonyCanvasProps {
@@ -20,16 +17,12 @@ export function ColonyCanvas({ snapshots, currentTurn, leaderName, leaderArchety
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const glCanvasRef = useRef<HTMLCanvasElement>(null);
-  const nodesRef = useRef<ForceNode[]>([]);
+  const gridRef = useRef<HexGrid | null>(null);
   const glowRef = useRef<GlowRenderer | null>(null);
   const animRef = useRef<number>(0);
-  const deathProgress = useRef(new Map<string, number>());
-  const clustersRef = useRef<ClusterCenter[]>([]);
-  const birthProgress = useRef(new Map<string, number>());
 
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [focusedId, setFocusedId] = useState<string | null>(null);
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
   const snap = snapshots[currentTurn];
 
@@ -46,137 +39,90 @@ export function ColonyCanvas({ snapshots, currentTurn, leaderName, leaderArchety
     };
   }, []);
 
-  // Sync nodes when turn changes
+  // Rebuild hex grid when turn or canvas size changes
   useEffect(() => {
-    if (!snap) return;
-    const container = containerRef.current;
-    if (!container) return;
-    const w = container.clientWidth;
-    const h = container.clientHeight - 40;
-
-    const departments = [...new Set(snap.cells.map(c => c.department))];
-    const popCounts: Record<string, number> = {};
-    for (const c of snap.cells) {
-      if (c.alive) popCounts[c.department] = (popCounts[c.department] || 0) + 1;
-    }
-    const clusters = computeClusterCenters(departments, w, h, popCounts);
-    clustersRef.current = clusters;
-
-    if (nodesRef.current.length === 0) {
-      nodesRef.current = initNodes(snap.cells, clusters);
-    } else {
-      const prevIds = new Set(nodesRef.current.filter(n => n.alive).map(n => n.id));
-      const currAlive = new Set(snap.cells.filter(c => c.alive).map(c => c.agentId));
-
-      for (const id of prevIds) {
-        if (!currAlive.has(id)) {
-          deathProgress.current.set(id, 0);
-          const node = nodesRef.current.find(n => n.id === id);
-          if (node) glowRef.current?.spawnDeathParticles(node.x, node.y, node.department);
-        }
-      }
-
-      for (const id of currAlive) {
-        if (!prevIds.has(id)) {
-          birthProgress.current.set(id, 0);
-        }
-      }
-
-      nodesRef.current = syncNodes(nodesRef.current, snap.cells, clusters);
-    }
+    if (!snap || !containerRef.current) return;
+    const w = containerRef.current.clientWidth;
+    const h = containerRef.current.clientHeight - 40; // header + footer
+    gridRef.current = buildHexGrid(snap.cells, w, h);
   }, [snap, currentTurn]);
 
-  // Animation loop
+  // Render loop (no physics, just redraw for hover/focus state + glow animation)
   useEffect(() => {
     const canvas = canvasRef.current;
     const glCanvas = glCanvasRef.current;
     if (!canvas || !containerRef.current) return;
 
     const ctx = canvas.getContext('2d')!;
-    let frameCount = 0;
 
-    const loop = () => {
+    const render = () => {
       const container = containerRef.current;
-      if (!container) { animRef.current = requestAnimationFrame(loop); return; }
+      if (!container) { animRef.current = requestAnimationFrame(render); return; }
 
       const w = container.clientWidth;
       const h = container.clientHeight - 40;
-
       canvas.width = w;
       canvas.height = h;
-      if (glCanvas) {
-        glCanvas.width = w;
-        glCanvas.height = h;
-      }
+      if (glCanvas) { glCanvas.width = w; glCanvas.height = h; }
 
-      const nodes = nodesRef.current;
-      if (!snap || nodes.length === 0) {
-        animRef.current = requestAnimationFrame(loop);
+      const grid = gridRef.current;
+      if (!grid || !snap) {
+        animRef.current = requestAnimationFrame(render);
         return;
       }
 
-      // Run force at 30fps
-      if (frameCount % 2 === 0) {
-        const departments = [...new Set(snap.cells.map(c => c.department))];
-        const popCounts: Record<string, number> = {};
-        for (const c of snap.cells) {
-          if (c.alive) popCounts[c.department] = (popCounts[c.department] || 0) + 1;
-        }
-        const clusters = computeClusterCenters(departments, w, h, popCounts);
-        tickForce(nodes, clusters, w, h);
-      }
+      // WebGL glow layer (renders behind Canvas2D)
+      // Build fake ForceNodes from grid for glow renderer compatibility
+      const glowNodes = grid.cells
+        .filter(c => c.occupant && c.occupant.alive && c.occupant.psychScore > 0.3)
+        .map(c => ({
+          id: c.occupant!.agentId,
+          x: c.px, y: c.py,
+          vx: 0, vy: 0, prevX: c.px, prevY: c.py,
+          department: c.occupant!.department,
+          rank: c.occupant!.rank,
+          alive: true,
+          marsborn: c.occupant!.marsborn,
+          psychScore: c.occupant!.psychScore,
+          partnerId: c.occupant!.partnerId,
+          childrenIds: c.occupant!.childrenIds,
+          featured: c.occupant!.featured,
+          mood: c.occupant!.mood,
+        }));
+      glowRef.current?.render(glowNodes, w, h);
 
-      // Advance animations
-      for (const [id, p] of deathProgress.current) {
-        deathProgress.current.set(id, p + 1 / 30);
-        if (p >= 1) deathProgress.current.delete(id);
-      }
-      for (const [id, p] of birthProgress.current) {
-        birthProgress.current.set(id, p + 1 / 18);
-        if (p >= 1) birthProgress.current.delete(id);
-      }
+      // Hex grid
+      renderHexGrid(ctx, grid, w, h, { focusedId, hoveredId });
 
-      // Render
-      glowRef.current?.render(nodes, w, h);
-
-      renderCells(ctx, nodes, w, h, {
-        focusedId,
-        hoveredId,
-        deathProgress: deathProgress.current,
-        birthProgress: birthProgress.current,
-        clusters: clustersRef.current,
-      });
-
-      // Draw legend
-      const depts = [...new Set(nodes.filter(n => n.alive).map(n => n.department))];
-      drawLegend(ctx, depts, w);
-
-      glowRef.current?.renderParticles(ctx);
+      // Metric overlay
       renderMetricOverlay(ctx, snapshots, currentTurn, w, h);
 
-      frameCount++;
-      animRef.current = requestAnimationFrame(loop);
+      // Legend (bottom-right)
+      const depts = [...new Set(snap.cells.filter(c => c.alive).map(c => c.department))];
+      drawLegend(ctx, depts, w, h);
+
+      animRef.current = requestAnimationFrame(render);
     };
 
-    animRef.current = requestAnimationFrame(loop);
+    animRef.current = requestAnimationFrame(render);
     return () => cancelAnimationFrame(animRef.current);
   }, [snap, snapshots, currentTurn, focusedId, hoveredId]);
 
+  // Mouse handlers
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) return;
+    if (!rect || !gridRef.current) return;
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    setMousePos({ x, y });
-    setHoveredId(hitTest(nodesRef.current, x, y));
+    setHoveredId(hexHitTest(gridRef.current, x, y));
   }, []);
 
   const handleClick = useCallback((e: React.MouseEvent) => {
     const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) return;
+    if (!rect || !gridRef.current) return;
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    const hit = hitTest(nodesRef.current, x, y);
+    const hit = hexHitTest(gridRef.current, x, y);
     setFocusedId(prev => prev === hit ? null : hit);
   }, []);
 
@@ -184,8 +130,6 @@ export function ColonyCanvas({ snapshots, currentTurn, leaderName, leaderArchety
     if (e.key === 'Escape') setFocusedId(null);
   }, []);
 
-  const nameMap = new Map(snap?.cells.map(c => [c.agentId, c.name]) || []);
-  const hoveredNode = hoveredId ? nodesRef.current.find(n => n.id === hoveredId) : null;
   const focusedCell = focusedId ? snap?.cells.find(c => c.agentId === focusedId) : null;
 
   return (
@@ -204,6 +148,7 @@ export function ColonyCanvas({ snapshots, currentTurn, leaderName, leaderArchety
       onKeyDown={handleKeyDown}
       tabIndex={0}
     >
+      {/* Header */}
       <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--rust)', letterSpacing: '.08em' }}>
           {leaderName.toUpperCase()}
@@ -211,6 +156,7 @@ export function ColonyCanvas({ snapshots, currentTurn, leaderName, leaderArchety
         <div style={{ fontSize: 10, color: 'var(--text-3)' }}>{leaderArchetype}</div>
       </div>
 
+      {/* Canvas stack */}
       <div style={{ position: 'relative', flex: 1 }}>
         <canvas
           ref={glCanvasRef}
@@ -224,15 +170,13 @@ export function ColonyCanvas({ snapshots, currentTurn, leaderName, leaderArchety
           onClick={handleClick}
         />
 
-        {hoveredNode && !focusedId && (
-          <CellTooltip node={hoveredNode} nameMap={nameMap} x={mousePos.x} y={mousePos.y} />
-        )}
-
+        {/* Detail panel (replaces tooltip) */}
         {focusedCell && (
           <CellDetail cell={focusedCell} snapshots={snapshots} onClose={() => setFocusedId(null)} />
         )}
       </div>
 
+      {/* Footer stats */}
       {snap && (
         <div style={{
           display: 'flex', justifyContent: 'space-between',

@@ -121,7 +121,7 @@ export function ChatPanel({ state }: ChatPanelProps) {
         <p style={{ fontSize: '10px', color: 'var(--text-3)', marginBottom: '10px', lineHeight: 1.5 }}>
           {agents.length
             ? `Talk to any ${scenario.labels.populationNoun.replace(/s$/, '')} from the simulation. Each agent has persistent memory, personality, and relationships shaped by the crises they experienced.`
-            : `Run a simulation first. After it completes, every agent (${scenario.labels.populationNoun}) becomes available for conversation. They remember what happened, hold opinions, and respond based on their HEXACO personality.`
+            : `Chat becomes available after the first turn completes. Start a simulation and come back once agents have reacted to the first crisis. Each agent has persistent memory, personality, and relationships shaped by the crises they experience.`
           }
         </p>
         {agents.map(c => (
