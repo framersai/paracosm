@@ -8,7 +8,7 @@
  * Cost: ~$0.00006 per agent per turn. 100 agents x 12 turns = $0.14 total.
  */
 
-import { generateText } from '@framers/agentos';
+import { generateText, extractJson } from '@framers/agentos';
 import type { Agent, TurnOutcome } from '../engine/core/state.js';
 import { buildMemoryContext } from './agent-memory.js';
 
@@ -90,35 +90,29 @@ React as this specific person given YOUR history, memories, beliefs, and persona
 }
 
 function parseReaction(text: string, c: Agent, year: number): AgentReaction | null {
-  // Extract JSON
-  let depth = 0, start = -1;
-  for (let i = 0; i < text.length; i++) {
-    if (text[i] === '{') { if (depth === 0) start = i; depth++; }
-    if (text[i] === '}') { depth--; if (depth === 0 && start >= 0) {
-      try {
-        const raw = JSON.parse(text.slice(start, i + 1));
-        if (raw.quote) {
-          return {
-            agentId: c.core.id,
-            name: c.core.name,
-            age: year - c.core.birthYear,
-            department: c.core.department,
-            role: c.core.role,
-            specialization: c.career.specialization,
-            marsborn: c.core.marsborn,
-            quote: raw.quote,
-            mood: raw.mood || 'neutral',
-            intensity: typeof raw.intensity === 'number' ? raw.intensity : 0.5,
-            hexaco: { O: +c.hexaco.openness.toFixed(2), C: +c.hexaco.conscientiousness.toFixed(2), E: +c.hexaco.extraversion.toFixed(2), A: +c.hexaco.agreeableness.toFixed(2), Em: +c.hexaco.emotionality.toFixed(2), HH: +c.hexaco.honestyHumility.toFixed(2) },
-            psychScore: +c.health.psychScore.toFixed(2),
-            boneDensity: +(c.health.boneDensityPct ?? 0).toFixed(0),
-            radiation: +(c.health.cumulativeRadiationMsv ?? 0).toFixed(0),
-          };
-        }
-      } catch {}
-      start = -1;
-    }}
-  }
+  const jsonStr = extractJson(text);
+  if (!jsonStr) return null;
+  try {
+    const raw = JSON.parse(jsonStr);
+    if (raw.quote) {
+      return {
+        agentId: c.core.id,
+        name: c.core.name,
+        age: year - c.core.birthYear,
+        department: c.core.department,
+        role: c.core.role,
+        specialization: c.career.specialization,
+        marsborn: c.core.marsborn,
+        quote: raw.quote,
+        mood: raw.mood || 'neutral',
+        intensity: typeof raw.intensity === 'number' ? raw.intensity : 0.5,
+        hexaco: { O: +c.hexaco.openness.toFixed(2), C: +c.hexaco.conscientiousness.toFixed(2), E: +c.hexaco.extraversion.toFixed(2), A: +c.hexaco.agreeableness.toFixed(2), Em: +c.hexaco.emotionality.toFixed(2), HH: +c.hexaco.honestyHumility.toFixed(2) },
+        psychScore: +c.health.psychScore.toFixed(2),
+        boneDensity: +(c.health.boneDensityPct ?? 0).toFixed(0),
+        radiation: +(c.health.cumulativeRadiationMsv ?? 0).toFixed(0),
+      };
+    }
+  } catch { /* invalid JSON */ }
   return null;
 }
 

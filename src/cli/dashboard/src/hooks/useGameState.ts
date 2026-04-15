@@ -3,6 +3,22 @@ import type { SimEvent } from './useSSE';
 
 export type Side = 'a' | 'b';
 
+export interface AgentSnapshot {
+  agentId: string;
+  name: string;
+  department: string;
+  role: string;
+  rank: 'junior' | 'senior' | 'lead' | 'chief';
+  alive: boolean;
+  marsborn: boolean;
+  psychScore: number;
+  partnerId?: string;
+  childrenIds: string[];
+  featured: boolean;
+  mood: string;
+  shortTermMemory: string[];
+}
+
 export interface ColonyState {
   population: number;
   morale: number;
@@ -50,6 +66,7 @@ export interface SideState {
   pendingRationale: string;
   pendingPolicies: string[];
   outcome: string | null;
+  agentSnapshots: AgentSnapshot[][];
 }
 
 export interface ProcessedEvent {
@@ -79,7 +96,7 @@ function emptySide(): SideState {
     events: [], popHistory: [], moraleHistory: [],
     deaths: 0, tools: 0, citations: 0, decisions: 0,
     pendingDecision: '', pendingRationale: '', pendingPolicies: [],
-    outcome: null,
+    outcome: null, agentSnapshots: [],
   };
 }
 
@@ -214,6 +231,11 @@ export function useGameState(sseEvents: SimEvent[], isComplete: boolean): GameSt
           break;
 
         case 'bulletin':
+          s.events.push(processed);
+          break;
+
+        case 'colony_snapshot':
+          s.agentSnapshots.push((dd.agents as AgentSnapshot[]) || []);
           s.events.push(processed);
           break;
 

@@ -5,6 +5,7 @@ import type { ITool } from '@framers/agentos';
 import {
   EmergentCapabilityEngine, EmergentJudge, EmergentToolRegistry,
   ComposableToolBuilder, SandboxedToolForge, ForgeToolMetaTool, generateText,
+  extractJson,
 } from '@framers/agentos';
 import type { Department, TurnOutcome } from '../engine/core/state.js';
 import { SeededRng } from '../engine/core/rng.js';
@@ -135,7 +136,7 @@ function wrapForgeTool(raw: ForgeToolMetaTool, agentId: string, sessionId: strin
       const fixed = { ...args };
       // Parse stringified nested JSON from tool call serialization
       for (const k of ['implementation', 'inputSchema', 'outputSchema', 'testCases']) {
-        if (typeof (fixed as any)[k] === 'string') try { (fixed as any)[k] = JSON.parse((fixed as any)[k]); } catch {}
+        if (typeof (fixed as any)[k] === 'string') try { (fixed as any)[k] = JSON.parse((fixed as any)[k]); } catch (e) { console.warn(`  [forge] Failed to parse ${k}:`, e); }
       }
       // Normalize implementation: OpenAI models send "code" instead of "sandbox", may omit allowlist
       if (fixed.implementation && typeof fixed.implementation === 'object') {
@@ -192,16 +193,6 @@ function humanizeToolName(name: string): string {
   return name.replace(/_v\d+$/, '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
-/** Extract all top-level JSON objects from a string using balanced brace counting. */
-function extractJsonBlocks(text: string): string[] {
-  const blocks: string[] = [];
-  let depth = 0, start = -1;
-  for (let i = 0; i < text.length; i++) {
-    if (text[i] === '{') { if (depth === 0) start = i; depth++; }
-    if (text[i] === '}') { depth--; if (depth === 0 && start >= 0) { blocks.push(text.slice(start, i + 1)); start = -1; } }
-  }
-  return blocks;
-}
 
 function cleanSummary(raw: string): string {
   let s = raw
@@ -238,10 +229,10 @@ function buildReadableSummary(raw: any, dept: Department): string {
 }
 
 function parseDeptReport(text: string, dept: Department): DepartmentReport {
-  const jsonBlocks = extractJsonBlocks(text);
-  for (const block of jsonBlocks) {
+  const jsonStr = extractJson(text);
+  if (jsonStr) {
     try {
-      const raw = JSON.parse(block);
+      const raw = JSON.parse(jsonStr);
       if (raw.department || raw.summary || raw.risks || raw.recommendedActions) {
         const report = { ...emptyReport(dept), ...raw, department: dept };
         report.summary = buildReadableSummary(raw, dept);
@@ -258,14 +249,14 @@ function parseDeptReport(text: string, dept: Department): DepartmentReport {
 }
 
 function parseCmdDecision(text: string, depts: Department[]): CommanderDecision {
-  const jsonBlocks = extractJsonBlocks(text);
-  for (const block of jsonBlocks) {
+  const jsonStr = extractJson(text);
+  if (jsonStr) {
     try {
-      const raw = JSON.parse(block);
+      const raw = JSON.parse(jsonStr);
       if (raw.decision || raw.selectedOptionId) {
         return { ...emptyDecision(depts), ...raw };
       }
-    } catch { /* try next block */ }
+    } catch { /* fall through */ }
   }
   return { ...emptyDecision(depts), decision: text.slice(0, 500), rationale: text };
 }
@@ -322,7 +313,7 @@ function decisionToPolicy(decision: CommanderDecision, reports: DepartmentReport
 // ---------------------------------------------------------------------------
 
 export type SimEvent = {
-  type: 'turn_start' | 'dept_start' | 'dept_done' | 'forge_attempt' | 'commander_deciding' | 'commander_decided' | 'outcome' | 'drift' | 'agent_reactions' | 'bulletin' | 'turn_done' | 'promotion';
+  type: 'turn_start' | 'dept_start' | 'dept_done' | 'forge_attempt' | 'commander_deciding' | 'commander_decided' | 'outcome' | 'drift' | 'agent_reactions' | 'bulletin' | 'turn_done' | 'promotion' | 'colony_snapshot';
   leader: string;
   turn?: number;
   year?: number;
@@ -439,7 +430,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
           emit('promotion', { agentId: p.agentId, department: p.department, role: p.role, reason: p.reason?.slice(0, 120) });
         } catch (err) { console.log(`  ✦ Promotion failed: ${err}`); }
       }
-    } catch { /* fallback below */ }
+    } catch (e) { console.warn('  [promotion] Failed to parse promotion JSON:', e); }
   }
   // Fallback: promote top candidate per dept if commander didn't produce valid JSON
   for (const dept of promotionDepts) {
@@ -492,7 +483,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
 
     // Get crisis: milestone (turn 1 / final) or emergent (director)
     let event: DirectorEvent;
-    const getMilestone = sc.hooks.getMilestoneEvent ?? sc.hooks.getMilestoneEvent;
+    const getMilestone = sc.hooks.getMilestoneEvent;
     const milestone = getMilestone?.(turn, maxTurns);
     if (milestone) {
       event = { ...milestone, description: (milestone as any).description || (milestone as any).crisis || '' } as DirectorEvent;
@@ -579,7 +570,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     }
 
     // Departments: from director for emergent, from schedule for milestones
-    const validDepts: Department[] = ['medical', 'engineering', 'agriculture', 'psychology', 'governance'];
+    const validDepts: Department[] = sc.departments.map(d => d.id as Department);
     const rawDepts = milestone ? getDepartmentsForTurn(turn) : event.relevantDepartments;
     const depts = rawDepts.filter(d => validDepts.includes(d) && activeDepartments.has(d));
     if (!depts.length) depts.push('medical', 'engineering');
@@ -860,6 +851,31 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     });
     console.log(`  State: Pop ${after.colony.population} | Morale ${Math.round(after.colony.morale * 100)}% | Food ${after.colony.foodMonthsReserve.toFixed(1)}mo`);
     emit('turn_done', { turn, year, colony: after.colony, toolsForged: Object.values(toolRegs).flat().length });
+
+    // Emit full agent roster for colony visualization
+    const snapshotAgents = after.agents.map(a => ({
+      agentId: a.core.id,
+      name: a.core.name,
+      department: a.core.department,
+      role: a.core.role,
+      rank: a.career.rank,
+      alive: a.health.alive,
+      marsborn: a.core.marsborn,
+      psychScore: a.health.psychScore,
+      partnerId: a.social.partnerId,
+      childrenIds: a.social.childrenIds,
+      featured: a.narrative.featured,
+      mood: reactions.find(r => r.agentId === a.core.id)?.mood || 'neutral',
+      shortTermMemory: (a.memory?.shortTerm || []).slice(-2).map(m => m.content),
+    }));
+    emit('colony_snapshot', {
+      turn, year,
+      agents: snapshotAgents,
+      population: after.colony.population,
+      morale: after.colony.morale,
+      foodReserve: after.colony.foodMonthsReserve,
+      births, deaths,
+    });
   }
 
   const final = kernel.export();

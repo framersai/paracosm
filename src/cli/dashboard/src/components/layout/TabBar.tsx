@@ -1,6 +1,6 @@
 import type { ScenarioClientPayload } from '../../hooks/useScenario';
 
-type Tab = 'sim' | 'settings' | 'reports' | 'chat' | 'log' | 'about';
+type Tab = 'sim' | 'viz' | 'settings' | 'reports' | 'chat' | 'log' | 'about';
 
 interface TabBarProps {
   active: Tab;
@@ -10,6 +10,7 @@ interface TabBarProps {
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'sim', label: 'SIM' },
+  { id: 'viz', label: 'VIZ' },
   { id: 'settings', label: 'SETTINGS' },
   { id: 'reports', label: 'REPORTS' },
   { id: 'chat', label: 'CHAT' },
