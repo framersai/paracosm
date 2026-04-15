@@ -529,7 +529,7 @@ Respond in character as this person. Be direct, personal, emotional. Reference y
       if (existsSync(brandPath)) {
         const ext = brandPath.split('.').pop() || '';
         const types: Record<string,string> = { svg:'image/svg+xml', png:'image/png', jpg:'image/jpeg', css:'text/css', js:'application/javascript', woff2:'font/woff2' };
-        res.writeHead(200, { 'Content-Type': types[ext] || 'application/octet-stream', 'Cache-Control': 'public, max-age=86400' });
+        res.writeHead(200, { 'Content-Type': types[ext] || 'application/octet-stream', 'Cache-Control': 'public, max-age=300, s-maxage=60' });
         res.end(readFileSync(brandPath));
         return;
       }
