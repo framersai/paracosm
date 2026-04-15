@@ -17,8 +17,8 @@ a{color:var(--amber);text-decoration:none}a:hover{text-decoration:underline}
 .nav-l svg{width:24px;height:24px;flex-shrink:0}
 .nav-brand{font-family:var(--mono);font-size:15px;font-weight:700;color:var(--t1);text-decoration:none;letter-spacing:.08em}.nav-brand:hover{color:var(--amber);text-decoration:none}.nav-brand-accent{color:var(--amber)}
 .nav-tag{font-size:9px;font-weight:700;letter-spacing:1.5px;color:var(--rust);font-family:var(--mono)}
-.nav-r{display:flex;align-items:center;gap:28px}
-.nav-r a{font-size:13px;color:var(--t3);font-weight:500;transition:color .2s;text-decoration:none}.nav-r a:hover{color:var(--t1);text-decoration:none}
+.nav-r{display:flex;align-items:center;gap:20px;flex-wrap:nowrap}
+.nav-r a{font-size:13px;color:var(--t3);font-weight:500;transition:color .2s;text-decoration:none;white-space:nowrap}.nav-r a:hover{color:var(--t1);text-decoration:none}
 .nav-r a.cta,.nav-r a.cta:hover{color:#f5f0e4}
 .cta{display:inline-flex;align-items:center;gap:8px;padding:12px 28px;border-radius:8px;font-size:14px;font-weight:800;color:#f5f0e4;text-decoration:none;transition:all .25s;position:relative;overflow:hidden;border:none;cursor:pointer;background:linear-gradient(180deg,#c85828 0%,#a84018 60%,#882c0c 100%);box-shadow:0 1px 0 0 rgba(255,160,120,.2) inset,0 -2px 0 0 rgba(60,20,0,.3) inset,0 4px 16px rgba(0,0,0,.4);letter-spacing:.3px}
 .nav .cta{padding:8px 20px;font-size:13px}
@@ -200,7 +200,8 @@ footer{padding:28px 24px;border-top:1px solid var(--border);background:var(--bg2
 .light .nav-mobile{background:rgba(248,242,228,.96)}
 
 /* RESPONSIVE */
-@media(max-width:900px){.feat-grid{grid-template-columns:1fr 1fr}.scenarios{grid-template-columns:1fr}.flow{flex-direction:column;align-items:center;gap:24px}.flow-line{display:none}.nav-r{display:none}.nav-hamburger{display:flex}.diverge{flex-direction:column}.contact-grid{grid-template-columns:1fr}.hero-chips{gap:6px}.pricing-tiers{flex-direction:column;align-items:center}}
+@media(max-width:1100px){.nav-r{display:none}.nav-hamburger{display:flex}}
+@media(max-width:900px){.feat-grid{grid-template-columns:1fr 1fr}.scenarios{grid-template-columns:1fr}.flow{flex-direction:column;align-items:center;gap:24px}.flow-line{display:none}.diverge{flex-direction:column}.contact-grid{grid-template-columns:1fr}.hero-chips{gap:6px}.pricing-tiers{flex-direction:column;align-items:center}}
 @media(max-width:600px){.feat-grid{grid-template-columns:1fr}.sec{padding:64px 16px}.hero{padding:80px 16px 56px}.arch-row{flex-direction:column;text-align:center;gap:8px}.arch-label{min-width:auto}}
 /* LIGHT MODE OVERRIDES */
 .light body,.light{background-image:none}
