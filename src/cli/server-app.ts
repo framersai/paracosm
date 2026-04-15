@@ -368,6 +368,8 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
     if (req.url === '/clear' && req.method === 'POST') {
       eventBuffer.length = 0;
       simConfig = null;
+      // Clear chat agent pool when simulation is cleared
+      import('../runtime/chat-agents.js').then(m => m.clearPool()).catch(() => {});
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ cleared: true }));
       return;
@@ -383,53 +385,71 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
     // Post-simulation colonist chat
     if (req.url === '/chat' && req.method === 'POST') {
       try {
-        const { agentId, message, history } = JSON.parse(await readBody(req));
+        const { agentId, message } = JSON.parse(await readBody(req));
         if (!agentId || !message) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'agentId and message required' }));
           return;
         }
-        // Find colonist in the last broadcast result
-        const lastResultEvent = eventBuffer.find(msg => msg.startsWith('event: result\n'));
-        if (!lastResultEvent) {
+        const hasSimData = eventBuffer.some(msg => msg.startsWith('event: result\n'));
+        if (!hasSimData) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'No simulation data available. Run a simulation first.' }));
           return;
         }
-        // Extract colonist data from broadcast events
+
+        // Import chat agent system (lazy to avoid startup cost)
+        const { getOrCreateChatAgent, extractColonistMemories } = await import('../runtime/chat-agents.js');
+
+        // Extract sim events and find colonist profile
         const simEvents = eventBuffer
           .filter(msg => msg.startsWith('event: sim\n'))
           .map(msg => { try { return JSON.parse(msg.split('data: ')[1]); } catch { return null; } })
           .filter(Boolean);
-        // Find colonist reactions across all turns
+
         const agentReactions = simEvents
           .filter((e: any) => e.type === 'agent_reactions')
-          .flatMap((e: any) => (e.data?.reactions || []).filter((r: any) => r.agentId === agentId || r.name?.toLowerCase().includes(agentId.toLowerCase())));
+          .flatMap((e: any) => (e.data?.reactions || []).filter((r: any) =>
+            r.agentId === agentId || String(r.name || '').toLowerCase().includes(agentId.toLowerCase())
+          ));
         const colonist = agentReactions[0];
-        const allQuotes = agentReactions.map((r: any) => `Turn ${r.turn || '?'}: "${r.quote}" (${r.mood})`).join('\n');
-        const chatHistory = (history || []).slice(-6).map((h: any) => `${h.role === 'user' ? 'Human' : colonist?.name || 'Colonist'}: ${h.content}`).join('\n');
-        const colonistProfile = colonist ? [
-          `Age: ${colonist.age ?? '?'}. ${colonist.marsborn ? 'Born on Mars.' : 'Born on Earth.'} Role: ${colonist.role || 'Unknown role'} in ${colonist.department || 'unknown department'}. Specialization: ${colonist.specialization || 'general'}.`,
-          `HEXACO: O=${colonist.hexaco?.O ?? '?'} C=${colonist.hexaco?.C ?? '?'} E=${colonist.hexaco?.E ?? '?'} A=${colonist.hexaco?.A ?? '?'} Em=${colonist.hexaco?.Em ?? '?'} HH=${colonist.hexaco?.HH ?? '?'}`,
-          `Psych score: ${colonist.psychScore ?? '?'}. Bone density: ${colonist.boneDensity ?? '?'}%. Radiation: ${colonist.radiation ?? '?'} mSv.`,
-        ].join('\n') : '';
 
-        const settlementNoun = activeScenario.labels?.settlementNoun ?? 'settlement';
-        const populationNoun = activeScenario.labels?.populationNoun ?? 'member';
-        const prompt = `You are ${colonist?.name || agentId}, a ${populationNoun.replace(/s$/, '')} at the ${settlementNoun}. Stay in character.
-${colonistProfile}
-${allQuotes ? `Your reactions during the simulation:\n${allQuotes}` : ''}
-${chatHistory ? `Conversation so far:\n${chatHistory}` : ''}
+        // Build colonist profile
+        const profile = {
+          agentId,
+          name: colonist?.name || agentId,
+          age: colonist?.age,
+          marsborn: colonist?.marsborn,
+          role: colonist?.role,
+          department: colonist?.department,
+          specialization: colonist?.specialization,
+          hexaco: colonist?.hexaco,
+          psychScore: colonist?.psychScore,
+          boneDensity: colonist?.boneDensity,
+          radiation: colonist?.radiation,
+        };
 
-Human asks: ${message}
+        // Extract simulation memories for this colonist
+        const memories = extractColonistMemories(agentId, simEvents);
 
-Respond in character as this person. Be direct, personal, emotional. Reference your actual experiences from the simulation. 2-4 sentences.`;
-
+        // Get or create the agent (lazy init with memory seeding)
         const provider = (env.ANTHROPIC_API_KEY ? 'anthropic' : 'openai') as any;
-        const model = env.ANTHROPIC_API_KEY ? 'claude-haiku-4-5-20251001' : 'gpt-4o-mini';
-        const result = await runGenerateText({ provider, model, prompt });
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ reply: result.text, colonist: colonist?.name || agentId }));
+        const { session, isNew } = await getOrCreateChatAgent(profile, memories, {
+          provider,
+          settlementNoun: activeScenario.labels?.settlementNoun,
+          populationNoun: activeScenario.labels?.populationNoun,
+        });
+
+        // Send message through the agent session (full history + memory + RAG automatic)
+        const result = await session.send(message);
+
+        res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          reply: result.text,
+          colonist: profile.name,
+          memorySeeded: memories.length,
+          firstMessage: isNew,
+        }));
       } catch (err) {
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: String(err) }));
