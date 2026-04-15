@@ -2,13 +2,13 @@ import { useState, useCallback, createContext, useContext, type ReactNode } from
 
 interface ToastMessage {
   id: number;
-  type: 'info' | 'error' | 'success';
+  type: 'info' | 'error' | 'success' | 'crisis-a' | 'crisis-b';
   title: string;
   message: string;
 }
 
 interface ToastContextValue {
-  toast: (type: ToastMessage['type'], title: string, message: string) => void;
+  toast: (type: ToastMessage['type'], title: string, message: string, durationMs?: number) => void;
 }
 
 const ToastContext = createContext<ToastContextValue>({ toast: () => {} });
@@ -19,37 +19,90 @@ export function useToast() {
 
 let nextId = 0;
 
+const BORDER_COLORS: Record<ToastMessage['type'], string> = {
+  info: 'var(--amber)',
+  error: 'var(--rust)',
+  success: 'var(--green)',
+  'crisis-a': 'var(--vis, #e8b44a)',
+  'crisis-b': 'var(--eng, #4ca8a8)',
+};
+
+const TITLE_COLORS: Record<ToastMessage['type'], string> = {
+  info: 'var(--amber)',
+  error: 'var(--rust)',
+  success: 'var(--green)',
+  'crisis-a': 'var(--vis, #e8b44a)',
+  'crisis-b': 'var(--eng, #4ca8a8)',
+};
+
+const BG_TINTS: Record<ToastMessage['type'], string> = {
+  info: 'var(--bg-card)',
+  error: 'var(--bg-card)',
+  success: 'var(--bg-card)',
+  'crisis-a': 'rgba(232,180,74,0.06)',
+  'crisis-b': 'rgba(76,168,168,0.06)',
+};
+
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
-  const toast = useCallback((type: ToastMessage['type'], title: string, message: string) => {
-    const id = nextId++;
-    setToasts(prev => [...prev, { id, type, title, message }]);
-    setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
-    }, 6000);
+  const dismiss = useCallback((id: number) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
-  const borderColors = { info: 'var(--amber)', error: 'var(--rust)', success: 'var(--green)' };
-  const titleColors = { info: 'var(--amber)', error: 'var(--rust)', success: 'var(--green)' };
+  const toast = useCallback((type: ToastMessage['type'], title: string, message: string, durationMs?: number) => {
+    const id = nextId++;
+    setToasts(prev => [...prev, { id, type, title, message }]);
+    const duration = durationMs ?? (type.startsWith('crisis') ? 12000 : 6000);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, duration);
+  }, []);
 
   return (
     <ToastContext.Provider value={{ toast }}>
       {children}
-      <div className="fixed top-14 right-4 z-[100000] flex flex-col gap-2 pointer-events-none">
+      <div style={{
+        position: 'fixed', top: 56, right: 16, zIndex: 100000,
+        display: 'flex', flexDirection: 'column', gap: 8,
+        pointerEvents: 'none', maxWidth: 380,
+      }}>
         {toasts.map(t => (
           <div
             key={t.id}
-            className="pointer-events-auto px-4 py-3 rounded-lg text-sm max-w-sm animate-[slideIn_0.3s_ease]"
             style={{
-              background: 'var(--bg-card)',
-              border: `1px solid ${borderColors[t.type]}`,
+              pointerEvents: 'auto',
+              padding: '10px 14px',
+              borderRadius: 8,
+              fontSize: 12,
+              background: BG_TINTS[t.type],
+              border: `1px solid ${BORDER_COLORS[t.type]}`,
+              borderLeft: `3px solid ${BORDER_COLORS[t.type]}`,
               color: 'var(--text-1)',
-              boxShadow: 'var(--shadow-md)',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+              animation: 'slideIn 0.3s ease',
+              position: 'relative',
             }}
           >
-            <div className="font-bold text-sm mb-0.5" style={{ color: titleColors[t.type] }}>{t.title}</div>
-            <div className="text-xs" style={{ color: 'var(--text-2)' }}>{t.message}</div>
+            <button
+              onClick={() => dismiss(t.id)}
+              style={{
+                position: 'absolute', top: 4, right: 8,
+                background: 'none', border: 'none', color: 'var(--text-3)',
+                cursor: 'pointer', fontSize: 14, lineHeight: 1,
+              }}
+              aria-label="Dismiss"
+            >
+              x
+            </button>
+            <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 2, color: TITLE_COLORS[t.type], paddingRight: 16 }}>
+              {t.title}
+            </div>
+            {t.message && (
+              <div style={{ fontSize: 11, color: 'var(--text-2)', lineHeight: 1.5 }}>
+                {t.message}
+              </div>
+            )}
           </div>
         ))}
       </div>
