@@ -447,6 +447,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
       instructions: cfg.instructions,
       tools,
       maxSteps: opts.execution?.departmentMaxSteps ?? DEFAULT_EXECUTION.departmentMaxSteps,
+      responseFormat: { type: 'json_object' },
     });
     deptAgents.set(dept, a);
     deptSess.set(dept, a.session(`${sid}-${dept}`));

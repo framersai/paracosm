@@ -100,13 +100,13 @@ export const DEFAULT_KEY_PERSONNEL: KeyPersonnel[] = [
 export const DEFAULT_MODELS: Record<LlmProvider, SimulationModelConfig> = {
   openai: {
     commander: 'gpt-5.4',
-    departments: 'gpt-5.4-mini',
+    departments: 'gpt-5.4',
     judge: 'gpt-5.4',
     director: 'gpt-5.4',
   },
   anthropic: {
     commander: 'claude-sonnet-4-6',
-    departments: 'claude-haiku-4-5-20251001',
+    departments: 'claude-sonnet-4-6',
     judge: 'claude-sonnet-4-6',
     director: 'claude-sonnet-4-6',
   },
