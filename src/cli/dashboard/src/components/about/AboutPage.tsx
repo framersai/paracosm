@@ -8,11 +8,11 @@ interface FaqItem {
 const FAQ: FaqItem[] = [
   {
     q: 'What is Paracosm?',
-    a: 'Paracosm is a scenario-driven multi-agent simulation engine. You define a ScenarioPackage describing your world (departments, metrics, crises, progression hooks, research citations), and the engine runs it with emergent AI crisis generation, multi-agent analysis, runtime tool forging, HEXACO personality drift, and deterministic state transitions.',
+    a: 'Paracosm is a scenario-driven multi-agent simulation engine. Define a world as JSON with departments, metrics, events, and progression hooks. Assign AI leaders with distinct HEXACO personality profiles. The engine handles crisis generation, department analysis, runtime tool forging, personality drift, and deterministic state transitions. Leaders can be colony commanders, CEOs, generals, governing councils, AI systems, or any top-down decision maker.',
   },
   {
     q: 'How does the simulation work?',
-    a: 'Two AI commanders with distinct HEXACO personality profiles lead the same settlement through a series of turns. Each turn: a Crisis Director generates a crisis based on colony state and decision history, department agents analyze and forge computational tools, the commander decides, and the deterministic kernel applies the outcome. Same seed, same starting conditions, different personalities, different civilizations.',
+    a: 'AI leaders with distinct personality profiles run the same world in parallel. Each turn: a Crisis Director generates events based on the world state and decision history. Department agents analyze the situation and forge computational tools at runtime. Leaders decide. The deterministic kernel applies consequences. Same seed, same starting conditions, different leaders, different outcomes. Leaders are abstract: they can model people, organizations, policies, or autonomous systems.',
   },
   {
     q: 'How much does Paracosm cost?',
@@ -29,6 +29,10 @@ const FAQ: FaqItem[] = [
   {
     q: 'What scenarios are available?',
     a: 'Mars Genesis (100-colonist Mars colony over 50 years) is the flagship. Lunar Outpost (50-person crew at the lunar south pole) proves the engine works with different departments, progression, and milestones. The engine is designed to support broader closed-state, turn-based simulations such as Antarctic stations, orbital habitats, submarines, generation ships, corporate scenarios, and defense wargames, with scenario authoring expanding over time.',
+  },
+  {
+    q: 'What can leaders represent?',
+    a: 'Leaders are abstract top-down decision makers. They can be colony commanders, CEOs, military generals, governing councils, AI systems, department heads, or any entity that receives information and makes choices. The engine does not care what they represent. It models how their HEXACO personality profile shapes decisions under pressure. Run two CEOs with different risk appetites through the same market crisis. Run two generals through the same theater. Run two AI policies through the same failure cascade.',
   },
   {
     q: 'What verticals does Paracosm support?',
@@ -166,9 +170,11 @@ export function AboutPage() {
             PARA<span style={{ color: 'var(--amber)' }}>COSM</span>
           </h1>
           <p style={{ color: 'var(--text-2)', lineHeight: 1.8, fontSize: '14px' }}>
-            Scenario-driven multi-agent simulation engine with emergent AI crisis generation, runtime tool forging,
-            HEXACO personality evolution, and a deterministic kernel. Define any closed-state settlement simulation
-            and run it without editing engine code. Currently running: <strong style={{ color: 'var(--amber)' }}>{scenario.labels.name}</strong>.
+            Scenario-driven multi-agent simulation engine. Define a world as JSON. Assign AI leaders with
+            distinct personalities. Watch their decisions compound into divergent outcomes from identical starting
+            conditions. Leaders can be commanders, CEOs, generals, councils, AI systems, or any top-down
+            decision maker. The engine handles crisis generation, department analysis, tool forging, personality
+            drift, and state transitions. Currently running: <strong style={{ color: 'var(--amber)' }}>{scenario.labels.name}</strong>.
           </p>
           <p style={{ color: 'var(--text-3)', lineHeight: 1.8, fontSize: '12px', marginTop: '10px' }}>
             Availability note: the open-source engine is available now. Hosted Pro, Enterprise, and Platform offerings shown below are roadmap tiers and early-access packaging, not generally available SaaS products yet.
@@ -182,12 +188,12 @@ export function AboutPage() {
           </h2>
           <div className="responsive-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             {[
-              { title: 'Crisis Director', desc: 'AI generates unique crises per timeline based on settlement state, decision history, and tool intelligence.' },
-              { title: 'Tool Forging', desc: 'Department agents create computational tools at runtime. An LLM judge reviews each for safety and correctness.' },
-              { title: 'Personality Drift', desc: 'HEXACO traits evolve through leader pull, role activation, and outcome reinforcement over the simulation.' },
-              { title: 'Deterministic Kernel', desc: 'Seeded PRNG ensures reproducibility. Same seed, same roster. Only AI decisions create divergence.' },
-              { title: 'Scenario Compiler', desc: 'The open-source CLI and dashboard can already compile scenario JSON into runnable packages. The polished hosted zero-code workflow remains a future product layer.' },
-              { title: 'Scenario-Driven Engine', desc: 'Mars and lunar are live today. The engine is designed to expand into broader closed-state simulation domains over time.' },
+              { title: 'Crisis Director', desc: 'AI generates unique events per timeline based on world state, decision history, and tool intelligence. No two runs play the same way.' },
+              { title: 'Abstract Leaders', desc: 'Leaders are top-down decision makers with HEXACO personality profiles. They can be people, organizations, policies, or autonomous systems. The engine models how personality shapes decisions.' },
+              { title: 'Tool Forging', desc: 'Department agents create computational tools at runtime: calculators, projectors, analyzers. An LLM judge reviews each for safety and correctness in a sandboxed V8 environment.' },
+              { title: 'Personality Drift', desc: 'HEXACO traits evolve through leader pull, role activation, and outcome reinforcement. A cautious leader becomes bolder after risky successes. A bold leader retreats after failures.' },
+              { title: 'Deterministic Kernel', desc: 'Seeded PRNG ensures reproducibility. Same seed, same roster. Only AI decisions create divergence. Fork at any turn to explore alternate timelines.' },
+              { title: 'Any Domain', desc: 'Space colonies, corporate strategy, military wargaming, policy simulation, game worlds. Define departments, metrics, and events in JSON. The engine handles the rest.' },
             ].map(item => (
               <div key={item.title} className="hover-glow" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '6px', padding: '12px 16px', boxShadow: 'var(--card-shadow)' }}>
                 <h3 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-1)', fontFamily: 'var(--mono)', marginBottom: '4px' }}>{item.title}</h3>

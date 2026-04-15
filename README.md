@@ -27,9 +27,13 @@
 
 ## What Is Paracosm
 
-Define a scenario as JSON. Run it with AI commanders that have different personalities. Watch their decisions compound into divergent civilizations from identical starting conditions.
+Define a world as JSON. Assign AI leaders with distinct personalities. Watch their decisions compound into divergent outcomes from identical starting conditions.
 
-The engine handles crisis generation, department analysis, tool forging, personality drift, and state transitions. You define the world.
+Leaders are top-down decision makers. They can be colony commanders, CEOs, generals, ship captains, department heads, AI systems, governing councils, or any entity that receives information, evaluates options, and makes choices that shape the world. The simulation doesn't care what they represent. It cares how they decide.
+
+Each turn: a Crisis Director generates events based on the world's current state. Department agents analyze the situation and forge computational tools at runtime. Leaders decide. A deterministic kernel applies consequences. Personality traits drift from experience. The world evolves.
+
+Same seed, same starting conditions, different leaders, different civilizations.
 
 ## Quickstart
 
@@ -88,7 +92,10 @@ const scenario = await compileScenario(worldJson, {
   model: 'claude-sonnet-4-6',
 });
 
-// Define leaders with HEXACO personality profiles
+// Define leaders with HEXACO personality profiles.
+// Leaders can be any top-down decision maker: commander, CEO, general,
+// governing council, AI system, department head. The engine doesn't care
+// what they represent, only how their personality shapes decisions.
 const leaders = [
   {
     name: 'Captain Reyes',
@@ -123,7 +130,7 @@ const results = await Promise.all(
 );
 ```
 
-Each call to `runSimulation` takes one leader. Run one, two, or twenty. The dashboard runs two side-by-side for comparison, but the API has no limit.
+Each call to `runSimulation` takes one leader. Run one, two, or twenty. The dashboard runs two side-by-side for comparison, but the API has no limit. Leaders don't need to be people. They can model competing strategies, policy frameworks, organizational philosophies, or autonomous systems responding to the same events with different decision profiles.
 
 ### 3. Or use the dashboard
 
@@ -212,17 +219,31 @@ Paracosm uses [AgentOS](https://agentos.sh) for agent orchestration, LLM calls, 
 | AgentOS | [agentos.sh](https://agentos.sh) |
 | Discord | [wilds.ai/discord](https://wilds.ai/discord) |
 
+## What You Can Simulate
+
+Leaders are abstract decision-making entities. The same engine handles any domain where top-down decisions shape outcomes over time:
+
+| Domain | Leaders | Departments | Events |
+|--------|---------|-------------|--------|
+| **Space colonies** | Colony commanders | Medical, Engineering, Agriculture | Dust storms, water crises, first native-born generation |
+| **Corporate strategy** | CEOs, board members | Finance, Operations, R&D, Legal | Market shifts, acquisitions, regulatory changes |
+| **Military wargaming** | Theater commanders | Intelligence, Logistics, Air, Ground | Escalation, supply disruption, allied coordination |
+| **Game worlds** | Faction leaders, AI governors | Economy, Military, Diplomacy, Culture | Invasions, trade disputes, technological breakthroughs |
+| **Policy simulation** | Government agencies, councils | Healthcare, Education, Infrastructure | Pandemics, budget crises, demographic shifts |
+| **Autonomous systems** | AI decision frameworks | Sensor, Planning, Execution | Sensor failure, objective conflict, resource contention |
+
+Define departments, metrics, events, and progression hooks in JSON. The engine generates crises, runs department analysis, forges tools, and applies consequences through the deterministic kernel. The scenario owns the domain. The engine owns the chassis.
+
 ## Roadmap
 
 ### Enterprise Edition (Planned)
 
 | Feature | Description |
 |---------|-------------|
-| **Colony Visualization** | Cellular automata view: each colonist as a cell, color-coded by health/mood/department. Watch colony growth patterns diverge in real time. Split canvas showing both settlements side-by-side with metric sparklines and turn-by-turn playback controls. WebGL renderer. |
-| **Alternate Timelines** | Fork a simulation mid-run to explore "what if" branches. Split at any turn, change commander or settings, compare divergent futures from a single decision point. |
+| **Alternate Timelines** | Fork a simulation mid-run to explore "what if" branches. Split at any turn, change leader or settings, compare divergent futures from a single decision point. |
 | **Custom Scenario Forms** | Visual form-based scenario editor instead of raw JSON. Drag-and-drop departments, metric configuration, event category builder. |
-| **Persistent Agents** | Colonist chat agents that persist across sessions with durable memory. Resume conversations days later with full recall. |
-| **Multi-Scenario Comparison** | Run the same leaders across different scenarios (Mars, Lunar, custom) and compare how personality adapts to different domains. |
+| **Persistent Agents** | Agent chat that persists across sessions with durable memory. Resume conversations days later with full recall. |
+| **Multi-Scenario Comparison** | Run the same leaders across different scenarios and compare how personality adapts to different domains. |
 
 ## License
 
