@@ -37,9 +37,14 @@ export function ReportView({ state }: ReportViewProps) {
           t.crisis = (evt.data.crisis as string) || (evt.data.turnSummary as string) || '';
           t.colony = evt.data.colony as Record<string, unknown>;
         }
+        if (evt.type === 'commander_decided') {
+          t.decision = String(evt.data.decision || '');
+          t.rationale = String(evt.data.rationale || '');
+          const raw = evt.data.selectedPolicies;
+          t.policies = Array.isArray(raw) ? raw.map(p => typeof p === 'string' ? p : JSON.stringify(p)) : [];
+        }
         if (evt.type === 'outcome') {
-          t.decision = evt.data._decision as string; t.outcome = evt.data.outcome as string;
-          t.rationale = evt.data._rationale as string; t.policies = evt.data._policies as string[];
+          t.outcome = String(evt.data.outcome || '');
         }
         if (evt.type === 'dept_done') {
           const dept = evt.data.department as string;
@@ -166,9 +171,9 @@ function TurnSide({ data, name, sideColor }: { data: TurnData; name: string; sid
       {data.outcome && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
           <Badge outcome={data.outcome} />
-          {data.policies && data.policies.length > 0 && (
+          {Array.isArray(data.policies) && data.policies.length > 0 && (
             <span style={{ fontSize: '10px', color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
-              {data.policies.join(' / ')}
+              {data.policies.map(p => String(p)).join(' / ')}
             </span>
           )}
         </div>
