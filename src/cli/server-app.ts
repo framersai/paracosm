@@ -537,27 +537,25 @@ Respond in character as this person. Be direct, personal, emotional. Reference y
 
     if (req.url === '/favicon.svg' || req.url === '/favicon.png' || req.url === '/favicon.ico' || req.url === '/icon.svg' || req.url === '/apple-touch-icon.png') {
       try {
-        const svgPath = resolve(__dirname, '..', '..', 'assets', 'favicons', 'icon.svg');
-        const fallbackSvg = resolve(__dirname, '..', '..', 'assets', 'mars-genesis-icon.svg');
-        const pngPath = resolve(__dirname, '..', '..', 'assets', 'agentos-icon.png');
-        // Apple touch icon as PNG
+        const assetsDir = resolve(__dirname, '..', '..', 'assets');
+        const favDir = resolve(assetsDir, 'favicons');
+        // Apple touch icon
         if (req.url === '/apple-touch-icon.png') {
-          const touchPath = resolve(__dirname, '..', '..', 'assets', 'favicons', 'favicon-180.png');
-          if (existsSync(touchPath)) {
-            res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=86400' });
-            res.end(readFileSync(touchPath));
-            return;
-          }
+          const p = resolve(favDir, 'favicon-180.png');
+          if (existsSync(p)) { res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=86400' }); res.end(readFileSync(p)); return; }
         }
+        // PNG routes: serve 32px PNG
+        if (req.url === '/favicon.png' || req.url === '/favicon.ico') {
+          const p = resolve(favDir, 'favicon-32.png');
+          if (existsSync(p)) { res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=86400' }); res.end(readFileSync(p)); return; }
+        }
+        // SVG routes
+        const svgPath = resolve(favDir, 'icon.svg');
+        const fallbackSvg = resolve(assetsDir, 'mars-genesis-icon.svg');
         const iconPath = existsSync(svgPath) ? svgPath : existsSync(fallbackSvg) ? fallbackSvg : null;
         if (iconPath) {
-          const svg = readFileSync(iconPath, 'utf-8');
           res.writeHead(200, { 'Content-Type': 'image/svg+xml', 'Cache-Control': 'public, max-age=86400' });
-          res.end(svg);
-        } else if (existsSync(pngPath)) {
-          const icon = readFileSync(pngPath);
-          res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=86400' });
-          res.end(icon);
+          res.end(readFileSync(iconPath, 'utf-8'));
         } else {
           res.writeHead(404); res.end();
         }

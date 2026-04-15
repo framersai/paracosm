@@ -169,6 +169,16 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+      - name: Create GitHub Release
+        if: steps.version.outputs.changed == 'true'
+        run: |
+          gh release create "v${{ steps.version.outputs.local }}" \
+            --title "v${{ steps.version.outputs.local }}" \
+            --generate-notes \
+            --latest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Skip publish (version unchanged)
         if: steps.version.outputs.changed == 'false'
         run: echo "Version ${{ steps.version.outputs.local }} already published, skipping"
