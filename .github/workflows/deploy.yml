@@ -150,17 +150,17 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Auto-bump patch version
+      - name: Auto-version from run number
         id: version
         run: |
+          # Use major.minor from package.json + GitHub run number as patch
+          # Always unique, never collides, no commit-back needed
           CURRENT=$(node -p "require('./package.json').version")
-          # Bump patch: 0.3.0 -> 0.3.1, 0.3.1 -> 0.3.2, etc.
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
-          NEXT="${MAJOR}.${MINOR}.$((PATCH + 1))"
-          # Update package.json in place
+          IFS='.' read -r MAJOR MINOR _ <<< "$CURRENT"
+          NEXT="${MAJOR}.${MINOR}.${{ github.run_number }}"
           node -e "const p=require('./package.json'); p.version='${NEXT}'; require('fs').writeFileSync('./package.json', JSON.stringify(p, null, 2) + '\n')"
           echo "version=$NEXT" >> $GITHUB_OUTPUT
-          echo "Bumped $CURRENT -> $NEXT"
+          echo "Publishing ${NEXT} (run #${{ github.run_number }})"
 
       - name: Publish to npm
         run: npm publish --access public
