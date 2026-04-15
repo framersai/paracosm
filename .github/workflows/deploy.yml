@@ -45,7 +45,9 @@ jobs:
         run: npm test || true
 
       - name: Build API docs (TypeDoc)
-        run: npm run docs
+        run: |
+          npm run docs
+          cp assets/docs-theme/paracosm-override.css docs/api/assets/paracosm-override.css
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
