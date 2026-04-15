@@ -218,6 +218,7 @@ Paracosm uses [AgentOS](https://agentos.sh) for agent orchestration, LLM calls, 
 
 | Feature | Description |
 |---------|-------------|
+| **Colony Visualization** | Cellular automata view: each colonist as a cell, color-coded by health/mood/department. Watch colony growth patterns diverge in real time. Split canvas showing both settlements side-by-side with metric sparklines and turn-by-turn playback controls. WebGL renderer. |
 | **Alternate Timelines** | Fork a simulation mid-run to explore "what if" branches. Split at any turn, change commander or settings, compare divergent futures from a single decision point. |
 | **Custom Scenario Forms** | Visual form-based scenario editor instead of raw JSON. Drag-and-drop departments, metric configuration, event category builder. |
 | **Persistent Agents** | Colonist chat agents that persist across sessions with durable memory. Resume conversations days later with full recall. |
