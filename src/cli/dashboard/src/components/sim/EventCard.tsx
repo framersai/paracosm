@@ -138,31 +138,40 @@ export function EventCard({ event, side }: EventCardProps) {
                 </span>
               </summary>
               <div style={{ padding: '0 12px 8px', fontSize: '11px' }}>
-                {t.reasoning && (
-                  <div style={{ color: 'var(--text-2)', marginBottom: '6px', lineHeight: 1.5 }}>
-                    <span style={{ fontWeight: 700, color: 'var(--text-3)', fontFamily: 'var(--mono)', fontSize: '9px', letterSpacing: '0.5px' }}>REASONING: </span>
-                    {String(t.reasoning)}
+                {t.crisis && (
+                  <div style={{ color: 'var(--text-3)', marginBottom: '4px' }}>
+                    <span style={{ fontWeight: 700, fontFamily: 'var(--mono)', fontSize: '9px', letterSpacing: '0.5px' }}>CRISIS: </span>
+                    {String(t.crisis)}
                   </div>
                 )}
-                {t.code && (
-                  <pre style={{ background: 'var(--bg-deep)', border: '1px solid var(--border)', borderRadius: '4px', padding: '8px', overflow: 'auto', maxHeight: '200px', fontSize: '10px', fontFamily: 'var(--mono)', color: 'var(--text-2)', lineHeight: 1.5, whiteSpace: 'pre-wrap', marginBottom: '6px' }}>
-                    {String(t.code)}
-                  </pre>
+                {t.department && (
+                  <div style={{ color: 'var(--text-3)', marginBottom: '4px' }}>
+                    <span style={{ fontWeight: 700, fontFamily: 'var(--mono)', fontSize: '9px', letterSpacing: '0.5px' }}>DEPT: </span>
+                    {String(t.department)}
+                  </div>
                 )}
-                {t.input != null && (
+                {Array.isArray(t.inputFields) && t.inputFields.length > 0 && (
                   <div style={{ marginBottom: '4px' }}>
-                    <span style={{ fontWeight: 700, color: 'var(--text-3)', fontFamily: 'var(--mono)', fontSize: '9px', letterSpacing: '0.5px' }}>INPUT: </span>
-                    <span style={{ color: 'var(--text-2)', fontFamily: 'var(--mono)' }}>{typeof t.input === 'object' ? JSON.stringify(t.input) : String(t.input)}</span>
+                    <span style={{ fontWeight: 700, color: 'var(--teal)', fontFamily: 'var(--mono)', fontSize: '9px', letterSpacing: '0.5px' }}>INPUT FIELDS: </span>
+                    <span style={{ color: 'var(--text-2)', fontFamily: 'var(--mono)' }}>{t.inputFields.join(', ')}</span>
                   </div>
                 )}
-                {t.output != null && (
+                {Array.isArray(t.outputFields) && t.outputFields.length > 0 && (
                   <div style={{ marginBottom: '4px' }}>
-                    <span style={{ fontWeight: 700, color: 'var(--green)', fontFamily: 'var(--mono)', fontSize: '9px', letterSpacing: '0.5px' }}>OUTPUT: </span>
-                    <span style={{ color: 'var(--text-1)', fontFamily: 'var(--mono)' }}>{typeof t.output === 'object' ? JSON.stringify(t.output, null, 2) : String(t.output)}</span>
+                    <span style={{ fontWeight: 700, color: 'var(--green)', fontFamily: 'var(--mono)', fontSize: '9px', letterSpacing: '0.5px' }}>OUTPUT FIELDS: </span>
+                    <span style={{ color: 'var(--text-2)', fontFamily: 'var(--mono)' }}>{t.outputFields.join(', ')}</span>
                   </div>
                 )}
-                {!t.code && !t.reasoning && !t.input && !t.output && (
-                  <div style={{ color: 'var(--text-3)', fontStyle: 'italic' }}>No additional detail available for this tool.</div>
+                {t.output && (
+                  <details style={{ marginTop: '4px' }}>
+                    <summary style={{ fontSize: '10px', fontWeight: 600, cursor: 'pointer', color: sideColor, fontFamily: 'var(--mono)' }}>Raw Output</summary>
+                    <pre style={{ background: 'var(--bg-deep)', border: '1px solid var(--border)', borderRadius: '4px', padding: '8px', overflow: 'auto', maxHeight: '200px', fontSize: '10px', fontFamily: 'var(--mono)', color: 'var(--text-2)', lineHeight: 1.5, whiteSpace: 'pre-wrap', marginTop: '4px' }}>
+                      {typeof t.output === 'object' ? JSON.stringify(t.output, null, 2) : String(t.output)}
+                    </pre>
+                  </details>
+                )}
+                {!t.output && (!t.inputFields || t.inputFields.length === 0) && (
+                  <div style={{ color: 'var(--text-3)', fontStyle: 'italic' }}>Tool forged but no output captured. The tool will be available for subsequent turns.</div>
                 )}
               </div>
             </details>
