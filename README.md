@@ -234,16 +234,35 @@ Leaders are abstract decision-making entities. The same engine handles any domai
 
 Define departments, metrics, events, and progression hooks in JSON. The engine generates crises, runs department analysis, forges tools, and applies consequences through the deterministic kernel. The scenario owns the domain. The engine owns the chassis.
 
+## Open Source vs. Hosted
+
+| | Open Source (Apache-2.0) | Hosted Dashboard (Planned) |
+|-|--------------------------|---------------------------|
+| **Leaders** | Unlimited via API. Dashboard shows 2 side-by-side. | N leaders in parallel with fleet management UI. |
+| **Simulations** | Sequential or self-managed parallelism. | Distributed parallelization across worker nodes. |
+| **Scenarios** | JSON + Compiler, unlimited. | Visual scenario editor, team sharing, version control. |
+| **Agent Chat** | Available after first turn completes. | Persistent agents with durable memory across sessions. |
+| **Cost** | Free forever. You provide LLM API keys. | Tiered pricing for teams, orgs, and government agencies. |
+| **Support** | Community (Discord, GitHub). | SLA, dedicated support, private deployment. |
+
+The open-source engine and library are the permanent foundation. The API (`runSimulation`, `runBatch`, `compileScenario`) supports unlimited leaders and simulations today. The dashboard demo at [paracosm.agentos.sh](https://paracosm.agentos.sh) runs two leaders side-by-side to demonstrate divergence.
+
+The planned hosted product targets organizations that need to run dozens or hundreds of simulations in parallel: defense agencies stress-testing doctrine, corporations modeling leadership scenarios, game studios generating divergent NPC civilizations at scale. Distributed parallelization, fleet orchestration, team workspaces, persistent storage, and enterprise auth are on the roadmap.
+
+Contact [team@frame.dev](mailto:team@frame.dev) for early access or partnership.
+
 ## Roadmap
 
 ### Enterprise Edition (Planned)
 
 | Feature | Description |
 |---------|-------------|
+| **Fleet Orchestration** | Run 10, 50, or 100+ leaders through the same scenario in parallel. Distributed worker nodes. Aggregate comparison dashboards. |
 | **Alternate Timelines** | Fork a simulation mid-run to explore "what if" branches. Split at any turn, change leader or settings, compare divergent futures from a single decision point. |
 | **Custom Scenario Forms** | Visual form-based scenario editor instead of raw JSON. Drag-and-drop departments, metric configuration, event category builder. |
 | **Persistent Agents** | Agent chat that persists across sessions with durable memory. Resume conversations days later with full recall. |
 | **Multi-Scenario Comparison** | Run the same leaders across different scenarios and compare how personality adapts to different domains. |
+| **Private Deployment** | Self-hosted or cloud-managed deployment for organizations that need data sovereignty, audit trails, and compliance controls. |
 
 ## License
 

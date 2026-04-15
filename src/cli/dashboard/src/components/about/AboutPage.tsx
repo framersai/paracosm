@@ -125,15 +125,15 @@ const PRICING: PricingTier[] = [
     name: 'Enterprise',
     price: '$499',
     period: '/month + usage',
-    description: 'Planned private-deployment and governance tier for teams that need control and compliance.',
+    description: 'Fleet orchestration, distributed parallelization, and private deployment for organizations running simulations at scale.',
     features: [
       'Target tier, not generally available yet',
-      'Private deployment package',
-      'Workspace / org model',
-      'SSO / SAML + RBAC',
+      'Run 10-100+ leaders in parallel per scenario',
+      'Distributed worker nodes for fleet orchestration',
+      'Private deployment (self-hosted or cloud-managed)',
+      'Workspace / org model with SSO / SAML + RBAC',
       'Audit trails with provenance persistence',
-      'Scenario authoring studio',
-      'Support / SLA packaging',
+      'Dedicated support / SLA packaging',
     ],
     cta: { label: 'Contact Sales', href: 'mailto:team@frame.dev?subject=Paracosm Enterprise Inquiry' },
     highlight: true,
@@ -218,18 +218,17 @@ export function AboutPage() {
               Planned Hosted Packaging
             </h3>
             <p style={{ color: 'var(--text-2)', lineHeight: 1.8, fontSize: '14px', marginBottom: '12px' }}>
-              The simulation engine is open source and available today under Apache-2.0. The hosted layers are the commercial roadmap:
-              auth, persistence, APIs, governance controls, and white-label packaging built on top of the same engine.
+              The open-source engine supports unlimited leaders and simulations via the API today. The dashboard demo runs two leaders
+              side-by-side. The planned hosted product targets organizations that need to run dozens or hundreds of simulations in parallel.
             </p>
             <p style={{ color: 'var(--text-2)', lineHeight: 1.8, fontSize: '14px', marginBottom: '12px' }}>
-              The first sellable hosted tier is planned around practical product plumbing: hosted auth, persistent run history,
-              replay, basic remote execution API, and export flows. Beyond that, enterprise packaging adds private deployment,
-              provenance, workspace boundaries, and identity controls.
+              Defense agencies stress-testing doctrine across leadership profiles. Corporations modeling executive decision-making
+              under different market scenarios. Game studios generating divergent NPC civilizations at scale. Government agencies
+              simulating policy outcomes before implementation.
             </p>
             <p style={{ color: 'var(--text-2)', lineHeight: 1.8, fontSize: '14px', marginBottom: '16px' }}>
-              Longer-term roadmap items include white-label deployment, multi-simulation orchestration, marketplace distribution,
-              and broader scenario authoring workflows. Those are directionally important, but they should be treated as planned
-              platform capabilities rather than features available today.
+              Fleet orchestration, distributed parallelization, team workspaces, persistent agent memory, private deployment,
+              and enterprise auth are on the roadmap. The open-source engine and Apache-2.0 license are the permanent foundation.
             </p>
             <div className="responsive-stack" style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
               <a
