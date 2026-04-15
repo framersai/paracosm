@@ -109,19 +109,19 @@
   <button class="nav-hamburger" id="nav-hamburger" aria-label="Toggle navigation menu" aria-expanded="false">
     <span></span><span></span><span></span>
   </button>
-  <div class="nav-mobile" id="nav-mobile" aria-hidden="true">
-    <a href="#features">Features</a>
-    <a href="#how-it-works">How It Works</a>
-    <a href="#scenarios">Scenarios</a>
-    <a href="#faq">FAQ</a>
-    <a href="#about">About</a>
-    <a href="/docs">API Docs</a>
-    <a href="https://agentos.sh/blog" target="_blank" rel="noopener">Blog</a>
-    <a href="https://github.com/framersai/paracosm" target="_blank" rel="noopener">GitHub</a>
-    <a href="https://www.npmjs.com/package/paracosm" target="_blank" rel="noopener">npm</a>
-    <a href="/sim" class="cta" style="margin-top:8px;text-align:center">Launch Sim <svg width="16" height="16"><use href="#i-arrow"/></svg></a>
-  </div>
 </nav>
+<div class="nav-mobile" id="nav-mobile">
+  <a href="#features">Features</a>
+  <a href="#how-it-works">How It Works</a>
+  <a href="#scenarios">Scenarios</a>
+  <a href="#faq">FAQ</a>
+  <a href="#about">About</a>
+  <a href="/docs">API Docs</a>
+  <a href="https://agentos.sh/blog" target="_blank" rel="noopener">Blog</a>
+  <a href="https://github.com/framersai/paracosm" target="_blank" rel="noopener">GitHub</a>
+  <a href="https://www.npmjs.com/package/paracosm" target="_blank" rel="noopener">npm</a>
+  <a href="/sim" class="cta">Launch Sim <svg width="16" height="16"><use href="#i-arrow"/></svg></a>
+</div>
 
 <!-- HERO -->
 <section class="hero" id="top">
@@ -608,14 +608,13 @@ const hamburger = document.getElementById('nav-hamburger');
 const mobileNav = document.getElementById('nav-mobile');
 if (hamburger && mobileNav) {
   hamburger.addEventListener('click', () => {
-    const expanded = hamburger.getAttribute('aria-expanded') === 'true';
-    hamburger.setAttribute('aria-expanded', String(!expanded));
-    mobileNav.setAttribute('aria-hidden', String(expanded));
+    hamburger.classList.toggle('open');
+    mobileNav.classList.toggle('open');
   });
   mobileNav.querySelectorAll('a').forEach(link => {
     link.addEventListener('click', () => {
-      hamburger.setAttribute('aria-expanded', 'false');
-      mobileNav.setAttribute('aria-hidden', 'true');
+      hamburger.classList.remove('open');
+      mobileNav.classList.remove('open');
     });
   });
 }
