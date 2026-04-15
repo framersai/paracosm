@@ -622,20 +622,23 @@ Respond in character as this person. Be direct, personal, emotional. Reference y
             html = html.replace('</head>',
               `<link rel="icon" href="/favicon.png" sizes="32x32"><link rel="icon" type="image/svg+xml" href="/icon.svg"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="/docs/assets/paracosm-override.css">
 <style>
-/* Hamburger button in Paracosm header (hidden on desktop, shown on mobile) */
+/* Hamburger button (hidden on desktop) */
 .pdh-hamburger{display:none;background:none;border:1px solid var(--color-text-aside);border-radius:6px;width:32px;height:32px;cursor:pointer;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:7px;flex-shrink:0;opacity:.6;transition:opacity .2s}
 .pdh-hamburger:hover{opacity:1}
 .pdh-hamburger span{display:block;width:16px;height:2px;background:var(--color-text);border-radius:1px;transition:transform .25s,opacity .25s}
 .pdh-hamburger.open span:nth-child(1){transform:translateY(6px) rotate(45deg)}
 .pdh-hamburger.open span:nth-child(2){opacity:0}
 .pdh-hamburger.open span:nth-child(3){transform:translateY(-6px) rotate(-45deg)}
-/* Mobile: collapse sidebar behind hamburger, hide TypeDoc toolbar always */
-@media(max-width:900px){
+/* Mobile nav dropdown (site links, not API sidebar) */
+.pdh-mobile-nav{display:none;position:fixed;top:44px;left:0;right:0;z-index:99999;background:var(--color-background);border-bottom:1px solid var(--color-background-active);padding:8px 16px;flex-direction:column;gap:0}
+.pdh-mobile-nav.open{display:flex}
+.pdh-mobile-nav a{display:block;padding:12px 8px;font-size:15px;font-weight:500;color:var(--color-text-aside);text-decoration:none;border-bottom:1px solid var(--color-background-active);font-family:'Inter',system-ui,sans-serif}
+.pdh-mobile-nav a:last-child{border-bottom:none}
+.pdh-mobile-nav a:hover{color:var(--color-text)}
+@media(max-width:1100px){
   header.tsd-page-toolbar{height:0!important;overflow:hidden!important;visibility:hidden!important;padding:0!important;margin:0!important;border:none!important}
   .container-main{display:block!important;grid-template-columns:none!important}
   .col-sidebar{display:none!important}
-  body.has-menu .col-sidebar{display:block!important;position:fixed!important;top:44px!important;left:0!important;right:0!important;bottom:0!important;z-index:9999!important;background:var(--color-background)!important;overflow-y:auto!important;padding:16px!important}
-  body.has-menu .site-menu{position:static!important;max-height:none!important;border-right:none!important}
   .pdh-hamburger{display:flex}
   .pdh-right a,.pdh-right .pdh-search{display:none!important}
 }
@@ -661,8 +664,17 @@ Respond in character as this person. Be direct, personal, emotional. Reference y
     <a href="https://www.npmjs.com/package/paracosm" target="_blank" rel="noopener">npm</a>
     <button class="pdh-search" onclick="document.getElementById('tsd-search-trigger')?.click()" aria-label="Search docs"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.5"/><line x1="11" y1="11" x2="15" y2="15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
     <button class="pdh-theme" id="pdh-theme-toggle" aria-label="Toggle theme"></button>
-    <button class="pdh-hamburger" id="pdh-hamburger" aria-label="Toggle sidebar"><span></span><span></span><span></span></button>
+    <button class="pdh-hamburger" id="pdh-hamburger" aria-label="Toggle menu"><span></span><span></span><span></span></button>
   </div>
+</div>
+<div class="pdh-mobile-nav" id="pdh-mobile-nav">
+  <a href="/">Home</a>
+  <a href="/sim">Simulation</a>
+  <a href="/docs">API Docs</a>
+  <a href="https://github.com/framersai/paracosm" target="_blank" rel="noopener">GitHub</a>
+  <a href="https://www.npmjs.com/package/paracosm" target="_blank" rel="noopener">npm</a>
+  <a href="https://agentos.sh" target="_blank" rel="noopener">AgentOS</a>
+  <a href="https://wilds.ai/discord" target="_blank" rel="noopener">Discord</a>
 </div>
 <script>
 (function(){
@@ -688,17 +700,16 @@ Respond in character as this person. Be direct, personal, emotional. Reference y
       applyTheme(next);
     });
   }
-  // Hamburger: toggle body.has-menu for sidebar
+  // Hamburger: toggle mobile nav dropdown
   var hb=document.getElementById('pdh-hamburger');
-  if(hb){
+  var mn=document.getElementById('pdh-mobile-nav');
+  if(hb&&mn){
     hb.addEventListener('click',function(){
-      document.body.classList.toggle('has-menu');
       hb.classList.toggle('open');
+      mn.classList.toggle('open');
     });
-    // Close sidebar when a nav link is clicked
-    var sidebar=document.querySelector('.col-sidebar');
-    if(sidebar) sidebar.addEventListener('click',function(e){
-      if(e.target.tagName==='A'){document.body.classList.remove('has-menu');hb.classList.remove('open');}
+    mn.querySelectorAll('a').forEach(function(a){
+      a.addEventListener('click',function(){hb.classList.remove('open');mn.classList.remove('open');});
     });
   }
 })();
