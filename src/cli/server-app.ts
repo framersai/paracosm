@@ -135,7 +135,7 @@ export interface MarsServer extends Server {
 
 export function createMarsServer(options: CreateMarsServerOptions = {}): MarsServer {
   const env = options.env ?? process.env;
-  const maxSims = options.maxSimsPerDay ?? parseInt(env.RATE_LIMIT || '3', 10);
+  const maxSims = options.maxSimsPerDay ?? parseInt(env.RATE_LIMIT || '10', 10);
   const adminWrite = (env.ADMIN_WRITE || 'false').toLowerCase() === 'true';
   const scenarioDir = options.scenarioDir ?? resolve(__dirname, '..', '..', 'scenarios');
   const rateLimiter = maxSims > 0 ? new IpRateLimiter(maxSims) : null;
