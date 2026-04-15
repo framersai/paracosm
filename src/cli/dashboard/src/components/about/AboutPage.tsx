@@ -8,11 +8,11 @@ interface FaqItem {
 const FAQ: FaqItem[] = [
   {
     q: 'What is Paracosm?',
-    a: 'Paracosm is a scenario-driven multi-agent simulation engine. Define a world as JSON with departments, metrics, events, and progression hooks. Assign AI leaders with distinct HEXACO personality profiles. The engine handles crisis generation, department analysis, runtime tool forging, personality drift, and deterministic state transitions. Leaders can be colony commanders, CEOs, generals, governing councils, AI systems, or any top-down decision maker.',
+    a: 'Paracosm is a scenario-driven multi-agent simulation engine. Define a world as JSON with departments, metrics, events, and progression hooks. Assign AI leaders with distinct HEXACO personality profiles. The engine handles event generation, department analysis, runtime tool forging, personality drift, and deterministic state transitions. Leaders can be colony commanders, CEOs, generals, governing councils, AI systems, or any top-down decision maker.',
   },
   {
     q: 'How does the simulation work?',
-    a: 'AI leaders with distinct personality profiles run the same world in parallel. Each turn: a Crisis Director generates events based on the world state and decision history. Department agents analyze the situation and forge computational tools at runtime. Leaders decide. The deterministic kernel applies consequences. Same seed, same starting conditions, different leaders, different outcomes. Leaders are abstract: they can model people, organizations, policies, or autonomous systems.',
+    a: 'AI leaders with distinct personality profiles run the same world in parallel. Each turn: an Event Director generates events based on the world state and decision history. Department agents analyze the situation and forge computational tools at runtime. Leaders decide. The deterministic kernel applies consequences. Same seed, same starting conditions, different leaders, different outcomes. Leaders are abstract: they can model people, organizations, policies, or autonomous systems.',
   },
   {
     q: 'How much does Paracosm cost?',
@@ -39,8 +39,8 @@ const FAQ: FaqItem[] = [
     a: 'Defense and intelligence (wargaming, scenario planning), corporate strategy (acquisition simulation, leadership modeling), game studios (procedural NPC civilizations, emergent narratives), academic research (controlled experiments in AI decision-making), government (policy impact simulation), and any domain where testing decisions before making them has value.',
   },
   {
-    q: 'What is the Crisis Director?',
-    a: 'The Crisis Director is an LLM agent that observes colony state, resource levels, population, morale, decision history, and tool intelligence from previous turns. It generates unique crises per timeline that test weaknesses, exploit consequences of prior decisions, and escalate over time. No two runs play the same way.',
+    q: 'What is the Event Director?',
+    a: 'The Event Director is an LLM agent that observes world state, resource levels, population, decision history, and tool intelligence from previous turns. It generates unique events per timeline: crises, opportunities, disruptions, transitions. Events test weaknesses, exploit consequences of prior decisions, and escalate over time. No two runs play the same way.',
   },
   {
     q: 'What is runtime tool forging?',
@@ -52,7 +52,7 @@ const FAQ: FaqItem[] = [
   },
   {
     q: 'Is the simulation deterministic?',
-    a: 'The kernel is fully deterministic. Same seed produces the same colonist roster, births, deaths, and promotions via a seeded PRNG (Mulberry32). The divergence comes entirely from AI-driven decisions: different commanders make different choices, which the Crisis Director responds to with different crises.',
+    a: 'The kernel is fully deterministic. Same seed produces the same roster, progressions, and state transitions via a seeded PRNG (Mulberry32). The divergence comes entirely from AI-driven decisions: different leaders make different choices, which the Event Director responds to with different events.',
   },
   {
     q: 'Can I create my own scenario?',
@@ -173,7 +173,7 @@ export function AboutPage() {
             Scenario-driven multi-agent simulation engine. Define a world as JSON. Assign AI leaders with
             distinct personalities. Watch their decisions compound into divergent outcomes from identical starting
             conditions. Leaders can be commanders, CEOs, generals, councils, AI systems, or any top-down
-            decision maker. The engine handles crisis generation, department analysis, tool forging, personality
+            decision maker. The engine handles event generation, department analysis, tool forging, personality
             drift, and state transitions. Currently running: <strong style={{ color: 'var(--amber)' }}>{scenario.labels.name}</strong>.
           </p>
           <p style={{ color: 'var(--text-3)', lineHeight: 1.8, fontSize: '12px', marginTop: '10px' }}>
@@ -188,7 +188,7 @@ export function AboutPage() {
           </h2>
           <div className="responsive-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             {[
-              { title: 'Crisis Director', desc: 'AI generates unique events per timeline based on world state, decision history, and tool intelligence. No two runs play the same way.' },
+              { title: 'Event Director', desc: 'AI generates unique events per timeline based on world state, decision history, and tool intelligence. No two runs play the same way.' },
               { title: 'Abstract Leaders', desc: 'Leaders are top-down decision makers with HEXACO personality profiles. They can be people, organizations, policies, or autonomous systems. The engine models how personality shapes decisions.' },
               { title: 'Tool Forging', desc: 'Department agents create computational tools at runtime: calculators, projectors, analyzers. An LLM judge reviews each for safety and correctness in a sandboxed V8 environment.' },
               { title: 'Personality Drift', desc: 'HEXACO traits evolve through leader pull, role activation, and outcome reinforcement. A cautious leader becomes bolder after risky successes. A bold leader retreats after failures.' },

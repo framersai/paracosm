@@ -8,7 +8,9 @@
     "shortName": "lunar",
     "populationNoun": "crew members",
     "settlementNoun": "outpost",
-    "currency": "credits"
+    "currency": "credits",
+    "eventNoun": "incidents",
+    "eventNounSingular": "incident"
   },
 
   "theme": {

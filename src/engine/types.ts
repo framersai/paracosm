@@ -29,6 +29,10 @@ export interface ScenarioLabels {
   settlementNoun: string;
   /** Currency unit (e.g., "credits") */
   currency: string;
+  /** What to call turn events (e.g., "crises", "events", "incidents", "scenarios"). Default: "events" */
+  eventNoun?: string;
+  /** What to call a single turn event (e.g., "crisis", "event", "incident"). Default: "event" */
+  eventNounSingular?: string;
 }
 
 /** Visual theme for a scenario. Applied to the dashboard via CSS custom properties. */

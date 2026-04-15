@@ -1,8 +1,14 @@
 /**
- * Crisis Director — generates emergent crises per timeline based on colony state.
+ * Event Director — generates emergent events per timeline based on world state.
  *
- * Replaces static SCENARIOS for turns 2-11. Turn 1 (Landfall) and the final turn
- * (Legacy Assessment) remain fixed milestones for narrative anchoring.
+ * Each turn, the director observes resource levels, population health, prior
+ * decisions, tool intelligence, and mood data. It produces events that test
+ * weaknesses, exploit consequences of prior choices, and escalate over time.
+ * Events can be crises, opportunities, disruptions, or transitions depending
+ * on the scenario's eventNoun label.
+ *
+ * Milestone events (turn 1 and final turn) are fixed by the scenario for
+ * narrative anchoring. All other turns use emergent generation.
  */
 
 import type { Department, HexacoProfile, TurnOutcome } from '../engine/core/state.js';
