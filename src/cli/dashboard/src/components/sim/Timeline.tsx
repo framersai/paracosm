@@ -26,7 +26,7 @@ function extractTurns(state: GameState, side: 'a' | 'b'): TurnEntry[] {
         turn: evt.data.turn as number,
         year: evt.data.year as number,
         title: evt.data.title as string,
-        summary: (evt.data.turnSummary as string) || (evt.data.crisis as string)?.slice(0, 200) || '',
+        summary: (evt.data.turnSummary as string) || (evt.data.crisis as string) || '',
         category: evt.data.category as string || '',
         emergent: evt.data.emergent as boolean || false,
       });
@@ -91,7 +91,7 @@ function TurnTooltipContent({ t, sideColor }: { t: TurnEntry; sideColor: string 
       {t.decision && (
         <div style={{ fontSize: '12px', color: 'var(--text-2)', lineHeight: 1.6, marginBottom: '8px', paddingTop: '8px', borderTop: '1px solid var(--border)' }}>
           <span style={{ fontWeight: 700, color: sideColor, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Decision: </span>
-          {t.decision.slice(0, 300)}{t.decision.length > 300 ? '...' : ''}
+          {t.decision}
         </div>
       )}
       {t.outcome && (

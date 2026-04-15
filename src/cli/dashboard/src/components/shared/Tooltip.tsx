@@ -60,12 +60,14 @@ export function Tooltip({ content, children, dot }: TooltipProps) {
         <div
           id="paracosm-tooltip"
           role="tooltip"
+          onMouseEnter={() => { clearTimeout(timer.current); setVisible(true); }}
+          onMouseLeave={hide}
           style={{
             position: 'fixed', left: pos.x, top: pos.y, zIndex: 99999,
             background: 'var(--bg-card)', border: '2px solid var(--amber)', borderRadius: '8px',
             padding: '14px 18px', fontSize: '12px', color: 'var(--text-1)', lineHeight: 1.6,
-            width: '380px', maxWidth: '90vw', maxHeight: '70vh', overflowY: 'auto',
-            boxShadow: '0 8px 40px rgba(0,0,0,.4)', pointerEvents: 'none',
+            width: '420px', maxWidth: '90vw', maxHeight: '70vh', overflowY: 'auto',
+            boxShadow: '0 8px 40px rgba(0,0,0,.4)', pointerEvents: 'auto',
             whiteSpace: 'normal', wordBreak: 'break-word',
             animation: 'fadeUp 0.15s ease both',
           }}
