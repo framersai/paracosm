@@ -36,11 +36,11 @@ const TITLE_COLORS: Record<ToastMessage['type'], string> = {
 };
 
 const BG_TINTS: Record<ToastMessage['type'], string> = {
-  info: 'var(--bg-card)',
-  error: 'var(--bg-card)',
-  success: 'var(--bg-card)',
-  'crisis-a': 'rgba(232,180,74,0.06)',
-  'crisis-b': 'rgba(76,168,168,0.06)',
+  info: '#1a1610',
+  error: '#1a1210',
+  success: '#121a10',
+  'crisis-a': '#1a1610',
+  'crisis-b': '#101a18',
 };
 
 export function ToastProvider({ children }: { children: ReactNode }) {
