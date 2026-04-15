@@ -188,19 +188,45 @@ function AppContent() {
             {activeTab === 'chat' && <ChatPanel state={gameState} />}
 
             {activeTab === 'log' && (
-              <div className="flex-1 overflow-y-auto p-4 font-mono text-xs" role="log" aria-label="Event log" aria-live="polite" style={{ background: 'var(--bg-panel)', color: 'var(--text-3)' }}>
-                <h2 className="mb-2 font-semibold" style={{ color: 'var(--text-1)', fontSize: '14px' }}>Event Log</h2>
-                {effectiveEvents.length === 0 && <div>No events yet.</div>}
-                {effectiveEvents.map((e, i) => (
-                  <div key={i} className="py-0.5">
-                    <span style={{ color: 'var(--amber)' }}>[{e.type}]</span>{' '}
-                    <span style={{ color: 'var(--text-2)' }}>{e.leader}</span>{' '}
-                    {e.data?.turn != null && <span>T{String(e.data.turn)}</span>}
-                    {e.data?.title != null && <span> {String(e.data.title)}</span>}
-                    {e.data?.department != null && <span> {String(e.data.department)}</span>}
-                    {e.data?.outcome != null && <span> &rarr; {String(e.data.outcome)}</span>}
-                  </div>
-                ))}
+              <div className="flex-1 overflow-y-auto p-4 font-mono text-xs" role="log" aria-label="Event log" aria-live="polite" style={{ background: 'var(--bg-deep)', color: 'var(--text-3)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <h2 style={{ color: 'var(--text-1)', fontSize: '14px', fontWeight: 700 }}>Event Log ({effectiveEvents.length} events)</h2>
+                </div>
+                {effectiveEvents.length === 0 && <div style={{ color: 'var(--text-3)', padding: '20px 0' }}>No events yet. Run a simulation to see the raw SSE event stream.</div>}
+                {effectiveEvents.map((e, i) => {
+                  const typeColors: Record<string, string> = {
+                    status: 'var(--teal)', turn_start: 'var(--rust)', turn_done: 'var(--rust)',
+                    dept_start: 'var(--text-3)', dept_done: 'var(--green)',
+                    commander_deciding: 'var(--amber)', commander_decided: 'var(--amber)',
+                    outcome: '#e8b44a', drift: 'var(--teal)', agent_reactions: '#6aad48',
+                    bulletin: 'var(--text-2)', promotion: 'var(--teal)',
+                  };
+                  const color = typeColors[e.type] || 'var(--text-3)';
+                  const hasData = e.data && Object.keys(e.data).length > 0;
+                  return (
+                    <details key={i} style={{ borderBottom: '1px solid var(--border)', padding: '2px 0' }}>
+                      <summary style={{ cursor: 'pointer', padding: '4px 0', display: 'flex', gap: '8px', alignItems: 'baseline' }}>
+                        <span style={{ color: 'var(--text-3)', minWidth: '28px', textAlign: 'right', opacity: 0.5 }}>{i}</span>
+                        <span style={{ color, fontWeight: 700, minWidth: '120px' }}>{e.type}</span>
+                        <span style={{ color: 'var(--text-2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.leader}</span>
+                        {e.data?.turn != null && <span style={{ color: 'var(--text-3)' }}>T{String(e.data.turn)}</span>}
+                        {e.data?.title && <span style={{ color: 'var(--text-2)' }}>{String(e.data.title)}</span>}
+                        {e.data?.department && <span style={{ color: 'var(--teal)' }}>{String(e.data.department)}</span>}
+                        {e.data?.outcome && <span style={{ color: 'var(--amber)', fontWeight: 700 }}>{String(e.data.outcome)}</span>}
+                      </summary>
+                      {hasData && (
+                        <pre style={{
+                          padding: '8px 12px 8px 44px', margin: '0 0 4px',
+                          background: 'var(--bg-card)', borderRadius: '4px', border: '1px solid var(--border)',
+                          overflow: 'auto', maxHeight: '400px', fontSize: '11px', lineHeight: 1.5,
+                          color: 'var(--text-2)', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                        }}>
+                          {JSON.stringify(e.data, null, 2)}
+                        </pre>
+                      )}
+                    </details>
+                  );
+                })}
               </div>
             )}
 
