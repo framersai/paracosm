@@ -618,9 +618,24 @@ Respond in character as this person. Be direct, personal, emotional. Reference y
             html = html.replace(/href="media\//g, 'href="/docs/media/');
             html = html.replace(/src="media\//g, 'src="/docs/media/');
             // TypeDoc toolbar + page title hidden via CSS (kept in DOM so JS doesn't crash)
-            // Add our CSS override + fonts + favicon
+            // Add our CSS override + fonts + favicon + inline mobile styles
             html = html.replace('</head>',
-              `<link rel="icon" href="/favicon.png" sizes="32x32"><link rel="icon" type="image/svg+xml" href="/icon.svg"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="/docs/assets/paracosm-override.css"></head>`
+              `<link rel="icon" href="/favicon.png" sizes="32x32"><link rel="icon" type="image/svg+xml" href="/icon.svg"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="/docs/assets/paracosm-override.css">
+<style>
+/* Mobile sidebar + theme sync (injected by server, survives TypeDoc rebuild) */
+@media(max-width:900px){
+  .container-main{display:block!important;grid-template-columns:none!important}
+  .col-sidebar{display:none!important}
+  body.has-menu .col-sidebar{display:block!important;position:fixed!important;top:44px!important;left:0!important;right:0!important;bottom:0!important;z-index:9999!important;background:var(--color-background)!important;overflow-y:auto!important;padding:16px!important}
+  .site-menu{position:static!important;max-height:none!important;border-right:none!important}
+  header.tsd-page-toolbar{height:40px!important;overflow:visible!important;visibility:visible!important;position:fixed!important;top:44px!important;left:0!important;right:0!important;z-index:9998!important;display:flex!important;align-items:center!important;padding:0 12px!important;background:var(--color-background-secondary)!important;border-bottom:1px solid var(--color-background-active)!important;border-top:none!important;margin:0!important}
+  body{padding-top:84px!important}
+  body.has-menu .col-sidebar{top:84px!important}
+  .tsd-page-toolbar .tsd-toolbar-contents{display:flex!important;align-items:center!important;gap:8px!important}
+  .tsd-widget.menu{display:inline-flex!important}
+  .pdh-right a:not(.pdh-theme-btn){display:none!important}
+}
+</style></head>`
             );
             // Inject nav header after <body>
             html = html.replace(/<body[^>]*>/, `$&
