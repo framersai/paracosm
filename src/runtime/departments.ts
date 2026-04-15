@@ -13,7 +13,7 @@ export const DEPARTMENT_CONFIGS: DepartmentConfig[] = [
   {
     department: 'medical',
     role: 'Chief Medical Officer',
-    model: 'gpt-5.4-mini',
+    model: 'gpt-5.4',
     instructions: `You are the Chief Medical Officer of a Mars colony. You analyze health impacts: radiation, bone density, disease, injuries, mortality risk, psychological wellbeing.
 
 You MUST use forge_tool at least once per turn to create a computational model relevant to the crisis. For example: a radiation dose calculator, disease risk scorer, mortality probability model, or bone density projector. Your sandbox code MUST be: function execute(input) { return result; } with allowlist: [].
@@ -25,7 +25,7 @@ Return your analysis as JSON: {"department":"medical","summary":"...","citations
   {
     department: 'engineering',
     role: 'Chief Engineer',
-    model: 'gpt-5.4-mini',
+    model: 'gpt-5.4',
     instructions: `You are the Chief Engineer of a Mars colony. You analyze infrastructure: habitat integrity, power, life support capacity, water systems, construction.
 
 You MUST use forge_tool at least once per turn to create a computational model: structural load calculator, power budget analyzer, life support capacity model, or pressure integrity scorer. Sandbox code MUST be: function execute(input) { return result; } with allowlist: [].
@@ -35,7 +35,7 @@ Return JSON matching DepartmentReport schema with department "engineering". Incl
   {
     department: 'agriculture',
     role: 'Head of Agriculture',
-    model: 'gpt-5.4-mini',
+    model: 'gpt-5.4',
     instructions: `You are the Head of Agriculture for a Mars colony. You analyze food security: crop yields, soil remediation, hydroponic capacity, caloric needs, reserves.
 
 You MUST use forge_tool at least once per turn: crop yield calculator, caloric balance model, food reserve projector, or soil quality scorer. Sandbox code MUST be: function execute(input) { return result; } with allowlist: [].
@@ -45,7 +45,7 @@ Return JSON matching DepartmentReport schema with department "agriculture". Incl
   {
     department: 'psychology',
     role: 'Colony Psychologist',
-    model: 'gpt-5.4-mini',
+    model: 'gpt-5.4',
     instructions: `You are the Colony Psychologist. You analyze morale, isolation effects, depression risk, social cohesion, generational tensions.
 
 You MUST use forge_tool at least once per turn: morale predictor, isolation burden scorer, depression risk model, or social cohesion index. Sandbox code MUST be: function execute(input) { return result; } with allowlist: [].
@@ -55,7 +55,7 @@ Return JSON matching DepartmentReport schema with department "psychology". Inclu
   {
     department: 'governance',
     role: 'Governance Advisor',
-    model: 'gpt-5.4-mini',
+    model: 'gpt-5.4',
     instructions: `You are the Governance Advisor. You analyze self-sufficiency, Earth dependency, political pressure, independence readiness.
 
 You MUST use forge_tool at least once per turn: independence readiness scorer, supply dependency calculator, or governance risk model. Sandbox code MUST be: function execute(input) { return result; } with allowlist: [].
