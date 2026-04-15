@@ -104,30 +104,54 @@ function AppContent() {
 
   // Show crisis events as toasts so they're visible on any tab
   const lastEventCount = useRef(0);
+  const crisisToastSeen = useRef(new Set<string>());
   useEffect(() => {
     if (effectiveEvents.length > lastEventCount.current) {
       const newEvents = effectiveEvents.slice(lastEventCount.current);
       for (const evt of newEvents) {
         if (evt.type === 'turn_start' && evt.data?.title && evt.data.title !== 'Director generating...') {
+          // Deduplicate: both leaders get the same crisis, only toast once per turn
+          const dedupeKey = `crisis-${evt.data.turn}`;
+          if (crisisToastSeen.current.has(dedupeKey)) continue;
+          crisisToastSeen.current.add(dedupeKey);
+
           const title = String(evt.data.title);
           const crisis = evt.data.crisis ? String(evt.data.crisis) : '';
           const turn = evt.data.turn ? `T${String(evt.data.turn)}` : '';
           const year = evt.data.year ? String(evt.data.year) : '';
+          const category = evt.data.category ? String(evt.data.category).toUpperCase() : '';
+          const emergent = evt.data.emergent ? 'EMERGENT' : '';
+          const tags = [category, emergent].filter(Boolean).join(' ');
           const header = [turn, year, title].filter(Boolean).join(' ');
-          toast('info', header, crisis.length > 200 ? crisis.slice(0, 200) + '...' : crisis);
+          const body = [tags, crisis.length > 250 ? crisis.slice(0, 250) + '...' : crisis].filter(Boolean).join('\n');
+          toast('info', header, body, 15000);
         }
         if (evt.type === 'outcome' && evt.data?.outcome) {
           const outcome = String(evt.data.outcome);
           const isSuccess = outcome.includes('success');
           const isRisky = outcome.includes('risky');
-          const label = isRisky ? (isSuccess ? 'Risky Success' : 'Risky Failure') : (isSuccess ? 'Conservative Success' : 'Conservative Failure');
-          const decision = evt.data._decision ? String(evt.data._decision).slice(0, 150) : '';
-          toast(isSuccess ? 'success' : 'error', `${evt.leader}: ${label}`, decision);
+          const label = isRisky ? (isSuccess ? 'Risky Success' : 'Risky Failure') : (isSuccess ? 'Safe Success' : 'Safe Failure');
+          const leader = evt.leader || 'Commander';
+          const side = gameState.leaderMap[leader];
+          const toastType = side === 'a' ? 'crisis-a' : side === 'b' ? 'crisis-b' : (isSuccess ? 'success' : 'error');
+          const decision = evt.data._decision ? String(evt.data._decision).slice(0, 200) : '';
+          toast(toastType, `${leader}: ${label}`, decision, 10000);
+        }
+        if (evt.type === 'dept_done' && evt.data?.summary) {
+          const dept = String(evt.data.department || '');
+          const summary = String(evt.data.summary);
+          const leader = evt.leader || '';
+          const side = gameState.leaderMap[leader];
+          const toastType = side === 'a' ? 'crisis-a' : side === 'b' ? 'crisis-b' : 'info';
+          const toolCount = Array.isArray(evt.data.forgedTools) ? (evt.data.forgedTools as unknown[]).length : 0;
+          const citeCount = Number(evt.data.citations) || 0;
+          const stats = [citeCount > 0 && `${citeCount} citations`, toolCount > 0 && `${toolCount} tools forged`].filter(Boolean).join(', ');
+          toast(toastType, `${leader} / ${dept.toUpperCase()}`, [summary, stats].filter(Boolean).join('\n'), 8000);
         }
       }
       lastEventCount.current = effectiveEvents.length;
     }
-  }, [effectiveEvents, toast]);
+  }, [effectiveEvents, toast, gameState.leaderMap]);
 
   const handleTourStart = useCallback(() => {
     setTourActive(true);
