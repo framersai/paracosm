@@ -72,12 +72,13 @@ function AppContent() {
   const handleLoad = useCallback(async () => {
     const data = await persistence.load();
     if (data) {
-      toast('info', 'Loaded', `${data.events.length} events from file. Replay in the sim tab.`);
+      sse.loadEvents(data.events, data.results);
+      toast('info', 'Loaded', `${data.events.length} events loaded.`);
       setActiveTab('sim');
     } else {
       toast('error', 'Load Failed', 'No valid game data found in file.');
     }
-  }, [persistence, toast]);
+  }, [persistence, toast, sse]);
 
   const handleClear = useCallback(() => {
     if (!confirm('Clear all simulation data? This cannot be undone.')) return;

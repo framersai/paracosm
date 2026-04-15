@@ -30,6 +30,16 @@ export function useSSE() {
     setState({ status: 'connecting', events: [], results: [], verdict: null, isComplete: false });
   }, []);
 
+  const loadEvents = useCallback((events: SimEvent[], results?: unknown[], verdict?: Record<string, unknown> | null) => {
+    setState({
+      status: 'connected',
+      events,
+      results: (results || []) as SSEState['results'],
+      verdict: verdict || null,
+      isComplete: true,
+    });
+  }, []);
+
   useEffect(() => {
     const es = new EventSource('/events');
     esRef.current = es;
@@ -80,5 +90,5 @@ export function useSSE() {
     };
   }, []);
 
-  return { ...state, reset };
+  return { ...state, reset, loadEvents };
 }
