@@ -391,10 +391,10 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
           res.end(JSON.stringify({ error: 'agentId and message required' }));
           return;
         }
-        const hasSimData = eventBuffer.some(msg => msg.startsWith('event: result\n'));
+        const hasSimData = eventBuffer.some(msg => msg.startsWith('event: result\n') || msg.includes('"agent_reactions"'));
         if (!hasSimData) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'No simulation data available. Run a simulation first.' }));
+          res.end(JSON.stringify({ error: 'No simulation data yet. Wait for at least one turn to complete, or run a simulation first.' }));
           return;
         }
 
