@@ -30,6 +30,7 @@ export async function runPairSimulations(
       maxTurns: turns,
       seed,
       startYear,
+      yearsPerTurn: simConfig.yearsPerTurn,
       liveSearch,
       activeDepartments: simConfig.activeDepartments,
       onEvent,

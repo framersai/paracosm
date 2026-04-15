@@ -40,6 +40,7 @@ export interface SimulationSetupPayload {
   turns?: number;
   seed?: number;
   startYear?: number;
+  yearsPerTurn?: number;
   population?: number;
   liveSearch?: boolean;
   activeDepartments?: Department[];
@@ -72,6 +73,7 @@ export interface NormalizedSimulationConfig {
   turns: number;
   seed: number;
   startYear: number;
+  yearsPerTurn?: number;
   initialPopulation: number;
   liveSearch: boolean;
   activeDepartments: Department[];
@@ -197,6 +199,7 @@ export function normalizeSimulationConfig(input: SimulationSetupPayload): Normal
     turns: input.turns ?? 12,
     seed: input.seed ?? 950,
     startYear,
+    yearsPerTurn: input.yearsPerTurn,
     initialPopulation: input.population ?? 100,
     liveSearch: input.liveSearch ?? false,
     activeDepartments: normalizeActiveDepartments(input.activeDepartments),

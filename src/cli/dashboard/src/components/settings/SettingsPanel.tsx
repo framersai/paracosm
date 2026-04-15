@@ -74,6 +74,7 @@ export function SettingsPanel() {
   const [turns, setTurns] = useState(scenario.setup.defaultTurns);
   const [seed, setSeed] = useState(scenario.setup.defaultSeed);
   const [startYear, setStartYear] = useState(scenario.setup.defaultStartYear);
+  const [yearsPerTurn, setYearsPerTurn] = useState(0);
   const [population, setPopulation] = useState(scenario.setup.defaultPopulation);
   const [provider, setProvider] = useState('openai');
   const [liveSearch, setLiveSearch] = useState(false);
@@ -130,7 +131,7 @@ export function SettingsPanel() {
           { ...leaderA, hexaco: leaderA.hexaco },
           { ...leaderB, hexaco: leaderB.hexaco },
         ],
-        provider, turns, seed, startYear, population, liveSearch,
+        provider, turns, seed, startYear, yearsPerTurn: yearsPerTurn || undefined, population, liveSearch,
         activeDepartments: scenario.departments.map(d => d.id),
       };
       // Attach any user-provided key overrides (never sends .env values)
@@ -229,10 +230,14 @@ export function SettingsPanel() {
         <legend style={{ fontSize: '14px', fontFamily: 'var(--mono)', color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.5px', padding: '0 8px' }}>
           Simulation
         </legend>
-        <div className="responsive-grid-4" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '12px' }}>
+        <div className="responsive-grid-4" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', gap: '12px' }}>
           <div>
             <label htmlFor="turns-input" style={labelStyle}>Turns</label>
             <input id="turns-input" type="number" value={turns} onChange={e => setTurns(parseInt(e.target.value) || 12)} min={1} max={20} style={inputStyle} />
+          </div>
+          <div>
+            <label htmlFor="ypt-input" style={labelStyle}>Yrs/Turn</label>
+            <input id="ypt-input" type="number" value={yearsPerTurn} onChange={e => setYearsPerTurn(parseInt(e.target.value) || 0)} min={0} max={50} placeholder="auto" title="Years per turn. 0 = accelerating schedule (default). 1 = 1 year per turn. 5 = 5 years per turn." style={inputStyle} />
           </div>
           <div>
             <label htmlFor="seed-input" style={labelStyle}>Seed</label>
