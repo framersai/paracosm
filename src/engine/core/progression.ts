@@ -163,8 +163,8 @@ export function progressBetweenTurns(
     if (age >= 80) mortalityProb = 0.08 * yearDelta;
     if (age >= 90) mortalityProb = 0.20 * yearDelta;
 
-    if (c.health.cumulativeRadiationMsv > 1000) mortalityProb += 0.02 * yearDelta;
-    if (c.health.cumulativeRadiationMsv > 2000) mortalityProb += 0.05 * yearDelta;
+    if ((c.health.cumulativeRadiationMsv ?? 0) > 1000) mortalityProb += 0.02 * yearDelta;
+    if ((c.health.cumulativeRadiationMsv ?? 0) > 2000) mortalityProb += 0.05 * yearDelta;
 
     if (turnRng.chance(Math.min(mortalityProb, 0.5))) {
       c.health.alive = false;

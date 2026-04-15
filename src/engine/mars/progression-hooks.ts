@@ -14,12 +14,12 @@ export function marsProgressionHook(ctx: ProgressionHookContext): void {
     if (!c.health.alive) continue;
 
     // Radiation accumulation
-    c.health.cumulativeRadiationMsv += MARS_RADIATION_MSV_PER_YEAR * yearDelta;
+    c.health.cumulativeRadiationMsv = (c.health.cumulativeRadiationMsv ?? 0) + MARS_RADIATION_MSV_PER_YEAR * yearDelta;
 
     // Bone density loss (stabilizes after ~20 years on Mars)
     const lossRate = c.core.marsborn ? 0.003 : 0.005;
     const yearsOnMars = year - (c.core.marsborn ? c.core.birthYear : startYear);
     const decayFactor = Math.max(0.5, 1 - lossRate * Math.min(yearsOnMars, 20));
-    c.health.boneDensityPct = Math.max(50, c.health.boneDensityPct * decayFactor);
+    c.health.boneDensityPct = Math.max(50, (c.health.boneDensityPct ?? 0) * decayFactor);
   }
 }

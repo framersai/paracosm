@@ -471,7 +471,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
 
     // Get crisis: milestone (turn 1 / final) or emergent (director)
     let event: DirectorEvent;
-    const getMilestone = sc.hooks.getMilestoneEvent ?? sc.hooks.getMilestoneCrisis;
+    const getMilestone = sc.hooks.getMilestoneEvent ?? sc.hooks.getMilestoneEvent;
     const milestone = getMilestone?.(turn, maxTurns);
     if (milestone) {
       event = { ...milestone, description: (milestone as any).description || (milestone as any).crisis || '' } as DirectorEvent;

@@ -65,8 +65,8 @@ function buildAgentPrompt(c: Agent, ctx: ReactionContext, reactionContextHook?: 
   if (c.social.earthContacts > 3) socialContext.push(`Still in touch with ${c.social.earthContacts} people on Earth`);
   if (c.social.earthContacts === 0 && !c.core.marsborn) socialContext.push('Lost all contact with Earth');
   if (c.health.conditions.length) socialContext.push(`Health issues: ${c.health.conditions.join(', ')}`);
-  if (c.health.boneDensityPct < 70) socialContext.push('Suffering significant bone density loss');
-  if (c.health.cumulativeRadiationMsv > 1500) socialContext.push('High cumulative radiation exposure');
+  if ((c.health.boneDensityPct ?? 0) < 70) socialContext.push('Suffering significant bone density loss');
+  if ((c.health.cumulativeRadiationMsv ?? 0) > 1500) socialContext.push('High cumulative radiation exposure');
   if (c.health.psychScore < 0.4) socialContext.push('Struggling with depression');
   const socialLine = socialContext.length ? socialContext.join('. ') + '.' : '';
 
@@ -78,7 +78,7 @@ function buildAgentPrompt(c: Agent, ctx: ReactionContext, reactionContextHook?: 
 YOU: ${c.core.name}, age ${age}, ${c.core.role} in ${c.core.department}. ${marsborn}
 ${c.career.specialization !== 'Undetermined' ? `Specialization: ${c.career.specialization}. ${c.career.yearsExperience} years experience.` : ''}
 Personality: O=${h.openness.toFixed(2)} C=${h.conscientiousness.toFixed(2)} E=${h.extraversion.toFixed(2)} A=${h.agreeableness.toFixed(2)} Em=${h.emotionality.toFixed(2)} HH=${h.honestyHumility.toFixed(2)}
-Health: bone density ${c.health.boneDensityPct.toFixed(0)}%, radiation ${c.health.cumulativeRadiationMsv.toFixed(0)} mSv, psych ${c.health.psychScore.toFixed(2)}
+Health: bone density ${(c.health.boneDensityPct ?? 0).toFixed(0)}%, radiation ${(c.health.cumulativeRadiationMsv ?? 0).toFixed(0)} mSv, psych ${c.health.psychScore.toFixed(2)}
 ${socialLine}
 ${c.promotion ? `Promoted to ${c.promotion.role} by ${c.promotion.promotedBy}.` : ''}${lifeHistory}${memoryContext}
 
@@ -111,8 +111,8 @@ function parseReaction(text: string, c: Agent, year: number): AgentReaction | nu
             intensity: typeof raw.intensity === 'number' ? raw.intensity : 0.5,
             hexaco: { O: +c.hexaco.openness.toFixed(2), C: +c.hexaco.conscientiousness.toFixed(2), E: +c.hexaco.extraversion.toFixed(2), A: +c.hexaco.agreeableness.toFixed(2), Em: +c.hexaco.emotionality.toFixed(2), HH: +c.hexaco.honestyHumility.toFixed(2) },
             psychScore: +c.health.psychScore.toFixed(2),
-            boneDensity: +c.health.boneDensityPct.toFixed(0),
-            radiation: +c.health.cumulativeRadiationMsv.toFixed(0),
+            boneDensity: +(c.health.boneDensityPct ?? 0).toFixed(0),
+            radiation: +(c.health.cumulativeRadiationMsv ?? 0).toFixed(0),
           };
         }
       } catch {}

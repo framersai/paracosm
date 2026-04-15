@@ -85,8 +85,8 @@ export class SimulationKernel {
     return {
       count: m.length,
       avgMorale: m.reduce((s, c) => s + c.health.psychScore, 0) / m.length,
-      avgBoneDensity: m.reduce((s, c) => s + c.health.boneDensityPct, 0) / m.length,
-      avgRadiation: m.reduce((s, c) => s + c.health.cumulativeRadiationMsv, 0) / m.length,
+      avgBoneDensity: m.reduce((s, c) => s + ( c.health.boneDensityPct ?? 0), 0) / m.length,
+      avgRadiation: m.reduce((s, c) => s + (c.health.cumulativeRadiationMsv ?? 0), 0) / m.length,
     };
   }
 
