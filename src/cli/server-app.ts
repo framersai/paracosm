@@ -437,6 +437,25 @@ Respond in character as this person. Be direct, personal, emotional. Reference y
       return;
     }
 
+    // GET /results — full simulation results including verdict
+    if (req.url === '/results' && req.method === 'GET') {
+      const simEvents = eventBuffer
+        .filter(msg => msg.startsWith('event: sim\n') || msg.startsWith('event: result\n') || msg.startsWith('event: verdict\n') || msg.startsWith('event: complete\n'))
+        .map(msg => {
+          const lines = msg.split('\n');
+          const eventType = lines[0]?.replace('event: ', '') || '';
+          try { return { event: eventType, data: JSON.parse(lines[1]?.replace('data: ', '') || '{}') }; }
+          catch { return { event: eventType, data: {} }; }
+        });
+      const results = simEvents.filter(e => e.event === 'result').map(e => e.data);
+      const verdict = simEvents.find(e => e.event === 'verdict')?.data || null;
+      const isComplete = simEvents.some(e => e.event === 'complete');
+      const turns = simEvents.filter(e => e.event === 'sim' && e.data?.type === 'turn_start').length / 2;
+      res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ results, verdict, isComplete, turnsCompleted: Math.floor(turns), totalEvents: simEvents.length }));
+      return;
+    }
+
     if (req.url === '/rate-limit' && req.method === 'GET') {
       const clientIp = IpRateLimiter.getIp(req);
       if (!rateLimiter) {
