@@ -89,8 +89,8 @@ jobs:
         run: |
           SSH="ssh -i ~/.ssh/deploy_key root@${{ env.SERVER_IP }}"
 
-          # Sync build to server
-          rsync -azP --delete \
+          # Sync build to server (exclude .env so it persists across deploys)
+          rsync -azP --delete --exclude='.env' \
             -e "ssh -i ~/.ssh/deploy_key" \
             build/ root@${{ env.SERVER_IP }}:${{ env.APP_DIR }}/
 
