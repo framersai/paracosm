@@ -70,6 +70,7 @@ export interface GameState {
   seed: number;
   isRunning: boolean;
   isComplete: boolean;
+  cost: { totalTokens: number; totalCostUSD: number; llmCalls: number };
 }
 
 function emptySide(): SideState {
@@ -88,6 +89,7 @@ export function useGameState(sseEvents: SimEvent[], isComplete: boolean): GameSt
       a: emptySide(), b: emptySide(),
       leaderMap: {}, turn: 0, year: 0, maxTurns: 6, seed: 950,
       isRunning: false, isComplete,
+      cost: { totalTokens: 0, totalCostUSD: 0, llmCalls: 0 },
     };
 
     const assignSide = (leader: string): Side | null => {
@@ -102,6 +104,16 @@ export function useGameState(sseEvents: SimEvent[], isComplete: boolean): GameSt
       const evt = sseEvents[i];
       const side = evt.leader ? assignSide(evt.leader) : null;
       const dd = evt.data || {};
+
+      // Track per-leader cost (cumulative _cost on each event)
+      const evtCost = dd._cost as { totalTokens?: number; totalCostUSD?: number; llmCalls?: number } | undefined;
+      if (evtCost && side) {
+        const key = `_cost_${side}` as '_cost_a' | '_cost_b';
+        (state as any)[key] = { tokens: evtCost.totalTokens ?? 0, cost: evtCost.totalCostUSD ?? 0, calls: evtCost.llmCalls ?? 0 };
+        const ca = (state as any)._cost_a || { tokens: 0, cost: 0, calls: 0 };
+        const cb = (state as any)._cost_b || { tokens: 0, cost: 0, calls: 0 };
+        state.cost = { totalTokens: ca.tokens + cb.tokens, totalCostUSD: Math.round((ca.cost + cb.cost) * 10000) / 10000, llmCalls: ca.calls + cb.calls };
+      }
 
       // Handle status events (no side)
       if (evt.type === 'status') {

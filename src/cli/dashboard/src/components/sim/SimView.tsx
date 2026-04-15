@@ -177,6 +177,7 @@ export function SimView({ state, sseStatus, onRun, verdict }: SimViewProps) {
         citationsA={state.a.citations}
         citationsB={state.b.citations}
         crisisText={crisisText}
+        cost={state.cost}
       />
 
       {showIntro && state.a.events.length > 0 && <IntroBar onDismiss={dismissIntro} />}

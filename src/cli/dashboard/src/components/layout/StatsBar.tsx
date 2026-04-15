@@ -13,6 +13,7 @@ interface StatsBarProps {
   citationsA: number;
   citationsB: number;
   crisisText?: string;
+  cost?: { totalTokens: number; totalCostUSD: number; llmCalls: number };
 }
 
 function fmtVal(value: number, format: string): string {
@@ -48,7 +49,7 @@ function delta(curr: number, prev: number | undefined): string {
   return d > 0 ? `+${d}` : `${d}`;
 }
 
-export function StatsBar({ colonyA, colonyB, prevColonyA, prevColonyB, deathsA, deathsB, toolsA, toolsB, citationsA, citationsB, crisisText }: StatsBarProps) {
+export function StatsBar({ colonyA, colonyB, prevColonyA, prevColonyB, deathsA, deathsB, toolsA, toolsB, citationsA, citationsB, crisisText, cost }: StatsBarProps) {
   const scenario = useScenarioContext();
 
   if (!colonyA && !colonyB) {
@@ -115,6 +116,19 @@ export function StatsBar({ colonyA, colonyB, prevColonyA, prevColonyB, deathsA, 
         <span style={{ color: 'var(--text-3)', fontSize: '10px' }}>/</span>
         <span style={{ color: 'var(--text-1)', fontWeight: 800 }}>{citationsB}</span>
       </span>
+
+      {/* Cost tracker */}
+      {cost && cost.llmCalls > 0 && (
+        <span style={{ display: 'flex', alignItems: 'baseline', gap: '4px', whiteSpace: 'nowrap', flexShrink: 0, paddingLeft: '8px', borderLeft: '1px solid var(--border)' }}>
+          <span style={{ fontSize: '10px', color: 'var(--green)', letterSpacing: '0.8px', fontWeight: 800, opacity: 0.8 }}>$</span>
+          <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--green)' }}>
+            {cost.totalCostUSD < 0.01 ? cost.totalCostUSD.toFixed(4) : cost.totalCostUSD.toFixed(2)}
+          </span>
+          <span style={{ fontSize: '9px', color: 'var(--text-3)' }}>
+            {(cost.totalTokens / 1000).toFixed(0)}k tok
+          </span>
+        </span>
+      )}
     </div>
   );
 }

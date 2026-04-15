@@ -355,8 +355,28 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   const provider = opts.provider ?? 'openai';
   const sid = `${sc.labels.shortName}-v2-${leader.archetype.toLowerCase().replace(/\s+/g, '-')}`;
   const modelConfig = resolveSimulationModels(provider, opts.models);
+  // Cost tracking: accumulate token usage and estimated cost across all LLM calls
+  let totalTokens = 0;
+  let totalCostUSD = 0;
+  let llmCalls = 0;
+
+  function trackUsage(result: { usage?: { totalTokens?: number; promptTokens?: number; completionTokens?: number; costUSD?: number } }) {
+    if (result?.usage) {
+      totalTokens += result.usage.totalTokens ?? 0;
+      llmCalls++;
+      if (typeof result.usage.costUSD === 'number') {
+        totalCostUSD += result.usage.costUSD;
+      } else {
+        // Estimate cost from tokens if provider doesn't report it (~$0.15/1M input, ~$0.60/1M output for gpt-4o-mini)
+        const input = result.usage.promptTokens ?? 0;
+        const output = result.usage.completionTokens ?? 0;
+        totalCostUSD += (input * 0.00000015) + (output * 0.0000006);
+      }
+    }
+  }
+
   const emit = (type: SimEvent['type'], data?: Record<string, unknown>) => {
-    opts.onEvent?.({ type, leader: leader.name, data });
+    opts.onEvent?.({ type, leader: leader.name, data: { ...data, _cost: { totalTokens, totalCostUSD: Math.round(totalCostUSD * 10000) / 10000, llmCalls } } });
   };
 
   console.log(`\n${'═'.repeat(60)}`);
@@ -388,7 +408,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     maxSteps: opts.execution?.commanderMaxSteps ?? DEFAULT_EXECUTION.commanderMaxSteps,
   });
   const cmdSess = commander.session(`${sid}-cmd`);
-  await cmdSess.send('You are the colony commander. You receive department reports and make strategic decisions. When the crisis includes options with IDs, you MUST include selectedOptionId in your JSON response. Return JSON with selectedOptionId, decision, rationale, selectedPolicies, rejectedPolicies, expectedTradeoffs, watchMetricsNextTurn. Acknowledge.');
+  trackUsage(await cmdSess.send('You are the colony commander. You receive department reports and make strategic decisions. When the crisis includes options with IDs, you MUST include selectedOptionId in your JSON response. Return JSON with selectedOptionId, decision, rationale, selectedPolicies, rejectedPolicies, expectedTradeoffs, watchMetricsNextTurn. Acknowledge.'));
 
   // Turn 0: Commander promotes department heads from agent roster
   console.log('  [Turn 0] Commander evaluating roster for promotions...');
@@ -406,6 +426,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   const promoResult = await cmdSess.send(
     buildPromotionPrompt(candidateSummaries)
   );
+  trackUsage(promoResult);
 
   const promoMatch = promoResult.text.match(/\{[\s\S]*"promotions"[\s\S]*\}/);
   if (promoMatch) {
@@ -582,6 +603,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
       emit('dept_start', { turn, year, department: dept });
       try {
         const r = await sess.send(ctx);
+        trackUsage(r);
         const report = parseDeptReport(r.text, dept);
         console.log(`  [${dept}] Done: ${report.citations.length} citations, ${report.risks.length} risks, ${report.forgedToolsUsed.length} tools`);
         const validTools = report.forgedToolsUsed
@@ -672,6 +694,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     console.log(`  [commander] Deciding...`);
     emit('commander_deciding', { turn, year });
     const cmdR = await cmdSess.send(cmdPrompt);
+    trackUsage(cmdR);
     const decision = parseCmdDecision(cmdR.text, depts);
     console.log(`  [commander] ${decision.decision.slice(0, 120)}...`);
     emit('commander_decided', { turn, year, decision: decision.decision, rationale: decision.rationale, selectedPolicies: decision.selectedPolicies });
