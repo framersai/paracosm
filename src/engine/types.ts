@@ -48,6 +48,7 @@ export interface ScenarioSetupSchema {
   defaultTurns: number;
   defaultSeed: number;
   defaultStartYear: number;
+  defaultYearsPerTurn?: number;
   defaultPopulation: number;
   /** Which setup form sections to expose in the dashboard */
   configurableSections: Array<'leaders' | 'personnel' | 'resources' | 'departments' | 'events' | 'models' | 'advanced'>;

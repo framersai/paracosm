@@ -23,9 +23,10 @@
   },
 
   "setup": {
-    "defaultTurns": 12,
+    "defaultTurns": 6,
     "defaultSeed": 950,
     "defaultStartYear": 2035,
+    "defaultYearsPerTurn": 8,
     "defaultPopulation": 100,
     "configurableSections": ["leaders", "personnel", "resources", "departments", "events", "models", "advanced"]
   },

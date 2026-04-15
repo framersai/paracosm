@@ -74,7 +74,7 @@ export function SettingsPanel() {
   const [turns, setTurns] = useState(scenario.setup.defaultTurns);
   const [seed, setSeed] = useState(scenario.setup.defaultSeed);
   const [startYear, setStartYear] = useState(scenario.setup.defaultStartYear);
-  const [yearsPerTurn, setYearsPerTurn] = useState(0);
+  const [yearsPerTurn, setYearsPerTurn] = useState(scenario.setup.defaultYearsPerTurn || 0);
   const [population, setPopulation] = useState(scenario.setup.defaultPopulation);
   const [provider, setProvider] = useState('openai');
   const [liveSearch, setLiveSearch] = useState(false);
