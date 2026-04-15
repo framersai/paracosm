@@ -60,7 +60,7 @@ export function validateDirectorInstructions(fn: ScenarioHooks['directorInstruct
 }
 
 /** Validate milestone hook returns crises for turn 1 and final turn. */
-export function validateMilestones(fn: ScenarioHooks['getMilestoneCrisis'], maxTurns: number): { ok: boolean; error?: string } {
+export function validateMilestones(fn: ScenarioHooks['getMilestoneEvent'], maxTurns: number): { ok: boolean; error?: string } {
   if (!fn) return { ok: true };
   try {
     const turn1 = fn(1, maxTurns);

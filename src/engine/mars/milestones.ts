@@ -4,10 +4,10 @@
  * narrative coherence. All intermediate turns use the emergent Crisis Director.
  */
 
-import type { MilestoneCrisisDef } from '../types.js';
+import type { MilestoneEventDef } from '../types.js';
 
 
-const LANDFALL: MilestoneCrisisDef = {
+const LANDFALL: MilestoneEventDef = {
   title: 'Landfall',
   description: `Your colony ship has entered Mars orbit. You must choose a landing site for the first permanent settlement.`,
   crisis: `Your colony ship has entered Mars orbit. You must choose a landing site for the first permanent settlement. Two candidates:
@@ -31,7 +31,7 @@ Research the real science of Mars landing site selection and make your decision.
   turnSummary: 'Colony ship in orbit. Safe plains or mineral-rich canyon rim: the first decision shapes everything.',
 };
 
-const LEGACY_ASSESSMENT: MilestoneCrisisDef = {
+const LEGACY_ASSESSMENT: MilestoneEventDef = {
   title: 'Legacy Assessment',
   description: 'Earth requests a comprehensive status report on your colony. Assess your legacy.',
   crisis: `Earth requests a comprehensive status report on your colony:
@@ -59,7 +59,7 @@ Be honest. Your personality shapes your assessment.`,
 };
 
 /** Map of turn number -> milestone crisis */
-export const MARS_MILESTONES = new Map<number, MilestoneCrisisDef>([
+export const MARS_MILESTONES = new Map<number, MilestoneEventDef>([
   [1, LANDFALL],
   [12, LEGACY_ASSESSMENT],
 ]);
@@ -69,7 +69,7 @@ export const MARS_MILESTONES = new Map<number, MilestoneCrisisDef>([
  * Turn 1 is always Landfall. The final turn (maxTurns) is always Legacy Assessment.
  * Returns null for non-milestone turns.
  */
-export function getMarsMilestoneCrisis(turn: number, maxTurns: number): MilestoneCrisisDef | null {
+export function getMarsMilestoneCrisis(turn: number, maxTurns: number): MilestoneEventDef | null {
   if (turn === 1) return LANDFALL;
   if (turn === maxTurns) return LEGACY_ASSESSMENT;
   return null;

@@ -53,7 +53,7 @@ export type {
 export type { KeyPersonnel } from './core/agent-generator.js';
 export type { ColonyPatch, PolicyEffect, SimulationInitOverrides } from './core/kernel.js';
 export type { HexacoSnapshot, LifeEvent } from './core/state.js';
-export type { LeaderConfig, LlmProvider, SimulationModelConfig, Scenario, EventOptionDef, MilestoneEventDef, CrisisOptionDef, MilestoneCrisisDef, TurnOutcomeType } from './types.js';
+export type { LeaderConfig, LlmProvider, SimulationModelConfig, Scenario, EventOptionDef, MilestoneEventDef, TurnOutcomeType } from './types.js';
 
 // Registry types
 export type { ScenarioMetric } from './mars/metrics.js';

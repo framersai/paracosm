@@ -2,7 +2,7 @@
  * Generate milestone crises (turn 1 founding + final turn assessment) from scenario JSON via LLM.
  */
 
-import type { MilestoneCrisisDef } from '../types.js';
+import type { MilestoneEventDef } from '../types.js';
 import type { GenerateTextFn } from './types.js';
 
 function buildPrompt(scenarioJson: Record<string, any>): string {
@@ -42,7 +42,7 @@ Each milestone must have this exact JSON shape:
 Return ONLY a JSON array of exactly 2 objects: [founding, legacy]. No markdown fences.`;
 }
 
-export function parseMilestones(text: string): [MilestoneCrisisDef, MilestoneCrisisDef] | null {
+export function parseMilestones(text: string): [MilestoneEventDef, MilestoneEventDef] | null {
   let cleaned = text.trim();
   cleaned = cleaned.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '').trim();
 
@@ -61,7 +61,7 @@ export async function generateMilestones(
   scenarioJson: Record<string, any>,
   generateText: GenerateTextFn,
   maxRetries = 3,
-): Promise<{ hook: (turn: number, maxTurns: number) => MilestoneCrisisDef | null; source: string }> {
+): Promise<{ hook: (turn: number, maxTurns: number) => MilestoneEventDef | null; source: string }> {
   let lastError = '';
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
@@ -88,7 +88,7 @@ export async function generateMilestones(
 
   // Fallback: generic milestones
   const labels = scenarioJson.labels ?? {};
-  const fallbackFounding: MilestoneCrisisDef = {
+  const fallbackFounding: MilestoneEventDef = {
     title: 'Founding',
     description: `The ${labels.populationNoun ?? 'members'} have arrived at the ${labels.settlementNoun ?? 'settlement'}. Choose your initial strategy.`,
     crisis: `The ${labels.populationNoun ?? 'members'} have arrived at the ${labels.settlementNoun ?? 'settlement'}. Choose your initial strategy.`,
@@ -104,7 +104,7 @@ export async function generateMilestones(
     turnSummary: `The ${labels.settlementNoun ?? 'settlement'} is founded. First decisions shape everything.`,
   };
 
-  const fallbackLegacy: MilestoneCrisisDef = {
+  const fallbackLegacy: MilestoneEventDef = {
     title: 'Legacy Assessment',
     description: `Submit a comprehensive status report on the ${labels.settlementNoun ?? 'settlement'}.`,
     crisis: `Submit a comprehensive status report on the ${labels.settlementNoun ?? 'settlement'}.`,
