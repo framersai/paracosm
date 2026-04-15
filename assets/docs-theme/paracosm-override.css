@@ -1,0 +1,269 @@
+/* Paracosm theme override for TypeDoc */
+
+/* ═══ Theme Variables ═══ */
+:root {
+  --dark-color-background: #0a0806;
+  --dark-color-background-secondary: #14110e;
+  --dark-color-background-active: #1c1915;
+  --dark-color-background-warning: rgba(224, 101, 48, 0.1);
+  --dark-color-icon-background: #242018;
+  --dark-color-text: #f5f0e4;
+  --dark-color-text-aside: #a89878;
+  --dark-color-link: #e8b44a;
+  --dark-color-focus-outline: #e8b44a;
+  --dark-color-accent: #e06530;
+  --dark-color-active-menu-item: #e8b44a;
+  --dark-color-toolbar: #14110e;
+  --dark-color-toolbar-text: #f5f0e4;
+
+  --light-color-background: #f0e6d2;
+  --light-color-background-secondary: #d8cab0;
+  --light-color-background-active: #f8f2e4;
+  --light-color-background-warning: rgba(168, 56, 16, 0.08);
+  --light-color-icon-background: #e4d8c0;
+  --light-color-text: #1a1208;
+  --light-color-text-aside: #4a3e2c;
+  --light-color-link: #7a5200;
+  --light-color-focus-outline: #7a5200;
+  --light-color-accent: #a83810;
+  --light-color-active-menu-item: #7a5200;
+  --light-color-toolbar: #d8cab0;
+  --light-color-toolbar-text: #1a1208;
+}
+
+/* ═══ Typography ═══ */
+body, .tsd-page-toolbar, .tsd-navigation, .tsd-panel {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+}
+code, pre, .tsd-signature, .tsd-kind-icon {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace !important;
+}
+
+/* ═══ Scrollbar ═══ */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--color-background); }
+::-webkit-scrollbar-thumb { background: #4a3f30; border-radius: 3px; }
+
+/* ═══ Links ═══ */
+a { color: var(--color-link); }
+a:hover { text-decoration: underline; }
+
+/* ═══ Hide TypeDoc toolbar + page title (our header replaces them) ═══ */
+header.tsd-page-toolbar {
+  height: 0 !important;
+  overflow: hidden !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  visibility: hidden !important;
+}
+.tsd-page-title {
+  display: none !important;
+}
+/* Restore col-content to grid so display:none doesn't break layout */
+.col-content {
+  grid-area: content !important;
+  min-width: 0 !important;
+}
+
+/* ═══ Body offset for fixed header ═══ */
+body { padding-top: 44px !important; }
+
+/* ═══ Layout: hide "On This Page" toc, 2-column grid ═══ */
+.page-menu { display: none !important; }
+.col-sidebar { display: contents !important; }
+.container-main {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2.5fr) !important;
+  grid-template-areas: "sidebar content" !important;
+}
+.site-menu {
+  grid-area: sidebar !important;
+  position: sticky !important;
+  top: 60px !important;
+  z-index: 1 !important;
+  max-height: calc(100vh - 60px) !important;
+  overflow-y: auto !important;
+  padding-right: 16px !important;
+  border-right: 1px solid var(--color-background-active) !important;
+  font-size: 13px !important;
+}
+.site-menu .tsd-navigation a {
+  padding: 4px 8px !important;
+  border-radius: 4px !important;
+  display: block !important;
+}
+.site-menu .tsd-navigation a:hover {
+  background: var(--color-background-active) !important;
+  text-decoration: none !important;
+}
+.site-menu .tsd-navigation a.current {
+  background: var(--color-background-active) !important;
+  font-weight: 700 !important;
+  color: var(--color-link) !important;
+}
+
+/* ═══ Paracosm fixed header ═══ */
+.paracosm-docs-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  height: 44px;
+  font-family: 'Inter', system-ui, sans-serif;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 99999 !important;
+  /* Light mode default */
+  background: linear-gradient(180deg, #f0e6d2 0%, #e4d8c0 100%);
+  border-bottom: 1px solid #b8a888;
+  box-shadow: 0 2px 8px rgba(60, 40, 10, .12), 0 1px 0 rgba(255, 245, 220, .5) inset;
+}
+[data-theme="dark"] .paracosm-docs-header {
+  background: linear-gradient(180deg, #14110e 0%, #0a0806 100%);
+  border-bottom-color: #302a22;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, .6), 0 1px 0 rgba(232, 180, 74, .06) inset;
+}
+.paracosm-docs-header a {
+  color: var(--color-text-aside);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+.paracosm-docs-header a:hover {
+  color: var(--color-text);
+  text-decoration: none;
+}
+.paracosm-docs-header .pdh-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.paracosm-docs-header .pdh-brand {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text) !important;
+  letter-spacing: .08em;
+}
+.paracosm-docs-header .pdh-tag {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--color-accent) !important;
+  font-family: 'JetBrains Mono', monospace;
+}
+.paracosm-docs-header .pdh-sep {
+  color: var(--color-text-aside);
+  font-size: 12px;
+  opacity: 0.4;
+}
+.paracosm-docs-header .pdh-current {
+  font-size: 12px;
+  color: var(--color-link) !important;
+  font-weight: 600;
+}
+.paracosm-docs-header .pdh-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* ═══ Header buttons (search, theme) ═══ */
+.pdh-search, .pdh-theme {
+  background: none;
+  border: 1px solid var(--color-text-aside);
+  color: var(--color-text-aside);
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  font-size: 13px;
+  opacity: 0.6;
+}
+.pdh-search:hover, .pdh-theme:hover {
+  opacity: 1;
+  border-color: var(--color-link);
+  color: var(--color-text);
+}
+
+/* ═══ Search dialog popover ═══ */
+dialog#tsd-search[open] {
+  display: flex !important;
+  flex-direction: column !important;
+  border: 1px solid var(--color-text-aside) !important;
+  background: var(--color-background-secondary) !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+#tsd-search-input {
+  width: 100% !important;
+  padding: 12px 16px !important;
+  border: none !important;
+  border-bottom: 1px solid var(--color-text-aside) !important;
+  background: var(--color-background) !important;
+  color: var(--color-text) !important;
+  font-size: 14px !important;
+  font-family: 'Inter', system-ui, sans-serif !important;
+  outline: none !important;
+  box-sizing: border-box !important;
+}
+#tsd-search-results {
+  max-height: 360px !important;
+  overflow-y: auto !important;
+  padding: 4px !important;
+  margin: 0 !important;
+  list-style: none !important;
+}
+#tsd-search-results a {
+  display: block !important;
+  padding: 8px 12px !important;
+  border-radius: 4px !important;
+  color: var(--color-text) !important;
+  text-decoration: none !important;
+  font-size: 13px !important;
+}
+#tsd-search-results a:hover,
+#tsd-search-results li.current a {
+  background: var(--color-background-active) !important;
+}
+#tsd-search-status {
+  padding: 12px 16px !important;
+  font-size: 12px !important;
+  color: var(--color-text-aside) !important;
+}
+
+/* ═══ Footer ═══ */
+.paracosm-docs-footer {
+  padding: 20px 24px;
+  border-top: 1px solid #302a22;
+  background: var(--color-background-secondary);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: var(--color-text-aside);
+  font-family: 'Inter', system-ui, sans-serif;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.paracosm-docs-footer a {
+  color: var(--color-text-aside);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.paracosm-docs-footer a:hover {
+  color: var(--color-link);
+}
+.paracosm-docs-footer .pdf-links {
+  display: flex;
+  gap: 16px;
+}
