@@ -2,7 +2,8 @@ import { useRef, useEffect, useCallback, useState } from 'react';
 import type { TurnSnapshot, ForceNode } from './viz-types';
 import { DEPARTMENT_COLORS, DEFAULT_DEPT_COLOR } from './viz-types';
 import { computeClusterCenters, initNodes, tickForce, syncNodes } from './ForceLayout';
-import { renderCells, hitTest } from './CellRenderer';
+import { renderCells, hitTest, drawLegend } from './CellRenderer';
+import type { ClusterCenter } from './ForceLayout';
 import { GlowRenderer } from './GlowRenderer';
 import { renderMetricOverlay } from './MetricOverlay';
 import { CellTooltip } from './CellTooltip';
@@ -23,6 +24,7 @@ export function ColonyCanvas({ snapshots, currentTurn, leaderName, leaderArchety
   const glowRef = useRef<GlowRenderer | null>(null);
   const animRef = useRef<number>(0);
   const deathProgress = useRef(new Map<string, number>());
+  const clustersRef = useRef<ClusterCenter[]>([]);
   const birthProgress = useRef(new Map<string, number>());
 
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -58,6 +60,7 @@ export function ColonyCanvas({ snapshots, currentTurn, leaderName, leaderArchety
       if (c.alive) popCounts[c.department] = (popCounts[c.department] || 0) + 1;
     }
     const clusters = computeClusterCenters(departments, w, h, popCounts);
+    clustersRef.current = clusters;
 
     if (nodesRef.current.length === 0) {
       nodesRef.current = initNodes(snap.cells, clusters);
@@ -141,7 +144,12 @@ export function ColonyCanvas({ snapshots, currentTurn, leaderName, leaderArchety
         hoveredId,
         deathProgress: deathProgress.current,
         birthProgress: birthProgress.current,
+        clusters: clustersRef.current,
       });
+
+      // Draw legend
+      const depts = [...new Set(nodes.filter(n => n.alive).map(n => n.department))];
+      drawLegend(ctx, depts, w);
 
       glowRef.current?.renderParticles(ctx);
       renderMetricOverlay(ctx, snapshots, currentTurn, w, h);

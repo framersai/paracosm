@@ -1,4 +1,5 @@
 import type { ForceNode } from './viz-types';
+import type { ClusterCenter } from './ForceLayout';
 import { DEPARTMENT_COLORS, DEFAULT_DEPT_COLOR, RANK_SIZES } from './viz-types';
 
 const HEX_PATH = new Path2D();
@@ -14,6 +15,7 @@ export interface RenderOptions {
   hoveredId: string | null;
   deathProgress: Map<string, number>;
   birthProgress: Map<string, number>;
+  clusters: ClusterCenter[];
 }
 
 /**
@@ -27,6 +29,9 @@ export function renderCells(
   opts: RenderOptions,
 ): void {
   ctx.clearRect(0, 0, width, height);
+
+  // Draw department cluster labels
+  drawClusterLabels(ctx, opts.clusters);
 
   const alive = nodes.filter(n => n.alive || opts.deathProgress.has(n.id));
   const focused = opts.focusedId;
@@ -151,6 +156,90 @@ function drawConnections(
       }
     }
   }
+}
+
+/**
+ * Draw department labels at cluster centers (behind cells).
+ */
+function drawClusterLabels(ctx: CanvasRenderingContext2D, clusters: ClusterCenter[]): void {
+  for (const cluster of clusters) {
+    const color = DEPARTMENT_COLORS[cluster.id] || DEFAULT_DEPT_COLOR;
+
+    // Faint circle showing cluster boundary
+    ctx.strokeStyle = color + '15';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(cluster.x, cluster.y, cluster.radius + 10, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Department label above cluster
+    ctx.fillStyle = color + '80';
+    ctx.font = '600 9px var(--mono, monospace)';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(cluster.label.toUpperCase(), cluster.x, cluster.y - cluster.radius - 6);
+  }
+}
+
+/**
+ * Draw legend showing what shapes and colors mean.
+ */
+export function drawLegend(
+  ctx: CanvasRenderingContext2D,
+  departments: string[],
+  width: number,
+): void {
+  const legendY = 8;
+  const itemW = 70;
+  const startX = width - departments.length * itemW - 8;
+
+  ctx.font = '600 8px var(--mono, monospace)';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+
+  // Department colors
+  for (let i = 0; i < departments.length; i++) {
+    const dept = departments[i];
+    const color = DEPARTMENT_COLORS[dept] || DEFAULT_DEPT_COLOR;
+    const x = startX + i * itemW;
+
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x + 4, legendY + 5, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#a89878';
+    ctx.fillText(dept.slice(0, 8).toUpperCase(), x + 10, legendY + 5);
+  }
+
+  // Shape legend (below department colors)
+  const shapeY = legendY + 16;
+  ctx.fillStyle = '#a89878';
+  ctx.font = '500 8px var(--mono, monospace)';
+
+  // Circle = Earth-born
+  ctx.beginPath();
+  ctx.arc(startX + 4, shapeY, 3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#686050';
+  ctx.fillText('EARTH', startX + 10, shapeY);
+
+  // Hexagon = Mars-born
+  ctx.save();
+  ctx.translate(startX + itemW + 4, shapeY);
+  ctx.scale(3, 3);
+  ctx.fillStyle = '#a89878';
+  ctx.fill(HEX_PATH);
+  ctx.restore();
+  ctx.fillStyle = '#686050';
+  ctx.fillText('MARS', startX + itemW + 10, shapeY);
+
+  // Size legend
+  ctx.fillStyle = '#686050';
+  ctx.fillText('SIZE=RANK', startX + itemW * 2 + 4, shapeY);
+
+  // Glow legend
+  ctx.fillText('GLOW=MOOD', startX + itemW * 3 + 4, shapeY);
 }
 
 /**
