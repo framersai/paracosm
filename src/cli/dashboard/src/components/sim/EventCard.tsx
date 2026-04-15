@@ -69,26 +69,46 @@ export function EventCard({ event, side }: EventCardProps) {
       const statsText = hasStats ? ` ${citeCount}c ${tools.length}t` : '';
 
       return (
-        <div style={{ display: 'inline' }}>
-          <Tooltip content={
-            <div>
-              <b style={{ color: sideColor, fontSize: '13px' }}>{scenario.ui.departmentIcons[dept] || ''} {dept.charAt(0).toUpperCase() + dept.slice(1)}</b>
-              {hasStats && <span style={{ fontSize: '11px', color: 'var(--text-3)', marginLeft: '8px', fontFamily: 'var(--mono)' }}>{citeCount} citations, {tools.length} tools</span>}
-              {summary && <div style={{ marginTop: '6px', fontSize: '12px', color: 'var(--text-2)', lineHeight: 1.6 }}>{summary}</div>}
-              {severity && <div style={{ marginTop: '4px', fontSize: '11px', fontWeight: 700, color: severity === 'critical' ? 'var(--rust)' : 'var(--amber)', fontFamily: 'var(--mono)' }}>RISK: {severity.toUpperCase()}</div>}
+        <div style={{ margin: '0 8px 4px' }}>
+          <div style={{
+            padding: '6px 10px', borderRadius: '6px', fontSize: '11px',
+            background: severity === 'critical' ? 'rgba(224,101,48,.08)' : severity === 'high' ? 'rgba(232,180,74,.06)' : 'var(--bg-card)',
+            border: `1px solid ${severity === 'critical' ? 'rgba(224,101,48,.25)' : severity === 'high' ? 'rgba(232,180,74,.2)' : 'var(--border)'}`,
+            borderLeft: `3px solid ${severity === 'critical' ? 'var(--rust)' : severity === 'high' ? 'var(--amber)' : 'var(--teal)'}`,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: summary ? '4px' : 0 }}>
+              <span style={{ fontWeight: 800, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--teal)' }}>
+                {scenario.ui.departmentIcons[dept] || ''} {dept}
+              </span>
+              {hasStats && (
+                <span style={{ fontSize: '10px', color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
+                  {citeCount > 0 ? `${citeCount} cite` : ''}{citeCount > 0 && tools.length > 0 ? ' · ' : ''}{tools.length > 0 ? `${tools.length} tools` : ''}
+                </span>
+              )}
+              {severity && (
+                <span style={{ fontSize: '9px', fontWeight: 800, fontFamily: 'var(--mono)', padding: '0 4px', borderRadius: '2px', background: severity === 'critical' ? 'rgba(224,101,48,.15)' : 'rgba(232,180,74,.1)', color: severity === 'critical' ? 'var(--rust)' : 'var(--amber)' }}>
+                  {severity.toUpperCase()}
+                </span>
+              )}
             </div>
-          }>
-            <span style={{
-              display: 'inline-flex', alignItems: 'center', gap: '3px',
-              padding: '1px 8px', borderRadius: '10px', fontSize: '10px', fontWeight: 600,
-              background: severity === 'critical' ? 'rgba(224,101,48,.15)' : severity === 'high' ? 'rgba(232,180,74,.1)' : 'var(--bg-elevated)',
-              color: severity === 'critical' ? 'var(--rust)' : severity === 'high' ? 'var(--amber)' : 'var(--text-2)',
-              border: '1px solid var(--border)', cursor: 'pointer',
-            }}>
-              {scenario.ui.departmentIcons[dept] || ''} {dept.charAt(0).toUpperCase() + dept.slice(1)}{statsText}
-              {severity && <span style={{ textTransform: 'uppercase', fontSize: '8px', fontWeight: 800, fontFamily: 'var(--mono)', marginLeft: '2px' }}>{severity}</span>}
-            </span>
-          </Tooltip>
+            {summary && (
+              <div style={{ fontSize: '11px', color: 'var(--text-2)', lineHeight: 1.5 }}>
+                {summary}
+              </div>
+            )}
+            {risks.length > 0 && (
+              <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '3px', lineHeight: 1.4 }}>
+                {risks.slice(0, 2).map((r: any, i: number) => (
+                  <div key={i} style={{ display: 'flex', gap: '4px' }}>
+                    <span style={{ color: (r.severity === 'critical' || r.severity === 'high') ? 'var(--rust)' : 'var(--amber)', fontFamily: 'var(--mono)', fontSize: '9px', fontWeight: 700, flexShrink: 0 }}>
+                      {String(r.severity || '').toUpperCase()}
+                    </span>
+                    <span>{String(r.description || '')}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Citation links */}
           {Array.isArray(dd.citationList) && (dd.citationList as Array<Record<string, string>>).length > 0 && (
