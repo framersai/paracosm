@@ -31,7 +31,7 @@ Define a world as JSON. Assign AI leaders with distinct personalities. Watch the
 
 Leaders are top-down decision makers. They can be colony commanders, CEOs, generals, ship captains, department heads, AI systems, governing councils, or any entity that receives information, evaluates options, and makes choices that shape the world. The simulation doesn't care what they represent. It cares how they decide.
 
-Each turn: a Crisis Director generates events based on the world's current state. Department agents analyze the situation and forge computational tools at runtime. Leaders decide. A deterministic kernel applies consequences. Personality traits drift from experience. The world evolves.
+Each turn: a Event Director generates events based on the world's current state. Department agents analyze the situation and forge computational tools at runtime. Leaders decide. A deterministic kernel applies consequences. Personality traits drift from experience. The world evolves.
 
 Same seed, same starting conditions, different leaders, different civilizations.
 
@@ -176,7 +176,7 @@ src/
 
   runtime/        orchestration (not exported)
     orchestrator  turn pipeline: director -> kernel -> departments -> commander
-    director      emergent crisis generation from simulation state
+    director      emergent event generation from simulation state
     departments   parallel department analysis agents
 
   cli/            server + dashboard (not exported)
@@ -184,7 +184,7 @@ src/
     dashboard/    React/Vite live visualization
 ```
 
-**Design principle:** The engine owns the chassis. The scenario owns the domain. The kernel handles state, time, randomness, and invariants. The scenario handles crisis categories, department instructions, progression hooks, and research citations. The orchestrator connects them.
+**Design principle:** The engine owns the chassis. The scenario owns the domain. The kernel handles state, time, randomness, and invariants. The scenario handles event categories, department instructions, progression hooks, and research citations. The orchestrator connects them.
 
 ## Package Exports
 
@@ -204,7 +204,7 @@ Paracosm uses [AgentOS](https://agentos.sh) for agent orchestration, LLM calls, 
 | AgentOS API | Used For |
 |------------|----------|
 | `agent()` | Commander, department, and Event Director agents |
-| `generateText()` | LLM calls for crisis generation and tool evaluation |
+| `generateText()` | LLM calls for event generation and tool evaluation |
 | `EmergentCapabilityEngine` | Runtime tool forging in sandboxed V8 |
 | `EmergentJudge` | LLM-as-judge safety review of forged tools |
 

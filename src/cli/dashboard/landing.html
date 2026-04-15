@@ -4,13 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Paracosm: Open-Source AI Agent Swarm Simulation Engine | AgentOS</title>
-<meta name="description" content="Open-source TypeScript swarm simulation engine. Spawn autonomous AI agent swarms with emergent crisis generation, sandboxed tool forging, HEXACO personality drift, and deterministic state kernels. Define any scenario as JSON. npm install paracosm. Apache-2.0.">
+<meta name="description" content="Open-source TypeScript swarm simulation engine. Spawn autonomous AI agent swarms with emergent event generation, sandboxed tool forging, HEXACO personality drift, and deterministic state kernels. Define any scenario as JSON. Leaders can be commanders, CEOs, generals, or any decision maker. npm install paracosm. Apache-2.0.">
 <meta name="keywords" content="paracosm, agentos, AI agent swarm, swarm simulation engine, swarm intelligence, multi-agent simulation, AI agent framework, TypeScript AI agents, autonomous agent swarm, open source simulation engine, npm paracosm, HEXACO personality model, emergent AI behavior, runtime tool forging, LLM-as-judge, deterministic simulation kernel, scenario-driven simulation, agentic AI, agent orchestration, swarm intelligence engine, AI swarm framework, agent swarm kit, multi-agent system">
 <meta name="author" content="Manic Agency / Frame.dev">
 <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
 <link rel="canonical" href="https://paracosm.agentos.sh">
 <meta property="og:title" content="Paracosm: Open-Source AI Agent Swarm Simulation Engine">
-<meta property="og:description" content="Spawn autonomous agent swarms from JSON scenario definitions. Emergent crisis generation, sandboxed tool forging, HEXACO personality drift, deterministic kernels. 100+ agents per run.">
+<meta property="og:description" content="Spawn autonomous agent swarms from JSON scenario definitions. Emergent event generation, sandboxed tool forging, HEXACO personality drift, deterministic kernels. Leaders can be any top-down decision maker. 100+ agents per run.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://paracosm.agentos.sh">
 <meta property="og:site_name" content="Paracosm by AgentOS">
@@ -268,13 +268,13 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
       <div class="feat rv rv-d2">
         <img class="feat-icon" src="/brand/feature-icons/hexaco.svg?v=1" width="48" height="48" alt="">
         <h3>HEXACO Personality Drift</h3>
-        <p>Each agent carries six continuous personality traits (Openness, Conscientiousness, Extraversion, Agreeableness, Emotionality, Honesty-Humility). These values shift over time through three mechanisms: leader influence, role-specific pressures, and crisis outcome reinforcement. The same colonist under two different commanders becomes a measurably different person by turn 12.</p>
+        <p>Each agent carries six continuous personality traits (Openness, Conscientiousness, Extraversion, Agreeableness, Emotionality, Honesty-Humility). These values shift over time through three mechanisms: leader influence, role-specific pressures, and outcome reinforcement. The same agent under two different leaders becomes a measurably different entity by turn 12.</p>
         <div class="feat-ref">Ashton &amp; Lee, "Empirical, Theoretical, and Practical Advantages of the HEXACO Model," PSPR 11(2), 2007</div>
       </div>
       <div class="feat rv rv-d3">
         <img class="feat-icon" src="/brand/feature-icons/crisis.svg?v=1" width="48" height="48" alt="">
-        <h3>Emergent Crisis Director</h3>
-        <p>The Crisis Director reads swarm metrics, resource reserves, population health, prior decisions, and the tools agents have built. It generates a crisis that targets actual weak points in the simulation state. If a commander neglected agriculture in turn 3, the food crisis in turn 7 is a consequence, not a coincidence.</p>
+        <h3>Emergent Event Director</h3>
+        <p>The Event Director reads world state, resource levels, population health, prior decisions, and the tools agents have built. It generates events that target actual weak points in the simulation: crises, opportunities, disruptions, transitions. If a leader neglected agriculture in turn 3, the food shortage in turn 7 is a consequence, not a coincidence.</p>
         <div class="feat-ref">cf. Riedl &amp; Bulitko, "Interactive Narrative: An Intelligent Systems Approach," AI Magazine 34(1), 2013</div>
       </div>
       <div class="feat rv rv-d1">
@@ -286,7 +286,7 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
       <div class="feat rv rv-d2">
         <img class="feat-icon" src="/brand/feature-icons/compiler.svg?v=1" width="48" height="48" alt="">
         <h3>Scenario Compiler</h3>
-        <p>Write a JSON file describing departments, metrics, and world rules. The compiler calls generateText() to produce TypeScript hooks for progression, crisis generation, milestones, and political dynamics. A Mars colony, a lunar outpost, an Antarctic station, a corporate org, a submarine crew: same compiler, different JSON, different swarm. Cost is roughly $0.10 per compile. Results cache to disk.</p>
+        <p>Write a JSON file describing departments, metrics, and world rules. The compiler calls generateText() to produce TypeScript hooks for progression, event generation, milestones, and political dynamics. A Mars colony, a lunar outpost, an Antarctic station, a corporate org, a submarine crew: same compiler, different JSON, different swarm. Cost is roughly $0.10 per compile. Results cache to disk.</p>
         <div class="feat-ref">compileScenario() in paracosm/engine/compiler</div>
       </div>
       <div class="feat rv rv-d3">
@@ -312,8 +312,8 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
         <div class="flow-node">
           <div class="flow-ring" style="border-color:var(--rust)"><svg style="color:var(--rust)"><use href="#i-eye"/></svg></div>
           <div class="flow-num" style="color:var(--rust)">01</div>
-          <h4>Crisis Director</h4>
-          <p>Reads swarm state, prior decisions, and tool intelligence. Generates a crisis that targets actual weaknesses.</p>
+          <h4>Event Director</h4>
+          <p>Reads world state, prior decisions, and tool intelligence. Generates events that target actual weaknesses and exploit prior choices.</p>
         </div>
         <div class="flow-node">
           <div class="flow-ring" style="border-color:var(--amber)"><svg style="color:var(--amber)"><use href="#i-layers"/></svg></div>
@@ -375,7 +375,7 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
       <div class="sc-card rv rv-d1">
         <span class="sc-badge" style="background:rgba(224,101,48,.1);color:var(--rust);border:1px solid var(--rust-d)">Flagship</span>
         <h3>Mars Genesis</h3>
-        <p>100-person Mars colony across 50 simulated years. Five departments (Medical, Engineering, Agriculture, Psychology, Governance) analyze each crisis. Agents track bone density, radiation exposure, food reserves, morale, and political faction alignment. The Crisis Director uses all of this to generate crises that target the colony's weakest points.</p>
+        <p>100-person Mars colony across 50 simulated years. Five departments (Medical, Engineering, Agriculture, Psychology, Governance) analyze each event. Agents track bone density, radiation exposure, food reserves, morale, and political faction alignment. The Event Director uses all of this to generate events that target the colony's weakest points.</p>
         <div class="sc-stats"><span><b>100</b> colonists</span><span><b>5</b> depts</span><span><b>12</b> turns</span><span><b>50</b> years</span></div>
       </div>
       <div class="sc-card rv rv-d2">
