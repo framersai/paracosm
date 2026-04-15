@@ -104,11 +104,10 @@ export function EventCard({ event, side }: EventCardProps) {
             </div>
           )}
 
-          {/* Tool forge cards with glow */}
+          {/* Tool forge cards with expandable detail */}
           {tools.map((t: any, i: number) => (
-            <div key={i} style={{
-              margin: '0 8px 4px', borderRadius: '4px', padding: '8px 12px', fontSize: '12px',
-              display: 'flex', alignItems: 'center', gap: '10px',
+            <details key={i} style={{
+              margin: '0 8px 4px', borderRadius: '4px', fontSize: '12px',
               animation: 'forgeSlide 0.4s ease both, forgeGlow 2s ease both',
               background: t.approved !== false ? 'rgba(106,173,72,.08)' : 'rgba(224,101,48,.04)',
               borderLeft: `3px solid ${t.approved !== false ? 'var(--green)' : 'var(--rust)'}`,
@@ -116,27 +115,57 @@ export function EventCard({ event, side }: EventCardProps) {
               borderLeftWidth: '3px',
               boxShadow: 'var(--card-shadow)',
             }}>
-              <div style={{ flex: 1 }}>
-                <span style={{ fontSize: '9px', color: 'var(--green)', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 800, fontFamily: 'var(--mono)', display: 'block', marginBottom: '2px' }}>
-                  FORGED
+              <summary style={{ padding: '8px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ flex: 1 }}>
+                  <span style={{ fontSize: '9px', color: 'var(--green)', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 800, fontFamily: 'var(--mono)', display: 'block', marginBottom: '2px' }}>
+                    FORGED
+                  </span>
+                  <span style={{ fontSize: '13px', color: 'var(--text-1)', fontWeight: 600, lineHeight: 1.3 }}>
+                    {String(t.description || t.name || '')}
+                  </span>
+                  <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-3)', fontFamily: 'var(--mono)', marginTop: '2px' }}>
+                    {t.name} {t.mode ? `(${t.mode})` : ''}
+                  </span>
+                </div>
+                <span style={{
+                  padding: '2px 6px', borderRadius: '3px', fontSize: '9px', fontWeight: 800,
+                  fontFamily: 'var(--mono)', whiteSpace: 'nowrap', flexShrink: 0,
+                  background: t.approved !== false ? 'rgba(106,173,72,.15)' : 'rgba(224,101,48,.1)',
+                  color: t.approved !== false ? 'var(--green)' : 'var(--rust)',
+                  border: `1px solid ${t.approved !== false ? 'rgba(106,173,72,.3)' : 'rgba(224,101,48,.2)'}`,
+                }}>
+                  {t.approved !== false ? 'PASS' : 'FAIL'} {(t.confidence || 0.85).toFixed(2)}
                 </span>
-                <span style={{ fontSize: '14px', color: 'var(--text-1)', fontWeight: 600, lineHeight: 1.3 }}>
-                  {String(t.description || t.name || '').slice(0, 80)}
-                </span>
-                <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-3)', fontFamily: 'var(--mono)', marginTop: '2px' }}>
-                  {t.name} {t.mode ? `(${t.mode})` : ''}
-                </span>
+              </summary>
+              <div style={{ padding: '0 12px 8px', fontSize: '11px' }}>
+                {t.reasoning && (
+                  <div style={{ color: 'var(--text-2)', marginBottom: '6px', lineHeight: 1.5 }}>
+                    <span style={{ fontWeight: 700, color: 'var(--text-3)', fontFamily: 'var(--mono)', fontSize: '9px', letterSpacing: '0.5px' }}>REASONING: </span>
+                    {String(t.reasoning)}
+                  </div>
+                )}
+                {t.code && (
+                  <pre style={{ background: 'var(--bg-deep)', border: '1px solid var(--border)', borderRadius: '4px', padding: '8px', overflow: 'auto', maxHeight: '200px', fontSize: '10px', fontFamily: 'var(--mono)', color: 'var(--text-2)', lineHeight: 1.5, whiteSpace: 'pre-wrap', marginBottom: '6px' }}>
+                    {String(t.code)}
+                  </pre>
+                )}
+                {t.input != null && (
+                  <div style={{ marginBottom: '4px' }}>
+                    <span style={{ fontWeight: 700, color: 'var(--text-3)', fontFamily: 'var(--mono)', fontSize: '9px', letterSpacing: '0.5px' }}>INPUT: </span>
+                    <span style={{ color: 'var(--text-2)', fontFamily: 'var(--mono)' }}>{typeof t.input === 'object' ? JSON.stringify(t.input) : String(t.input)}</span>
+                  </div>
+                )}
+                {t.output != null && (
+                  <div style={{ marginBottom: '4px' }}>
+                    <span style={{ fontWeight: 700, color: 'var(--green)', fontFamily: 'var(--mono)', fontSize: '9px', letterSpacing: '0.5px' }}>OUTPUT: </span>
+                    <span style={{ color: 'var(--text-1)', fontFamily: 'var(--mono)' }}>{typeof t.output === 'object' ? JSON.stringify(t.output, null, 2) : String(t.output)}</span>
+                  </div>
+                )}
+                {!t.code && !t.reasoning && !t.input && !t.output && (
+                  <div style={{ color: 'var(--text-3)', fontStyle: 'italic' }}>No additional detail available for this tool.</div>
+                )}
               </div>
-              <span style={{
-                padding: '2px 6px', borderRadius: '3px', fontSize: '9px', fontWeight: 800,
-                fontFamily: 'var(--mono)', whiteSpace: 'nowrap',
-                background: t.approved !== false ? 'rgba(106,173,72,.15)' : 'rgba(224,101,48,.1)',
-                color: t.approved !== false ? 'var(--green)' : 'var(--rust)',
-                border: `1px solid ${t.approved !== false ? 'rgba(106,173,72,.3)' : 'rgba(224,101,48,.2)'}`,
-              }}>
-                {t.approved !== false ? 'PASS' : 'FAIL'} {(t.confidence || 0.85).toFixed(2)}
-              </span>
-            </div>
+            </details>
           ))}
         </div>
       );

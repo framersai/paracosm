@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect, useRef } from 'react';
 import type { GameState } from '../../hooks/useGameState';
 import { Badge } from '../shared/Badge';
 
@@ -72,8 +72,15 @@ export function ReportView({ state }: ReportViewProps) {
     );
   }
 
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (scrollRef.current && turns.length > 0) {
+      scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+    }
+  }, [turns.length]);
+
   return (
-    <div className="reports-content" role="region" aria-label="Turn-by-turn report" style={{ flex: 1, overflowY: 'auto', padding: '24px 32px', background: 'var(--bg-deep)' }}>
+    <div ref={scrollRef} className="reports-content" role="region" aria-label="Turn-by-turn report" style={{ flex: 1, overflowY: 'auto', padding: '24px 32px', background: 'var(--bg-deep)' }}>
       <h2 style={{ fontSize: '22px', color: 'var(--amber)', fontFamily: 'var(--mono)', marginBottom: '16px' }}>
         Turn-by-Turn Report
       </h2>

@@ -15,18 +15,18 @@ export function CrisisHeader({ side, crisis }: CrisisHeaderProps) {
   return (
     <Tooltip content={
       <div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-          <b style={{ color: 'var(--rust)', fontSize: '15px' }}>T{crisis.turn}: {crisis.title}</b>
+        <b style={{ color: 'var(--rust)', fontSize: '15px', display: 'block', marginBottom: '4px' }}>T{crisis.turn}: {crisis.title}</b>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', whiteSpace: 'nowrap' }}>
           <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '3px', background: 'var(--bg-deep)', color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
             {crisis.category}
           </span>
           {crisis.emergent && <span style={{ fontSize: '9px', fontWeight: 800, color: 'var(--rust)', fontFamily: 'var(--mono)' }}>EMERGENT</span>}
+          <span style={{ fontSize: '11px', color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
+            Year {crisis.year} &middot; {side === 'a' ? 'Leader A' : 'Leader B'}
+          </span>
         </div>
         <div style={{ fontSize: '13px', color: 'var(--text-1)', lineHeight: 1.7 }}>
           {fullText}
-        </div>
-        <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
-          Year {crisis.year} &middot; {side === 'a' ? 'Leader A' : 'Leader B'}
         </div>
       </div>
     }>

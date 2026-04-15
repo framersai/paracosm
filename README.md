@@ -9,24 +9,17 @@
 </p>
 
 <p align="center">
-  Open-source AI agent swarm simulation engine with emergent crises, runtime tool forging, HEXACO personality evolution, and a deterministic kernel. Define any scenario as JSON.
-</p>
-
-<p align="center">
   <a href="https://www.npmjs.com/package/paracosm"><img src="https://img.shields.io/npm/v/paracosm?style=flat-square&color=e8b44a&labelColor=14110e" alt="npm" /></a>
   <a href="https://github.com/framersai/paracosm/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-e06530?style=flat-square&labelColor=14110e" alt="License" /></a>
-  <a href="https://docs.agentos.sh"><img src="https://img.shields.io/badge/docs-agentos.sh-4ca8a8?style=flat-square&labelColor=14110e" alt="Docs" /></a>
+  <a href="https://paracosm.agentos.sh/docs"><img src="https://img.shields.io/badge/docs-API%20Reference-4ca8a8?style=flat-square&labelColor=14110e" alt="Docs" /></a>
   <a href="https://agentos.sh"><img src="https://img.shields.io/badge/built%20on-AgentOS-e06530?style=flat-square&labelColor=14110e" alt="AgentOS" /></a>
 </p>
 
 <p align="center">
   <a href="https://paracosm.agentos.sh"><strong>paracosm.agentos.sh</strong></a> &middot;
-  <a href="https://agentos.sh">AgentOS</a> &middot;
-  <a href="https://docs.agentos.sh">Docs</a> &middot;
-  <a href="https://github.com/framersai/paracosm">GitHub</a> &middot;
+  <a href="https://paracosm.agentos.sh/sim">Live Demo</a> &middot;
+  <a href="https://paracosm.agentos.sh/docs">API Docs</a> &middot;
   <a href="https://www.npmjs.com/package/paracosm">npm</a> &middot;
-  <a href="https://frame.dev">Frame.dev</a> &middot;
-  <a href="https://manic.agency">Manic Agency</a> &middot;
   <a href="https://wilds.ai/discord">Discord</a>
 </p>
 
@@ -34,164 +27,190 @@
 
 ## What Is Paracosm
 
-Paracosm is an AI agent swarm simulation engine. You define a `ScenarioPackage` describing your world (departments, metrics, crises, progression hooks, research citations), and the engine spawns an autonomous agent swarm to run it: emergent crisis generation, multi-agent department analysis, runtime tool forging, HEXACO personality drift, and deterministic state transitions.
+Define a scenario as JSON. Run it with AI commanders that have different personalities. Watch their decisions compound into divergent civilizations from identical starting conditions.
 
-The engine handles orchestration. The scenario handles domain.
+The engine handles crisis generation, department analysis, tool forging, personality drift, and state transitions. You define the world.
 
-**Engine archetype:** closed-state, turn-based swarm simulation. Covers Mars colonies, lunar outposts, Antarctic stations, orbital habitats, submarine crews, corporate orgs, generation ships. Does not cover graph-seeded social prediction or open-world sims.
-
-## Scenarios
-
-### Mars Genesis (flagship)
-
-Two commanders receive the same colony of 100 colonists and the same starting resources. Their HEXACO personalities drive different decisions, different tool inventions, and different civilizational outcomes over 50 years.
-
-```bash
-npm run dashboard
-# Open http://localhost:3456/sim?tab=settings
-```
-
-### Lunar Outpost
-
-50-person crew at the lunar south pole. Different departments (mining, life-support, communications), different progression (regolith toxicity, 1/6g atrophy), different milestones. Proves the engine works without editing engine code.
-
-## Install
+## Quickstart
 
 ```bash
 npm install paracosm
 ```
 
-## Usage
+### 1. Define your world
 
-### As a library
-
-```typescript
-import type { ScenarioPackage, Agent } from 'paracosm';
-import { marsScenario } from 'paracosm/mars';
-import { lunarScenario } from 'paracosm/lunar';
-import { runSimulation, runBatch } from 'paracosm/runtime';
-import { SimulationKernel, SeededRng } from 'paracosm';
-
-// Run a single simulation
-const output = await runSimulation(leader, keyPersonnel, {
-  scenario: marsScenario,
-  maxTurns: 12,
-  seed: 950,
-});
-
-// Batch run across scenarios
-const manifest = await runBatch({
-  scenarios: [marsScenario, lunarScenario],
-  leaders: [leaderA, leaderB],
-  turns: 5,
-  seed: 950,
-});
+```json
+{
+  "id": "submarine-habitat",
+  "labels": {
+    "name": "Deep Ocean Habitat",
+    "populationNoun": "crew",
+    "settlementNoun": "habitat",
+    "currency": "credits"
+  },
+  "setup": {
+    "defaultTurns": 8,
+    "defaultPopulation": 50,
+    "defaultStartYear": 2040,
+    "defaultSeed": 42
+  },
+  "departments": [
+    {
+      "id": "life-support",
+      "label": "Life Support",
+      "role": "Chief Life Support Officer",
+      "instructions": "Analyze O2 levels, CO2 scrubbing capacity, water recycling."
+    },
+    {
+      "id": "engineering",
+      "label": "Engineering",
+      "role": "Chief Engineer",
+      "instructions": "Analyze hull integrity, pressure systems, power generation."
+    }
+  ],
+  "metrics": [
+    { "id": "population", "format": "number" },
+    { "id": "morale", "format": "percent" }
+  ]
+}
 ```
 
-### Mars Dashboard (standalone)
+### 2. Compile and run
+
+```typescript
+import { compileScenario } from 'paracosm/compiler';
+import { runSimulation } from 'paracosm/runtime';
+import worldJson from './my-world.json';
+
+// Compile JSON into a runnable scenario (~$0.10, cached to disk)
+const scenario = await compileScenario(worldJson, {
+  provider: 'anthropic',
+  model: 'claude-sonnet-4-6',
+});
+
+// Define leaders with HEXACO personality profiles
+const leaders = [
+  {
+    name: 'Captain Reyes',
+    archetype: 'The Pragmatist',
+    colony: 'Station Alpha',
+    hexaco: { openness: 0.4, conscientiousness: 0.9,
+              extraversion: 0.3, agreeableness: 0.6,
+              emotionality: 0.5, honestyHumility: 0.8 },
+    instructions: 'You lead by protocol. Safety margins first.',
+  },
+  {
+    name: 'Captain Okafor',
+    archetype: 'The Innovator',
+    colony: 'Station Beta',
+    hexaco: { openness: 0.9, conscientiousness: 0.4,
+              extraversion: 0.8, agreeableness: 0.5,
+              emotionality: 0.3, honestyHumility: 0.6 },
+    instructions: 'You lead by experimentation. Push boundaries.',
+  },
+];
+
+// Run in parallel: same seed, same crises, different outcomes
+const results = await Promise.all(
+  leaders.map(leader =>
+    runSimulation(leader, [], {
+      scenario,
+      maxTurns: 8,
+      seed: 42,
+      onEvent(e) { console.log(leader.name, e.type, e.data?.title); },
+    })
+  )
+);
+```
+
+Each call to `runSimulation` takes one leader. Run one, two, or twenty. The dashboard runs two side-by-side for comparison, but the API has no limit.
+
+### 3. Or use the dashboard
 
 ```bash
 git clone https://github.com/framersai/paracosm
-cd paracosm
-npm install
-cp .env.example .env  # add your API key
-
-npm run dashboard        # full dashboard with settings
-npm run dashboard:smoke  # 3-turn smoke test
+cd paracosm && npm install
+cp .env.example .env  # add your OpenAI or Anthropic key
+npm run dashboard      # opens http://localhost:3456
 ```
 
-The live dashboard is mounted at `/sim`, with `/setup` kept as a convenience alias that redirects to the settings tab.
+The dashboard includes a scenario editor where you can write, import, compile, and run custom worlds from the browser.
 
-### Scenario Compiler
+## Scenario Compiler
+
+The compiler turns your JSON into a runnable scenario by generating TypeScript hooks via LLM calls:
 
 ```bash
-npm run compile -- scenarios/submarine.json --seed-url https://example.com/report --no-web-search
+npm run compile -- scenarios/submarine.json \
+  --seed-url https://example.com/report \
+  --no-web-search
 ```
 
-The compiler CLI now exposes the same seed-ingestion controls as the runtime API: `--seed-text`, `--seed-url`, `--no-web-search`, and `--max-searches`. Compiled custom scenarios are kept in the live scenario catalog so they remain switchable from the settings selector after compilation. If you save a fully runnable `ScenarioPackage` JSON to `scenarios/*.json`, the dashboard server now reloads it into that catalog on startup; draft authoring JSON is saved as-is but only appears in the selector after it has been compiled into a runnable package.
+Options: `--seed-text`, `--seed-url`, `--no-web-search`, `--max-searches`. Compiled scenarios appear in the dashboard selector. Cost is roughly $0.10 per compile, cached to disk after first generation.
+
+## Built-in Scenarios
+
+| Scenario | Description |
+|----------|-------------|
+| **Mars Genesis** | 100 colonists, 12 turns over 50 years. 5 departments, emergent dust storms, water crises, first Marsborn generation. |
+| **Lunar Outpost** | 50-person crew at the south pole. Mining, life support, communications. Regolith toxicity, 1/6g atrophy. |
+
+Both are included as `paracosm/mars` and `paracosm/lunar` exports. Use them as references for building your own scenarios.
 
 ## Architecture
 
 ```
 src/
-  engine/           importable library (the package)
-    types.ts        ScenarioPackage, WorldState, hooks
-    core/           deterministic kernel (RNG, state, progression)
-    mars/           Mars Genesis scenario package
-    lunar/          Lunar Outpost scenario package
-    index.ts        barrel exports
+  engine/         the npm package
+    core/         deterministic kernel (RNG, state, progression)
+    compiler/     JSON -> ScenarioPackage compiler
+    mars/         Mars Genesis scenario
+    lunar/        Lunar Outpost scenario
 
-  runtime/          orchestration (agents, crisis director, departments)
-    orchestrator.ts turn pipeline: director -> kernel -> departments -> commander
-    batch.ts        multi-scenario batch runner
-    index.ts        barrel exports
+  runtime/        orchestration (not exported)
+    orchestrator  turn pipeline: director -> kernel -> departments -> commander
+    director      emergent crisis generation from simulation state
+    departments   parallel department analysis agents
 
-  cli/              server + dashboard + CLI (not exported by package)
-    serve.ts        HTTP + SSE server
-    dashboard/      live visualization (React/Vite, with legacy fallback)
+  cli/            server + dashboard (not exported)
+    serve.ts      HTTP + SSE server
+    dashboard/    React/Vite live visualization
 ```
 
-### Design Principle
-
-**The engine owns the chassis. The scenario owns the domain.**
-
-The kernel owns canonical state, time, randomness, and invariants. The scenario owns crisis categories, department instructions, progression hooks, fingerprint classification, and research citations. The orchestrator connects them.
+**Design principle:** The engine owns the chassis. The scenario owns the domain. The kernel handles state, time, randomness, and invariants. The scenario handles crisis categories, department instructions, progression hooks, and research citations. The orchestrator connects them.
 
 ## Package Exports
 
 | Import | What |
 |--------|------|
-| `paracosm` | Engine types, registries, kernel, scenario packages |
-| `paracosm/mars` | Mars Genesis scenario package |
-| `paracosm/lunar` | Lunar Outpost scenario package |
-| `paracosm/runtime` | `runSimulation`, `runBatch`, orchestration |
+| `paracosm` | Engine types, registries, kernel |
+| `paracosm/compiler` | `compileScenario()` |
+| `paracosm/runtime` | `runSimulation()`, `runBatch()` |
+| `paracosm/mars` | Mars Genesis scenario |
+| `paracosm/lunar` | Lunar Outpost scenario |
 | `paracosm/core` | Kernel state types |
 
-## Creating a Scenario
+## Built on AgentOS
 
-A `ScenarioPackage` defines everything the engine needs:
+Paracosm uses [AgentOS](https://agentos.sh) for agent orchestration, LLM calls, tool forging, and memory:
 
-```typescript
-const myScenario: ScenarioPackage = {
-  id: 'my-scenario',
-  version: '1.0.0',
-  engineArchetype: 'closed_turn_based_settlement',
-  labels: { name: 'My Scenario', shortName: 'my', populationNoun: 'members', settlementNoun: 'base', currency: 'credits' },
-  theme: { primaryColor: '#22c55e', accentColor: '#86efac', cssVariables: {} },
-  setup: { defaultTurns: 8, defaultSeed: 100, defaultStartYear: 2040, defaultPopulation: 30 },
-  world: { metrics: {}, capacities: {}, statuses: {}, politics: {}, environment: {} },
-  departments: [
-    { id: 'engineering', label: 'Engineering', role: 'Chief Engineer', icon: '⚙️', defaultModel: 'gpt-5.4-mini', instructions: '...' },
-  ],
-  hooks: {
-    progressionHook: (ctx) => { /* your domain-specific progression */ },
-    directorInstructions: () => '...',
-    getMilestoneCrisis: (turn, max) => turn === 1 ? { /* ... */ } : null,
-  },
-  // ... metrics, events, effects, ui, knowledge, policies, presets
-};
-```
+| AgentOS API | Used For |
+|------------|----------|
+| `agent()` | Commander, department, and Event Director agents |
+| `generateText()` | LLM calls for crisis generation and tool evaluation |
+| `EmergentCapabilityEngine` | Runtime tool forging in sandboxed V8 |
+| `EmergentJudge` | LLM-as-judge safety review of forged tools |
 
-## What AgentOS Provides
+## Links
 
-| Capability | How It's Used |
-|-----------|--------------|
-| [`agent()`](https://docs.agentos.sh/api) | Commander, department, and Crisis Director agents |
-| [`generateText()`](https://docs.agentos.sh/api) | LLM calls for judge evaluation and crisis generation |
-| [`EmergentCapabilityEngine`](https://docs.agentos.sh/api/classes/EmergentCapabilityEngine) | Runtime tool forging pipeline |
-| [`EmergentJudge`](https://docs.agentos.sh/api/classes/EmergentJudge) | Safety and correctness review of forged tools |
-| [`AgentMemory`](https://docs.agentos.sh/api/classes/AgentMemory) | Semantic research memory with DOI citations |
-
-## The AgentOS Ecosystem
-
-| Resource | URL |
-|----------|-----|
-| AgentOS (core runtime) | [github.com/framersai/agentos](https://github.com/framersai/agentos) |
-| Documentation | [docs.agentos.sh](https://docs.agentos.sh) |
-| API Reference | [docs.agentos.sh/api](https://docs.agentos.sh/api) |
-| npm | [@framers/agentos](https://www.npmjs.com/package/@framers/agentos) |
-| Paracosm | [github.com/framersai/paracosm](https://github.com/framersai/paracosm) |
-| Website | [agentos.sh](https://agentos.sh) |
+| | |
+|-|-|
+| Live Demo | [paracosm.agentos.sh/sim](https://paracosm.agentos.sh/sim) |
+| Landing Page | [paracosm.agentos.sh](https://paracosm.agentos.sh) |
+| API Docs | [paracosm.agentos.sh/docs](https://paracosm.agentos.sh/docs) |
+| npm | [npmjs.com/package/paracosm](https://www.npmjs.com/package/paracosm) |
+| AgentOS | [agentos.sh](https://agentos.sh) |
+| Discord | [wilds.ai/discord](https://wilds.ai/discord) |
 
 ## License
 
@@ -200,16 +219,6 @@ Apache-2.0
 ---
 
 <p align="center">
-  <a href="https://agentos.sh"><img src="assets/agentos-logo.png" alt="AgentOS" height="36" /></a>
-  &nbsp;&nbsp;&nbsp;
-  <a href="https://frame.dev"><img src="https://img.shields.io/badge/Frame.dev-frame.dev-0a0a0a?style=flat-square" alt="Frame.dev" height="28" /></a>
-</p>
-
-<p align="center">
   Built by <a href="https://manic.agency">Manic Agency LLC</a> / <a href="https://frame.dev">Frame.dev</a><br>
-  Contact: <a href="mailto:team@frame.dev">team@frame.dev</a>
-</p>
-
-<p align="center">
-  <sub>Copyright 2026 Manic Agency LLC. Licensed under Apache-2.0.</sub>
+  <a href="mailto:team@frame.dev">team@frame.dev</a>
 </p>
