@@ -150,35 +150,28 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Check if version changed
+      - name: Auto-bump patch version
         id: version
         run: |
-          LOCAL=$(node -p "require('./package.json').version")
-          REMOTE=$(npm view paracosm version 2>/dev/null || echo "0.0.0")
-          echo "local=$LOCAL" >> $GITHUB_OUTPUT
-          echo "remote=$REMOTE" >> $GITHUB_OUTPUT
-          if [ "$LOCAL" != "$REMOTE" ]; then
-            echo "changed=true" >> $GITHUB_OUTPUT
-          else
-            echo "changed=false" >> $GITHUB_OUTPUT
-          fi
+          CURRENT=$(node -p "require('./package.json').version")
+          # Bump patch: 0.3.0 -> 0.3.1, 0.3.1 -> 0.3.2, etc.
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+          NEXT="${MAJOR}.${MINOR}.$((PATCH + 1))"
+          # Update package.json in place
+          node -e "const p=require('./package.json'); p.version='${NEXT}'; require('fs').writeFileSync('./package.json', JSON.stringify(p, null, 2) + '\n')"
+          echo "version=$NEXT" >> $GITHUB_OUTPUT
+          echo "Bumped $CURRENT -> $NEXT"
 
       - name: Publish to npm
-        if: steps.version.outputs.changed == 'true'
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create GitHub Release
-        if: steps.version.outputs.changed == 'true'
         run: |
-          gh release create "v${{ steps.version.outputs.local }}" \
-            --title "v${{ steps.version.outputs.local }}" \
+          gh release create "v${{ steps.version.outputs.version }}" \
+            --title "v${{ steps.version.outputs.version }}" \
             --generate-notes \
             --latest
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Skip publish (version unchanged)
-        if: steps.version.outputs.changed == 'false'
-        run: echo "Version ${{ steps.version.outputs.local }} already published, skipping"
