@@ -278,27 +278,41 @@ export function SettingsPanel() {
         <legend style={{ fontSize: '14px', fontFamily: 'var(--mono)', color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.5px', padding: '0 8px' }}>
           API Keys
         </legend>
-        <p style={{ fontSize: '11px', color: 'var(--text-3)', marginBottom: '8px', lineHeight: 1.6 }}>
-          Keys are read from the server .env file first. Override here for this session only. Values entered below are never displayed back for security.
-        </p>
-        <p style={{ fontSize: '11px', color: 'var(--green)', marginBottom: '12px', lineHeight: 1.6, fontWeight: 600 }}>
-          Provide your own OpenAI or Anthropic key to remove the per-IP rate limit and run unlimited simulations.
-        </p>
+        <div style={{ fontSize: '11px', color: 'var(--text-2)', marginBottom: '12px', lineHeight: 1.7 }}>
+          <p style={{ marginBottom: '6px' }}>
+            <strong style={{ color: 'var(--text-1)' }}>How key resolution works:</strong> The server checks for keys in this order:
+            your session overrides below, then the server .env file. If a key exists in either place, it's used. Values entered here are never displayed back.
+          </p>
+          <p style={{ marginBottom: '6px' }}>
+            <strong style={{ color: 'var(--green)' }}>Rate limiting:</strong> The hosted demo limits simulations per IP per day when using the server's API keys.
+            Provide your own <strong>OpenAI</strong> or <strong>Anthropic</strong> key to bypass the rate limit and run unlimited simulations.
+            Only one LLM provider key is required. If both are provided, the simulation uses whichever you select as the provider.
+          </p>
+          <p style={{ marginBottom: '6px' }}>
+            <strong style={{ color: 'var(--amber)' }}>Research and citations:</strong> Live web search requires at least one search key (Serper, Firecrawl, Tavily).
+            Without any search key, departments fall back to the scenario's built-in research bundle. Cohere enables neural reranking of search results for higher-quality citations.
+            These are optional enhancements, not required to run a simulation.
+          </p>
+          <p style={{ margin: 0 }}>
+            <strong style={{ color: 'var(--rust)' }}>No keys at all?</strong> If neither a server .env key nor a session override exists for any LLM provider,
+            the simulation cannot run. You need at least one OpenAI or Anthropic key configured somewhere.
+          </p>
+        </div>
         <div className="responsive-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
           {([
-            ['openai', 'OpenAI'],
-            ['anthropic', 'Anthropic'],
-            ['serper', 'Serper (search)'],
-            ['firecrawl', 'Firecrawl (scrape)'],
-            ['tavily', 'Tavily (search)'],
-            ['cohere', 'Cohere (rerank)'],
-          ] as const).map(([key, label]) => (
+            ['openai', 'OpenAI', 'Required (or Anthropic). Powers commander, departments, crisis director.'],
+            ['anthropic', 'Anthropic', 'Required (or OpenAI). Alternative LLM provider for all simulation roles.'],
+            ['serper', 'Serper (search)', 'Optional. Enables live Google search for department research citations.'],
+            ['firecrawl', 'Firecrawl (scrape)', 'Optional. Enables web page scraping for deeper research context.'],
+            ['tavily', 'Tavily (search)', 'Optional. Additional search provider. Multiple providers improve coverage.'],
+            ['cohere', 'Cohere (rerank)', 'Optional. Neural reranking of search results for citation quality.'],
+          ] as const).map(([key, label, desc]) => (
             <div key={key}>
               <label htmlFor={`key-${key}`} style={labelStyle}>
                 {label}
                 {envKeys[key] && (
                   <span style={{ color: 'var(--color-success, #6aad48)', fontWeight: 400, textTransform: 'none', letterSpacing: 0, marginLeft: '6px' }}>
-                    (.env configured)
+                    (.env active)
                   </span>
                 )}
               </label>
@@ -311,6 +325,7 @@ export function SettingsPanel() {
                 placeholder={envKeys[key] ? 'Using .env value' : 'Not configured'}
                 style={inputStyle}
               />
+              <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '3px', lineHeight: 1.4 }}>{desc}</div>
             </div>
           ))}
         </div>
