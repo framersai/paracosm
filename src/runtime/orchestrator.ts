@@ -573,23 +573,21 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
       options: event.options,
     };
 
-    const reports: DepartmentReport[] = [];
-    for (const dept of depts) {
+    // Run all departments in parallel for speed
+    const deptPromises = depts.map(async (dept) => {
       const sess = deptSess.get(dept);
-      if (!sess) continue;
+      if (!sess) return emptyReport(dept);
       const ctx = buildDepartmentContext(dept, state, scenario, packet, deptMemory.get(dept), sc.hooks.departmentPromptHook);
       console.log(`  [${dept}] Analyzing...`);
       emit('dept_start', { turn, year, department: dept });
       try {
         const r = await sess.send(ctx);
         const report = parseDeptReport(r.text, dept);
-        reports.push(report);
         console.log(`  [${dept}] Done: ${report.citations.length} citations, ${report.risks.length} risks, ${report.forgedToolsUsed.length} tools`);
         const validTools = report.forgedToolsUsed
           .filter(t => t && (t.name || t.description))
           .map(t => {
             const rawOutput = t.output ? (typeof t.output === 'string' ? t.output : JSON.stringify(t.output)) : null;
-            // Extract input/output field names from output JSON
             let inputFields: string[] = [];
             let outputFields: string[] = [];
             if (rawOutput) {
@@ -630,11 +628,13 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
           const names = report.forgedToolsUsed.map(t => t?.name || t?.description || 'unnamed').filter(Boolean);
           if (names.length) toolRegs[dept] = [...(toolRegs[dept] || []), ...names];
         }
+        return report;
       } catch (err) {
         console.log(`  [${dept}] ERROR: ${err}`);
-        reports.push(emptyReport(dept));
+        return emptyReport(dept);
       }
-    }
+    });
+    const reports = await Promise.all(deptPromises);
 
     // Collect tool outputs for next turn's director context
     lastTurnToolOutputs = reports.flatMap(r =>
