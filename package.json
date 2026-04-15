@@ -56,7 +56,8 @@
     "leader:b": "npx tsx src/cli/run-b.ts"
   },
   "dependencies": {
-    "@framers/agentos": "^0.1.219"
+    "@framers/agentos": "^0.1.219",
+    "@framers/sql-storage-adapter": "^0.6.2"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
