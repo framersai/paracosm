@@ -20,6 +20,7 @@ export interface ScenarioClientPayload {
     defaultTurns: number;
     defaultSeed: number;
     defaultStartYear: number;
+    defaultYearsPerTurn?: number;
     defaultPopulation: number;
   };
   departments: Array<{
@@ -52,7 +53,7 @@ const MARS_FALLBACK: ScenarioClientPayload = {
   version: '3.0.0',
   labels: { name: 'Mars Genesis', shortName: 'mars', populationNoun: 'colonists', settlementNoun: 'colony', currency: 'credits' },
   theme: { primaryColor: '#dc2626', accentColor: '#f97316', cssVariables: {} },
-  setup: { defaultTurns: 12, defaultSeed: 950, defaultStartYear: 2035, defaultPopulation: 100 },
+  setup: { defaultTurns: 6, defaultSeed: 950, defaultStartYear: 2035, defaultYearsPerTurn: 8, defaultPopulation: 100 },
   departments: [
     { id: 'medical', label: 'Medical', role: 'Chief Medical Officer', icon: '🏥' },
     { id: 'engineering', label: 'Engineering', role: 'Chief Engineer', icon: '⚙️' },
