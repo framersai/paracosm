@@ -49,27 +49,28 @@ export function SettingsPanel() {
   const [leaderB, setLeaderB] = useState<LeaderFormData>(initLeaderB);
 
   // Re-populate from presets when scenario data loads (async fetch)
+  // Depend on presets length because the fallback has presets:[] but same id
   useEffect(() => {
     const p = scenario.presets.find(p => p.id === 'default');
     if (p?.leaders?.[0]) {
-      setLeaderA(prev => ({
-        ...prev,
+      setLeaderA({
         name: p.leaders![0].name,
         archetype: p.leaders![0].archetype,
+        colony: 'Colony Alpha',
         instructions: p.leaders![0].instructions,
         hexaco: { ...p.leaders![0].hexaco },
-      }));
+      });
     }
     if (p?.leaders?.[1]) {
-      setLeaderB(prev => ({
-        ...prev,
+      setLeaderB({
         name: p.leaders![1].name,
         archetype: p.leaders![1].archetype,
+        colony: 'Colony Beta',
         instructions: p.leaders![1].instructions,
         hexaco: { ...p.leaders![1].hexaco },
-      }));
+      });
     }
-  }, [scenario.id]);
+  }, [scenario.id, scenario.presets.length]);
   const [turns, setTurns] = useState(scenario.setup.defaultTurns);
   const [seed, setSeed] = useState(scenario.setup.defaultSeed);
   const [startYear, setStartYear] = useState(scenario.setup.defaultStartYear);
