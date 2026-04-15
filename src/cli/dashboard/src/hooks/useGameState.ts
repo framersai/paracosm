@@ -86,7 +86,7 @@ export function useGameState(sseEvents: SimEvent[], isComplete: boolean): GameSt
   return useMemo(() => {
     const state: GameState = {
       a: emptySide(), b: emptySide(),
-      leaderMap: {}, turn: 0, year: 0, maxTurns: 12, seed: 950,
+      leaderMap: {}, turn: 0, year: 0, maxTurns: 6, seed: 950,
       isRunning: false, isComplete,
     };
 

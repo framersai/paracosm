@@ -16,7 +16,7 @@ export const DEMO_EVENTS: SimEvent[] = [
     leader: '',
     data: {
       phase: 'parallel',
-      maxTurns: 12,
+      maxTurns: 6,
       leaders: [
         {
           name: 'Commander Elena Vasquez',
