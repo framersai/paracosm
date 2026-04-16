@@ -419,7 +419,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         }
 
         // Import chat agent system (lazy to avoid startup cost)
-        const { getOrCreateChatAgent, extractColonistMemories } = await import('../runtime/chat-agents.js');
+        const { getOrCreateChatAgent, extractColonistMemories, extractColonistRoster } = await import('../runtime/chat-agents.js');
 
         // Extract sim events and find colonist profile
         const simEvents = eventBuffer
@@ -451,6 +451,10 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
 
         // Extract simulation memories for this colonist
         const memories = extractColonistMemories(agentId, simEvents);
+        // Extract the full colony roster from the latest colony_snapshot so
+        // the chat agent knows who else exists. Without this, the agent
+        // confabulates fake bios for any name the user invents.
+        const roster = extractColonistRoster(simEvents);
 
         // Get or create the agent (lazy init with memory seeding)
         const provider = (simConfig?.provider || (env.ANTHROPIC_API_KEY && !env.OPENAI_API_KEY ? 'anthropic' : 'openai')) as any;
@@ -458,6 +462,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
           provider,
           settlementNoun: activeScenario.labels?.settlementNoun,
           populationNoun: activeScenario.labels?.populationNoun,
+          roster,
         });
 
         // Send message through the agent session (full history + memory + RAG automatic)

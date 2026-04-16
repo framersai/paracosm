@@ -37,11 +37,30 @@ export interface ColonistProfile {
 
 /** A simulation event relevant to a colonist. */
 export interface ColonistMemoryEntry {
-  type: 'reaction' | 'crisis' | 'department' | 'decision' | 'outcome';
+  type: 'reaction' | 'crisis' | 'department' | 'decision' | 'outcome' | 'roster';
   turn: number;
   year: number;
   text: string;
   tags: string[];
+}
+
+/**
+ * One entry in the colony roster. The chat agent's system prompt
+ * includes a compact rendering of the full roster so it can recognize
+ * fellow colonists by name instead of confabulating when asked about
+ * someone.
+ */
+export interface ColonistRosterEntry {
+  agentId: string;
+  name: string;
+  department?: string;
+  role?: string;
+  rank?: string;
+  alive: boolean;
+  marsborn?: boolean;
+  age?: number;
+  partnerId?: string;
+  childrenIds?: string[];
 }
 
 /** Pool entry for a live chat agent. */
@@ -72,20 +91,35 @@ const pool = new Map<string, PoolEntry>();
  * Get or create a chat agent for a colonist.
  *
  * On first call for a given colonist: creates an `agent()` instance,
- * initializes in-memory SQLite memory, seeds it with simulation data,
- * and opens a session. Takes ~2-3 seconds.
+ * initializes in-memory SQLite memory, seeds it with simulation data
+ * AND the full colony roster so the agent can recognize fellow
+ * colonists by name, and opens a session. Takes ~2-3 seconds.
  *
  * On subsequent calls: returns the existing agent session instantly.
  *
  * @param colonist - The colonist's profile from simulation data.
  * @param memories - Simulation events to seed into the colonist's memory.
- * @param opts - Provider and scenario configuration.
+ * @param opts - Provider, scenario configuration, and the full colony
+ *        roster. The roster is both seeded as memory (for RAG recall
+ *        when the user names someone) AND injected into the system
+ *        prompt (so names are always in-context). Without the roster,
+ *        the agent confabulates any name the user invents because the
+ *        base model's roleplay prior outweighs absent evidence.
  * @returns The agent session's `send()` method result.
  */
 export async function getOrCreateChatAgent(
   colonist: ColonistProfile,
   memories: ColonistMemoryEntry[],
-  opts: { provider?: LlmProvider; settlementNoun?: string; populationNoun?: string },
+  opts: {
+    provider?: LlmProvider;
+    settlementNoun?: string;
+    populationNoun?: string;
+    /** Full colony roster, used for name grounding. Optional for
+     *  backward compatibility; pass [] and the agent will reply "I don't
+     *  have my roster loaded" when asked about anyone other than itself,
+     *  which is strictly more truthful than the prior confabulate path. */
+    roster?: ColonistRosterEntry[];
+  },
 ): Promise<{ session: PoolEntry['session']; isNew: boolean }> {
   const key = colonist.agentId;
 
@@ -121,7 +155,20 @@ export async function getOrCreateChatAgent(
   for (const entry of memories) {
     await memoryProvider.remember(entry.text, { tags: entry.tags, importance: 0.8 });
   }
-  console.log(`  [chat] Seeded ${memories.length} memories for ${colonist.name}`);
+
+  // Seed per-person roster entries as separate memories so RAG can
+  // surface the right colonist when the user names someone specific.
+  // Importance is pinned high (0.95) because name-recognition queries
+  // must not be crowded out by the denser reaction/crisis memories.
+  const roster = (opts.roster ?? []).filter(e => e.agentId !== colonist.agentId);
+  for (const entry of roster) {
+    const line = renderRosterLine(entry);
+    await memoryProvider.remember(
+      `Fellow colonist: ${line}`,
+      { tags: ['roster', entry.department || 'unknown', `agent-${entry.agentId}`], importance: 0.95 },
+    );
+  }
+  console.log(`  [chat] Seeded ${memories.length} memories + ${roster.length} roster entries for ${colonist.name}`);
 
   // Map HEXACO shorthand to full trait names
   const personality = colonist.hexaco ? {
@@ -136,7 +183,7 @@ export async function getOrCreateChatAgent(
   const settlement = opts.settlementNoun ?? 'colony';
   const popNoun = opts.populationNoun ?? 'colonist';
 
-  const instructions = buildInstructions(colonist, settlement, popNoun);
+  const instructions = buildInstructions(colonist, settlement, popNoun, roster);
 
   const provider = opts.provider || 'openai';
   const model = provider === 'anthropic' ? 'claude-haiku-4-5-20251001' : 'gpt-4o-mini';
@@ -159,11 +206,57 @@ export async function getOrCreateChatAgent(
 }
 
 /**
- * Build the system prompt instructions for a colonist chat agent.
- * Grounding information only: identity, role, personality description.
- * Simulation data lives in memory and is retrieved via RAG.
+ * Render one roster entry into a single compact line for the system
+ * prompt's KNOWN COLONISTS block and for memory seeding.
+ *
+ * Example output:
+ *   "Erik Lindqvist — Chief Engineer (engineering, senior), earth-born, age 45, partner:col-ama"
+ *
+ * Kept terse because the full roster can run 100+ lines and model
+ * context is finite. Department, role, alive status, and relationships
+ * are the fields most likely to show up in user questions ("who's the
+ * engineer", "who is X's partner", "is Y still alive").
  */
-function buildInstructions(colonist: ColonistProfile, settlement: string, popNoun: string): string {
+function renderRosterLine(entry: ColonistRosterEntry): string {
+  const parts: string[] = [entry.name];
+  if (entry.role) parts.push(`— ${entry.role}`);
+  const tags: string[] = [];
+  if (entry.department) tags.push(entry.department);
+  if (entry.rank) tags.push(entry.rank);
+  if (tags.length) parts.push(`(${tags.join(', ')})`);
+  if (entry.marsborn !== undefined) parts.push(entry.marsborn ? 'Mars-born' : 'Earth-born');
+  if (typeof entry.age === 'number') parts.push(`age ${entry.age}`);
+  if (entry.partnerId) parts.push(`partner:${entry.partnerId}`);
+  if (entry.childrenIds && entry.childrenIds.length > 0) {
+    parts.push(`children:${entry.childrenIds.length}`);
+  }
+  if (!entry.alive) parts.push('DECEASED');
+  return parts.join(' ');
+}
+
+/**
+ * Build the system prompt instructions for a colonist chat agent.
+ *
+ * Grounding information + full colony roster + anti-hallucination rule.
+ * The roster block is the critical fix for the "agent confabulates any
+ * name the user invents" bug: without a visible list of real colonists,
+ * the base model's roleplay prior produces plausible but fake bios for
+ * any name thrown at it. With the roster rendered inline, the model
+ * can cross-reference before answering.
+ *
+ * @param colonist The colonist the agent is playing.
+ * @param settlement Scenario's settlement noun (e.g. "colony", "habitat").
+ * @param popNoun Scenario's population noun (e.g. "colonist", "crewmate").
+ * @param roster The full colony roster at sim end, excluding this
+ *        agent. Rendered as a fixed-format list the model is told to
+ *        treat as authoritative.
+ */
+function buildInstructions(
+  colonist: ColonistProfile,
+  settlement: string,
+  popNoun: string,
+  roster: ColonistRosterEntry[],
+): string {
   const lines: string[] = [];
 
   lines.push(`You are ${colonist.name}, a ${popNoun.replace(/s$/, '')} at the ${settlement}.`);
@@ -192,7 +285,33 @@ function buildInstructions(colonist: ColonistProfile, settlement: string, popNou
     if (traits.length) lines.push(`Personality: ${traits.join(', ')}.`);
   }
 
+  // KNOWN COLONISTS block. Treat this as authoritative ground truth;
+  // anything NOT on this list does not exist in this simulation.
+  //
+  // Roster is sorted: alive first (by department), then deceased, so
+  // the model's attention naturally falls on present-tense colleagues.
   lines.push('');
+  lines.push('KNOWN COLONISTS (this is the complete roster — nobody else exists in this simulation):');
+  if (roster.length === 0) {
+    lines.push('(Roster unavailable. If asked about anyone besides yourself, say you do not recognize the name.)');
+  } else {
+    const sorted = [...roster].sort((a, b) => {
+      if (a.alive !== b.alive) return a.alive ? -1 : 1;
+      return (a.department || '').localeCompare(b.department || '');
+    });
+    // Cap at 60 lines to keep the system prompt from dominating the
+    // context window on very large scenarios. The RAG-seeded roster
+    // memory entries still cover everyone for name lookups.
+    const capped = sorted.slice(0, 60);
+    for (const entry of capped) {
+      lines.push(`  - ${renderRosterLine(entry)}`);
+    }
+    if (sorted.length > capped.length) {
+      lines.push(`  (...and ${sorted.length - capped.length} more in my memory — ask about a specific name if you want details.)`);
+    }
+  }
+  lines.push('');
+
   lines.push(
     `IMPORTANT — this is NOT a general chat assistant. You are a character inside a running simulation, ` +
     `talking to an outside observer who is reviewing what happened. Your job is to discuss the SPECIFIC ` +
@@ -206,6 +325,21 @@ function buildInstructions(colonist: ColonistProfile, settlement: string, popNou
     `"Turn 3, year 2043"). Name the commander's choice that affected you. Name fellow colonists by name. ` +
     `If you don't have a relevant memory yet, say so and pick the closest related simulation event ` +
     `instead of giving a generic philosophical answer.`
+  );
+  // Anti-hallucination rule. This is the fix for the "Do u know Jamie Carl?" → "Yes, Jamie is a
+  // fellow colonist who worked on engineering" confabulation. The model MUST match the asked-about
+  // name against the roster block above and refuse when there is no match. Phrased so the model
+  // does not just shrug ("I don't know") but actively recites who it DOES know — turning the
+  // failure into useful grounding info.
+  lines.push(
+    `CRITICAL — NAME GROUNDING RULE: When the user mentions a person by name (e.g. "do you know X", ` +
+    `"tell me about X", or any reference to a named individual), you MUST first check if that name ` +
+    `matches an entry in the KNOWN COLONISTS roster above (allow for minor typos and case differences, ` +
+    `but the name must clearly correspond to a real roster entry). If the name is NOT on the roster: ` +
+    `say directly that you do not recognize that name, state that this person is not in your colony, ` +
+    `and offer to talk about real colonists you DO know. DO NOT invent backgrounds, departments, ` +
+    `stories, or relationships for people not on the roster. Making up a fake colonist is the worst ` +
+    `thing you can do in this role because it poisons every downstream conversation.`
   );
   lines.push(
     `Do NOT give general advice, motivational speeches, or open-ended therapist-style questions back ` +
@@ -294,6 +428,63 @@ export function extractColonistMemories(
   }
 
   return memories;
+}
+
+/**
+ * Extract the colony roster from the most recent colony_snapshot event.
+ *
+ * The snapshot carries the full agent list at that turn: name, department,
+ * role, rank, alive/dead, marsborn, age, partner, children. Resolves
+ * partnerIds to names so the system prompt can render "partner: Amara Osei"
+ * instead of "partner:col-ama-0042".
+ *
+ * Returns the array sorted by department then name.
+ */
+export function extractColonistRoster(
+  simEvents: Array<{ type: string; leader: string; data: Record<string, unknown> }>,
+): ColonistRosterEntry[] {
+  // Find the LATEST colony_snapshot (last turn has most births/deaths resolved).
+  let latestSnapshot: Array<Record<string, unknown>> | null = null;
+  for (let i = simEvents.length - 1; i >= 0; i--) {
+    const evt = simEvents[i];
+    if (evt.type === 'colony_snapshot' && Array.isArray(evt.data?.agents)) {
+      latestSnapshot = evt.data.agents as Array<Record<string, unknown>>;
+      break;
+    }
+  }
+
+  if (!latestSnapshot) return [];
+
+  // Build name lookup so we can resolve partnerIds to human-readable names
+  // in the roster. Raw IDs like "col-mars-2047-3291" mean nothing to the
+  // chat model; names like "Erik Lindqvist" are what it needs to reference.
+  const nameById = new Map<string, string>();
+  for (const a of latestSnapshot) {
+    if (typeof a.agentId === 'string' && typeof a.name === 'string') {
+      nameById.set(a.agentId, a.name);
+    }
+  }
+
+  return latestSnapshot.map(a => ({
+    agentId: String(a.agentId ?? ''),
+    name: String(a.name ?? ''),
+    department: typeof a.department === 'string' ? a.department : undefined,
+    role: typeof a.role === 'string' ? a.role : undefined,
+    rank: typeof a.rank === 'string' ? a.rank : undefined,
+    alive: a.alive !== false,
+    marsborn: typeof a.marsborn === 'boolean' ? a.marsborn : undefined,
+    age: typeof a.age === 'number' ? a.age : undefined,
+    // Resolve partner to a name the model can use in conversation.
+    partnerId: typeof a.partnerId === 'string'
+      ? (nameById.get(a.partnerId) ?? a.partnerId)
+      : undefined,
+    childrenIds: Array.isArray(a.childrenIds)
+      ? a.childrenIds.map((id: unknown) => {
+          const name = typeof id === 'string' ? nameById.get(id) : undefined;
+          return name ?? String(id);
+        })
+      : undefined,
+  })).sort((a, b) => (a.department ?? '').localeCompare(b.department ?? '') || a.name.localeCompare(b.name));
 }
 
 /** Get pool stats for the /results API. */
