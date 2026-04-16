@@ -34,17 +34,17 @@ test('lunarScenario has all hooks registered', () => {
   assert.ok(lunarScenario.hooks.fingerprintHook);
   assert.ok(lunarScenario.hooks.politicsHook);
   assert.ok(lunarScenario.hooks.reactionContextHook);
-  assert.ok(lunarScenario.hooks.getMilestoneCrisis);
+  assert.ok(lunarScenario.hooks.getMilestoneEvent);
 });
 
 test('lunarScenario milestone crisis returns Lunar Arrival for turn 1', () => {
-  const crisis = lunarScenario.hooks.getMilestoneCrisis!(1, 8);
+  const crisis = lunarScenario.hooks.getMilestoneEvent!(1, 8);
   assert.ok(crisis);
   assert.equal(crisis.title, 'Lunar Arrival');
 });
 
 test('lunarScenario milestone returns Mission Review for final turn', () => {
-  const crisis = lunarScenario.hooks.getMilestoneCrisis!(8, 8);
+  const crisis = lunarScenario.hooks.getMilestoneEvent!(8, 8);
   assert.ok(crisis);
   assert.equal(crisis.title, 'Mission Review');
 });
@@ -71,9 +71,9 @@ test('lunarScenario director instructions mention lunar science', () => {
 
 test('lunarScenario fingerprint produces valid classification', () => {
   const fp = lunarScenario.hooks.fingerprintHook!(
-    { colony: { morale: 0.7, foodMonthsReserve: 15 }, agents: [] },
-    [{ turn: 1, outcome: 'conservative_success' }],
-    { hexaco: { conscientiousness: 0.9, openness: 0.3 } },
+    { colony: { morale: 0.7, foodMonthsReserve: 15 }, agents: [] } as any,
+    [{ turn: 1, year: 2030, outcome: 'conservative_success' }],
+    { hexaco: { conscientiousness: 0.9, openness: 0.3 } } as any,
     {}, 3,
   );
   assert.ok(fp.resilience);

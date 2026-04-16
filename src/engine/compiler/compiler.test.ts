@@ -88,8 +88,8 @@ describe('Hook validators', () => {
 
   it('validateMilestones passes for valid milestones', () => {
     const fn = (turn: number, maxTurns: number) => {
-      if (turn === 1) return { title: 'Founding', crisis: 'Test', options: [{ id: 'a', label: 'A', description: 'A', isRisky: false }, { id: 'b', label: 'B', description: 'B', isRisky: true }], riskyOptionId: 'b', riskSuccessProbability: 0.6, category: 'infrastructure', researchKeywords: [], relevantDepartments: ['engineering'], turnSummary: 'Test' };
-      if (turn === maxTurns) return { title: 'Legacy', crisis: 'Test', options: [{ id: 'a', label: 'A', description: 'A', isRisky: false }, { id: 'b', label: 'B', description: 'B', isRisky: true }], riskyOptionId: 'b', riskSuccessProbability: 0.5, category: 'political', researchKeywords: [], relevantDepartments: ['medical'], turnSummary: 'Test' };
+      if (turn === 1) return { title: 'Founding', description: 'Test', crisis: 'Test', options: [{ id: 'a', label: 'A', description: 'A', isRisky: false }, { id: 'b', label: 'B', description: 'B', isRisky: true }], riskyOptionId: 'b', riskSuccessProbability: 0.6, category: 'infrastructure', researchKeywords: [], relevantDepartments: ['engineering'], turnSummary: 'Test' };
+      if (turn === maxTurns) return { title: 'Legacy', description: 'Test', crisis: 'Test', options: [{ id: 'a', label: 'A', description: 'A', isRisky: false }, { id: 'b', label: 'B', description: 'B', isRisky: true }], riskyOptionId: 'b', riskSuccessProbability: 0.5, category: 'political', researchKeywords: [], relevantDepartments: ['medical'], turnSummary: 'Test' };
       return null;
     };
     const result = validateMilestones(fn, 8);
@@ -155,7 +155,7 @@ describe('compileScenario with mock LLM', () => {
     assert.ok(scenario.hooks.progressionHook, 'progressionHook should be defined');
     assert.ok(scenario.hooks.directorInstructions, 'directorInstructions should be defined');
     assert.ok(scenario.hooks.departmentPromptHook, 'departmentPromptHook should be defined');
-    assert.ok(scenario.hooks.getMilestoneCrisis, 'getMilestoneCrisis should be defined');
+    assert.ok(scenario.hooks.getMilestoneEvent, 'getMilestoneEvent should be defined');
     assert.ok(scenario.hooks.fingerprintHook, 'fingerprintHook should be defined');
     assert.ok(scenario.hooks.politicsHook, 'politicsHook should be defined');
     assert.ok(scenario.hooks.reactionContextHook, 'reactionContextHook should be defined');
@@ -170,7 +170,7 @@ describe('compileScenario with mock LLM', () => {
 
     assert.deepEqual(validateProgressionHook(scenario.hooks.progressionHook), { ok: true });
     assert.deepEqual(validateDirectorInstructions(scenario.hooks.directorInstructions, ['medical', 'engineering']), { ok: true });
-    assert.deepEqual(validateMilestones(scenario.hooks.getMilestoneCrisis, 8), { ok: true });
+    assert.deepEqual(validateMilestones(scenario.hooks.getMilestoneEvent, 8), { ok: true });
     assert.deepEqual(validateFingerprint(scenario.hooks.fingerprintHook), { ok: true });
     assert.deepEqual(validatePolitics(scenario.hooks.politicsHook), { ok: true });
     assert.deepEqual(validateReactionContext(scenario.hooks.reactionContextHook), { ok: true });
@@ -183,14 +183,14 @@ describe('compileScenario with mock LLM', () => {
       generateText: mockGenerateText,
     });
 
-    const turn1 = scenario.hooks.getMilestoneCrisis!(1, 8);
+    const turn1 = scenario.hooks.getMilestoneEvent!(1, 8);
     assert.ok(turn1, 'Turn 1 should return a crisis');
     assert.equal(turn1!.title, 'Founding');
 
-    const mid = scenario.hooks.getMilestoneCrisis!(4, 8);
+    const mid = scenario.hooks.getMilestoneEvent!(4, 8);
     assert.equal(mid, null, 'Mid-turn should return null');
 
-    const last = scenario.hooks.getMilestoneCrisis!(8, 8);
+    const last = scenario.hooks.getMilestoneEvent!(8, 8);
     assert.ok(last, 'Final turn should return a crisis');
     assert.ok(last!.title.includes('Legacy'), `Final turn title should contain Legacy, got: ${last!.title}`);
   });

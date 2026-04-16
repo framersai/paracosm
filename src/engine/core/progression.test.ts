@@ -33,7 +33,7 @@ const makeState = (overrides: any = {}) => ({
 test('progressBetweenTurns with Mars hook applies radiation and bone density', () => {
   const { state } = progressBetweenTurns(makeState() as any, 1, new SeededRng(950), marsProgressionHook);
   assert.equal(state.agents[0].health.boneDensityPct, 99.5);
-  assert.ok(state.agents[0].health.cumulativeRadiationMsv > 200);
+  assert.ok((state.agents[0]!.health.cumulativeRadiationMsv ?? 0) > 200);
 });
 
 test('progressBetweenTurns without hook does not apply radiation or bone density', () => {

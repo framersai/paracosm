@@ -56,6 +56,6 @@ export const marsScenario: ScenarioPackage = {
     fingerprintHook: marsFingerprint,
     politicsHook: marsPoliticsHook,
     reactionContextHook: marsReactionContext,
-    getMilestoneCrisis: getMarsMilestoneCrisis,
+    getMilestoneEvent: getMarsMilestoneCrisis,
   },
 };

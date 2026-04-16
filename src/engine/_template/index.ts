@@ -101,6 +101,6 @@ export const myScenario: ScenarioPackage = {
     // fingerprintHook: myFingerprint,
     // politicsHook: myPoliticsHook,
     // reactionContextHook: myReactionContext,
-    // getMilestoneCrisis: getMyMilestoneCrisis,
+    // getMilestoneEvent: getMyMilestoneEvent,
   },
 };

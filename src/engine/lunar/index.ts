@@ -50,6 +50,6 @@ export const lunarScenario: ScenarioPackage = {
     fingerprintHook: lunarFingerprint,
     politicsHook: lunarPoliticsHook,
     reactionContextHook: lunarReactionContext,
-    getMilestoneCrisis: getLunarMilestoneCrisis,
+    getMilestoneEvent: getLunarMilestoneCrisis,
   },
 };
