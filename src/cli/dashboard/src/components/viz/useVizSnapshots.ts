@@ -4,7 +4,10 @@ import type { TurnSnapshot, CellSnapshot } from './viz-types';
 
 /**
  * Extract per-turn TurnSnapshot arrays from GameState for each side.
- * Returns { a: TurnSnapshot[], b: TurnSnapshot[] }.
+ *
+ * Pulls colony_snapshot events for the spatial cells data and joins
+ * event_start events to surface category flashes per turn. Population,
+ * morale, food and birth/death deltas come from the snapshot payload.
  */
 export function useVizSnapshots(state: GameState): { a: TurnSnapshot[]; b: TurnSnapshot[] } {
   return useMemo(() => {
@@ -13,12 +16,26 @@ export function useVizSnapshots(state: GameState): { a: TurnSnapshot[]; b: TurnS
     for (const side of ['a', 'b'] as Side[]) {
       const s = state[side];
 
+      // Build a map of turn → list of event categories (for the flash overlay).
+      const categoriesByTurn = new Map<number, string[]>();
+      for (const e of s.events) {
+        if ((e.type === 'event_start' || e.type === 'turn_start') && e.turn != null) {
+          const cat = e.data?.category;
+          if (typeof cat === 'string' && cat.length > 0) {
+            const list = categoriesByTurn.get(e.turn) ?? [];
+            if (!list.includes(cat)) list.push(cat);
+            categoriesByTurn.set(e.turn, list);
+          }
+        }
+      }
+
       for (let i = 0; i < s.agentSnapshots.length; i++) {
         const agents = s.agentSnapshots[i];
         const turnEvent = s.events.find(
           e => e.type === 'colony_snapshot' && e.data?.turn === i + 1
         );
         const dd = turnEvent?.data || {};
+        const turnNum = (dd.turn as number) || i + 1;
 
         const cells: CellSnapshot[] = agents.map(a => ({
           agentId: a.agentId,
@@ -29,6 +46,8 @@ export function useVizSnapshots(state: GameState): { a: TurnSnapshot[]; b: TurnS
           alive: a.alive,
           marsborn: a.marsborn,
           psychScore: a.psychScore,
+          age: a.age,
+          generation: a.generation,
           partnerId: a.partnerId,
           childrenIds: a.childrenIds || [],
           featured: a.featured,
@@ -37,7 +56,7 @@ export function useVizSnapshots(state: GameState): { a: TurnSnapshot[]; b: TurnS
         }));
 
         result[side].push({
-          turn: (dd.turn as number) || i + 1,
+          turn: turnNum,
           year: (dd.year as number) || 0,
           cells,
           population: (dd.population as number) || cells.filter(c => c.alive).length,
@@ -45,6 +64,7 @@ export function useVizSnapshots(state: GameState): { a: TurnSnapshot[]; b: TurnS
           foodReserve: (dd.foodReserve as number) || 0,
           deaths: (dd.deaths as number) || 0,
           births: (dd.births as number) || 0,
+          eventCategories: categoriesByTurn.get(turnNum) ?? [],
         });
       }
     }

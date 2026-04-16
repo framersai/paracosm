@@ -75,6 +75,11 @@ export interface DirectorContext {
   recentToolOutputs: Array<{ name: string; department: string; output: string }>;
   /** Agent mood summary from last turn */
   agentMoodSummary?: string;
+  /** Knowledge topic IDs available in the scenario knowledge bundle.
+   *  Provides grounding for researchKeywords so events tie back to real citations. */
+  knowledgeTopics?: string[];
+  /** Categories the scenario knows about (from KnowledgeBundle.categoryMapping). */
+  knowledgeCategories?: string[];
 
   // Legacy aliases (backward compat with existing scenario hooks)
   /** @deprecated Use state */
@@ -127,6 +132,25 @@ function buildDirectorPrompt(ctx: DirectorContext, maxEvents: number = 3): strin
     return `- ${k}: ${display}`;
   }).join('\n');
 
+  // Knowledge grounding: tell the director what topics/categories the scenario
+  // has citations for, so its researchKeywords match real entries in the bundle.
+  // This drives downstream citation retrieval (recallResearch + getResearchFromBundle).
+  const knowledgeBlock: string[] = [];
+  if (ctx.knowledgeTopics?.length) {
+    knowledgeBlock.push(
+      '',
+      'KNOWLEDGE BUNDLE TOPICS (use these in researchKeywords for accurate citation retrieval):',
+      ctx.knowledgeTopics.slice(0, 12).map(t => `  - ${t}`).join('\n'),
+    );
+  }
+  if (ctx.knowledgeCategories?.length) {
+    knowledgeBlock.push(
+      '',
+      'KNOWLEDGE BUNDLE CATEGORIES (prefer one of these for the event category field):',
+      `  ${ctx.knowledgeCategories.slice(0, 12).join(', ')}`,
+    );
+  }
+
   return `GENERATE EVENT FOR TURN ${ctx.turn}, YEAR ${ctx.year}
 
 SIMULATION STATE:
@@ -145,6 +169,7 @@ DECISION HISTORY:
 ${prevHistory}
 ${ctx.recentToolOutputs.length ? `\nTOOL INTELLIGENCE (what department agents computed last turn):\n${ctx.recentToolOutputs.slice(0, 4).map(t => `  [${t.department}] ${t.name}: ${t.output.slice(0, 120)}`).join('\n')}\nUse these findings to generate an event that follows from what the tools revealed.` : ''}
 ${ctx.agentMoodSummary ? `\nAGENT MOOD: ${ctx.agentMoodSummary}` : ''}
+${knowledgeBlock.join('\n')}
 
 CONSTRAINT: Do NOT use category "${lastCategory}" (used last turn). Pick a different category.
 

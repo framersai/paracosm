@@ -1,82 +1,111 @@
 import type { TurnSnapshot } from './viz-types';
 
-const OVERLAY_HEIGHT = 40;
-const OVERLAY_PAD = 4;
+const PANEL_W = 168;
+const PANEL_H = 92;
+const PAD = 10;
 
 /**
- * Draw sparkline metric overlays at the bottom of a colony canvas.
- * Population (line), morale (line), food reserves (area).
+ * Draw a corner panel with population/morale/food sparklines and deltas.
+ * Anchored to top-left of the canvas. Sparklines are tiny but legible.
  */
 export function renderMetricOverlay(
   ctx: CanvasRenderingContext2D,
   snapshots: TurnSnapshot[],
   currentTurn: number,
-  width: number,
-  height: number,
 ): void {
-  if (snapshots.length < 2) return;
+  if (snapshots.length === 0) return;
 
-  const y0 = height - OVERLAY_HEIGHT;
-  const plotW = width - OVERLAY_PAD * 2;
-  const plotH = OVERLAY_HEIGHT - OVERLAY_PAD * 2;
+  const x0 = PAD;
+  const y0 = PAD;
 
-  ctx.fillStyle = 'rgba(10, 8, 6, 0.5)';
-  ctx.fillRect(0, y0, width, OVERLAY_HEIGHT);
-
-  const visibleSnapshots = snapshots.slice(0, currentTurn + 1);
-  if (visibleSnapshots.length < 2) return;
-
-  const maxPop = Math.max(...visibleSnapshots.map(s => s.population), 1);
-  const maxFood = Math.max(...visibleSnapshots.map(s => s.foodReserve), 1);
-
-  // Food area (filled, green at 20% opacity)
-  ctx.fillStyle = '#6aad4833';
+  // Panel background
+  ctx.fillStyle = '#0a0806d0';
   ctx.beginPath();
-  ctx.moveTo(OVERLAY_PAD, y0 + OVERLAY_HEIGHT - OVERLAY_PAD);
-  for (let i = 0; i < visibleSnapshots.length; i++) {
-    const x = OVERLAY_PAD + (i / (snapshots.length - 1)) * plotW;
-    const y = y0 + OVERLAY_PAD + (1 - visibleSnapshots[i].foodReserve / maxFood) * plotH;
-    ctx.lineTo(x, y);
-  }
-  const lastFoodX = OVERLAY_PAD + ((visibleSnapshots.length - 1) / (snapshots.length - 1)) * plotW;
-  ctx.lineTo(lastFoodX, y0 + OVERLAY_HEIGHT - OVERLAY_PAD);
-  ctx.closePath();
+  ctx.roundRect(x0, y0, PANEL_W, PANEL_H, 6);
   ctx.fill();
-
-  // Population line
-  drawLine(ctx, visibleSnapshots, snapshots.length, s => s.population / maxPop, plotW, plotH, y0, '#a89878');
-
-  // Morale line
-  drawLine(ctx, visibleSnapshots, snapshots.length, s => s.morale, plotW, plotH, y0, '#e8b44a');
-
-  // Current turn marker
-  const markerX = OVERLAY_PAD + (Math.min(currentTurn, visibleSnapshots.length - 1) / (snapshots.length - 1)) * plotW;
-  ctx.strokeStyle = '#e0653080';
+  ctx.strokeStyle = '#2a2520';
   ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(markerX, y0);
-  ctx.lineTo(markerX, y0 + OVERLAY_HEIGHT);
   ctx.stroke();
+
+  const visible = snapshots.slice(0, currentTurn + 1);
+  const curr = visible[visible.length - 1];
+  const prev = visible.length > 1 ? visible[visible.length - 2] : null;
+  if (!curr) return;
+
+  // Title
+  ctx.font = '700 8px var(--mono, monospace)';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#e8b44a';
+  ctx.fillText(`T${curr.turn} · ${curr.year}`, x0 + 10, y0 + 12);
+
+  // Three metric rows
+  const rows = [
+    { label: 'POP', current: curr.population, previous: prev?.population, color: '#a89878', getValue: (s: TurnSnapshot) => s.population },
+    { label: 'MOR', current: Math.round(curr.morale * 100), previous: prev ? Math.round(prev.morale * 100) : undefined, color: '#e8b44a', getValue: (s: TurnSnapshot) => s.morale, suffix: '%' },
+    { label: 'FOOD', current: +curr.foodReserve.toFixed(1), previous: prev ? +prev.foodReserve.toFixed(1) : undefined, color: '#6aad48', getValue: (s: TurnSnapshot) => s.foodReserve, suffix: 'mo' },
+  ];
+
+  let yRow = y0 + 28;
+  for (const row of rows) {
+    drawMetricRow(ctx, x0 + 10, yRow, PANEL_W - 20, row, visible);
+    yRow += 18;
+  }
+
+  // Births/deaths chip line
+  ctx.font = '600 8px var(--mono, monospace)';
+  ctx.fillStyle = curr.births > 0 ? '#6aad48' : '#686050';
+  ctx.fillText(`+${curr.births}`, x0 + 10, y0 + PANEL_H - 8);
+  ctx.fillStyle = curr.deaths > 0 ? '#e06530' : '#686050';
+  ctx.fillText(`-${curr.deaths}`, x0 + 38, y0 + PANEL_H - 8);
+  ctx.fillStyle = '#686050';
+  ctx.fillText('births / deaths', x0 + 60, y0 + PANEL_H - 8);
 }
 
-function drawLine(
+function drawMetricRow(
   ctx: CanvasRenderingContext2D,
-  snapshots: TurnSnapshot[],
-  totalTurns: number,
-  getValue: (s: TurnSnapshot) => number,
-  plotW: number,
-  plotH: number,
-  y0: number,
-  color: string,
+  x: number,
+  y: number,
+  w: number,
+  row: { label: string; current: number; previous?: number; color: string; getValue: (s: TurnSnapshot) => number; suffix?: string },
+  series: TurnSnapshot[],
 ): void {
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 1.5;
+  // Label
+  ctx.font = '700 8px var(--mono, monospace)';
+  ctx.fillStyle = '#686050';
+  ctx.fillText(row.label, x, y);
+
+  // Sparkline
+  const sparkX = x + 30;
+  const sparkW = 60;
+  const sparkH = 12;
+  const values = series.map(row.getValue);
+  const min = Math.min(...values, 0);
+  const max = Math.max(...values, 1);
+  const range = Math.max(1, max - min);
+  ctx.strokeStyle = row.color;
+  ctx.lineWidth = 1;
   ctx.beginPath();
-  for (let i = 0; i < snapshots.length; i++) {
-    const x = OVERLAY_PAD + (i / (totalTurns - 1)) * plotW;
-    const y = y0 + OVERLAY_PAD + (1 - getValue(snapshots[i])) * plotH;
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
+  for (let i = 0; i < values.length; i++) {
+    const px = sparkX + (i / Math.max(1, values.length - 1)) * sparkW;
+    const py = y + sparkH / 2 - ((values[i] - min) / range - 0.5) * sparkH;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
   }
   ctx.stroke();
+
+  // Current value + delta
+  const valueText = `${row.current}${row.suffix ?? ''}`;
+  ctx.font = '700 9px var(--mono, monospace)';
+  ctx.fillStyle = '#f5f0e4';
+  ctx.fillText(valueText, sparkX + sparkW + 8, y);
+
+  if (row.previous !== undefined && row.previous !== row.current) {
+    const delta = row.current - row.previous;
+    const deltaStr = delta > 0 ? `+${(+delta.toFixed(1))}` : `${(+delta.toFixed(1))}`;
+    ctx.font = '600 8px var(--mono, monospace)';
+    ctx.fillStyle = delta > 0 ? '#6aad48' : '#e06530';
+    const valueWidth = ctx.measureText(valueText).width;
+    ctx.fillText(deltaStr, sparkX + sparkW + 8 + valueWidth + 4, y);
+  }
 }

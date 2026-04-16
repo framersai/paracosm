@@ -12,6 +12,8 @@ export interface AgentSnapshot {
   alive: boolean;
   marsborn: boolean;
   psychScore: number;
+  age?: number;
+  generation?: number;
   partnerId?: string;
   childrenIds: string[];
   featured: boolean;

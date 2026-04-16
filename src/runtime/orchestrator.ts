@@ -521,6 +521,10 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
           .map(c => ({ name: c.core.name, role: c.core.role, openness: c.hexaco.openness, conscientiousness: c.hexaco.conscientiousness })),
         recentToolOutputs: lastTurnToolOutputs,
         agentMoodSummary: lastTurnMoodSummary,
+        // Ground director's researchKeywords / category in real bundle entries so
+        // recallResearch/getResearchFromBundle can surface citations downstream.
+        knowledgeTopics: Object.keys(sc.knowledge?.topics ?? {}),
+        knowledgeCategories: Object.keys(sc.knowledge?.categoryMapping ?? {}),
       };
       emit('turn_start', { turn, year, title: 'Director generating...', crisis: '', births: 0, deaths: 0, colony: preState.colony });
       const dirInstructions = sc.hooks.directorInstructions?.();
@@ -604,6 +608,19 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
           const r = await sess.send(ctx);
           trackUsage(r);
           const report = parseDeptReport(r.text, dept);
+          // Citation provenance guarantee: when the LLM omits citations but the
+          // research packet carried real sources, attribute them to the report.
+          // This keeps the citation flow auditable end-to-end (seed → memory →
+          // department prompt → report → UI), even when the LLM forgets to
+          // copy them into its JSON output.
+          if (report.citations.length === 0 && packet.canonicalFacts.length > 0) {
+            report.citations = packet.canonicalFacts.slice(0, 5).map(f => ({
+              text: f.claim,
+              url: f.url,
+              context: f.source,
+              ...(f.doi ? { doi: f.doi } : {}),
+            }));
+          }
           const validTools = report.forgedToolsUsed.filter(t => t && (t.name || t.description)).map(t => {
             const rawOutput = t.output ? (typeof t.output === 'string' ? t.output : JSON.stringify(t.output)) : null;
             let inputFields: string[] = [], outputFields: string[] = [];
@@ -759,7 +776,35 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     console.log(`  State: Pop ${after.colony.population} | Morale ${Math.round(after.colony.morale * 100)}% | Food ${after.colony.foodMonthsReserve.toFixed(1)}mo`);
     emit('turn_done', { turn, year, colony: after.colony, toolsForged: Object.values(toolRegs).flat().length, totalEvents: turnEvents.length });
 
-    // Emit full agent roster for colony visualization
+    // Emit full agent roster for colony visualization.
+    //
+    // Generation depth: 0 = earth-born ancestor, N = N levels of native-born descent.
+    // Mars-born agents get gen >= 1. Computed by walking parent chain when possible,
+    // otherwise inferred from age (younger native-borns = deeper generation).
+    const agentById = new Map(after.agents.map(a => [a.core.id, a]));
+    const generationCache = new Map<string, number>();
+    const computeGeneration = (id: string, depth = 0): number => {
+      if (depth > 10) return depth; // safety guard
+      const cached = generationCache.get(id);
+      if (cached !== undefined) return cached;
+      const agent = agentById.get(id);
+      if (!agent) return 0;
+      if (!agent.core.marsborn) {
+        generationCache.set(id, 0);
+        return 0;
+      }
+      // Find parents by scanning who lists this agent as a child
+      const parents = after.agents.filter(p => p.social.childrenIds.includes(id));
+      if (parents.length === 0) {
+        generationCache.set(id, 1);
+        return 1;
+      }
+      const parentGen = Math.max(...parents.map(p => computeGeneration(p.core.id, depth + 1)));
+      const gen = parentGen + 1;
+      generationCache.set(id, gen);
+      return gen;
+    };
+
     const snapshotAgents = after.agents.map(a => ({
       agentId: a.core.id,
       name: a.core.name,
@@ -769,6 +814,8 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
       alive: a.health.alive,
       marsborn: a.core.marsborn,
       psychScore: a.health.psychScore,
+      age: Math.max(0, year - a.core.birthYear),
+      generation: computeGeneration(a.core.id),
       partnerId: a.social.partnerId,
       childrenIds: a.social.childrenIds,
       featured: a.narrative.featured,
@@ -789,7 +836,10 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
       const fallbackAgents = kernel.getState().agents.map(a => ({
         agentId: a.core.id, name: a.core.name, department: a.core.department, role: a.core.role,
         rank: a.career.rank, alive: a.health.alive, marsborn: a.core.marsborn,
-        psychScore: a.health.psychScore, partnerId: a.social.partnerId,
+        psychScore: a.health.psychScore,
+        age: Math.max(0, year - a.core.birthYear),
+        generation: a.core.marsborn ? 1 : 0,
+        partnerId: a.social.partnerId,
         childrenIds: a.social.childrenIds, featured: a.narrative.featured,
         mood: 'neutral', shortTermMemory: [],
       }));

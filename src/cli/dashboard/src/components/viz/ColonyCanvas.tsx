@@ -1,39 +1,62 @@
-import { useRef, useEffect, useCallback, useState } from 'react';
-import type { TurnSnapshot } from './viz-types';
-import { DEPARTMENT_COLORS } from './viz-types';
-import { buildSquareGrid, gridHitTest, type SquareGrid } from './ForceLayout';
+import { useRef, useEffect, useCallback, useState, useImperativeHandle, forwardRef, useMemo } from 'react';
+import type { TurnSnapshot, VizMode, SnapshotDiff } from './viz-types';
+import { DEPARTMENT_COLORS, computeSnapshotDiff } from './viz-types';
+import { buildSquareGrid, buildRelationshipGrid, gridHitTest, type SquareGrid } from './ForceLayout';
 import { renderSquareGrid, drawLegend } from './CellRenderer';
 import { renderMetricOverlay } from './MetricOverlay';
 import { CellDetail } from './CellDetail';
+import { DepartmentChips } from './DepartmentChips';
 
 interface ColonyCanvasProps {
   snapshots: TurnSnapshot[];
   currentTurn: number;
   leaderName: string;
   leaderArchetype: string;
+  mode: VizMode;
+  layout: 'department' | 'family';
+  divergedIds?: Set<string>;
 }
 
-export function ColonyCanvas({ snapshots, currentTurn, leaderName, leaderArchetype }: ColonyCanvasProps) {
+export interface ColonyCanvasHandle {
+  exportPng: (filename: string) => void;
+}
+
+export const ColonyCanvas = forwardRef<ColonyCanvasHandle, ColonyCanvasProps>(function ColonyCanvas(
+  { snapshots, currentTurn, leaderName, leaderArchetype, mode, layout, divergedIds }: ColonyCanvasProps,
+  ref,
+) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasWrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gridRef = useRef<SquareGrid | null>(null);
   const animRef = useRef<number>(0);
+  const turnStartTimeRef = useRef<number>(Date.now());
 
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [focusedId, setFocusedId] = useState<string | null>(null);
 
   const snap = snapshots[currentTurn];
+  const prevSnap = currentTurn > 0 ? snapshots[currentTurn - 1] : undefined;
 
-  // Rebuild grid when turn changes
+  // Compute snapshot diff (births/deaths)
+  const diff: SnapshotDiff = useMemo(() => computeSnapshotDiff(prevSnap, snap), [prevSnap, snap]);
+
+  // Reset turn-start animation timer when turn changes
+  useEffect(() => {
+    turnStartTimeRef.current = Date.now();
+  }, [currentTurn]);
+
+  // Rebuild grid when turn or layout changes
   useEffect(() => {
     if (!snap || !canvasWrapRef.current) return;
     const w = canvasWrapRef.current.clientWidth;
     const h = canvasWrapRef.current.clientHeight;
-    gridRef.current = buildSquareGrid(snap.cells, w, h);
-  }, [snap, currentTurn]);
+    gridRef.current = layout === 'family'
+      ? buildRelationshipGrid(snap.cells, w, h)
+      : buildSquareGrid(snap.cells, w, h);
+  }, [snap, currentTurn, layout]);
 
-  // Render loop (redraws for hover/focus state + featured pulse animation)
+  // Render loop
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !containerRef.current) return;
@@ -46,8 +69,13 @@ export function ColonyCanvas({ snapshots, currentTurn, leaderName, leaderArchety
 
       const w = wrap.clientWidth;
       const h = wrap.clientHeight;
-      canvas.width = w;
-      canvas.height = h;
+      // Use device pixel ratio for crisp rendering and PNG export quality
+      const dpr = window.devicePixelRatio || 1;
+      if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
+        canvas.width = w * dpr;
+        canvas.height = h * dpr;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
 
       const grid = gridRef.current;
       if (!grid || !snap) {
@@ -55,20 +83,38 @@ export function ColonyCanvas({ snapshots, currentTurn, leaderName, leaderArchety
         return;
       }
 
-      renderSquareGrid(ctx, grid, w, h, { focusedId, hoveredId });
-      renderMetricOverlay(ctx, snapshots, currentTurn, w, h);
+      const pulsePhaseMs = Date.now() - turnStartTimeRef.current;
+
+      renderSquareGrid(ctx, grid, w, h, {
+        focusedId, hoveredId, mode, diff,
+        pulsePhaseMs,
+        eventCategories: snap.eventCategories,
+        divergedIds,
+      });
+      renderMetricOverlay(ctx, snapshots, currentTurn);
 
       const depts = [...new Set(snap.cells.filter(c => c.alive).map(c => c.department))];
-      drawLegend(ctx, depts, w, h);
+      drawLegend(ctx, depts, w, h, mode);
 
       animRef.current = requestAnimationFrame(render);
     };
 
     animRef.current = requestAnimationFrame(render);
     return () => cancelAnimationFrame(animRef.current);
-  }, [snap, snapshots, currentTurn, focusedId, hoveredId]);
+  }, [snap, snapshots, currentTurn, focusedId, hoveredId, mode, diff, divergedIds]);
 
-  // Mouse handlers
+  // PNG export — captured directly from the canvas
+  useImperativeHandle(ref, () => ({
+    exportPng: (filename: string) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const link = document.createElement('a');
+      link.download = filename;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    },
+  }), []);
+
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect || !gridRef.current) return;
@@ -116,6 +162,8 @@ export function ColonyCanvas({ snapshots, currentTurn, leaderName, leaderArchety
         <div style={{ fontSize: 10, color: 'var(--text-3)' }}>{leaderArchetype}</div>
       </div>
 
+      <DepartmentChips snapshot={snap} prevSnapshot={prevSnap} />
+
       {/* Hover info bar */}
       <div style={{
         padding: '3px 12px', fontSize: 10, color: 'var(--text-2)',
@@ -130,12 +178,13 @@ export function ColonyCanvas({ snapshots, currentTurn, leaderName, leaderArchety
             <span style={{ color: DEPARTMENT_COLORS[hoveredCell.department] || '#a89878' }}>{hoveredCell.department}</span>
             <span>{hoveredCell.role}</span>
             <span style={{ fontFamily: 'var(--mono)', color: 'var(--text-3)' }}>{hoveredCell.rank}</span>
+            {hoveredCell.age != null && <span style={{ fontFamily: 'var(--mono)', color: 'var(--text-3)' }}>age {hoveredCell.age}</span>}
             <span style={{ color: moodColor(hoveredCell.mood) }}>{hoveredCell.mood}</span>
             <span style={{ fontFamily: 'var(--mono)', color: 'var(--text-3)' }}>psych:{hoveredCell.psychScore.toFixed(2)}</span>
-            {hoveredCell.marsborn && <span style={{ color: 'var(--rust)' }}>mars-born</span>}
+            {hoveredCell.marsborn && <span style={{ color: 'var(--rust)' }}>native-born G{hoveredCell.generation ?? 1}</span>}
           </>
         ) : (
-          <span style={{ color: 'var(--text-3)', fontStyle: 'italic' }}>Hover a cell for details. Click to inspect.</span>
+          <span style={{ color: 'var(--text-3)', fontStyle: 'italic' }}>Hover a cell. Click to inspect. Arrows to scrub. Space to play.</span>
         )}
       </div>
 
@@ -165,7 +214,7 @@ export function ColonyCanvas({ snapshots, currentTurn, leaderName, leaderArchety
       )}
     </div>
   );
-}
+});
 
 function moodColor(mood: string): string {
   switch (mood) {

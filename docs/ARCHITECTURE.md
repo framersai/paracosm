@@ -64,6 +64,39 @@ A scenario is a JSON file that describes the simulation domain. It does not cont
 
 **Any domain works.** Mars colonies, submarine habitats, space stations, medieval kingdoms. The engine is domain-agnostic. The scenario JSON defines what gets simulated.
 
+### Seed Enrichment & Citation Flow
+
+The compiler accepts real-world source material (`--seed-text` or `--seed-url`) and threads citations end-to-end through the simulation:
+
+```
+SEED                            (text or URL — Firecrawl extracts markdown)
+  ↓
+EXTRACT                         (LLM → topics, facts, searchQueries, crisisCategories)
+  ↓
+SEARCH                          (AgentOS WebSearchService: Firecrawl + Tavily +
+                                  Serper + Brave in parallel, semantic dedup,
+                                  RRF fusion, optional Cohere rerank-v3.5)
+  ↓
+KNOWLEDGE BUNDLE                (topics[].canonicalFacts[], categoryMapping)
+  ↓ runtime init
+RESEARCH MEMORY                 (AgentOS AgentMemory.sqlite — semantic recall)
+  ↓ per event
+recallResearch(query, keywords) (semantic memory recall, fall back to bundle,
+                                  fall back to live web search if liveSearch=on)
+  ↓
+DEPARTMENT PROMPT               (citations injected as `[claim](url)` markdown)
+  ↓
+DEPARTMENT REPORT               (LLM returns citations[]; orchestrator auto-fills
+                                  from packet if LLM omits them — provenance
+                                  guarantee)
+  ↓
+SSE dept_done event             (citationList[]: text, url, doi)
+  ↓
+DASHBOARD REPORTS TAB           (clickable citation links beneath each summary)
+```
+
+The Event Director also receives the knowledge bundle's `topics` and `categories`. Its `researchKeywords` and `category` fields stay grounded in actual citation entries, so retrieval downstream finds matches.
+
 ### Scenario Compiler
 
 The compiler turns JSON into a runnable `ScenarioPackage` by generating TypeScript hook functions via LLM calls:

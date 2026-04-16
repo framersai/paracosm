@@ -10,6 +10,21 @@ export const DEPARTMENT_COLORS: Record<string, string> = {
 /** Fallback color for departments not in the map (custom scenarios). */
 export const DEFAULT_DEPT_COLOR = '#a89878';
 
+/** Color flash for event categories (used for event correlation overlay). */
+export const CATEGORY_COLORS: Record<string, string> = {
+  environmental: '#6aad48',
+  resource: '#e8b44a',
+  medical: '#4ecdc4',
+  infrastructure: '#e06530',
+  psychological: '#9b6b9e',
+  political: '#c44a1e',
+  social: '#9b6b9e',
+  technological: '#4ca8a8',
+};
+
+/** Visualization rendering modes. */
+export type VizMode = 'department' | 'age' | 'generation' | 'mood';
+
 export interface CellSnapshot {
   agentId: string;
   name: string;
@@ -19,6 +34,10 @@ export interface CellSnapshot {
   alive: boolean;
   marsborn: boolean;
   psychScore: number;
+  /** Age in years at this turn (computed from year - birthYear). */
+  age?: number;
+  /** Generation depth: 0 = earth-born, 1+ = native-born depth. */
+  generation?: number;
   partnerId?: string;
   childrenIds: string[];
   featured: boolean;
@@ -35,6 +54,8 @@ export interface TurnSnapshot {
   foodReserve: number;
   deaths: number;
   births: number;
+  /** Categories of events that occurred this turn (for event flash overlay). */
+  eventCategories?: string[];
 }
 
 /** A node in the force simulation. Extends CellSnapshot with position/velocity. */
@@ -64,3 +85,45 @@ export const RANK_SIZES: Record<string, number> = {
   lead: 12,
   chief: 14,
 };
+
+/** Compute the diff between two consecutive turn snapshots. */
+export interface SnapshotDiff {
+  bornIds: Set<string>;
+  diedIds: Set<string>;
+}
+
+export function computeSnapshotDiff(prev: TurnSnapshot | undefined, current: TurnSnapshot): SnapshotDiff {
+  const bornIds = new Set<string>();
+  const diedIds = new Set<string>();
+  if (!prev) return { bornIds, diedIds };
+
+  const prevAgents = new Map(prev.cells.map(c => [c.agentId, c]));
+  const currAgents = new Map(current.cells.map(c => [c.agentId, c]));
+
+  for (const [id, c] of currAgents) {
+    const p = prevAgents.get(id);
+    if (!p && c.alive) bornIds.add(id);
+    else if (p && p.alive && !c.alive) diedIds.add(id);
+  }
+  for (const [id, p] of prevAgents) {
+    if (p.alive && !currAgents.has(id)) diedIds.add(id);
+  }
+  return { bornIds, diedIds };
+}
+
+/** Compute divergence: cells that are alive in one timeline but dead in the other at same turn. */
+export function computeDivergence(snapsA: TurnSnapshot, snapsB: TurnSnapshot): { aliveOnlyA: Set<string>; aliveOnlyB: Set<string> } {
+  const aById = new Map(snapsA.cells.map(c => [c.agentId, c]));
+  const bById = new Map(snapsB.cells.map(c => [c.agentId, c]));
+  const aliveOnlyA = new Set<string>();
+  const aliveOnlyB = new Set<string>();
+  for (const [id, c] of aById) {
+    const b = bById.get(id);
+    if (c.alive && (!b || !b.alive)) aliveOnlyA.add(id);
+  }
+  for (const [id, c] of bById) {
+    const a = aById.get(id);
+    if (c.alive && (!a || !a.alive)) aliveOnlyB.add(id);
+  }
+  return { aliveOnlyA, aliveOnlyB };
+}

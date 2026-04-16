@@ -137,3 +137,85 @@ export function gridHitTest(grid: SquareGrid, x: number, y: number): string | nu
   }
   return null;
 }
+
+/**
+ * Build a relationship-clustered grid: instead of grouping by department,
+ * group by family unit (partner pairs + their children) so social connections
+ * become visually contiguous. Singletons fill remaining space.
+ */
+export function buildRelationshipGrid(
+  cells: CellSnapshot[],
+  width: number,
+  height: number,
+): SquareGrid {
+  const alive = cells.filter(c => c.alive);
+  const total = alive.length;
+
+  const targetCells = Math.max(total * 1.4, 64);
+  const aspect = width / height;
+  const cols = Math.max(8, Math.round(Math.sqrt(targetCells * aspect)));
+  const rows = Math.max(6, Math.ceil(targetCells / cols));
+  const gap = 1;
+  const cellPx = Math.floor(Math.min((width - 20) / cols - gap, (height - 20) / rows - gap));
+  const clampedCell = Math.max(4, Math.min(16, cellPx));
+  const totalW = cols * (clampedCell + gap) - gap;
+  const totalH = rows * (clampedCell + gap) - gap;
+  const offsetX = Math.floor((width - totalW) / 2);
+  const offsetY = Math.floor((height - totalH) / 2);
+
+  const grid: GridCell[] = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      grid.push({
+        col: c, row: r,
+        px: offsetX + c * (clampedCell + gap),
+        py: offsetY + r * (clampedCell + gap),
+        occupant: null,
+      });
+    }
+  }
+
+  // Build family clusters: each cluster contains a couple + children, or singletons
+  const aliveById = new Map(alive.map(c => [c.agentId, c]));
+  const claimed = new Set<string>();
+  const clusters: CellSnapshot[][] = [];
+
+  for (const c of alive) {
+    if (claimed.has(c.agentId)) continue;
+    const cluster: CellSnapshot[] = [c];
+    claimed.add(c.agentId);
+
+    if (c.partnerId) {
+      const partner = aliveById.get(c.partnerId);
+      if (partner && !claimed.has(partner.agentId)) {
+        cluster.push(partner);
+        claimed.add(partner.agentId);
+      }
+    }
+    for (const childId of c.childrenIds || []) {
+      const child = aliveById.get(childId);
+      if (child && !claimed.has(child.agentId)) {
+        cluster.push(child);
+        claimed.add(child.agentId);
+      }
+    }
+    clusters.push(cluster);
+  }
+
+  // Sort clusters: families first (largest), then singletons
+  clusters.sort((a, b) => b.length - a.length);
+
+  // Place clusters with a 1-cell gap between them
+  let cursor = 0;
+  for (const cluster of clusters) {
+    for (const colonist of cluster) {
+      if (cursor < grid.length) {
+        grid[cursor].occupant = colonist;
+        cursor++;
+      }
+    }
+    if (cluster.length > 1) cursor += 1; // gap after multi-member cluster
+  }
+
+  return { cells: grid, cellPx: clampedCell, gap, cols, rows, totalW, totalH, offsetX, offsetY };
+}

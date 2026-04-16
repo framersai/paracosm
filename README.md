@@ -155,6 +155,33 @@ npm run compile -- scenarios/submarine.json \
 
 Options: `--seed-text`, `--seed-url`, `--no-web-search`, `--max-searches`. Compiled scenarios appear in the dashboard selector. Cost is roughly $0.10 per compile, cached to disk after first generation.
 
+## Seed Enrichment & Citation Flow
+
+Pass real-world source material into the compiler and Paracosm grounds the scenario in citations that flow all the way through to department reports.
+
+```bash
+# Inline text seed
+npx paracosm compile scenarios/lunar.json \
+  --seed-text "$(cat ./papers/iss-radiation-overview.md)"
+
+# URL seed (Firecrawl extracts clean markdown)
+npx paracosm compile scenarios/lunar.json \
+  --seed-url https://ntrs.nasa.gov/citations/20210018970
+```
+
+Pipeline:
+
+1. **Extract** — LLM reads the seed, returns `topics`, `facts`, `searchQueries`, `crisisCategories`.
+2. **Search** — AgentOS `WebSearchService` queries Firecrawl, Tavily, Serper, and Brave in parallel. Results pass through semantic dedup, RRF fusion, and (with `COHERE_API_KEY`) Cohere `rerank-v3.5` neural reranking.
+3. **Assemble** — extracted facts plus search hits become a `KnowledgeBundle` with `topics[].canonicalFacts[]` and `categoryMapping`.
+4. **Ingest** — at runtime, `initResearchMemory` writes every citation into an AgentOS `AgentMemory.sqlite()` store keyed by topic tags.
+5. **Recall** — for each event, `recallResearch(query, keywords)` runs semantic recall over the memory store. Live web search fills in when memory is sparse.
+6. **Inject** — citations land in each department's prompt under `RESEARCH:` as `[claim](url)` markdown links.
+7. **Surface** — department reports return `citations[]`. The orchestrator guarantees provenance: when the LLM omits citations, the research packet is auto-attached so the report always carries the same sources the agent saw.
+8. **Render** — the dashboard "Reports" tab renders citations as clickable links with optional DOIs.
+
+The Event Director also receives the bundle's `topics` and `categories`, so its `researchKeywords` and `category` fields stay grounded in entries that actually exist in your knowledge bundle.
+
 ## Built-in Scenarios
 
 | Scenario | Description |

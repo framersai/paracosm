@@ -295,6 +295,12 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
         <p>Swarm agents search academic literature before making recommendations. The pipeline queries Serper, Tavily, Firecrawl, and Brave in parallel, then applies Cohere Rerank v3.5 for neural relevance scoring. Citations include DOI links. A medical agent recommending radiation shielding cites actual NASA dosimetry guidelines, not a hallucinated source.</p>
         <div class="feat-ref">Deep research via AgentOS AgentMemory + Cohere Rerank v3.5</div>
       </div>
+      <div class="feat rv rv-d1">
+        <img class="feat-icon" src="/brand/feature-icons/research.svg?v=1" width="48" height="48" alt="">
+        <h3>Seed Enrichment &amp; Citation Provenance</h3>
+        <p>Pass a brief, paper, or URL into the compiler. An LLM extracts topics, facts, and search queries; AgentOS WebSearchService fans out to Firecrawl, Tavily, Serper, and Brave; results pass through semantic dedup, RRF fusion, and Cohere neural reranking. The resulting KnowledgeBundle ingests into an AgentOS sqlite-backed memory store. Every department analysis recalls semantically and cites the same sources you fed in. The orchestrator guarantees provenance: when the LLM omits citations, the research packet is auto-attached so the report always carries the sources the agent saw.</p>
+        <div class="feat-ref">paracosm compile --seed-text / --seed-url &middot; KnowledgeBundle &middot; recallResearch()</div>
+      </div>
     </div>
   </div>
 </section>
