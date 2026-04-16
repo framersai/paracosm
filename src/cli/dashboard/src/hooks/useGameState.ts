@@ -80,10 +80,22 @@ export interface ProcessedEvent {
   data: Record<string, unknown>;
 }
 
+/**
+ * Per-call-site spend within a run. Keys are pipeline-stage labels the
+ * orchestrator tags (director, commander, departments, judge, reactions,
+ * other). Empty when the run hasn't reported any calls yet.
+ */
+export type CostSiteBreakdown = Record<
+  string,
+  { totalTokens: number; totalCostUSD: number; calls: number }
+>;
+
 export interface CostBreakdown {
   totalTokens: number;
   totalCostUSD: number;
   llmCalls: number;
+  /** Per-site spend. Present when the server reports it (always in current version). */
+  breakdown?: CostSiteBreakdown;
 }
 
 export interface GameState {
@@ -137,21 +149,47 @@ export function useGameState(sseEvents: SimEvent[], isComplete: boolean): GameSt
       const dd = evt.data || {};
 
       // Track per-leader cost. Each event payload carries the leader's
-      // cumulative _cost so far (totalTokens, totalCostUSD, llmCalls);
-      // we keep them split on costA/costB and recompute the combined total.
-      const evtCost = dd._cost as { totalTokens?: number; totalCostUSD?: number; llmCalls?: number } | undefined;
+      // cumulative _cost so far (totalTokens, totalCostUSD, llmCalls,
+      // breakdown). We keep them split on costA/costB and recompute the
+      // combined total plus a merged breakdown.
+      const evtCost = dd._cost as {
+        totalTokens?: number;
+        totalCostUSD?: number;
+        llmCalls?: number;
+        breakdown?: CostSiteBreakdown;
+      } | undefined;
       if (evtCost && side) {
-        const breakdown = {
+        const leaderBreakdown: CostBreakdown = {
           totalTokens: evtCost.totalTokens ?? 0,
           totalCostUSD: evtCost.totalCostUSD ?? 0,
           llmCalls: evtCost.llmCalls ?? 0,
+          breakdown: evtCost.breakdown,
         };
-        if (side === 'a') state.costA = breakdown;
-        else state.costB = breakdown;
+        if (side === 'a') state.costA = leaderBreakdown;
+        else state.costB = leaderBreakdown;
+
+        // Combine the two leaders' per-site breakdowns into one rollup
+        // for the dashboard StatsBar modal. Each leader has its own
+        // cumulative breakdown; summing element-wise gives the total
+        // per pipeline stage across both runs.
+        const mergedBreakdown: CostSiteBreakdown = {};
+        for (const src of [state.costA.breakdown, state.costB.breakdown]) {
+          if (!src) continue;
+          for (const [siteKey, bucket] of Object.entries(src)) {
+            const existing = mergedBreakdown[siteKey] ?? { totalTokens: 0, totalCostUSD: 0, calls: 0 };
+            mergedBreakdown[siteKey] = {
+              totalTokens: existing.totalTokens + (bucket?.totalTokens ?? 0),
+              totalCostUSD: Math.round((existing.totalCostUSD + (bucket?.totalCostUSD ?? 0)) * 10000) / 10000,
+              calls: existing.calls + (bucket?.calls ?? 0),
+            };
+          }
+        }
+
         state.cost = {
           totalTokens: state.costA.totalTokens + state.costB.totalTokens,
           totalCostUSD: Math.round((state.costA.totalCostUSD + state.costB.totalCostUSD) * 10000) / 10000,
           llmCalls: state.costA.llmCalls + state.costB.llmCalls,
+          breakdown: Object.keys(mergedBreakdown).length > 0 ? mergedBreakdown : undefined,
         };
       }
 

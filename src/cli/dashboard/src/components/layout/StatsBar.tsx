@@ -1,7 +1,17 @@
-import type { ColonyState } from '../../hooks/useGameState';
+import { useState } from 'react';
+import type { ColonyState, CostSiteBreakdown } from '../../hooks/useGameState';
 import { useScenarioContext } from '../../App';
+import { CostBreakdownModal } from './CostBreakdownModal';
 
-interface CostInfo { totalTokens: number; totalCostUSD: number; llmCalls: number }
+interface CostInfo {
+  totalTokens: number;
+  totalCostUSD: number;
+  llmCalls: number;
+  /** Per-pipeline-stage spend. Only present after runtime upgrade; old
+   *  cached runs without breakdown data still render the pill, but the
+   *  modal reports no rows. */
+  breakdown?: CostSiteBreakdown;
+}
 
 interface StatsBarProps {
   colonyA: ColonyState | null;
@@ -18,6 +28,9 @@ interface StatsBarProps {
   cost?: CostInfo;
   costA?: CostInfo;
   costB?: CostInfo;
+  /** Used as the label on the per-leader breakdown card in the modal. */
+  leaderAName?: string;
+  leaderBName?: string;
 }
 
 function fmtUsd(v: number): string {
@@ -58,8 +71,11 @@ function delta(curr: number, prev: number | undefined): string {
   return d > 0 ? `+${d}` : `${d}`;
 }
 
-export function StatsBar({ colonyA, colonyB, prevColonyA, prevColonyB, deathsA, deathsB, toolsA, toolsB, citationsA, citationsB, crisisText, cost, costA, costB }: StatsBarProps) {
+export function StatsBar({ colonyA, colonyB, prevColonyA, prevColonyB, deathsA, deathsB, toolsA, toolsB, citationsA, citationsB, crisisText, cost, costA, costB, leaderAName, leaderBName }: StatsBarProps) {
   const scenario = useScenarioContext();
+  // Local state: whether the click-through cost breakdown modal is open.
+  // Lives here (not in App) because only StatsBar triggers it.
+  const [breakdownOpen, setBreakdownOpen] = useState(false);
 
   if (!colonyA && !colonyB) {
     return null;
@@ -128,13 +144,27 @@ export function StatsBar({ colonyA, colonyB, prevColonyA, prevColonyB, deathsA, 
 
       {/* Cost tracker — split per leader when both sides have data, with
           combined total alongside. Falls back to combined-only when only
-          one side has reported. */}
+          one side has reported. Clickable: opens the per-stage breakdown
+          modal so the user can see where the money went (usually depts
+          + reactions dominate). */}
       {cost && cost.llmCalls > 0 && (
-        <span
+        <button
+          type="button"
+          onClick={() => setBreakdownOpen(true)}
+          aria-label="Show cost breakdown by pipeline stage"
           title={costA && costB
-            ? `Leader A: $${fmtUsd(costA.totalCostUSD)} (${(costA.totalTokens / 1000).toFixed(1)}k tok, ${costA.llmCalls} calls) · Leader B: $${fmtUsd(costB.totalCostUSD)} (${(costB.totalTokens / 1000).toFixed(1)}k tok, ${costB.llmCalls} calls)`
-            : `${cost.llmCalls} LLM calls, ${(cost.totalTokens / 1000).toFixed(1)}k tokens`}
-          style={{ display: 'flex', alignItems: 'baseline', gap: '4px', whiteSpace: 'nowrap', flexShrink: 0, paddingLeft: '8px', borderLeft: '1px solid var(--border)' }}
+            ? `Click for breakdown · Leader A: $${fmtUsd(costA.totalCostUSD)} (${(costA.totalTokens / 1000).toFixed(1)}k tok, ${costA.llmCalls} calls) · Leader B: $${fmtUsd(costB.totalCostUSD)} (${(costB.totalTokens / 1000).toFixed(1)}k tok, ${costB.llmCalls} calls)`
+            : `Click for breakdown · ${cost.llmCalls} LLM calls, ${(cost.totalTokens / 1000).toFixed(1)}k tokens`}
+          style={{
+            display: 'flex', alignItems: 'baseline', gap: '4px', whiteSpace: 'nowrap',
+            flexShrink: 0, paddingLeft: '8px', paddingRight: '4px',
+            borderLeft: '1px solid var(--border)',
+            background: 'transparent', border: 'none',
+            borderTop: 'none', borderRight: 'none', borderBottom: 'none',
+            cursor: 'pointer',
+            color: 'var(--text-1)',
+            fontFamily: 'var(--mono)',
+          }}
         >
           <span style={{ fontSize: '10px', color: 'var(--text-1)', letterSpacing: '0.8px', fontWeight: 800, opacity: 0.7 }}>COST</span>
           {costA && costA.totalCostUSD > 0 && (
@@ -152,7 +182,20 @@ export function StatsBar({ colonyA, colonyB, prevColonyA, prevColonyB, deathsA, 
           <span style={{ fontSize: '9px', color: 'var(--text-3)' }}>
             {(cost.totalTokens / 1000).toFixed(0)}k tok
           </span>
-        </span>
+          {/* Affordance hint so users know the pill is interactive. */}
+          <span aria-hidden="true" style={{ fontSize: '9px', color: 'var(--text-3)', marginLeft: 2 }}>›</span>
+        </button>
+      )}
+
+      {breakdownOpen && cost && (
+        <CostBreakdownModal
+          combined={cost}
+          leaderA={costA}
+          leaderB={costB}
+          leaderAName={leaderAName}
+          leaderBName={leaderBName}
+          onClose={() => setBreakdownOpen(false)}
+        />
       )}
     </div>
   );
