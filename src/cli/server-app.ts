@@ -33,6 +33,17 @@ function projectScenarioForClient(sc: ScenarioPackage) {
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+/** Resolved paracosm version from package.json (for docs header and API responses). */
+const PARACOSM_VERSION: string = (() => {
+  try {
+    const pkgPath = resolve(__dirname, '..', '..', 'package.json');
+    const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8')) as { version?: string };
+    return pkg.version || 'unknown';
+  } catch {
+    return 'unknown';
+  }
+})();
+
 // ---------------------------------------------------------------------------
 // IP rate limiter: max simulations per IP per day
 // ---------------------------------------------------------------------------
@@ -695,7 +706,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
     </a>
     <a href="https://agentos.sh" target="_blank" rel="noopener" class="pdh-tag">AGENTOS</a>
     <span class="pdh-sep">|</span>
-    <span class="pdh-current">API Reference v0.1.0</span>
+    <span class="pdh-current">API Reference v${PARACOSM_VERSION}</span>
   </div>
   <div class="pdh-right">
     <a href="/">Home</a>
