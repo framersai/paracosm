@@ -1,142 +1,137 @@
 import type { CellSnapshot } from './viz-types';
-import { RANK_SIZES } from './viz-types';
 
 /**
- * Hex grid cellular automata layout.
- * Each colonist occupies a discrete hex cell. No physics. No movement.
- * Growth patterns emerge from births filling adjacent cells.
+ * Conway's Game of Life style square grid.
+ * Fixed grid of square cells. Alive colonists fill cells.
+ * Empty cells are dark. Department color determines cell color.
+ * Growth patterns emerge naturally from placement: births fill
+ * adjacent empty cells near parents. Deaths leave gaps.
  */
 
-export interface HexCell {
+export interface GridCell {
   /** Grid column */
   col: number;
   /** Grid row */
   row: number;
-  /** Pixel center x */
+  /** Pixel top-left x */
   px: number;
-  /** Pixel center y */
+  /** Pixel top-left y */
   py: number;
   /** Colonist occupying this cell, or null if empty */
   occupant: CellSnapshot | null;
-  /** Department of occupant (for coloring empty neighbor cells faintly) */
-  department: string | null;
 }
 
-export interface HexGrid {
-  cells: HexCell[];
-  cellSize: number;
+export interface SquareGrid {
+  cells: GridCell[];
+  cellPx: number;
+  gap: number;
   cols: number;
   rows: number;
+  totalW: number;
+  totalH: number;
+  offsetX: number;
+  offsetY: number;
 }
 
 /**
- * Compute hex cell pixel position from grid coordinates.
- * Odd rows are offset right by half a cell (pointy-top hex grid).
- */
-function hexToPixel(col: number, row: number, size: number, offsetX: number, offsetY: number): { x: number; y: number } {
-  const w = size * 2;
-  const h = Math.sqrt(3) * size;
-  const x = offsetX + col * w * 0.75;
-  const y = offsetY + row * h + (col % 2 === 1 ? h / 2 : 0);
-  return { x, y };
-}
-
-/**
- * Build a hex grid that fills the canvas, then place colonists into cells.
+ * Build a square grid and place colonists into cells.
  *
  * Colonists are grouped by department. Each department fills a contiguous
- * region of the grid. The grid is divided into horizontal bands, one per
- * department, and colonists fill cells left-to-right within their band.
- * Empty cells remain as dim outlines, creating the CA visual pattern.
+ * rectangular block. Blocks are arranged left-to-right, top-to-bottom.
+ * Within each block, colonists fill row by row. Empty cells in the block
+ * stay as dark squares, creating the CA visual: occupied = alive, empty = dead.
  */
-export function buildHexGrid(
+export function buildSquareGrid(
   cells: CellSnapshot[],
   width: number,
   height: number,
-): HexGrid {
-  // Cell size adapts to canvas and population
-  const totalAlive = cells.filter(c => c.alive).length;
-  const cellSize = Math.max(5, Math.min(10, Math.sqrt((width * height) / Math.max(totalAlive * 8, 100))));
+): SquareGrid {
+  const alive = cells.filter(c => c.alive);
+  const total = alive.length;
 
-  const hexW = cellSize * 2;
-  const hexH = Math.sqrt(3) * cellSize;
-  const cols = Math.floor((width - cellSize) / (hexW * 0.75)) + 1;
-  const rows = Math.floor((height - cellSize) / hexH);
+  // Cell size: fit the grid into the canvas with some padding
+  // Target ~60-80% fill so empty cells are visible
+  const targetCells = Math.max(total * 1.4, 64);
+  const aspect = width / height;
+  const cols = Math.max(8, Math.round(Math.sqrt(targetCells * aspect)));
+  const rows = Math.max(6, Math.ceil(targetCells / cols));
 
-  const padX = (width - (cols - 1) * hexW * 0.75) / 2;
-  const padY = (height - rows * hexH) / 2;
+  const gap = 1;
+  const cellPx = Math.floor(Math.min(
+    (width - 20) / cols - gap,
+    (height - 20) / rows - gap,
+  ));
+  const clampedCell = Math.max(4, Math.min(16, cellPx));
+
+  const totalW = cols * (clampedCell + gap) - gap;
+  const totalH = rows * (clampedCell + gap) - gap;
+  const offsetX = Math.floor((width - totalW) / 2);
+  const offsetY = Math.floor((height - totalH) / 2);
 
   // Build empty grid
-  const grid: HexCell[] = [];
-  for (let c = 0; c < cols; c++) {
-    for (let r = 0; r < rows; r++) {
-      const { x, y } = hexToPixel(c, r, cellSize, padX + cellSize, padY + cellSize);
-      grid.push({ col: c, row: r, px: x, py: y, occupant: null, department: null });
+  const grid: GridCell[] = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      grid.push({
+        col: c,
+        row: r,
+        px: offsetX + c * (clampedCell + gap),
+        py: offsetY + r * (clampedCell + gap),
+        occupant: null,
+      });
     }
   }
 
   // Group alive colonists by department
-  const departments = [...new Set(cells.filter(c => c.alive).map(c => c.department))];
+  const departments = [...new Set(alive.map(c => c.department))];
   const byDept: Record<string, CellSnapshot[]> = {};
-  for (const c of cells) {
-    if (!c.alive) continue;
+  for (const c of alive) {
     if (!byDept[c.department]) byDept[c.department] = [];
     byDept[c.department].push(c);
   }
 
-  // Assign department bands: divide grid rows among departments
-  const deptCount = departments.length || 1;
-  const rowsPerDept = Math.floor(rows / deptCount);
+  // Sort departments by size (largest first) for better visual weight
+  departments.sort((a, b) => (byDept[b]?.length || 0) - (byDept[a]?.length || 0));
 
-  let placed = 0;
-  for (let di = 0; di < departments.length; di++) {
-    const dept = departments[di];
+  // Place each department as a contiguous block.
+  // Fill row by row, starting from the current cursor position.
+  // Leave gaps between departments for visual separation.
+  let cursor = 0;
+  for (const dept of departments) {
     const deptCells = byDept[dept] || [];
-    const startRow = di * rowsPerDept;
-    const endRow = di === departments.length - 1 ? rows : (di + 1) * rowsPerDept;
 
-    // Sort colonists: chiefs first (larger), then by rank
+    // Sort within department: chiefs first, then leads, seniors, juniors
     const rankOrder: Record<string, number> = { chief: 0, lead: 1, senior: 2, junior: 3 };
     deptCells.sort((a, b) => (rankOrder[a.rank] ?? 3) - (rankOrder[b.rank] ?? 3));
 
-    let ci = 0;
-    for (let r = startRow; r < endRow && ci < deptCells.length; r++) {
-      for (let c = 0; c < cols && ci < deptCells.length; c++) {
-        const idx = c * rows + r; // column-major to fill within band
-        if (idx < grid.length) {
-          grid[idx].occupant = deptCells[ci];
-          grid[idx].department = dept;
-          ci++;
-          placed++;
-        }
+    for (const colonist of deptCells) {
+      if (cursor < grid.length) {
+        grid[cursor].occupant = colonist;
+        cursor++;
       }
     }
 
-    // Mark remaining cells in band as belonging to department (for dim outlines)
-    for (let r = startRow; r < endRow; r++) {
-      for (let c = 0; c < cols; c++) {
-        const idx = c * rows + r;
-        if (idx < grid.length && !grid[idx].department) {
-          grid[idx].department = dept;
-        }
-      }
-    }
+    // Add a small gap after each department (skip 2-3 cells)
+    // but only if we're not at the end
+    const gapSize = Math.max(1, Math.floor(cols * 0.15));
+    cursor += gapSize;
+    // Snap to next row start if close to end of row
+    const colPos = cursor % cols;
+    if (colPos > 0 && colPos < 3) cursor += (cols - colPos);
   }
 
-  return { cells: grid, cellSize, cols, rows };
+  return { cells: grid, cellPx: clampedCell, gap, cols, rows, totalW, totalH, offsetX, offsetY };
 }
 
 /**
- * Hit-test: find which hex cell is under the given pixel point.
+ * Hit-test: find which grid cell is under the given pixel point.
  * Returns the occupant's agentId or null.
  */
-export function hexHitTest(grid: HexGrid, x: number, y: number): string | null {
-  const threshold = grid.cellSize * 1.2;
+export function gridHitTest(grid: SquareGrid, x: number, y: number): string | null {
+  const size = grid.cellPx;
   for (const cell of grid.cells) {
     if (!cell.occupant) continue;
-    const dx = cell.px - x;
-    const dy = cell.py - y;
-    if (dx * dx + dy * dy < threshold * threshold) {
+    if (x >= cell.px && x < cell.px + size && y >= cell.py && y < cell.py + size) {
       return cell.occupant.agentId;
     }
   }

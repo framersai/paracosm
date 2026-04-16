@@ -1,8 +1,7 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
 import type { TurnSnapshot } from './viz-types';
-import { buildHexGrid, hexHitTest, type HexGrid } from './ForceLayout';
-import { renderHexGrid, drawLegend } from './CellRenderer';
-import { GlowRenderer } from './GlowRenderer';
+import { buildSquareGrid, gridHitTest, type SquareGrid } from './ForceLayout';
+import { renderSquareGrid, drawLegend } from './CellRenderer';
 import { renderMetricOverlay } from './MetricOverlay';
 import { CellDetail } from './CellDetail';
 
@@ -16,9 +15,7 @@ interface ColonyCanvasProps {
 export function ColonyCanvas({ snapshots, currentTurn, leaderName, leaderArchetype }: ColonyCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const glCanvasRef = useRef<HTMLCanvasElement>(null);
-  const gridRef = useRef<HexGrid | null>(null);
-  const glowRef = useRef<GlowRenderer | null>(null);
+  const gridRef = useRef<SquareGrid | null>(null);
   const animRef = useRef<number>(0);
 
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -26,31 +23,17 @@ export function ColonyCanvas({ snapshots, currentTurn, leaderName, leaderArchety
 
   const snap = snapshots[currentTurn];
 
-  // Initialize WebGL glow renderer
-  useEffect(() => {
-    if (glCanvasRef.current && !glowRef.current) {
-      const glow = new GlowRenderer();
-      glow.init(glCanvasRef.current);
-      glowRef.current = glow;
-    }
-    return () => {
-      glowRef.current?.dispose();
-      glowRef.current = null;
-    };
-  }, []);
-
-  // Rebuild hex grid when turn or canvas size changes
+  // Rebuild grid when turn changes
   useEffect(() => {
     if (!snap || !containerRef.current) return;
     const w = containerRef.current.clientWidth;
-    const h = containerRef.current.clientHeight - 40; // header + footer
-    gridRef.current = buildHexGrid(snap.cells, w, h);
+    const h = containerRef.current.clientHeight - 40;
+    gridRef.current = buildSquareGrid(snap.cells, w, h);
   }, [snap, currentTurn]);
 
-  // Render loop (no physics, just redraw for hover/focus state + glow animation)
+  // Render loop (redraws for hover/focus state + featured pulse animation)
   useEffect(() => {
     const canvas = canvasRef.current;
-    const glCanvas = glCanvasRef.current;
     if (!canvas || !containerRef.current) return;
 
     const ctx = canvas.getContext('2d')!;
@@ -63,7 +46,6 @@ export function ColonyCanvas({ snapshots, currentTurn, leaderName, leaderArchety
       const h = container.clientHeight - 40;
       canvas.width = w;
       canvas.height = h;
-      if (glCanvas) { glCanvas.width = w; glCanvas.height = h; }
 
       const grid = gridRef.current;
       if (!grid || !snap) {
@@ -71,33 +53,9 @@ export function ColonyCanvas({ snapshots, currentTurn, leaderName, leaderArchety
         return;
       }
 
-      // WebGL glow layer (renders behind Canvas2D)
-      // Build fake ForceNodes from grid for glow renderer compatibility
-      const glowNodes = grid.cells
-        .filter(c => c.occupant && c.occupant.alive && c.occupant.psychScore > 0.3)
-        .map(c => ({
-          id: c.occupant!.agentId,
-          x: c.px, y: c.py,
-          vx: 0, vy: 0, prevX: c.px, prevY: c.py,
-          department: c.occupant!.department,
-          rank: c.occupant!.rank,
-          alive: true,
-          marsborn: c.occupant!.marsborn,
-          psychScore: c.occupant!.psychScore,
-          partnerId: c.occupant!.partnerId,
-          childrenIds: c.occupant!.childrenIds,
-          featured: c.occupant!.featured,
-          mood: c.occupant!.mood,
-        }));
-      glowRef.current?.render(glowNodes, w, h);
-
-      // Hex grid
-      renderHexGrid(ctx, grid, w, h, { focusedId, hoveredId });
-
-      // Metric overlay
+      renderSquareGrid(ctx, grid, w, h, { focusedId, hoveredId });
       renderMetricOverlay(ctx, snapshots, currentTurn, w, h);
 
-      // Legend (bottom-right)
       const depts = [...new Set(snap.cells.filter(c => c.alive).map(c => c.department))];
       drawLegend(ctx, depts, w, h);
 
@@ -114,7 +72,7 @@ export function ColonyCanvas({ snapshots, currentTurn, leaderName, leaderArchety
     if (!rect || !gridRef.current) return;
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    setHoveredId(hexHitTest(gridRef.current, x, y));
+    setHoveredId(gridHitTest(gridRef.current, x, y));
   }, []);
 
   const handleClick = useCallback((e: React.MouseEvent) => {
@@ -122,7 +80,7 @@ export function ColonyCanvas({ snapshots, currentTurn, leaderName, leaderArchety
     if (!rect || !gridRef.current) return;
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    const hit = hexHitTest(gridRef.current, x, y);
+    const hit = gridHitTest(gridRef.current, x, y);
     setFocusedId(prev => prev === hit ? null : hit);
   }, []);
 
@@ -148,7 +106,6 @@ export function ColonyCanvas({ snapshots, currentTurn, leaderName, leaderArchety
       onKeyDown={handleKeyDown}
       tabIndex={0}
     >
-      {/* Header */}
       <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--rust)', letterSpacing: '.08em' }}>
           {leaderName.toUpperCase()}
@@ -156,12 +113,7 @@ export function ColonyCanvas({ snapshots, currentTurn, leaderName, leaderArchety
         <div style={{ fontSize: 10, color: 'var(--text-3)' }}>{leaderArchetype}</div>
       </div>
 
-      {/* Canvas stack */}
       <div style={{ position: 'relative', flex: 1 }}>
-        <canvas
-          ref={glCanvasRef}
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
-        />
         <canvas
           ref={canvasRef}
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', cursor: hoveredId ? 'pointer' : 'default' }}
@@ -170,13 +122,11 @@ export function ColonyCanvas({ snapshots, currentTurn, leaderName, leaderArchety
           onClick={handleClick}
         />
 
-        {/* Detail panel (replaces tooltip) */}
         {focusedCell && (
           <CellDetail cell={focusedCell} snapshots={snapshots} onClose={() => setFocusedId(null)} />
         )}
       </div>
 
-      {/* Footer stats */}
       {snap && (
         <div style={{
           display: 'flex', justifyContent: 'space-between',
