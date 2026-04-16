@@ -35,12 +35,16 @@ const TITLE_COLORS: Record<ToastMessage['type'], string> = {
   'crisis-b': 'var(--eng, #4ca8a8)',
 };
 
+// Theme-aware backgrounds: layer a faint accent tint on the current
+// theme's bg-card so the toast contrasts with the page in both dark
+// AND light modes. The earlier hardcoded near-black hex values were
+// invisible on the light theme (dark box on cream page).
 const BG_TINTS: Record<ToastMessage['type'], string> = {
-  info: '#1a1610',
-  error: '#1a1210',
-  success: '#121a10',
-  'crisis-a': '#1a1610',
-  'crisis-b': '#101a18',
+  info: 'color-mix(in srgb, var(--amber) 8%, var(--bg-card))',
+  error: 'color-mix(in srgb, var(--rust) 8%, var(--bg-card))',
+  success: 'color-mix(in srgb, var(--green) 8%, var(--bg-card))',
+  'crisis-a': 'color-mix(in srgb, var(--vis, #e8b44a) 8%, var(--bg-card))',
+  'crisis-b': 'color-mix(in srgb, var(--eng, #4ca8a8) 8%, var(--bg-card))',
 };
 
 export function ToastProvider({ children }: { children: ReactNode }) {
@@ -79,7 +83,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               border: `1px solid ${BORDER_COLORS[t.type]}`,
               borderLeft: `3px solid ${BORDER_COLORS[t.type]}`,
               color: 'var(--text-1)',
-              boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+              // Soft elevation that works on both themes (same shadow opacity
+              // reads as a subtle drop on cream, a deeper one on near-black).
+              boxShadow: 'var(--card-shadow, 0 4px 16px rgba(0,0,0,0.18))',
               animation: 'slideIn 0.3s ease',
               position: 'relative',
             }}
