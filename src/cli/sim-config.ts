@@ -99,18 +99,37 @@ export const DEFAULT_KEY_PERSONNEL: KeyPersonnel[] = [
   { name: 'Carlos Fernandez', department: 'science', role: 'Chief Scientist', specialization: 'Geology', age: 50, featured: true },
 ];
 
+/**
+ * Default model assignments per provider.
+ *
+ * Cost note: the judge runs on EVERY forge call (department × event × turn),
+ * easily 60+ calls in a typical 6-turn, 5-department run. Defaulting the
+ * judge to the flagship model (sonnet / gpt-5.4) was the single biggest
+ * contributor to per-simulation cost. The judge does code review over a
+ * short, highly-structured prompt that the cheap/fast tier handles well, so
+ * it now defaults to haiku/mini. Override via `models.judge` if you need
+ * stricter review (e.g. adversarial forges).
+ *
+ * Similarly `agentReactions` defaults to the cheap tier because it fans out
+ * to ~100 parallel calls per turn.
+ *
+ * Commander / departments / director stay on the flagship model because
+ * their output directly shapes the simulation's narrative and determinism.
+ */
 export const DEFAULT_MODELS: Record<LlmProvider, SimulationModelConfig> = {
   openai: {
     commander: 'gpt-5.4',
     departments: 'gpt-5.4',
-    judge: 'gpt-5.4',
+    // Code review on short structured prompts. Cheap tier is sufficient.
+    judge: 'gpt-4o-mini',
     director: 'gpt-5.4',
     agentReactions: 'gpt-4o-mini',
   },
   anthropic: {
     commander: 'claude-sonnet-4-6',
     departments: 'claude-sonnet-4-6',
-    judge: 'claude-sonnet-4-6',
+    // Code review on short structured prompts. Cheap tier is sufficient.
+    judge: 'claude-haiku-4-5-20251001',
     director: 'claude-sonnet-4-6',
     agentReactions: 'claude-haiku-4-5-20251001',
   },

@@ -155,6 +155,19 @@ npm run compile -- scenarios/submarine.json \
 
 Options: `--seed-text`, `--seed-url`, `--no-web-search`, `--max-searches`. Compiled scenarios appear in the dashboard selector. Cost is roughly $0.10 per compile, cached to disk after first generation.
 
+## Cost Envelope
+
+Running a simulation calls real LLM APIs against your key. Typical spend per run on provider defaults (6 turns, 5 departments, 100 agents, up to 3 events per turn):
+
+| Provider | Commander / Departments / Director | Judge | Reactions | Per-run total |
+|----------|-------------------------------------|-------|-----------|---------------|
+| OpenAI   | `gpt-5.4`              | `gpt-4o-mini`              | `gpt-4o-mini`              | ~$1-3  |
+| Anthropic| `claude-sonnet-4-6`    | `claude-haiku-4-5-20251001`| `claude-haiku-4-5-20251001`| ~$3-7  |
+
+The single biggest lever is the judge model — it runs once per forge attempt (easily 60+ calls per 6-turn run) so keeping it on the cheap tier is what makes the run affordable. Running the judge on a flagship model triples the total.
+
+The orchestrator's `runSimulation()` returns a `cost` field with token counts, LLM call counts, and USD spend aggregated from every tracked call (director, departments, commander, judge, agent reactions). The dashboard StatsBar shows this live.
+
 ## Seed Enrichment & Citation Flow
 
 Pass real-world source material into the compiler and Paracosm grounds the scenario in citations that flow all the way through to department reports.

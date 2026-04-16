@@ -343,6 +343,12 @@ export class EventDirector {
   /**
    * Generate 1 to maxEvents events for a turn.
    * Falls back to single-event generation if batch parsing fails.
+   *
+   * @param onUsage Optional callback invoked with the director's LLM
+   *        response so the orchestrator can account for director spend in
+   *        its cost telemetry. Director runs once per turn on the flagship
+   *        model; without this hook the call was invisible to the per-run
+   *        `cost` object returned by `runSimulation()`.
    */
   async generateEventBatch(
     ctx: DirectorContext,
@@ -350,6 +356,7 @@ export class EventDirector {
     provider: LlmProvider = 'openai',
     model: string = 'gpt-5.4',
     instructions?: string,
+    onUsage?: (result: { usage?: { totalTokens?: number; promptTokens?: number; completionTokens?: number; costUSD?: number } }) => void,
   ): Promise<DirectorEventBatch> {
     const prompt = buildDirectorPrompt(ctx, maxEvents);
     const systemInstructions = (instructions || DEFAULT_DIRECTOR_INSTRUCTIONS)
@@ -358,6 +365,7 @@ export class EventDirector {
     try {
       const { generateText } = await import('@framers/agentos');
       const result = await generateText({ provider, model, prompt: systemInstructions + '\n\n' + prompt });
+      onUsage?.(result);
 
       const batch = parseBatchResponse(result.text);
       if (batch && batch.events.length > 0) {

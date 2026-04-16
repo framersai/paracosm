@@ -97,14 +97,35 @@ const webSearchTool: ITool = {
 // Emergent engine
 // ---------------------------------------------------------------------------
 
+/**
+ * Create the emergent capability engine wired to AgentOS's forge + judge.
+ *
+ * @param toolMap Registry of built-in tools (web_search, etc.) that forged
+ *        tools can compose against via the ComposableToolBuilder.
+ * @param provider LLM provider for judge calls (openai | anthropic).
+ * @param judgeModel Model ID used for judge reviews. Kept cheap by default
+ *        in sim-config.ts — the judge runs once per forge (dozens per run)
+ *        so flagship-model pricing here dominates total cost.
+ * @param execution Runtime limits (sandbox timeout / memory).
+ * @param onUsage Optional callback invoked after every judge LLM call so the
+ *        orchestrator can fold judge spend into the run-wide cost telemetry.
+ *        Without this, judge costs (often 30-50% of total run spend) were
+ *        silently invisible to `runSimulation()`'s returned `cost` object
+ *        even though the API bill against the provider was still real.
+ */
 function createEmergentEngine(
   toolMap: Map<string, ITool>,
   provider: LlmProvider,
   judgeModel: string,
   execution: Partial<SimulationExecutionConfig> = {},
+  onUsage?: (result: { usage?: { totalTokens?: number; promptTokens?: number; completionTokens?: number; costUSD?: number } }) => void,
 ) {
   const llmCb = async (model: string, prompt: string) => {
     const r = await generateText({ provider, model: model || judgeModel, prompt });
+    // Forward usage to the run-wide tracker. Judge calls were previously
+    // silently unaccounted, producing cost totals that looked like $0.25
+    // while the real bill was $5-8 per run on Anthropic defaults.
+    onUsage?.(r);
     return r.text;
   };
   const registry = new EmergentToolRegistry();
@@ -474,7 +495,16 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
 
   const toolMap = new Map<string, ITool>();
   toolMap.set('web_search', webSearchTool);
-  const { engine, forgeTool } = createEmergentEngine(toolMap, provider, modelConfig.judge, opts.execution);
+  const { engine, forgeTool } = createEmergentEngine(
+    toolMap,
+    provider,
+    modelConfig.judge,
+    opts.execution,
+    // Forward judge-call usage into the run-wide cost tracker. Without this,
+    // every forge review (often 30-50% of total API spend) was invisible to
+    // the `cost` field returned from runSimulation().
+    trackUsage,
+  );
   const toolRegs: Record<string, string[]> = {};
 
   /**
@@ -771,7 +801,16 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
       };
       emit('turn_start', { turn, year, title: 'Director generating...', crisis: '', births: 0, deaths: 0, colony: preState.colony });
       const dirInstructions = sc.hooks.directorInstructions?.();
-      const batch = await director.generateEventBatch(dirCtx, maxEvents, provider, modelConfig.director, dirInstructions);
+      const batch = await director.generateEventBatch(
+        dirCtx,
+        maxEvents,
+        provider,
+        modelConfig.director,
+        dirInstructions,
+        // Fold director spend into the run-wide cost tracker. One flagship
+        // call per turn that was previously unaccounted.
+        trackUsage,
+      );
       turnEvents = batch.events;
       batchPacing = batch.pacing;
     }
@@ -1231,7 +1270,16 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
     try {
       reactions = await generateAgentReactions(
         kernel.getState().agents, reactionCtx,
-        { provider, model: modelConfig.agentReactions || 'gpt-4o-mini', maxConcurrent: 25, reactionContextHook: sc.hooks.reactionContextHook },
+        {
+          provider,
+          model: modelConfig.agentReactions || 'gpt-4o-mini',
+          maxConcurrent: 25,
+          reactionContextHook: sc.hooks.reactionContextHook,
+          // Fold reaction usage into run-wide cost tracking. With ~100 agents
+          // per turn, these calls were a large untracked line item on the
+          // real API bill.
+          onUsage: trackUsage,
+        },
       );
       if (reactions.length) {
         const agentMap = new Map(kernel.getState().agents.map(c => [c.core.id, c]));

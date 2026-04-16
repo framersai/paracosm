@@ -5,7 +5,15 @@
  * reactions from each agent based on their personality, role, health,
  * and the crisis outcome. All calls run in parallel via Promise.all.
  *
- * Cost: ~$0.00006 per agent per turn. 100 agents x 12 turns = $0.14 total.
+ * Cost envelope (rough, varies with model and prompt size):
+ *   gpt-4o-mini:      ~$0.0002 per agent per turn
+ *   claude-haiku-4-5: ~$0.004  per agent per turn
+ *
+ * 100 agents × 6 turns × ~2 events/turn = 1,200 calls. On haiku that is
+ * roughly $4-5 per run just for reactions, so this is treated as first-class
+ * cost telemetry and fed into `runSimulation()`'s `cost` tracker via the
+ * `onUsage` option below. Lower by reducing maxConcurrent, turns, or events,
+ * or by switching to a smaller model.
  */
 
 import { generateText, extractJson } from '@framers/agentos';
@@ -118,12 +126,25 @@ function parseReaction(text: string, c: Agent, year: number): AgentReaction | nu
 
 /**
  * Generate reactions from all alive agents in parallel.
- * Uses cheap model (gpt-4o-mini) for cost efficiency.
+ * Uses cheap model (gpt-4o-mini / haiku) for cost efficiency.
+ *
+ * @param options.onUsage Optional callback invoked after every reaction LLM
+ *        call. Lets the orchestrator fold agent-reaction spend (~100 calls
+ *        per turn × however many turns) into the run-wide cost telemetry.
+ *        Without this, reaction costs on Anthropic haiku (~$0.004/call)
+ *        silently disappeared from `runSimulation().cost` even though the
+ *        real API bill was accumulating.
  */
 export async function generateAgentReactions(
   agents: Agent[],
   ctx: ReactionContext,
-  options: { provider?: string; model?: string; maxConcurrent?: number; reactionContextHook?: (agent: any, ctx: any) => string } = {},
+  options: {
+    provider?: string;
+    model?: string;
+    maxConcurrent?: number;
+    reactionContextHook?: (agent: any, ctx: any) => string;
+    onUsage?: (result: { usage?: { totalTokens?: number; promptTokens?: number; completionTokens?: number; costUSD?: number } }) => void;
+  } = {},
 ): Promise<AgentReaction[]> {
   const alive = agents.filter(c => c.health.alive);
   const provider = (options.provider || 'openai') as any;
@@ -142,6 +163,9 @@ export async function generateAgentReactions(
         try {
           const prompt = buildAgentPrompt(c, ctx, options.reactionContextHook);
           const result = await generateText({ provider, model, prompt });
+          // Report token usage back to the orchestrator so the cost
+          // telemetry reflects what was actually billed to the provider.
+          options.onUsage?.(result);
           return parseReaction(result.text, c, ctx.year);
         } catch {
           return null;

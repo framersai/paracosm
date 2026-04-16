@@ -146,7 +146,12 @@ export interface MarsServer extends Server {
 
 export function createMarsServer(options: CreateMarsServerOptions = {}): MarsServer {
   const env = options.env ?? process.env;
-  const maxSims = options.maxSimsPerDay ?? parseInt(env.RATE_LIMIT || '3', 10);
+  // Rate limit default: 2 simulations per IP per day. A single 6-turn run on
+  // Anthropic defaults can cost $5-8 in API fees against the owner's key, so
+  // a conservative default is safer than advertising "cheap demos." Override
+  // with RATE_LIMIT env var or maxSimsPerDay option when hosting on your own
+  // infrastructure.
+  const maxSims = options.maxSimsPerDay ?? parseInt(env.RATE_LIMIT || '2', 10);
   const adminWrite = (env.ADMIN_WRITE || 'false').toLowerCase() === 'true';
   const scenarioDir = options.scenarioDir ?? resolve(__dirname, '..', '..', 'scenarios');
   const rateLimiter = maxSims > 0 ? new IpRateLimiter(maxSims) : null;
