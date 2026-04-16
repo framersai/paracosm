@@ -92,10 +92,14 @@ export interface SnapshotDiff {
   diedIds: Set<string>;
 }
 
-export function computeSnapshotDiff(prev: TurnSnapshot | undefined, current: TurnSnapshot): SnapshotDiff {
+export function computeSnapshotDiff(prev: TurnSnapshot | undefined, current: TurnSnapshot | undefined): SnapshotDiff {
   const bornIds = new Set<string>();
   const diedIds = new Set<string>();
-  if (!prev) return { bornIds, diedIds };
+  // Two leaders may have completed different numbers of turns at any
+  // moment (e.g. A is on turn 5 while B is still finishing turn 4), so
+  // either side's snapshot can be undefined when the playhead is at the
+  // outer edge. Bail out gracefully instead of crashing on `.cells`.
+  if (!prev || !current) return { bornIds, diedIds };
 
   const prevAgents = new Map(prev.cells.map(c => [c.agentId, c]));
   const currAgents = new Map(current.cells.map(c => [c.agentId, c]));
@@ -112,11 +116,12 @@ export function computeSnapshotDiff(prev: TurnSnapshot | undefined, current: Tur
 }
 
 /** Compute divergence: cells that are alive in one timeline but dead in the other at same turn. */
-export function computeDivergence(snapsA: TurnSnapshot, snapsB: TurnSnapshot): { aliveOnlyA: Set<string>; aliveOnlyB: Set<string> } {
-  const aById = new Map(snapsA.cells.map(c => [c.agentId, c]));
-  const bById = new Map(snapsB.cells.map(c => [c.agentId, c]));
+export function computeDivergence(snapsA: TurnSnapshot | undefined, snapsB: TurnSnapshot | undefined): { aliveOnlyA: Set<string>; aliveOnlyB: Set<string> } {
   const aliveOnlyA = new Set<string>();
   const aliveOnlyB = new Set<string>();
+  if (!snapsA || !snapsB) return { aliveOnlyA, aliveOnlyB };
+  const aById = new Map(snapsA.cells.map(c => [c.agentId, c]));
+  const bById = new Map(snapsB.cells.map(c => [c.agentId, c]));
   for (const [id, c] of aById) {
     const b = bById.get(id);
     if (c.alive && (!b || !b.alive)) aliveOnlyA.add(id);
