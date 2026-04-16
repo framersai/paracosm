@@ -200,6 +200,7 @@ export function EventCard({ event, side }: EventCardProps) {
       }
 
       return (
+        <>
         <div style={{ margin: '0 8px 4px' }}>
           <div style={{
             padding: '8px 10px', borderRadius: '6px', fontSize: '11px',
@@ -367,6 +368,23 @@ export function EventCard({ event, side }: EventCardProps) {
                   }}>
                     {approved ? 'PASS' : 'FAIL'} {(t.confidence || 0.85).toFixed(2)}
                   </span>
+                  {/* Open the same ToolDetailModal that forge_attempt cards
+                      use, so dept_done summary tools are clickable too. */}
+                  <button
+                    type="button"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInspectingTool(t.name || ''); }}
+                    aria-label={`Inspect tool ${t.name || ''}`}
+                    style={{
+                      fontSize: 9, fontFamily: 'var(--mono)', fontWeight: 700,
+                      padding: '2px 6px', borderRadius: 3,
+                      border: '1px solid rgba(232,180,74,0.35)',
+                      background: 'rgba(232,180,74,0.06)',
+                      color: 'var(--amber)', cursor: 'pointer',
+                      letterSpacing: '0.05em', whiteSpace: 'nowrap', flexShrink: 0,
+                    }}
+                  >
+                    INSPECT
+                  </button>
                 </summary>
                 <div style={{ padding: '0 12px 8px', fontSize: '11px' }}>
                   {t.crisis && (
@@ -408,6 +426,14 @@ export function EventCard({ event, side }: EventCardProps) {
             );
           })}
         </div>
+        {inspectingTool && (
+          <ToolDetailModal
+            entry={toolRegistry.getEntry(inspectingTool)}
+            fallbackName={inspectingTool}
+            onClose={() => setInspectingTool(null)}
+          />
+        )}
+        </>
       );
     }
 

@@ -71,14 +71,16 @@ function AppContent() {
   }, []);
 
   const handleSave = useCallback(() => {
-    persistence.save(sse.events, sse.results);
-    toast('success', 'Saved', `${sse.events.length} events saved to file.`);
-  }, [sse.events, sse.results, persistence, toast]);
+    // Include verdict in the export so reload restores the end-of-sim
+    // judgment (previously dropped — saves looked incomplete on load).
+    persistence.save(sse.events, sse.results, sse.verdict);
+    toast('success', 'Saved', `${sse.events.length} events${sse.verdict ? ' + verdict' : ''} saved to file.`);
+  }, [sse.events, sse.results, sse.verdict, persistence, toast]);
 
   const handleLoad = useCallback(async () => {
     const data = await persistence.load();
     if (data) {
-      sse.loadEvents(data.events, data.results);
+      sse.loadEvents(data.events, data.results, data.verdict ?? null);
       toast('info', 'Loaded', `${data.events.length} events loaded.`);
       setActiveTab('sim');
     } else {

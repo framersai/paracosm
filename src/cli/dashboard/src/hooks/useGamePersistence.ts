@@ -9,18 +9,24 @@ interface GameData {
   config: Record<string, unknown> | null;
   events: SimEvent[];
   results: unknown[];
+  /** End-of-sim LLM verdict — was being silently dropped from saves before. */
+  verdict?: Record<string, unknown> | null;
   startedAt: string;
   completedAt: string | null;
+  /** Schema version so future loads can migrate older payloads. */
+  schemaVersion?: number;
 }
 
 export function useGamePersistence(scenarioShortName: string) {
-  const save = useCallback((events: SimEvent[], results: unknown[]) => {
+  const save = useCallback((events: SimEvent[], results: unknown[], verdict?: Record<string, unknown> | null) => {
     const data: GameData = {
       config: null,
       events,
       results,
+      verdict: verdict ?? null,
       startedAt: new Date().toISOString(),
       completedAt: new Date().toISOString(),
+      schemaVersion: 2,
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');

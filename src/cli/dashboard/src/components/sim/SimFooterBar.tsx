@@ -80,16 +80,85 @@ export function SimFooterBar({ citationRegistry, toolRegistry }: SimFooterBarPro
       </div>
 
       {open === 'refs' && (
-        <Modal title={`References · ${refsCount}`} onClose={close}>
+        <Modal
+          title={`References · ${refsCount}`}
+          onClose={close}
+          extraActions={
+            <ExportButton
+              label="EXPORT JSON"
+              filename="paracosm-references.json"
+              data={citationRegistry.list.map(e => ({
+                n: e.n,
+                text: e.text,
+                url: e.url,
+                doi: e.doi,
+                departments: [...e.departments],
+                sides: [...e.sides],
+              }))}
+            />
+          }
+        >
           <ReferencesList registry={citationRegistry} />
         </Modal>
       )}
       {open === 'tools' && (
-        <Modal title={`Forged Toolbox · ${toolsCount}`} onClose={close}>
+        <Modal
+          title={`Forged Toolbox · ${toolsCount}`}
+          onClose={close}
+          extraActions={
+            <ExportButton
+              label="EXPORT JSON"
+              filename="paracosm-toolbox.json"
+              data={toolRegistry.list.map(e => ({
+                n: e.n,
+                name: e.name,
+                description: e.description,
+                mode: e.mode,
+                firstForgedTurn: e.firstForgedTurn,
+                firstForgedDepartment: e.firstForgedDepartment,
+                departments: [...e.departments],
+                reuseCount: e.reuseCount,
+                approved: e.approved,
+                confidence: e.confidence,
+                inputSchema: e.inputSchema,
+                outputSchema: e.outputSchema,
+                sampleOutput: e.sampleOutput,
+                inputFields: e.inputFields,
+                outputFields: e.outputFields,
+              }))}
+            />
+          }
+        >
           <ToolboxSection registry={toolRegistry} title="" collapsible={false} />
         </Modal>
       )}
     </>
+  );
+}
+
+/** One-click JSON download button used inside modal headers. */
+function ExportButton({ label, filename, data }: { label: string; filename: string; data: unknown }) {
+  return (
+    <button
+      onClick={() => {
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(a.href);
+      }}
+      style={{
+        fontSize: 10, fontFamily: 'var(--mono)', fontWeight: 700,
+        padding: '4px 10px', borderRadius: 4,
+        border: '1px solid var(--border)',
+        background: 'var(--bg-card)',
+        color: 'var(--text-2)',
+        cursor: 'pointer', letterSpacing: '0.05em',
+      }}
+    >
+      {label}
+    </button>
   );
 }
 
@@ -133,8 +202,9 @@ function FooterCta({ label, count, onClick, ariaLabel }: { label: string; count:
 
 /**
  * Generic centered modal. Backdrop click and Esc both dismiss.
+ * `extraActions` slot in the header lets callers add buttons like Export.
  */
-function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+function Modal({ title, onClose, children, extraActions }: { title: string; onClose: () => void; children: ReactNode; extraActions?: ReactNode }) {
   return (
     <div
       role="dialog"
@@ -162,14 +232,15 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
           fontFamily: 'var(--sans)', color: 'var(--text-1)',
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexShrink: 0 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexShrink: 0, gap: 8 }}>
           <h2 style={{
             fontFamily: 'var(--mono)', fontSize: 14, fontWeight: 800,
             color: 'var(--amber)', letterSpacing: '0.06em',
-            textTransform: 'uppercase', margin: 0,
+            textTransform: 'uppercase', margin: 0, flex: 1, minWidth: 0,
           }}>
             {title}
           </h2>
+          {extraActions}
           <button
             onClick={onClose}
             aria-label="Close"
