@@ -27,9 +27,32 @@ export function useSSE() {
     isComplete: false,
   });
   const esRef = useRef<EventSource | null>(null);
+  // Dedupe set used by the connection effect. Lifted to a ref so reset()
+  // can clear it — otherwise the same events that we just nuked locally
+  // would be filtered out on the server's buffer replay (or its absence
+  // would still leave the set populated forever).
+  const seenEventKeysRef = useRef<Set<string>>(new Set());
 
-  const reset = useCallback(() => {
-    setState({ status: 'connecting', events: [], results: [], verdict: null, errors: [], isComplete: false });
+  /**
+   * Clear all client-side SSE state AND tell the server to drop its
+   * event buffer so the next reconnect doesn't replay the same events
+   * we just cleared. Status stays 'connected' because the EventSource
+   * itself is still open — we only nuke the data.
+   */
+  const reset = useCallback(async () => {
+    seenEventKeysRef.current.clear();
+    setState(prev => ({
+      // Preserve current connection status so the UI doesn't flash
+      // "Connecting..." just because the user pressed Clear.
+      status: prev.status,
+      events: [], results: [], verdict: null, errors: [], isComplete: false,
+    }));
+    try {
+      await fetch('/clear', { method: 'POST' });
+    } catch {
+      // Server unreachable — local state is still cleared so the user
+      // sees the empty state regardless.
+    }
   }, []);
 
   const loadEvents = useCallback((events: SimEvent[], results?: unknown[], verdict?: Record<string, unknown> | null) => {
@@ -54,10 +77,11 @@ export function useSSE() {
      * automatically. Backoff caps at 10s; reset on successful 'connected'.
      */
     let connectCount = 0;
+    // The dedupe set is owned by seenEventKeysRef so reset() can clear it.
     // Tracks event identity so we can dedupe across reconnects without
     // wiping state.events (which would lose the user's view of completed
     // simulations after a transient browser-managed reconnect).
-    const seenEventKeys = new Set<string>();
+    const seenEventKeys = seenEventKeysRef.current;
     const eventKey = (e: SimEvent): string =>
       `${e.type}|${e.leader || ''}|${e.turn ?? ''}|${(e.data?.eventIndex ?? '')}|${(e.data?.department ?? '')}|${(e.data?.title ?? '')}`;
 
