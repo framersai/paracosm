@@ -843,6 +843,17 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
       const depts = rawDepts.filter(d => validDepts.includes(d) && activeDepartments.has(d));
       if (!depts.length) depts.push(validDepts[0] || 'medical', validDepts[1] || 'engineering');
 
+      // Snapshot per-dept bucket lengths BEFORE this event's parallel
+      // dept calls run, so the eventForges tally below can slice only
+      // the forges added during this event. Without this, the tally
+      // accumulated cumulative forges every event (a turn-1 failed
+      // forge would be counted again on turns 2, 3, 4, 5 — inflating
+      // the morale + power penalty incorrectly each turn).
+      const eventBucketStarts = new Map<Department, number>();
+      for (const dept of depts) {
+        eventBucketStarts.set(dept, deptForgeBuckets.get(dept)?.length ?? 0);
+      }
+
       const scenario = {
         turn, year, title: event.title, crisis: event.description,
         researchKeywords: event.researchKeywords, snapshotHints: {} as any,
@@ -973,9 +984,11 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
             const seen = forgedLedger.get(t.name);
             const isNew = !seen;
             // Determine if THIS appearance was a fresh forge attempt by
-            // checking the captured-forge bucket: if the same dept fired
-            // a forge call for this name during this event, it's a re-forge.
-            const captureMatched = (deptForgeBuckets.get(dept) ?? []).some(c => c.name === t.name);
+            // checking only the slice of forges captured during the
+            // current LLM call (everything past forgeBucketStart). The
+            // earlier check scanned the whole bucket which would flag a
+            // turn-5 citation of a turn-1 forge as a re-forge.
+            const captureMatched = captured.some(c => c.name === t.name);
             if (!seen) {
               // Prefer schema from the captured forge call args. Fall back
               // to the EmergentToolRegistry lookup (also our schema source).
@@ -1064,16 +1077,15 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
       for (const r of reports) {
         allDepartmentReports.push({ turn, year, eventIndex: ei, eventTitle: event.title, report: r });
       }
-      // Pull captured forges for this event into the run-wide ledger.
+      // Pull THIS event's captured forges into the run-wide ledger.
+      // Use the per-dept eventBucketStarts snapshot instead of scanning
+      // the whole bucket and de-duping with .find() (was O(n²) and prone
+      // to missed matches when timestamps tied at sub-ms resolution).
       for (const dept of depts) {
         const bucket = deptForgeBuckets.get(dept) ?? [];
-        // Only the entries added during THIS event live in the bucket
-        // beyond the snapshotIdx — the per-dept loop above already used
-        // them. We re-derive the slice here for the run-wide log.
-        for (const forge of bucket) {
-          if (!allForges.find(f => f.timestamp === forge.timestamp && f.name === forge.name)) {
-            allForges.push({ ...forge, turn, year, eventIndex: ei });
-          }
+        const start = eventBucketStarts.get(dept) ?? 0;
+        for (const forge of bucket.slice(start)) {
+          allForges.push({ ...forge, turn, year, eventIndex: ei });
         }
       }
 
@@ -1131,33 +1143,40 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
         // Alignment kicker: choosing in line with personality boosts effect
         (isRiskyChoice ? (leader.hexaco.openness - 0.5) : (leader.hexaco.conscientiousness - 0.5)) * 0.10;
 
-      // Tool intelligence factor — tally what departments forged THIS event
+      // Tool intelligence factor — tally what departments forged THIS
+      // event (using the bucket snapshots taken before the dept calls)
       // and feed into the effect registry so emergent tools materially
       // affect outcomes. Reuses are nearly free; failed forges cost
-      // morale + power. Run-wide cumulative count gives a small log-scaled
-      // innovation bonus with diminishing returns.
+      // morale + power. Run-wide cumulative count gives a small
+      // log-scaled innovation bonus with diminishing returns.
       const eventForges = (() => {
-        let n = 0, reuse = 0, fail = 0;
-        const seenInEvent = new Set<string>();
+        let newCount = 0, reuseCount = 0, failCount = 0;
+        const newNamesThisEvent = new Set<string>();
         for (const dept of depts) {
           const bucket = deptForgeBuckets.get(dept) ?? [];
-          // Slice forges captured during this event (everything after the
-          // pre-send bucket length is "new this event").
-          // We can't easily know the pre-send length here without refactor,
-          // so use a conservative scan: count tools by name appearance.
-          for (const f of bucket) {
-            if (!f.approved) { fail++; continue; }
-            if (forgedLedger.has(f.name)) {
-              const ledgerEntry = forgedLedger.get(f.name)!;
-              if (ledgerEntry.firstForgedTurn === turn) {
-                if (!seenInEvent.has(f.name)) { n++; seenInEvent.add(f.name); }
-              } else {
-                reuse++;
-              }
+          const start = eventBucketStarts.get(dept) ?? 0;
+          // Forges added DURING this event only — slice past start.
+          const newForges = bucket.slice(start);
+          for (const f of newForges) {
+            if (!f.approved) { failCount++; continue; }
+            // First-time forges: name not seen before (firstForgedTurn === turn
+            // AND we haven't already counted it elsewhere this event).
+            const ledgerEntry = forgedLedger.get(f.name);
+            const isFirstUse = ledgerEntry?.firstForgedTurn === turn && !newNamesThisEvent.has(f.name);
+            if (isFirstUse) {
+              newCount++;
+              newNamesThisEvent.add(f.name);
+            } else {
+              reuseCount++;
             }
           }
         }
-        return { newToolsThisEvent: n, reuseCountThisEvent: reuse, forgeFailures: fail, totalToolsForRun: forgedLedger.size };
+        return {
+          newToolsThisEvent: newCount,
+          reuseCountThisEvent: reuseCount,
+          forgeFailures: failCount,
+          totalToolsForRun: forgedLedger.size,
+        };
       })();
 
       const colonyDeltas = effectRegistry.applyOutcome(event.category, outcome, {
