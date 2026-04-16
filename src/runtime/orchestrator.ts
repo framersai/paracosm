@@ -505,7 +505,11 @@ function decisionToPolicy(decision: CommanderDecision, reports: DepartmentReport
 // ---------------------------------------------------------------------------
 
 export type SimEvent = {
-  type: 'turn_start' | 'event_start' | 'dept_start' | 'dept_done' | 'forge_attempt' | 'commander_deciding' | 'commander_decided' | 'outcome' | 'drift' | 'agent_reactions' | 'bulletin' | 'turn_done' | 'promotion' | 'colony_snapshot' | 'provider_error';
+  type:
+    | 'turn_start' | 'event_start' | 'dept_start' | 'dept_done' | 'forge_attempt'
+    | 'commander_deciding' | 'commander_decided' | 'outcome' | 'drift'
+    | 'agent_reactions' | 'bulletin' | 'turn_done' | 'promotion'
+    | 'colony_snapshot' | 'provider_error' | 'sim_aborted';
   leader: string;
   turn?: number;
   year?: number;
@@ -528,6 +532,17 @@ export interface RunOptions {
   startingPolitics?: StartingPolitics;
   execution?: Partial<SimulationExecutionConfig>;
   scenario?: ScenarioPackage;
+  /**
+   * Cancellation signal. When `.aborted` flips to true, the turn loop
+   * short-circuits at the next turn boundary, emits a `sim_aborted`
+   * event, and returns the partial result accumulated so far.
+   *
+   * Server wires this to an AbortController that fires after a grace
+   * period of zero connected SSE clients, so a user who closes the tab
+   * or navigates away stops billing for new LLM calls while preserving
+   * the partial results they already accumulated in the event buffer.
+   */
+  signal?: AbortSignal;
 }
 
 export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPersonnel[], opts: RunOptions = {}) {
@@ -1002,8 +1017,36 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
   const deptMemory = new Map<Department, import('./departments.js').DepartmentTurnMemory[]>();
   const activeDepartments = new Set<Department>(opts.activeDepartments ?? sc.departments.map(d => d.id));
 
+  // Track whether the run was cancelled by an external AbortSignal so
+  // the final result object can carry an `aborted: true` flag and the
+  // dashboard can label the run "Unfinished" instead of "Complete".
+  // Distinct from provider-error abort (which is also terminal but has
+  // its own classified reason). External abort is typically "user
+  // navigated away and the server pulled the plug after the grace
+  // period" — not a failure of the sim, just an intentional cancel.
+  let externallyAborted = false;
+
   for (let turn = 1; turn <= maxTurns; turn++) {
     const year = yearSchedule[turn - 1] ?? (yearSchedule[yearSchedule.length - 1] + (turn - yearSchedule.length) * 5);
+
+    // ── External-abort gate ─────────────────────────────────────────
+    // Fired when opts.signal flips (client disconnected and grace
+    // period expired). Emits a single sim_aborted event and bails out
+    // of the turn loop — we do NOT continue emitting degraded turn_done
+    // stubs, because an external cancel is a clean stop, not a
+    // provider-errored skip. Partial results already in the event
+    // buffer stay intact so the user sees what was reached.
+    if (opts.signal?.aborted && !externallyAborted) {
+      externallyAborted = true;
+      emit('sim_aborted', {
+        turn, year,
+        reason: 'client_disconnected',
+        completedTurns: turn - 1,
+        colony: kernel.getState().colony,
+        toolsForged: Object.values(toolRegs).flat().length,
+      });
+      break;
+    }
 
     // ── Abort gate ───────────────────────────────────────────────────
     // If a terminal provider error was hit on a previous turn (or on the
@@ -1958,6 +2001,15 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
           }
         : null
     )(providerErrorState),
+    /**
+     * True when the run was cancelled by an external AbortSignal
+     * (typically: the server's cancel-on-disconnect watchdog fired
+     * because the user navigated away). Distinct from providerError:
+     * provider failures are classified and actionable, external aborts
+     * are clean stops. Both leave the sim incomplete; consumers should
+     * treat either as "partial results only."
+     */
+    aborted: externallyAborted,
     totalCitations: citationCatalog.length,
     totalToolsForged: forgedToolbox.length,
   };

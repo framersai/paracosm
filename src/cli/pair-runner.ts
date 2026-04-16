@@ -6,6 +6,15 @@ export type BroadcastFn = (event: string, data: unknown) => void;
 export async function runPairSimulations(
   simConfig: NormalizedSimulationConfig,
   broadcast: BroadcastFn,
+  /**
+   * Optional cancellation signal. When the server's disconnect watchdog
+   * trips (all SSE clients gone + grace period expired), it aborts this
+   * signal. Both leaders' runSimulation calls check it at turn
+   * boundaries and short-circuit cleanly, emitting a `sim_aborted`
+   * event and returning partial results. The event buffer is preserved
+   * so a returning user sees everything up to the cancel point.
+   */
+  signal?: AbortSignal,
 ): Promise<void> {
   const { leaders, turns, seed, startYear, liveSearch, customEvents } = simConfig;
   broadcast('status', { phase: 'starting', maxTurns: turns, customEvents });
@@ -42,6 +51,7 @@ export async function runPairSimulations(
       startingPolitics: simConfig.startingPolitics,
       execution: simConfig.execution,
       scenario: marsScenario,
+      signal,
     }).then(result => {
       broadcast('result', {
         leader: tag,
@@ -62,6 +72,18 @@ export async function runPairSimulations(
 
   // Generate final verdict comparing both leaders
   const settled = results.filter(r => r.status === 'fulfilled').map(r => (r as PromiseFulfilledResult<any>).value);
+
+  // Skip verdict generation when EITHER leader was cancelled externally
+  // (user navigated away → server pulled the plug) or hit a terminal
+  // provider error. Running the verdict LLM call on partial data would
+  // burn an extra flagship call for a comparison that doesn't mean
+  // anything on incomplete runs. The dashboard shows the "Unfinished"
+  // badge in place of the verdict card.
+  const anyAborted = settled.some(v => (v.result as any)?.aborted === true || (v.result as any)?.providerError);
+  if (anyAborted) {
+    broadcast('complete', { timestamp: new Date().toISOString(), aborted: true });
+    return;
+  }
 
   if (settled.length === 2) {
     try {
