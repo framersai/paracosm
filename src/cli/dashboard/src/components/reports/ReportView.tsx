@@ -1,6 +1,9 @@
 import { useMemo, useEffect, useRef } from 'react';
 import type { GameState } from '../../hooks/useGameState';
+import { useCitationContext } from '../../hooks/useCitationRegistry';
 import { Badge } from '../shared/Badge';
+import { CitationPills } from '../shared/CitationPills';
+import { ReferencesSection } from '../shared/ReferencesSection';
 import { VerdictCard } from '../sim/VerdictCard';
 
 interface ReportViewProps {
@@ -47,6 +50,7 @@ function getEventBlock(turn: TurnData, eventIndex: number, totalEvents: number):
 }
 
 export function ReportView({ state, verdict }: ReportViewProps) {
+  const citationRegistry = useCitationContext();
   const turns = useMemo(() => {
     const map: Record<number, { a: TurnData; b: TurnData }> = {};
 
@@ -157,6 +161,8 @@ export function ReportView({ state, verdict }: ReportViewProps) {
 
       {verdict && <VerdictCard verdict={verdict} />}
 
+      {/* Inline pills inside dept blocks point here; the full references
+          section anchors them via #cite-N for deep linking. */}
       {turns.map(([turnNum, sides]) => {
         const a = sides.a;
         const b = sides.b;
@@ -212,6 +218,12 @@ export function ReportView({ state, verdict }: ReportViewProps) {
           </div>
         );
       })}
+
+      {/* Single References section at the end of the report. Inline [N]
+          pills throughout the report deep-link here via #cite-N. */}
+      {citationRegistry.list.length > 0 && (
+        <ReferencesSection registry={citationRegistry} title="References" />
+      )}
     </div>
   );
 }
@@ -310,18 +322,9 @@ function EventSide({ block, eventIndex, totalEvents, name, sideColor }: {
                   <span style={{ fontSize: '10px', color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>{d.citations}c {d.tools}t</span>
                 </div>
                 {d.summary && <div style={{ color: 'var(--text-2)', lineHeight: 1.5, marginTop: '2px' }}>{d.summary}</div>}
-                {d.citationList.length > 0 && (
-                  <div style={{ marginTop: '4px' }}>
-                    {d.citationList.map((c, ci) => (
-                      <div key={ci} style={{ fontSize: '10px', marginTop: '2px' }}>
-                        <a href={c.url} target="_blank" rel="noopener" style={{ color: 'var(--amber)', textDecoration: 'underline', textUnderlineOffset: '2px' }}>
-                          {c.text}
-                        </a>
-                        {c.doi && <span style={{ marginLeft: '4px', fontFamily: 'var(--mono)', fontSize: '9px', color: 'var(--text-3)' }}>DOI:{c.doi}</span>}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                {/* Compact numbered pills — full sources live in the
+                    References section at the bottom of the report. */}
+                <CitationPills citations={d.citationList} label="" />
               </div>
             ))}
           </div>

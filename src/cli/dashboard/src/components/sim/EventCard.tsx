@@ -2,6 +2,7 @@ import type { ProcessedEvent, Side } from '../../hooks/useGameState';
 import { useScenarioContext } from '../../App';
 import { Badge } from '../shared/Badge';
 import { Tooltip } from '../shared/Tooltip';
+import { CitationPills } from '../shared/CitationPills';
 
 interface EventCardProps {
   event: ProcessedEvent;
@@ -155,19 +156,11 @@ export function EventCard({ event, side }: EventCardProps) {
               </div>
             )}
 
-            {/* Inline citations */}
-            {Array.isArray(dd.citationList) && (dd.citationList as Array<Record<string, string>>).length > 0 && (
-              <div style={{ marginTop: '4px', paddingTop: '4px', borderTop: '1px solid var(--border)' }}>
-                {(dd.citationList as Array<Record<string, string>>).map((c, i) => (
-                  <div key={i} style={{ fontSize: '10px', lineHeight: 1.4 }}>
-                    <a href={c.url} target="_blank" rel="noopener" style={{ color: 'var(--amber)', textDecoration: 'underline', textUnderlineOffset: '2px' }}>
-                      {c.text}
-                    </a>
-                    {c.doi && <span style={{ marginLeft: '4px', fontFamily: 'var(--mono)', fontSize: '9px', color: 'var(--text-4)' }}>DOI:{c.doi}</span>}
-                  </div>
-                ))}
-              </div>
-            )}
+            {/* Inline citations: compact [N] pills that link to the global
+                References section at the bottom of the report. Hover for the
+                full claim + DOI; the long-form list is shown only once at
+                the end so dept cards stay scannable. */}
+            <CitationPills citations={(dd.citationList as Array<Record<string, string>>) || []} />
           </div>
 
           {/* Tool forge cards with expandable detail */}

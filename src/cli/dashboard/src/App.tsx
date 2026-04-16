@@ -4,6 +4,7 @@ import { useScenario, type ScenarioClientPayload } from './hooks/useScenario';
 import { useSSE } from './hooks/useSSE';
 import { useGameState } from './hooks/useGameState';
 import { useGamePersistence } from './hooks/useGamePersistence';
+import { useCitationRegistry, CitationRegistryContext } from './hooks/useCitationRegistry';
 import { TopBar } from './components/layout/TopBar';
 import { TabBar } from './components/layout/TabBar';
 // Toolbar merged into TopBar
@@ -53,6 +54,7 @@ function AppContent() {
   const effectiveEvents = tourActive ? DEMO_EVENTS : sse.events;
   const effectiveComplete = tourActive ? true : sse.isComplete;
   const gameState = useGameState(effectiveEvents, effectiveComplete);
+  const citationRegistry = useCitationRegistry(gameState);
   const persistence = useGamePersistence(scenario.labels.shortName);
   const { toast } = useToast();
   const [activeTab, setActiveTabState] = useState<DashboardTab>(() => getDashboardTabFromHref(window.location.href));
@@ -251,6 +253,7 @@ function AppContent() {
   return (
     <DashboardNavigationContext.Provider value={setActiveTab}>
       <ScenarioContext.Provider value={scenario}>
+       <CitationRegistryContext.Provider value={citationRegistry}>
         <div className="flex flex-col h-screen w-screen overflow-hidden scanline-overlay" style={{ background: 'var(--bg-deep)', color: 'var(--text-1)' }}>
           <TopBar scenario={scenario} sse={sse} gameState={gameState} onSave={handleSave} onLoad={handleLoad} onClear={handleClear} onRun={handleRun} onTour={handleTourStart} onCopy={handleCopySummary} />
           <TabBar active={activeTab} onTabChange={setActiveTab} scenario={scenario} />
@@ -320,6 +323,7 @@ function AppContent() {
             />
           )}
         </div>
+       </CitationRegistryContext.Provider>
       </ScenarioContext.Provider>
     </DashboardNavigationContext.Provider>
   );
