@@ -129,7 +129,34 @@ function createEmergentEngine(
   return { engine, forgeTool: new ForgeToolMetaTool(engine) };
 }
 
-function wrapForgeTool(raw: ForgeToolMetaTool, agentId: string, sessionId: string, dept: string): ITool {
+/** Captured forge event — the ground-truth record of an actual forge call,
+ *  independent of whether the LLM remembered to self-report it in its JSON. */
+export interface CapturedForge {
+  name: string;
+  description: string;
+  mode: string;
+  inputSchema: unknown;
+  outputSchema: unknown;
+  approved: boolean;
+  confidence: number;
+  output: unknown;
+  errorReason?: string;
+  department: string;
+  /** Wall-clock ms timestamp so we can attribute forges to the surrounding event. */
+  timestamp: number;
+}
+
+function wrapForgeTool(
+  raw: ForgeToolMetaTool,
+  agentId: string,
+  sessionId: string,
+  dept: string,
+  /** Sink that receives every successful (and failed) forge attempt for
+   *  this dept. The orchestrator merges these into the SSE payload so the
+   *  count reflects reality even when the LLM forgets to mention the tool
+   *  in its own JSON response. */
+  capture: (record: CapturedForge) => void,
+): ITool {
   return {
     ...(raw as any),
     async execute(args: Record<string, unknown>, ctx: any) {
@@ -166,19 +193,54 @@ function wrapForgeTool(raw: ForgeToolMetaTool, agentId: string, sessionId: strin
         if (tc.expectedOutput === undefined) tc.expectedOutput = {};
       }
       const mode = (fixed.implementation as any)?.mode || '?';
-      console.log(`    🔧 [${dept}] Forging "${fixed.name}" (${mode})...`);
+      const toolName = String(fixed.name || 'unnamed');
+      const toolDescription = String((fixed as any).description || toolName);
+      console.log(`    🔧 [${dept}] Forging "${toolName}" (${mode})...`);
       const patched = { ...ctx, gmiId: agentId, sessionData: { ...(ctx?.sessionData ?? {}), sessionId } };
       try {
         const r = await raw.execute(fixed as any, patched);
+        const out = r.output as any;
+        const verdict = out?.verdict || {};
+        const confidence = typeof verdict.confidence === 'number' ? verdict.confidence : 0.85;
+        const errorReason = !r.success
+          ? String(r.error || verdict.reasoning || out?.error || '').slice(0, 240)
+          : undefined;
         if (r.success) {
-          console.log(`    🔧 [${dept}] ✓ "${fixed.name}" approved`);
+          console.log(`    🔧 [${dept}] ✓ "${toolName}" approved`);
         } else {
-          const reason = r.error || (r.output as any)?.verdict?.reasoning || (r.output as any)?.error || '';
-          console.log(`    🔧 [${dept}] ✗ "${fixed.name}" — ${String(reason).slice(0, 150)}`);
+          console.log(`    🔧 [${dept}] ✗ "${toolName}" — ${errorReason}`);
         }
+        // Always capture — both successes and failures count as evidence of
+        // emergent forging behavior. The UI distinguishes them via PASS/FAIL.
+        capture({
+          name: toolName,
+          description: toolDescription,
+          mode: String(mode),
+          inputSchema: fixed.inputSchema,
+          outputSchema: fixed.outputSchema,
+          approved: !!r.success,
+          confidence,
+          output: out?.testResults ?? out?.result ?? out ?? null,
+          errorReason,
+          department: dept,
+          timestamp: Date.now(),
+        });
         return r;
       } catch (err) {
         console.log(`    🔧 [${dept}] ERR: ${err}`);
+        capture({
+          name: toolName,
+          description: toolDescription,
+          mode: String(mode),
+          inputSchema: fixed.inputSchema,
+          outputSchema: fixed.outputSchema,
+          approved: false,
+          confidence: 0,
+          output: null,
+          errorReason: String(err).slice(0, 240),
+          department: dept,
+          timestamp: Date.now(),
+        });
         return { success: false, error: String(err) };
       }
     },
@@ -466,6 +528,18 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     }
   }
 
+  // Captured forge events keyed by department. Each `wrapForgeTool` push
+  // here on every successful or failed forge; we drain the dept's bucket
+  // around each `dept_done` emit to attribute forges to the right event.
+  // This is the source of truth — the LLM's self-reported `forgedToolsUsed`
+  // is supplementary because it frequently omits tools it actually forged.
+  const deptForgeBuckets = new Map<Department, CapturedForge[]>();
+  const captureForge = (dept: Department) => (record: CapturedForge) => {
+    const bucket = deptForgeBuckets.get(dept) ?? [];
+    bucket.push(record);
+    deptForgeBuckets.set(dept, bucket);
+  };
+
   // Create department agent sessions from promoted agents
   const deptAgents = new Map<Department, any>();
   const deptSess = new Map<Department, any>();
@@ -474,7 +548,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     const dept = p.promotion!.department;
     const cfg = sc.departments.find(c => c.id === dept);
     if (!cfg) continue;
-    const wrapped = wrapForgeTool(forgeTool, `${sid}-${dept}`, sid, dept);
+    const wrapped = wrapForgeTool(forgeTool, `${sid}-${dept}`, sid, dept, captureForge(dept));
     const tools: ITool[] = opts.liveSearch ? [webSearchTool, wrapped] : [wrapped];
     const a = agent({
       provider,
@@ -617,6 +691,11 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
         if (!sess) return emptyReport(dept);
         const ctx = buildDepartmentContext(dept, kernel.getState(), scenario, packet, deptMemory.get(dept), sc.hooks.departmentPromptHook);
         emit('dept_start', { turn, year, department: dept, eventIndex: ei });
+        // Snapshot the dept's forge bucket index BEFORE the LLM call so we
+        // can attribute new forges to this specific dept_done. The LLM
+        // self-reports `forgedToolsUsed` in JSON but frequently omits tools
+        // it actually forged — captured forges below are authoritative.
+        const forgeBucketStart = deptForgeBuckets.get(dept)?.length ?? 0;
         try {
           const r = await sess.send(ctx);
           trackUsage(r);
@@ -634,47 +713,125 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
               ...(f.doi ? { doi: f.doi } : {}),
             }));
           }
-          const validTools = report.forgedToolsUsed.filter(t => t && (t.name || t.description)).map(t => {
-            const rawOutput = t.output ? (typeof t.output === 'string' ? t.output : JSON.stringify(t.output)) : null;
+          // Drain the forges captured during THIS dept's send() — the
+          // ground-truth list of what actually got forged this event.
+          const bucket = deptForgeBuckets.get(dept) ?? [];
+          const captured = bucket.slice(forgeBucketStart);
+
+          // Build a map keyed by tool name. Captured entries (real forge
+          // events) take priority; LLM-reported entries (from JSON) fill
+          // in narrative output when the captured record lacks it.
+          const toolByName = new Map<string, {
+            name: string; description: string; mode: string;
+            confidence: number; output: unknown;
+            inputSchema: unknown; outputSchema: unknown;
+            approved: boolean; errorReason?: string;
+          }>();
+
+          for (const c of captured) {
+            toolByName.set(c.name, {
+              name: c.name,
+              description: c.description,
+              mode: c.mode,
+              confidence: c.confidence,
+              output: c.output,
+              inputSchema: c.inputSchema,
+              outputSchema: c.outputSchema,
+              approved: c.approved,
+              errorReason: c.errorReason,
+            });
+          }
+
+          // Supplementary: anything the LLM reported that we somehow
+          // didn't capture (rare, but covers edge cases like an LLM that
+          // pre-existing-tool reuse without re-invoking forge_tool).
+          for (const t of report.forgedToolsUsed || []) {
+            if (!t || (!t.name && !t.description)) continue;
+            const name = String(t.name || t.description || 'tool');
+            if (toolByName.has(name)) {
+              // Backfill output from LLM JSON if we have nothing better
+              const existing = toolByName.get(name)!;
+              if (!existing.output && t.output) existing.output = t.output;
+              continue;
+            }
+            toolByName.set(name, {
+              name,
+              description: String(t.description || humanizeToolName(name)),
+              mode: String(t.mode || 'sandbox'),
+              confidence: typeof t.confidence === 'number' ? t.confidence : 0.85,
+              output: t.output ?? null,
+              inputSchema: undefined,
+              outputSchema: undefined,
+              approved: true,
+            });
+          }
+
+          const validTools = [...toolByName.values()].map(t => {
+            const rawOutput = t.output != null
+              ? (typeof t.output === 'string' ? t.output : JSON.stringify(t.output))
+              : null;
+            // Derive a flat field list from the actual schema if we have
+            // one, falling back to keys parsed from the output payload.
             let inputFields: string[] = [], outputFields: string[] = [];
-            if (rawOutput) { try { const p = JSON.parse(rawOutput); if (p && typeof p === 'object') { const keys = Object.keys(p); const inKey = keys.find(k => ['inputs','input','parameters','params'].includes(k)); if (inKey && p[inKey] && typeof p[inKey] === 'object') { inputFields = Object.keys(p[inKey]); outputFields = keys.filter(k => k !== inKey); } else { outputFields = keys; } } } catch {} }
-            const toolName = t.name || t.description || 'tool';
+            const inProps = (t.inputSchema && typeof t.inputSchema === 'object' && (t.inputSchema as any).properties) || null;
+            const outProps = (t.outputSchema && typeof t.outputSchema === 'object' && (t.outputSchema as any).properties) || null;
+            if (inProps) inputFields = Object.keys(inProps as Record<string, unknown>);
+            if (outProps) outputFields = Object.keys(outProps as Record<string, unknown>);
+            if ((inputFields.length === 0 || outputFields.length === 0) && rawOutput) {
+              try {
+                const p = JSON.parse(rawOutput);
+                if (p && typeof p === 'object') {
+                  const keys = Object.keys(p);
+                  const inKey = keys.find(k => ['inputs','input','parameters','params'].includes(k));
+                  if (inKey && p[inKey] && typeof p[inKey] === 'object') {
+                    if (inputFields.length === 0) inputFields = Object.keys(p[inKey]);
+                    if (outputFields.length === 0) outputFields = keys.filter(k => k !== inKey);
+                  } else if (outputFields.length === 0) {
+                    outputFields = keys;
+                  }
+                }
+              } catch {}
+            }
+
             // First-forge tracking: a tool is "new" only on the turn it was
             // first seen in this simulation. All subsequent appearances are
             // reuses of the same forged capability.
-            const seen = forgedLedger.get(toolName);
+            const seen = forgedLedger.get(t.name);
             const isNew = !seen;
             if (!seen) {
-              // Try to pull the actual input/output JSON Schema from the
-              // emergent registry. Schemas are stable per tool, so attaching
-              // them on first-forge is enough — UI keys by tool name.
-              let inputSchema: unknown | undefined;
-              let outputSchema: unknown | undefined;
-              try {
-                const registered = (engine as any).registry?.get?.(toolName);
-                if (registered) {
-                  inputSchema = registered.inputSchema;
-                  outputSchema = registered.outputSchema;
-                }
-              } catch { /* schema lookup is best-effort */ }
-              forgedLedger.set(toolName, {
+              // Prefer schema from the captured forge call args. Fall back
+              // to the EmergentToolRegistry lookup (also our schema source).
+              let inputSchema: unknown | undefined = t.inputSchema;
+              let outputSchema: unknown | undefined = t.outputSchema;
+              if (!inputSchema || !outputSchema) {
+                try {
+                  const registered = (engine as any).registry?.get?.(t.name);
+                  if (registered) {
+                    if (!inputSchema) inputSchema = registered.inputSchema;
+                    if (!outputSchema) outputSchema = registered.outputSchema;
+                  }
+                } catch { /* best-effort */ }
+              }
+              forgedLedger.set(t.name, {
                 firstForgedTurn: turn,
                 firstForgedDepartment: dept,
                 inputSchema,
                 outputSchema,
               });
             }
-            const ledgerEntry = forgedLedger.get(toolName)!;
+            const ledgerEntry = forgedLedger.get(t.name)!;
             return {
-              name: toolName,
-              mode: t.mode || 'sandbox',
-              confidence: t.confidence ?? 0.85,
-              description: t.description || humanizeToolName(toolName),
+              name: t.name,
+              mode: t.mode,
+              confidence: t.confidence,
+              description: t.description,
               output: rawOutput?.slice(0, 400) || null,
               inputFields: inputFields.slice(0, 8),
               outputFields: outputFields.slice(0, 8),
               department: dept,
               crisis: event.title,
+              approved: t.approved,
+              errorReason: t.errorReason,
               // Provenance fields used by the UI to highlight emergent
               // first-forge events vs subsequent reuses.
               isNew,
@@ -685,7 +842,10 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
             };
           });
           emit('dept_done', { turn, year, department: dept, summary: report.summary, eventIndex: ei, citations: report.citations.length, citationList: report.citations.slice(0, 5).map(c => ({ text: c.text, url: c.url, doi: c.doi })), risks: report.risks, forgedTools: validTools, recommendedActions: report.recommendedActions?.slice(0, 2) });
-          if (report.forgedToolsUsed.length) { const names = report.forgedToolsUsed.map(t => t?.name || t?.description || 'unnamed').filter(Boolean); if (names.length) toolRegs[dept] = [...(toolRegs[dept] || []), ...names]; }
+          if (validTools.length) {
+            const names = validTools.map(t => t.name).filter(Boolean);
+            if (names.length) toolRegs[dept] = [...(toolRegs[dept] || []), ...names];
+          }
           return report;
         } catch (err) { console.log(`  [${dept}] ERROR: ${err}`); return emptyReport(dept); }
       });
