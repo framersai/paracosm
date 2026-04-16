@@ -180,11 +180,11 @@ describe('Submarine scenario compilation', () => {
     assert.ok(testColonist.health.psychScore < 0.7, 'Psych score should degrade underwater');
 
     // Milestones
-    const turn1 = scenario.hooks.getMilestoneCrisis!(1, 8);
+    const turn1 = scenario.hooks.getMilestoneEvent!(1, 8);
     assert.ok(turn1, 'Turn 1 should have a milestone');
     assert.equal(turn1!.title, 'Descent');
 
-    const last = scenario.hooks.getMilestoneCrisis!(8, 8);
+    const last = scenario.hooks.getMilestoneEvent!(8, 8);
     assert.ok(last, 'Final turn should have a milestone');
     assert.equal(last!.title, 'Surface Report');
 
@@ -194,9 +194,9 @@ describe('Submarine scenario compilation', () => {
 
     // Fingerprint returns summary
     const fp = scenario.hooks.fingerprintHook!(
-      { agents: [], colony: {}, politics: {}, metadata: {} },
+      { agents: [], colony: {}, politics: {}, metadata: {} } as any,
       [{ turn: 1, year: 2038, outcome: 'risky_success' }],
-      { name: 'Test', archetype: 'test', hexaco: { openness: 0.9 } },
+      { name: 'Test', archetype: 'test', hexaco: { openness: 0.9 } } as any,
       { engineering: ['tool1'] },
       8,
     );

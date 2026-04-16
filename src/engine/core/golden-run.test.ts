@@ -53,11 +53,11 @@ test('golden-run: 3-turn kernel produces deterministic population and state', ()
   assert.ok(t3.agents.length >= 100, `Expected >= 100 total colonists (births), got ${t3.agents.length}`);
 
   // Radiation should accumulate over 8 years (2035 -> 2043)
-  const avgRad = alive.reduce((s, c) => s + c.health.cumulativeRadiationMsv, 0) / alive.length;
+  const avgRad = alive.reduce((s, c) => s + (c.health.cumulativeRadiationMsv ?? 0), 0) / alive.length;
   assert.ok(avgRad > 1500, `Expected avg radiation > 1500 mSv after 8 years, got ${avgRad.toFixed(0)}`);
 
   // Bone density should degrade
-  const avgBone = alive.filter(c => !c.core.marsborn).reduce((s, c) => s + c.health.boneDensityPct, 0) / alive.filter(c => !c.core.marsborn).length;
+  const avgBone = alive.filter(c => !c.core.marsborn).reduce((s, c) => s + (c.health.boneDensityPct ?? 0), 0) / alive.filter(c => !c.core.marsborn).length;
   assert.ok(avgBone < 100, `Expected avg bone density < 100%, got ${avgBone.toFixed(1)}`);
   assert.ok(avgBone > 85, `Expected avg bone density > 85% (not over-degraded), got ${avgBone.toFixed(1)}`);
 

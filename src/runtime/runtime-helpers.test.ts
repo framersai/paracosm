@@ -9,12 +9,12 @@ test('buildPromotionPrompt matches the actual five-department promotion set', ()
 
 test('applyCustomEventToCrisis appends matching user event text to the crisis', () => {
   const crisis = applyCustomEventToCrisis(
-    { title: 'Dust event', crisis: 'Base crisis text.', turnSummary: 'Base summary.' },
+    { description: 'Base crisis text.', crisis: 'Base crisis text.', turnSummary: 'Base summary.' },
     [{ turn: 3, title: 'Comms blackout', description: 'Solar flare disrupts Earth comms.' }],
     3,
   );
 
-  assert.match(crisis.crisis, /Comms blackout/);
+  assert.match(crisis.crisis ?? '', /Comms blackout/);
   assert.match(crisis.turnSummary, /user event/i);
 });
 
