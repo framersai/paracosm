@@ -565,10 +565,36 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   // This is the source of truth — the LLM's self-reported `forgedToolsUsed`
   // is supplementary because it frequently omits tools it actually forged.
   const deptForgeBuckets = new Map<Department, CapturedForge[]>();
+  // Track current event/turn for forge_attempt SSE emission so each
+  // real-time forge can be attributed to the surrounding event.
+  let currentEmitContext: { turn: number; year: number; eventIndex: number } = { turn: 0, year: startYear, eventIndex: 0 };
   const captureForge = (dept: Department) => (record: CapturedForge) => {
     const bucket = deptForgeBuckets.get(dept) ?? [];
     bucket.push(record);
     deptForgeBuckets.set(dept, bucket);
+    // Real-time SSE so the dashboard can render an animated card the
+    // moment a forge happens, instead of waiting for the dept_done summary.
+    const inputProps = (record.inputSchema && typeof record.inputSchema === 'object' && (record.inputSchema as any).properties)
+      ? Object.keys((record.inputSchema as any).properties)
+      : [];
+    const outputProps = (record.outputSchema && typeof record.outputSchema === 'object' && (record.outputSchema as any).properties)
+      ? Object.keys((record.outputSchema as any).properties)
+      : [];
+    emit('forge_attempt', {
+      turn: currentEmitContext.turn,
+      year: currentEmitContext.year,
+      eventIndex: currentEmitContext.eventIndex,
+      department: dept,
+      name: record.name,
+      description: record.description,
+      mode: record.mode,
+      approved: record.approved,
+      confidence: record.confidence,
+      inputFields: inputProps.slice(0, 8),
+      outputFields: outputProps.slice(0, 8),
+      errorReason: record.errorReason,
+      timestamp: record.timestamp,
+    });
   };
 
   // Create department agent sessions from promoted agents
@@ -673,6 +699,10 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     for (let ei = 0; ei < turnEvents.length; ei++) {
       try {
       let event = applyCustomEventToCrisis(turnEvents[ei], opts.customEvents ?? [], turn);
+
+      // Update context so any forge_attempt SSE emitted during this event
+      // (from inside parallel dept calls) is attributed to the right slot.
+      currentEmitContext = { turn, year, eventIndex: ei };
 
       console.log(`  Event ${ei + 1}/${turnEvents.length}: ${event.title} (${event.category})`);
       emit('event_start', { turn, year, eventIndex: ei, totalEvents: turnEvents.length, title: event.title, description: event.description?.slice(0, 200), category: event.category, emergent: !milestone, turnSummary: event.turnSummary, pacing: batchPacing });

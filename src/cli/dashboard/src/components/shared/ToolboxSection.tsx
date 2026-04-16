@@ -4,6 +4,10 @@ interface ToolboxSectionProps {
   registry: ToolRegistry;
   title?: string;
   collapsible?: boolean;
+  /** When collapsible, start expanded if true. */
+  defaultOpen?: boolean;
+  /** Optional toggle callback — used by ReportView to persist state. */
+  onToggle?: (open: boolean) => void;
 }
 
 /**
@@ -15,7 +19,7 @@ interface ToolboxSectionProps {
  * Rendered at the bottom of SimView (collapsible) and ReportView
  * (always-on). Inline tool cards in EventCard reference these by name.
  */
-export function ToolboxSection({ registry, title = 'Forged Toolbox', collapsible = false }: ToolboxSectionProps) {
+export function ToolboxSection({ registry, title = 'Forged Toolbox', collapsible = false, defaultOpen = false, onToggle }: ToolboxSectionProps) {
   if (registry.list.length === 0) return null;
 
   const inner = (
@@ -119,7 +123,11 @@ export function ToolboxSection({ registry, title = 'Forged Toolbox', collapsible
 
   if (collapsible) {
     return (
-      <details style={{ padding: '12px 16px', borderTop: '1px solid var(--border)', background: 'var(--bg-deep)' }}>
+      <details
+        open={defaultOpen}
+        onToggle={onToggle ? (e) => onToggle((e.currentTarget as HTMLDetailsElement).open) : undefined}
+        style={{ padding: '12px 16px', borderTop: '1px solid var(--border)', background: 'var(--bg-deep)' }}
+      >
         <summary style={{
           fontSize: 13, fontFamily: 'var(--mono)', fontWeight: 800,
           color: 'var(--amber)', letterSpacing: '0.06em',
@@ -144,6 +152,11 @@ export function ToolboxSection({ registry, title = 'Forged Toolbox', collapsible
       {inner}
     </div>
   );
+}
+
+/** Just the inner toolbox grid — for embedding inside a modal. */
+export function ToolboxList({ registry }: { registry: ToolRegistry }) {
+  return <ToolboxSection registry={registry} title="" collapsible={false} />;
 }
 
 function countSchemaFields(schema: unknown, fallback: string[]): number {

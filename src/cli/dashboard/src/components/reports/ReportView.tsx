@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useRef } from 'react';
+import { useMemo, useEffect, useRef, useState, useCallback } from 'react';
 import type { GameState } from '../../hooks/useGameState';
 import { useCitationContext } from '../../hooks/useCitationRegistry';
 import { useToolContext } from '../../hooks/useToolRegistry';
@@ -7,6 +7,26 @@ import { CitationPills } from '../shared/CitationPills';
 import { ReferencesSection } from '../shared/ReferencesSection';
 import { ToolboxSection } from '../shared/ToolboxSection';
 import { VerdictCard } from '../sim/VerdictCard';
+
+/**
+ * Tiny hook for booleans persisted to localStorage. Used here to remember
+ * whether the user expanded the References / Forged Toolbox sections in
+ * the Reports tab, so their preference survives navigation and reloads.
+ */
+function usePersistedToggle(key: string, initial: boolean): [boolean, (v: boolean) => void] {
+  const [value, setValue] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return initial;
+    try {
+      const raw = window.localStorage.getItem(key);
+      return raw === null ? initial : raw === '1';
+    } catch { return initial; }
+  });
+  const set = useCallback((v: boolean) => {
+    setValue(v);
+    try { window.localStorage.setItem(key, v ? '1' : '0'); } catch {}
+  }, [key]);
+  return [value, set];
+}
 
 interface ReportViewProps {
   state: GameState;
@@ -54,6 +74,11 @@ function getEventBlock(turn: TurnData, eventIndex: number, totalEvents: number):
 export function ReportView({ state, verdict }: ReportViewProps) {
   const citationRegistry = useCitationContext();
   const toolRegistry = useToolContext();
+  // User's expand/collapse preference for References + Toolbox in this tab,
+  // persisted across reloads. Default collapsed so the actual report
+  // (turn-by-turn events) is the focus when the tab opens.
+  const [refsOpen, setRefsOpen] = usePersistedToggle('paracosm-reports-refs-open', false);
+  const [toolsOpen, setToolsOpen] = usePersistedToggle('paracosm-reports-tools-open', false);
   const turns = useMemo(() => {
     const map: Record<number, { a: TurnData; b: TurnData }> = {};
 
@@ -222,16 +247,27 @@ export function ReportView({ state, verdict }: ReportViewProps) {
         );
       })}
 
-      {/* Forged Toolbox — every emergent tool catalogued, with first-forge
-          provenance, reuse counts, and JSON Schema (when registered). */}
+      {/* Forged Toolbox + References — collapsed by default in the Reports
+          tab so the turn-by-turn report is the focus on open. The user's
+          expand choice is persisted to localStorage so subsequent visits
+          restore their preferred view. */}
       {toolRegistry.list.length > 0 && (
-        <ToolboxSection registry={toolRegistry} title="Forged Toolbox" />
+        <ToolboxSection
+          registry={toolRegistry}
+          title="Forged Toolbox"
+          collapsible
+          defaultOpen={toolsOpen}
+          onToggle={setToolsOpen}
+        />
       )}
-
-      {/* Single References section at the end of the report. Inline [N]
-          pills throughout the report deep-link here via #cite-N. */}
       {citationRegistry.list.length > 0 && (
-        <ReferencesSection registry={citationRegistry} title="References" />
+        <ReferencesSection
+          registry={citationRegistry}
+          title="References"
+          collapsible
+          defaultOpen={refsOpen}
+          onToggle={setRefsOpen}
+        />
       )}
     </div>
   );

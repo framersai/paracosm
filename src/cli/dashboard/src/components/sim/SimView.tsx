@@ -10,8 +10,7 @@ import { EventCard } from './EventCard';
 import { DivergenceRail } from './DivergenceRail';
 import { Timeline } from './Timeline';
 import { VerdictCard } from './VerdictCard';
-import { ReferencesSection } from '../shared/ReferencesSection';
-import { ToolboxSection } from '../shared/ToolboxSection';
+import { SimFooterBar } from './SimFooterBar';
 
 interface SimViewProps {
   state: GameState;
@@ -294,22 +293,14 @@ export function SimView({ state, sseStatus, onRun, verdict }: SimViewProps) {
       {/* Verdict card after simulation completes */}
       {verdict && <VerdictCard verdict={verdict} />}
 
-      {/* Global Forged Toolbox — every emergent tool catalogued once,
-          with first-forge provenance and the actual JSON Schemas pulled
-          from EmergentToolRegistry. Collapsed by default in the sim flow. */}
-      {toolRegistry.list.length > 0 && (
-        <ToolboxSection registry={toolRegistry} collapsible />
-      )}
-
-      {/* Global References section — collapsed by default to keep the
-          column flow uncluttered. Inline [N] pills inside dept cards
-          deep-link here via #cite-N. */}
-      {citationRegistry.list.length > 0 && (
-        <ReferencesSection registry={citationRegistry} collapsible />
-      )}
-
-      {/* Timeline at bottom */}
+      {/* Timeline at bottom — gets the full vertical room now that
+          References / Toolbox have moved out of the inline column flow. */}
       <Timeline state={state} />
+
+      {/* End-of-sim evidence bar: small pills that open References and
+          Forged Toolbox in modals so the timeline + columns above stay
+          fully visible. The user explicitly asked for this CTA pattern. */}
+      <SimFooterBar citationRegistry={citationRegistry} toolRegistry={toolRegistry} />
     </div>
   );
 }

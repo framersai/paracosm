@@ -84,6 +84,83 @@ export function EventCard({ event, side }: EventCardProps) {
     case 'commander_deciding':
       return null;
 
+    case 'forge_attempt': {
+      // Real-time forge notification. Renders as a slim inline card
+      // between dept reports so the user can SEE emergent capabilities
+      // appear as they're invented, not buried in a summary later.
+      const dept = String(dd.department || '');
+      const name = String(dd.name || 'unnamed');
+      const description = String(dd.description || name);
+      const mode = String(dd.mode || 'sandbox');
+      const approved = dd.approved !== false;
+      const confidence = typeof dd.confidence === 'number' ? dd.confidence : 0.85;
+      const errorReason = dd.errorReason ? String(dd.errorReason) : '';
+      const accent = approved ? 'var(--amber)' : 'var(--rust)';
+      const inputFields = Array.isArray(dd.inputFields) ? (dd.inputFields as string[]) : [];
+      const outputFields = Array.isArray(dd.outputFields) ? (dd.outputFields as string[]) : [];
+
+      return (
+        <div style={{
+          margin: '0 8px 4px',
+          padding: '6px 10px',
+          fontSize: 11, lineHeight: 1.5,
+          background: approved ? 'rgba(232,180,74,0.07)' : 'rgba(224,101,48,0.04)',
+          borderLeft: `3px solid ${accent}`,
+          border: `1px solid ${approved ? 'rgba(232,180,74,0.25)' : 'rgba(224,101,48,0.2)'}`,
+          borderRadius: 4,
+          animation: 'forgeSlide 0.4s ease both',
+          boxShadow: approved ? '0 0 0 1px rgba(232,180,74,0.1)' : 'var(--card-shadow)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <span style={{
+              fontSize: 9, fontWeight: 900, fontFamily: 'var(--mono)',
+              padding: '2px 6px', borderRadius: 3,
+              letterSpacing: '0.12em', textTransform: 'uppercase',
+              color: approved ? 'var(--bg-deep)' : '#fff',
+              background: accent,
+              boxShadow: approved ? '0 0 8px rgba(232,180,74,0.4)' : 'none',
+            }}>
+              {approved ? '✦ FORGED' : '✗ FORGE FAILED'}
+            </span>
+            <span style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
+              {dept}
+            </span>
+            <span style={{ fontWeight: 700, color: 'var(--text-1)' }}>
+              {description}
+            </span>
+            <span style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
+              {name} ({mode})
+            </span>
+            <span style={{
+              marginLeft: 'auto',
+              fontSize: 9, fontWeight: 800, fontFamily: 'var(--mono)',
+              padding: '1px 6px', borderRadius: 3,
+              color: approved ? 'var(--green)' : 'var(--rust)',
+              background: approved ? 'rgba(106,173,72,0.12)' : 'rgba(224,101,48,0.1)',
+              border: `1px solid ${approved ? 'rgba(106,173,72,0.3)' : 'rgba(224,101,48,0.2)'}`,
+            }}>
+              {approved ? `PASS ${confidence.toFixed(2)}` : 'FAIL'}
+            </span>
+          </div>
+          {(inputFields.length > 0 || outputFields.length > 0) && (
+            <div style={{ marginTop: 4, fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--mono)', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              {inputFields.length > 0 && (
+                <span><span style={{ color: 'var(--teal)' }}>in:</span> {inputFields.join(', ')}</span>
+              )}
+              {outputFields.length > 0 && (
+                <span><span style={{ color: 'var(--green)' }}>out:</span> {outputFields.join(', ')}</span>
+              )}
+            </div>
+          )}
+          {!approved && errorReason && (
+            <div style={{ marginTop: 3, fontSize: 10, color: 'var(--rust)', fontStyle: 'italic' }}>
+              {errorReason}
+            </div>
+          )}
+        </div>
+      );
+    }
+
     case 'dept_done': {
       const dept = String(dd.department || '');
       const tools = (dd._filteredTools as Array<Record<string, unknown>>) || [];

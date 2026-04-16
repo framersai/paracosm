@@ -235,6 +235,17 @@ export function useGameState(sseEvents: SimEvent[], isComplete: boolean): GameSt
           s.events.push(processed);
           break;
 
+        case 'forge_attempt':
+          // Real-time forge event from the orchestrator. Push into the
+          // event stream so EventCard can render an inline FORGED card
+          // the moment a tool is invented (not just at dept_done summary).
+          // Don't increment s.tools here — that's incremented from the
+          // dept_done summary which is the deduplicated authoritative
+          // count (forge_attempt fires per call; same tool reused = same
+          // name appears once in dept_done forgedTools).
+          s.events.push(processed);
+          break;
+
         case 'dept_done': {
           const tools = Array.isArray(dd.forgedTools) ? dd.forgedTools.filter((t: any) => t?.name && t.name !== 'unnamed') : [];
           s.tools += tools.length;
