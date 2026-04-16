@@ -607,10 +607,50 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     if (!cfg) continue;
     const wrapped = wrapForgeTool(forgeTool, `${sid}-${dept}`, sid, dept, captureForge(dept));
     const tools: ITool[] = opts.liveSearch ? [webSearchTool, wrapped] : [wrapped];
+    // Universal forge_tool prompt injected for EVERY scenario (Mars,
+    // Lunar, custom compiled, etc.). Previously only the hardcoded
+    // DEPARTMENT_CONFIGS in departments.ts told the LLM about forging,
+    // and that file was dead code — the orchestrator always reads
+    // cfg.instructions from the scenario JSON, which doesn't mention
+    // forge_tool. Result: no tools were ever forged unless the scenario
+    // author thought to add the instruction themselves.
+    const forgeGuidance = `
+
+EMERGENT TOOLING — REQUIRED:
+You have access to a forge_tool capability. Use it to invent a small computational model that helps you analyze the current event. Examples:
+- a dose calculator, a load analyzer, a yield projector, a cohesion scorer, a risk index, a budget balancer
+The implementation runs in a sandboxed V8 isolate (10s timeout, 128MB memory, no network unless allowlisted). An LLM judge reviews your tool for safety and correctness before it executes.
+
+forge_tool args:
+  name: snake_case identifier (e.g. radiation_dose_calculator)
+  description: one-sentence purpose
+  inputSchema:  { "type": "object", "properties": { ... } }
+  outputSchema: { "type": "object", "properties": { ... } }
+  implementation: { "mode": "sandbox", "code": "function execute(input) { return result; }", "allowlist": [] }
+  testCases: [ { "input": {...}, "expectedOutput": {...} } ]
+
+Forge AT LEAST ONE tool per analysis when the event involves any quantitative reasoning. Run it to produce a number you reference in your summary. Re-use a previously-forged tool by name (no new forge needed) when the same calculation applies again.
+
+REPORT FORMAT:
+Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
+{
+  "department": "${dept}",
+  "summary": "...",
+  "citations": [{"text": "...", "url": "...", "context": "..."}],
+  "risks": [{"severity": "low|medium|high|critical", "description": "..."}],
+  "opportunities": [{"impact": "low|medium|high", "description": "..."}],
+  "recommendedActions": ["..."],
+  "forgedToolsUsed": [{"name": "tool_name", "mode": "sandbox", "description": "what it does", "output": {...}, "confidence": 0.9}],
+  "recommendedEffects": [{"id": "effect_1", "type": "resource_shift|capacity_expansion|risk_mitigation|social_investment|research_bet", "description": "...", "colonyDelta": {"morale": 0.05}}],
+  "confidence": 0.85,
+  "openQuestions": [],
+  "featuredAgentUpdates": [],
+  "proposedPatches": {}
+}`;
     const a = agent({
       provider,
       model: modelConfig.departments || cfg.defaultModel,
-      instructions: cfg.instructions + '\n\nIMPORTANT: You MUST respond with valid JSON only. No markdown, no prose, no explanation outside the JSON object.',
+      instructions: cfg.instructions + forgeGuidance,
       tools,
       maxSteps: opts.execution?.departmentMaxSteps ?? DEFAULT_EXECUTION.departmentMaxSteps,
     });
