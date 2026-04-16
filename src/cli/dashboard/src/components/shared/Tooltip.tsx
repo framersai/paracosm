@@ -5,9 +5,13 @@ interface TooltipProps {
   children: ReactNode;
   /** Show a small amber dot indicator that this element has a tooltip */
   dot?: boolean;
+  /** Render the wrapper as block-level so it fills its container (used by
+   *  full-width row triggers like CrisisHeader where the inline-flex
+   *  default would otherwise shrink-to-content). */
+  block?: boolean;
 }
 
-export function Tooltip({ content, children, dot }: TooltipProps) {
+export function Tooltip({ content, children, dot, block }: TooltipProps) {
   const [visible, setVisible] = useState(false);
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const ref = useRef<HTMLSpanElement>(null);
@@ -41,7 +45,14 @@ export function Tooltip({ content, children, dot }: TooltipProps) {
       ref={ref}
       onMouseEnter={show}
       onMouseLeave={hide}
-      style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}
+      style={{
+        position: 'relative',
+        display: block ? 'block' : 'inline-flex',
+        alignItems: block ? undefined : 'center',
+        width: block ? '100%' : undefined,
+        minWidth: block ? 0 : undefined,
+        cursor: 'pointer',
+      }}
       role="button"
       tabIndex={0}
       aria-describedby={visible ? 'paracosm-tooltip' : undefined}
@@ -66,7 +77,9 @@ export function Tooltip({ content, children, dot }: TooltipProps) {
             position: 'fixed', left: pos.x, top: pos.y, zIndex: 99999,
             background: 'var(--bg-card)', border: '2px solid var(--amber)', borderRadius: '8px',
             padding: '14px 18px', fontSize: '12px', color: 'var(--text-1)', lineHeight: 1.6,
-            width: '420px', maxWidth: '90vw', maxHeight: '70vh', overflowY: 'auto',
+            width: '420px', maxWidth: '90vw',
+            // No internal scrollbar — content sizes naturally and the
+            // tooltip stays a single self-contained card.
             boxShadow: '0 8px 40px rgba(0,0,0,.4)', pointerEvents: 'auto',
             whiteSpace: 'normal', wordBreak: 'break-word',
             animation: 'fadeUp 0.15s ease both',
