@@ -67,6 +67,7 @@ export interface SideState {
   pendingPolicies: string[];
   outcome: string | null;
   agentSnapshots: AgentSnapshot[][];
+  currentEvents: Array<{ eventIndex: number; totalEvents: number; title: string; category: string }>;
 }
 
 export interface ProcessedEvent {
@@ -96,7 +97,7 @@ function emptySide(): SideState {
     events: [], popHistory: [], moraleHistory: [],
     deaths: 0, tools: 0, citations: 0, decisions: 0,
     pendingDecision: '', pendingRationale: '', pendingPolicies: [],
-    outcome: null, agentSnapshots: [],
+    outcome: null, agentSnapshots: [], currentEvents: [],
   };
 }
 
@@ -156,7 +157,31 @@ export function useGameState(sseEvents: SimEvent[], isComplete: boolean): GameSt
       };
 
       switch (evt.type) {
+        case 'event_start': {
+          const info = {
+            eventIndex: Number(dd.eventIndex ?? 0),
+            totalEvents: Number(dd.totalEvents ?? 1),
+            title: String(dd.title || ''),
+            category: String(dd.category || ''),
+          };
+          s.currentEvents.push(info);
+          if (info.totalEvents > 1) {
+            s.crisis = {
+              turn: dd.turn as number,
+              year: dd.year as number,
+              title: `${info.eventIndex + 1}/${info.totalEvents}: ${info.title}`,
+              description: dd.description as string || '',
+              category: info.category,
+              emergent: dd.emergent as boolean || false,
+              turnSummary: dd.turnSummary as string || '',
+            };
+          }
+          s.events.push(processed);
+          break;
+        }
+
         case 'turn_start':
+          s.currentEvents = [];
           if (dd.turn) state.turn = dd.turn as number;
           if (dd.year) state.year = dd.year as number;
           if (dd.title && dd.title !== 'Director generating...') {

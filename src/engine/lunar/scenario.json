@@ -26,6 +26,7 @@
 
   "setup": {
     "defaultTurns": 8,
+    "maxEventsPerTurn": 2,
     "defaultSeed": 1200,
     "defaultStartYear": 2030,
     "defaultPopulation": 50,

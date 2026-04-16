@@ -54,6 +54,8 @@ export interface ScenarioSetupSchema {
   defaultStartYear: number;
   defaultYearsPerTurn?: number;
   defaultPopulation: number;
+  /** Maximum events the Event Director can generate per turn. Default: 3 */
+  maxEventsPerTurn?: number;
   /** Which setup form sections to expose in the dashboard */
   configurableSections: Array<'leaders' | 'personnel' | 'resources' | 'departments' | 'events' | 'models' | 'advanced'>;
 }

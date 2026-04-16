@@ -30,6 +30,32 @@ export function EventCard({ event, side }: EventCardProps) {
     case 'turn_start':
       return null;
 
+    case 'event_start': {
+      const idx = Number(dd.eventIndex ?? 0);
+      const total = Number(dd.totalEvents ?? 1);
+      const title = String(dd.title || '');
+      const category = String(dd.category || '');
+      if (total <= 1) return null;
+      return (
+        <div style={{
+          padding: '6px 12px', fontSize: '11px',
+          borderTop: idx > 0 ? '2px solid var(--border)' : undefined,
+          marginTop: idx > 0 ? '6px' : undefined,
+          display: 'flex', alignItems: 'center', gap: '8px',
+        }}>
+          <span style={{ fontWeight: 800, color: 'var(--rust)', fontFamily: 'var(--mono)', fontSize: '10px' }}>
+            EVENT {idx + 1}/{total}
+          </span>
+          <span style={{ fontWeight: 700, color: 'var(--text-1)' }}>{title}</span>
+          {category && (
+            <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '2px', background: 'var(--bg-deep)', color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
+              {category}
+            </span>
+          )}
+        </div>
+      );
+    }
+
     case 'promotion': {
       const reason = String(dd.reason || '');
       const name = String(dd.name || '');

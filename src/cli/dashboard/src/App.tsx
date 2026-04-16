@@ -109,22 +109,32 @@ function AppContent() {
     if (effectiveEvents.length > lastEventCount.current) {
       const newEvents = effectiveEvents.slice(lastEventCount.current);
       for (const evt of newEvents) {
-        if (evt.type === 'turn_start' && evt.data?.title && evt.data.title !== 'Director generating...') {
-          // Deduplicate: both leaders get the same crisis, only toast once per turn
-          const dedupeKey = `crisis-${evt.data.turn}`;
+        if (evt.type === 'event_start' && evt.data?.title) {
+          const dedupeKey = `event-${evt.data.turn}-${evt.data.eventIndex}`;
           if (crisisToastSeen.current.has(dedupeKey)) continue;
           crisisToastSeen.current.add(dedupeKey);
 
           const title = String(evt.data.title);
-          const crisis = evt.data.crisis ? String(evt.data.crisis) : '';
+          const desc = evt.data.description ? String(evt.data.description) : '';
           const turn = evt.data.turn ? `T${String(evt.data.turn)}` : '';
           const year = evt.data.year ? String(evt.data.year) : '';
+          const total = Number(evt.data.totalEvents ?? 1);
+          const idx = Number(evt.data.eventIndex ?? 0);
+          const eventLabel = total > 1 ? ` [${idx + 1}/${total}]` : '';
           const category = evt.data.category ? String(evt.data.category).toUpperCase() : '';
-          const emergent = evt.data.emergent ? 'EMERGENT' : '';
-          const tags = [category, emergent].filter(Boolean).join(' ');
-          const header = [turn, year, title].filter(Boolean).join(' ');
-          const body = [tags, crisis.length > 250 ? crisis.slice(0, 250) + '...' : crisis].filter(Boolean).join('\n');
+          const header = [turn, year, title + eventLabel].filter(Boolean).join(' ');
+          const body = [category, desc.length > 250 ? desc.slice(0, 250) + '...' : desc].filter(Boolean).join('\n');
           toast('info', header, body, 15000);
+        }
+        // Legacy: toast for turn_start when no event_start events exist (old single-event data)
+        if (evt.type === 'turn_start' && evt.data?.title && evt.data.title !== 'Director generating...' && !evt.data.totalEvents) {
+          const dedupeKey = `crisis-${evt.data.turn}`;
+          if (crisisToastSeen.current.has(dedupeKey)) continue;
+          crisisToastSeen.current.add(dedupeKey);
+          const title = String(evt.data.title);
+          const crisis = evt.data.crisis ? String(evt.data.crisis) : '';
+          const header = `T${String(evt.data.turn || '')} ${String(evt.data.year || '')} ${title}`.trim();
+          toast('info', header, crisis.length > 200 ? crisis.slice(0, 200) + '...' : crisis, 10000);
         }
         if (evt.type === 'outcome' && evt.data?.outcome) {
           const outcome = String(evt.data.outcome);
