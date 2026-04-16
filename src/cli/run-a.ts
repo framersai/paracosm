@@ -9,3 +9,4 @@
  */
 process.argv.splice(2, 0, '--leader', '0');
 await import('./run.js');
+export {};

@@ -11,7 +11,7 @@ test('Landfall milestone has correct structure', () => {
   const landfall = MARS_MILESTONES.get(1);
   assert.ok(landfall);
   assert.equal(landfall!.title, 'Landfall');
-  assert.ok(landfall!.crisis.includes('Mars orbit'));
+  assert.ok(landfall!.crisis!.includes('Mars orbit'));
   assert.ok(landfall!.options.length >= 2);
   assert.ok(landfall!.researchKeywords.length > 0);
 });

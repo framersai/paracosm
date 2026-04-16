@@ -393,7 +393,7 @@ test('POST /compile persists the compiled scenario for later switching and forwa
       progressionHook: () => {},
       directorInstructions: () => 'Director instructions for compiled ocean station.',
       departmentPromptHook: () => [],
-      getMilestoneCrisis: () => null,
+      getMilestoneEvent: () => null,
       fingerprintHook: () => ({ summary: 'compiled' }),
       politicsHook: () => null,
       reactionContextHook: () => '',
@@ -402,8 +402,8 @@ test('POST /compile persists the compiled scenario for later switching and forwa
 
   const server = createMarsServer({
     runPairSimulations: async () => {},
-    compileScenario: async (scenarioJson, options) => {
-      captured = { scenarioJson, options: options as Record<string, unknown> };
+    compileScenario: async (scenarioJson: Record<string, unknown>, options: Record<string, unknown>) => {
+      captured = { scenarioJson, options };
       return compiledScenario as any;
     },
   } as any);
@@ -430,13 +430,14 @@ test('POST /compile persists the compiled scenario for later switching and forwa
 
     assert.equal(response.status, 200);
     assert.match(text, /event: complete/);
-    assert.ok(captured);
-    assert.equal(captured?.scenarioJson.id, compiledScenario.id);
-    assert.equal(captured?.options.provider, 'anthropic');
-    assert.equal(captured?.options.model, 'claude-sonnet-4-6');
-    assert.equal(captured?.options.seedUrl, 'https://example.com/ocean-station');
-    assert.equal(captured?.options.webSearch, false);
-    assert.equal(captured?.options.maxSearches, 7);
+    assert.ok(captured, 'compileScenario callback should have been invoked');
+    const cap = captured as { scenarioJson: Record<string, unknown>; options: Record<string, unknown> };
+    assert.equal(cap.scenarioJson.id, compiledScenario.id);
+    assert.equal(cap.options.provider, 'anthropic');
+    assert.equal(cap.options.model, 'claude-sonnet-4-6');
+    assert.equal(cap.options.seedUrl, 'https://example.com/ocean-station');
+    assert.equal(cap.options.webSearch, false);
+    assert.equal(cap.options.maxSearches, 7);
 
     const active = await fetch(`http://127.0.0.1:${port}/scenario`);
     const activeJson = await active.json();
@@ -467,7 +468,7 @@ test('POST /compile persists the compiled scenario for later switching and forwa
 
 test('POST /chat replies using simulation colonist data after a completed run', async () => {
   const server = createMarsServer({
-    runPairSimulations: async (_config, broadcast) => {
+    runPairSimulations: async (_config: unknown, broadcast: (event: string, data: unknown) => void) => {
       broadcast('sim', {
         type: 'agent_reactions',
         leader: leaderA.name,

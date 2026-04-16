@@ -184,6 +184,10 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
     return compileScenario(scenarioJson, compileOptions as any);
   });
 
+  const corsHeaders: Record<string, string> = {
+    'Access-Control-Allow-Origin': '*',
+  };
+
   const server = createServer(async (req, res) => {
     // CORS preflight for browser-based POST requests (compile, setup, chat, clear)
     if (req.method === 'OPTIONS') {
@@ -352,7 +356,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
           seedUrl,
           webSearch: webSearch ?? true,
           maxSearches,
-          onProgress(hookName, status) {
+          onProgress(hookName: string, status: string) {
             res.write(`event: progress\ndata: ${JSON.stringify({ hook: hookName, status })}\n\n`);
           },
         });
