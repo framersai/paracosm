@@ -468,16 +468,43 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   const toolRegs: Record<string, string[]> = {};
 
   /**
-   * Per-simulation forged-tool ledger. Tracks the first turn each tool was
-   * seen so the UI can label new forges vs reuses, and stores the actual
-   * input/output JSON Schemas pulled from the EmergentToolRegistry when the
-   * tool first appears. Reset implicitly when a new simulation starts.
+   * Per-simulation forged-tool ledger. Tracks first-forge metadata + a
+   * full reuse history so the UI can show WHEN a tool was used, BY WHICH
+   * dept, on WHICH event, and WHAT OUTPUT it produced — not just a flat
+   * "reused 3x" count.
+   *
+   * Two distinct signals:
+   *   forgeCalls   the judge ran a fresh forge (succeeded or failed)
+   *   uses         the LLM cited an existing tool in its dept report
+   *                without re-forging (self-reported via forgedToolsUsed)
+   *
+   * Both surface in the UI; only the latter is "real" reuse, but tracking
+   * both makes failure / re-forge attempts auditable.
    */
+  interface ToolUseRecord {
+    turn: number;
+    year: number;
+    eventIndex: number;
+    eventTitle: string;
+    department: string;
+    /** What the tool produced this invocation (string-truncated to 400). */
+    output: string | null;
+    /** True when the LLM re-invoked forge_tool (vs cited an existing tool). */
+    isReforge: boolean;
+    /** Set when isReforge=true and the judge rejected the new attempt. */
+    rejected: boolean;
+    /** Judge confidence on this invocation (only meaningful for forge calls). */
+    confidence?: number;
+  }
   const forgedLedger = new Map<string, {
     firstForgedTurn: number;
     firstForgedDepartment: string;
+    firstForgedEventIndex: number;
+    firstForgedEventTitle: string;
     inputSchema?: unknown;
     outputSchema?: unknown;
+    /** Append-only history of every invocation across the run. */
+    history: ToolUseRecord[];
   }>();
 
   const commander = agent({
@@ -926,6 +953,10 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
             // reuses of the same forged capability.
             const seen = forgedLedger.get(t.name);
             const isNew = !seen;
+            // Determine if THIS appearance was a fresh forge attempt by
+            // checking the captured-forge bucket: if the same dept fired
+            // a forge call for this name during this event, it's a re-forge.
+            const captureMatched = (deptForgeBuckets.get(dept) ?? []).some(c => c.name === t.name);
             if (!seen) {
               // Prefer schema from the captured forge call args. Fall back
               // to the EmergentToolRegistry lookup (also our schema source).
@@ -943,11 +974,34 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
               forgedLedger.set(t.name, {
                 firstForgedTurn: turn,
                 firstForgedDepartment: dept,
+                firstForgedEventIndex: ei,
+                firstForgedEventTitle: event.title,
                 inputSchema,
                 outputSchema,
+                history: [],
               });
             }
             const ledgerEntry = forgedLedger.get(t.name)!;
+            // Append this invocation to the tool's reuse history. The first
+            // append for a brand-new tool counts as the original forge; all
+            // subsequent appends are reuses (whether the LLM cited it or
+            // re-forged it). Skipped if a captured forge for this name
+            // already wrote a history entry above (avoids double-counting
+            // when the captured forge AND the LLM JSON both mention it).
+            const alreadyLoggedThisEvent = ledgerEntry.history.some(h =>
+              h.turn === turn && h.eventIndex === ei && h.department === dept,
+            );
+            if (!alreadyLoggedThisEvent) {
+              ledgerEntry.history.push({
+                turn, year, eventIndex: ei, eventTitle: event.title,
+                department: dept,
+                output: rawOutput?.slice(0, 400) || null,
+                isReforge: captureMatched,
+                rejected: !t.approved,
+                confidence: t.confidence,
+              });
+            }
+            const reuseCount = Math.max(0, ledgerEntry.history.length - 1);
             return {
               name: t.name,
               mode: t.mode,
@@ -965,8 +1019,14 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
               isNew,
               firstForgedTurn: ledgerEntry.firstForgedTurn,
               firstForgedDepartment: ledgerEntry.firstForgedDepartment,
+              firstForgedEventIndex: ledgerEntry.firstForgedEventIndex,
+              firstForgedEventTitle: ledgerEntry.firstForgedEventTitle,
               inputSchema: ledgerEntry.inputSchema,
               outputSchema: ledgerEntry.outputSchema,
+              /** Authoritative reuse count derived from history length. */
+              reuseCount,
+              /** Full per-invocation history so the UI can show when, where, and what each use produced. */
+              history: ledgerEntry.history,
             };
           });
           emit('dept_done', { turn, year, department: dept, summary: report.summary, eventIndex: ei, citations: report.citations.length, citationList: report.citations.slice(0, 5).map(c => ({ text: c.text, url: c.url, doi: c.doi })), risks: report.risks, forgedTools: validTools, recommendedActions: report.recommendedActions?.slice(0, 2) });
@@ -1329,36 +1389,76 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
   // Includes the full input/output JSON Schemas pulled from the
   // EmergentToolRegistry on first forge — the same data the dashboard's
   // ToolboxSection renders, now available to programmatic consumers.
+  // Build the canonical Forged Toolbox from the forgedLedger (which has
+  // the authoritative history). allForges is the raw stream of judge
+  // calls; the ledger.history captures every USE (forge or reuse).
   const forgedToolbox = (() => {
-    const byName = new Map<string, { name: string; description: string; mode: string; firstForgedTurn: number; firstForgedDepartment: string; departments: Set<string>; reuseCount: number; approved: boolean; confidence: number; inputSchema: unknown; outputSchema: unknown; lastOutput: unknown; }>();
-    for (const f of allForges) {
-      let entry = byName.get(f.name);
-      if (!entry) {
-        entry = {
-          name: f.name,
-          description: f.description,
-          mode: f.mode,
-          firstForgedTurn: f.turn,
-          firstForgedDepartment: f.department,
-          departments: new Set(),
-          reuseCount: 0,
-          approved: f.approved,
-          confidence: f.confidence,
-          inputSchema: f.inputSchema,
-          outputSchema: f.outputSchema,
-          lastOutput: f.output,
-        };
-        byName.set(f.name, entry);
-      } else {
-        entry.reuseCount += 1;
-        if (f.confidence > entry.confidence) entry.confidence = f.confidence;
-        if (f.output !== null && f.output !== undefined) entry.lastOutput = f.output;
-        // approval flips to true if any later attempt passed
-        if (f.approved) entry.approved = true;
+    const out: Array<{
+      name: string;
+      description: string;
+      mode: string;
+      firstForgedTurn: number;
+      firstForgedDepartment: string;
+      firstForgedEventTitle: string;
+      departments: string[];
+      /** Total uses minus the original forge. */
+      reuseCount: number;
+      /** Total uses including the original forge. */
+      totalUses: number;
+      /** How many of those uses were re-forge attempts. */
+      reforgeCount: number;
+      /** Re-forge attempts that the judge rejected. */
+      rejectedReforges: number;
+      approved: boolean;
+      confidence: number;
+      inputSchema: unknown;
+      outputSchema: unknown;
+      sampleOutput: unknown;
+      /** Full audit trail: every invocation with turn, year, dept, output. */
+      history: Array<{ turn: number; year: number; eventIndex: number; eventTitle: string; department: string; output: string | null; isReforge: boolean; rejected: boolean; confidence?: number }>;
+    }> = [];
+    for (const [name, entry] of forgedLedger) {
+      // Find the original forge metadata (description, mode) from the
+      // first matching captured forge if available; fall back to history.
+      const firstForge = allForges.find(f => f.name === name);
+      const departments = new Set<string>();
+      let approved = false;
+      let maxConfidence = 0;
+      let sampleOutput: string | null = null;
+      let reforgeCount = 0;
+      let rejectedReforges = 0;
+      for (const h of entry.history) {
+        departments.add(h.department);
+        if (!h.rejected) approved = true;
+        if (typeof h.confidence === 'number' && h.confidence > maxConfidence) maxConfidence = h.confidence;
+        if (h.output) sampleOutput = h.output;
+        if (h.isReforge) {
+          reforgeCount++;
+          if (h.rejected) rejectedReforges++;
+        }
       }
-      entry.departments.add(f.department);
+      const totalUses = entry.history.length;
+      out.push({
+        name,
+        description: firstForge?.description || name,
+        mode: firstForge?.mode || 'sandbox',
+        firstForgedTurn: entry.firstForgedTurn,
+        firstForgedDepartment: entry.firstForgedDepartment,
+        firstForgedEventTitle: entry.firstForgedEventTitle,
+        departments: [...departments],
+        reuseCount: Math.max(0, totalUses - 1),
+        totalUses,
+        reforgeCount,
+        rejectedReforges,
+        approved: approved || (firstForge?.approved ?? false),
+        confidence: maxConfidence || (firstForge?.confidence ?? 0.85),
+        inputSchema: entry.inputSchema,
+        outputSchema: entry.outputSchema,
+        sampleOutput,
+        history: entry.history.slice(),
+      });
     }
-    return [...byName.values()].map(e => ({ ...e, departments: [...e.departments] }));
+    return out.sort((a, b) => a.firstForgedTurn - b.firstForgedTurn);
   })();
 
   // Flat unique citation list across all department reports.

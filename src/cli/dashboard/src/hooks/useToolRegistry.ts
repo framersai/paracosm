@@ -1,6 +1,22 @@
 import { useMemo, createContext, useContext } from 'react';
 import type { GameState, Side } from './useGameState';
 
+export interface ToolUseEvent {
+  /** Which side (a/b) used the tool here. */
+  side: Side;
+  turn: number;
+  year: number;
+  eventIndex: number;
+  eventTitle: string;
+  department: string;
+  output: string | null;
+  /** True if the LLM re-invoked forge_tool here (vs cited an existing one). */
+  isReforge: boolean;
+  /** Set when a re-forge attempt was rejected by the judge. */
+  rejected: boolean;
+  confidence?: number;
+}
+
 export interface ToolEntry {
   /** Stable index for [N] referencing in EventCards / Toolbox section. */
   n: number;
@@ -16,6 +32,10 @@ export interface ToolEntry {
   sides: Set<Side>;
   /** Number of times reused after the first forge (across all events). */
   reuseCount: number;
+  /** Of the reuses, how many were re-forge attempts (vs pure citations). */
+  reforgeCount: number;
+  /** Re-forge attempts that the judge rejected. */
+  rejectedReforges: number;
   /** Maximum confidence reported by the LLM judge. */
   confidence: number;
   /** Whether the tool ever passed the judge (any non-failed mention). */
@@ -27,6 +47,10 @@ export interface ToolEntry {
   sampleOutput?: string | null;
   inputFields: string[];
   outputFields: string[];
+  /** Full per-invocation history. Empty when the orchestrator hasn't
+   *  attached one yet (older sim payloads); falls back to the count
+   *  fields for display. */
+  history: ToolUseEvent[];
 }
 
 export interface ToolRegistry {
@@ -79,6 +103,8 @@ export function useToolRegistry(state: GameState): ToolRegistry {
               departments: new Set(),
               sides: new Set(),
               reuseCount: 0,
+              reforgeCount: 0,
+              rejectedReforges: 0,
               confidence: typeof t.confidence === 'number' ? (t.confidence as number) : 0.85,
               approved: t.approved !== false,
               inputSchema: t.inputSchema,
@@ -86,12 +112,13 @@ export function useToolRegistry(state: GameState): ToolRegistry {
               sampleOutput: typeof t.output === 'string' ? (t.output as string) : null,
               inputFields: Array.isArray(t.inputFields) ? (t.inputFields as string[]) : [],
               outputFields: Array.isArray(t.outputFields) ? (t.outputFields as string[]) : [],
+              history: [],
             };
             byName.set(name, entry);
             list.push(entry);
           } else {
-            // Reuse: increment counter, refresh latest output/sample.
-            if (t.isNew !== true) entry.reuseCount += 1;
+            // Reuse: refresh latest output/sample. Reuse count is now
+            // derived from history.length below, so don't increment.
             if (typeof t.output === 'string' && t.output) entry.sampleOutput = t.output as string;
             if (typeof t.confidence === 'number' && (t.confidence as number) > entry.confidence) {
               entry.confidence = t.confidence as number;
@@ -102,6 +129,23 @@ export function useToolRegistry(state: GameState): ToolRegistry {
           }
           if (dept) entry.departments.add(dept);
           entry.sides.add(side);
+
+          // Authoritative history comes from the orchestrator's
+          // forgedLedger and is attached to every dept_done.forgedTools[i]
+          // entry. Replace the locally-accumulated history with the
+          // server's full history each time we see this tool — the
+          // server's history for this tool grows monotonically.
+          const serverHistory = (t.history as Array<{
+            turn: number; year: number; eventIndex: number; eventTitle: string;
+            department: string; output: string | null;
+            isReforge: boolean; rejected: boolean; confidence?: number;
+          }>) || null;
+          if (Array.isArray(serverHistory)) {
+            entry.history = serverHistory.map(h => ({ ...h, side }));
+            entry.reuseCount = Math.max(0, serverHistory.length - 1);
+            entry.reforgeCount = serverHistory.filter(h => h.isReforge).length;
+            entry.rejectedReforges = serverHistory.filter(h => h.isReforge && h.rejected).length;
+          }
         }
       }
     }

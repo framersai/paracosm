@@ -718,6 +718,55 @@ function ToolDetailModal({ entry, fallbackName, onClose }: {
                   </div>
                 </ModalSection>
               )}
+              {/* Reuse timeline — every invocation across the run with
+                  turn, dept, event title, and output. Re-forge attempts
+                  are flagged separately from pure citations so the user
+                  can see when the LLM re-ran the judge vs cited an
+                  existing tool. */}
+              {entry.history && entry.history.length > 0 && (
+                <ModalSection title={`USAGE HISTORY · ${entry.history.length} invocation${entry.history.length === 1 ? '' : 's'}`}>
+                  <ol style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {entry.history.map((h, i) => (
+                      <li
+                        key={i}
+                        style={{
+                          padding: '6px 8px', borderRadius: 4,
+                          background: 'var(--bg-deep)', border: '1px solid var(--border)',
+                          borderLeft: `3px solid ${
+                            h.rejected ? 'var(--rust)' : h.isReforge ? 'var(--amber)' : 'var(--green)'
+                          }`,
+                          fontFamily: 'var(--mono)', fontSize: 11, lineHeight: 1.5,
+                        }}
+                      >
+                        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
+                          <span style={{ color: 'var(--amber)', fontWeight: 800 }}>T{h.turn}</span>
+                          <span style={{ color: 'var(--text-3)' }}>{h.year}</span>
+                          <span style={{ color: 'var(--text-2)', fontWeight: 700 }}>{h.department}</span>
+                          <span style={{ color: 'var(--text-3)' }}>· {h.eventTitle}</span>
+                          <span style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
+                            <span style={{
+                              padding: '1px 6px', borderRadius: 2, fontSize: 9, fontWeight: 800,
+                              color: h.rejected ? 'var(--rust)' : h.isReforge ? 'var(--amber)' : 'var(--green)',
+                              background: 'color-mix(in srgb, ' + (h.rejected ? 'var(--rust)' : h.isReforge ? 'var(--amber)' : 'var(--green)') + ' 12%, transparent)',
+                            }}>
+                              {h.rejected ? 'JUDGE REJECTED' : h.isReforge ? 'RE-FORGE' : i === 0 ? 'FORGE' : 'REUSE'}
+                            </span>
+                            {typeof h.confidence === 'number' && (
+                              <span style={{ color: 'var(--text-3)', fontSize: 9 }}>conf {h.confidence.toFixed(2)}</span>
+                            )}
+                          </span>
+                        </div>
+                        {h.output && (
+                          <div style={{ color: 'var(--text-2)', marginTop: 3, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: 10 }}>
+                            {h.output.length > 200 ? h.output.slice(0, 200) + '…' : h.output}
+                          </div>
+                        )}
+                      </li>
+                    ))}
+                  </ol>
+                </ModalSection>
+              )}
+
               {entry.sampleOutput && (
                 <ModalSection title="LATEST OUTPUT">
                   <pre style={preStyle}>{entry.sampleOutput}</pre>
