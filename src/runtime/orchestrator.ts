@@ -17,7 +17,7 @@ import { getResearchPacket } from './research/research.js';
 import { getResearchFromBundle } from './research/scenario-research.js';
 import { initResearchMemory, recallResearch, closeResearchMemory } from './research/research-memory.js';
 import { buildDepartmentContext, getDepartmentsForTurn } from './departments.js';
-import { EventDirector, type DirectorEvent, type DirectorContext } from './director.js';
+import { EventDirector, type DirectorEvent, type DirectorContext, type DirectorEventBatch } from './director.js';
 import { generateAgentReactions } from './agent-reactions.js';
 import { recordReactionMemory, consolidateMemory, updateRelationshipsFromReactions } from './agent-memory.js';
 import type { ScenarioPackage } from '../engine/types.js';
@@ -313,7 +313,7 @@ function decisionToPolicy(decision: CommanderDecision, reports: DepartmentReport
 // ---------------------------------------------------------------------------
 
 export type SimEvent = {
-  type: 'turn_start' | 'dept_start' | 'dept_done' | 'forge_attempt' | 'commander_deciding' | 'commander_decided' | 'outcome' | 'drift' | 'agent_reactions' | 'bulletin' | 'turn_done' | 'promotion' | 'colony_snapshot';
+  type: 'turn_start' | 'event_start' | 'dept_start' | 'dept_done' | 'forge_attempt' | 'commander_deciding' | 'commander_decided' | 'outcome' | 'drift' | 'agent_reactions' | 'bulletin' | 'turn_done' | 'promotion' | 'colony_snapshot';
   leader: string;
   turn?: number;
   year?: number;
@@ -490,14 +490,16 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   for (let turn = 1; turn <= maxTurns; turn++) {
     const year = yearSchedule[turn - 1] ?? (yearSchedule[yearSchedule.length - 1] + (turn - yearSchedule.length) * 5);
 
-    // Get crisis: milestone (turn 1 / final) or emergent (director)
-    let event: DirectorEvent;
+    // ── Event generation ──────────────────────────────────────────────
+    const maxEvents = sc.setup.maxEventsPerTurn ?? 3;
+    let turnEvents: DirectorEvent[];
+    let batchPacing = 'normal';
+
     const getMilestone = sc.hooks.getMilestoneEvent;
     const milestone = getMilestone?.(turn, maxTurns);
     if (milestone) {
-      event = { ...milestone, description: (milestone as any).description || (milestone as any).crisis || '' } as DirectorEvent;
+      turnEvents = [{ ...milestone, description: (milestone as any).description || (milestone as any).crisis || '' } as DirectorEvent];
     } else {
-      // Build director context from current colony state
       const preState = kernel.getState();
       const alive = preState.agents.filter(c => c.health.alive);
       const dirCtx: DirectorContext = {
@@ -521,275 +523,177 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
       };
       emit('turn_start', { turn, year, title: 'Director generating...', crisis: '', births: 0, deaths: 0, colony: preState.colony });
       const dirInstructions = sc.hooks.directorInstructions?.();
-      event = await director.generateEvent(dirCtx, provider, modelConfig.director, dirInstructions);
+      const batch = await director.generateEventBatch(dirCtx, maxEvents, provider, modelConfig.director, dirInstructions);
+      turnEvents = batch.events;
+      batchPacing = batch.pacing;
     }
 
-    event = applyCustomEventToCrisis(event, opts.customEvents ?? [], turn);
-
-    console.log(`\n${'─'.repeat(50)}`);
-    console.log(`  Turn ${turn}/${maxTurns} — Year ${year}: ${event.title} [${milestone ? 'MILESTONE' : 'EMERGENT'}]`);
-    console.log(`${'─'.repeat(50)}`);
-
+    // ── Kernel advance (once per turn, before events) ─────────────────
     const state = kernel.advanceTurn(turn, year, sc.hooks.progressionHook);
     const births = state.eventLog.filter(e => e.turn === turn && e.type === 'birth').length;
     const deaths = state.eventLog.filter(e => e.turn === turn && e.type === 'death').length;
     console.log(`  Kernel: +${births} births, -${deaths} deaths → pop ${state.colony.population}`);
 
-    emit('turn_start', { turn, year, title: event.title, crisis: event.description.slice(0, 200), category: event.category, births, deaths, colony: state.colony, emergent: !milestone, turnSummary: event.turnSummary });
+    console.log(`\n${'─'.repeat(50)}`);
+    console.log(`  Turn ${turn}/${maxTurns} — Year ${year}: ${turnEvents.length} event(s) [${milestone ? 'MILESTONE' : 'EMERGENT'}]`);
+    console.log(`${'─'.repeat(50)}`);
 
-    // Get research: memory recall > live web search > static fallback
-    let packet: import('./contracts.js').CrisisResearchPacket;
-    if (milestone) {
-      // Milestone research: try scenario knowledge bundle first, fall back to legacy static
-      packet = getResearchFromBundle(sc.knowledge, event.category, event.researchKeywords);
-      if (packet.canonicalFacts.length === 0) {
-        packet = getResearchPacket(turn);
-      }
-    } else {
-      // Try research memory first (semantic recall from ingested scenario citations)
-      const memPacket = await recallResearch(event.title + ' ' + event.description.slice(0, 100), event.researchKeywords, event.category);
-      if (memPacket.canonicalFacts.length >= 2) {
-        packet = memPacket;
-        console.log(`  [research] Memory recall: ${packet.canonicalFacts.length} citations`);
-      } else if (opts.liveSearch && event.researchKeywords.length) {
-        // Live web search using AgentOS WebSearchService
-        try {
-          const query = event.researchKeywords.slice(0, 3).join(' ') + ' ' + sc.labels.settlementNoun + ' science';
-          console.log(`  [research] Live search: "${query}"`);
-          const searchResult = await webSearchTool.execute({ query }, { gmiId: sid, personaId: sid, userContext: {} } as any);
-          const results = (searchResult as any)?.output?.results || [];
-          packet = {
-            canonicalFacts: results.slice(0, 5).map((r: any) => ({
-              claim: r.snippet || r.title || '',
-              source: r.title || 'web search',
-              url: r.url || '',
-            })),
-            counterpoints: [],
-            departmentNotes: {},
-          };
-          console.log(`  [research] ${packet.canonicalFacts.length} live results`);
-        } catch (err) {
-          console.log(`  [research] Live search failed, using scenario bundle: ${err}`);
+    emit('turn_start', { turn, year, title: turnEvents[0]?.title || '', crisis: turnEvents[0]?.description?.slice(0, 200) || '', category: turnEvents[0]?.category || '', births, deaths, colony: state.colony, emergent: !milestone, turnSummary: turnEvents[0]?.turnSummary || '', totalEvents: turnEvents.length, pacing: batchPacing });
+
+    // ── Inner event loop ──────────────────────────────────────────────
+    let reactions: import('./agent-reactions.js').AgentReaction[] = [];
+    const turnEventTitles: string[] = [];
+    lastTurnToolOutputs = [];
+    let lastOutcome: import('../engine/core/state.js').TurnOutcome = 'conservative_success';
+    let lastEventCategory = '';
+
+    for (let ei = 0; ei < turnEvents.length; ei++) {
+      let event = applyCustomEventToCrisis(turnEvents[ei], opts.customEvents ?? [], turn);
+
+      console.log(`  Event ${ei + 1}/${turnEvents.length}: ${event.title} (${event.category})`);
+      emit('event_start', { turn, year, eventIndex: ei, totalEvents: turnEvents.length, title: event.title, description: event.description?.slice(0, 200), category: event.category, emergent: !milestone, turnSummary: event.turnSummary, pacing: batchPacing });
+      turnEventTitles.push(event.title);
+
+      // Research
+      let packet: import('./contracts.js').CrisisResearchPacket;
+      if (milestone) {
+        packet = getResearchFromBundle(sc.knowledge, event.category, event.researchKeywords);
+        if (packet.canonicalFacts.length === 0) packet = getResearchPacket(turn);
+      } else {
+        const memPacket = await recallResearch(event.title + ' ' + event.description.slice(0, 100), event.researchKeywords, event.category);
+        if (memPacket.canonicalFacts.length >= 2) {
+          packet = memPacket;
+          console.log(`  [research] Memory recall: ${packet.canonicalFacts.length} citations`);
+        } else if (opts.liveSearch && event.researchKeywords.length) {
+          try {
+            const query = event.researchKeywords.slice(0, 3).join(' ') + ' ' + sc.labels.settlementNoun + ' science';
+            const searchResult = await webSearchTool.execute({ query }, { gmiId: sid, personaId: sid, userContext: {} } as any);
+            const results = (searchResult as any)?.output?.results || [];
+            packet = { canonicalFacts: results.slice(0, 5).map((r: any) => ({ claim: r.snippet || r.title || '', source: r.title || 'web search', url: r.url || '' })), counterpoints: [], departmentNotes: {} };
+          } catch (err) {
+            console.log(`  [research] Live search failed: ${err}`);
+            packet = getResearchFromBundle(sc.knowledge, event.category, event.researchKeywords);
+          }
+        } else {
           packet = getResearchFromBundle(sc.knowledge, event.category, event.researchKeywords);
         }
-      } else {
-        // Fallback to scenario knowledge bundle (not hardcoded Mars)
-        packet = getResearchFromBundle(sc.knowledge, event.category, event.researchKeywords);
       }
-    }
 
-    // Departments: from director for emergent, from schedule for milestones
-    const validDepts: Department[] = sc.departments.map(d => d.id as Department);
-    const rawDepts = milestone ? getDepartmentsForTurn(turn) : event.relevantDepartments;
-    const depts = rawDepts.filter(d => validDepts.includes(d) && activeDepartments.has(d));
-    if (!depts.length) depts.push('medical', 'engineering');
-    console.log(`  Departments: ${depts.join(', ')}`);
+      // Departments
+      const validDepts: Department[] = sc.departments.map(d => d.id as Department);
+      const rawDepts = milestone ? getDepartmentsForTurn(turn) : event.relevantDepartments;
+      const depts = rawDepts.filter(d => validDepts.includes(d) && activeDepartments.has(d));
+      if (!depts.length) depts.push(validDepts[0] || 'medical', validDepts[1] || 'engineering');
 
-    // Build a Scenario-compatible object for department context builder
-    const scenario = {
-      turn, year, title: event.title, crisis: event.description,
-      researchKeywords: event.researchKeywords, snapshotHints: {} as any,
-      riskyOption: event.options.find(o => o.isRisky)?.label || '',
-      riskSuccessProbability: event.riskSuccessProbability,
-      options: event.options,
-    };
+      const scenario = {
+        turn, year, title: event.title, crisis: event.description,
+        researchKeywords: event.researchKeywords, snapshotHints: {} as any,
+        riskyOption: event.options.find(o => o.isRisky)?.label || '',
+        riskSuccessProbability: event.riskSuccessProbability,
+        options: event.options,
+      };
 
-    // Run all departments in parallel for speed
-    const deptPromises = depts.map(async (dept) => {
-      const sess = deptSess.get(dept);
-      if (!sess) return emptyReport(dept);
-      const ctx = buildDepartmentContext(dept, state, scenario, packet, deptMemory.get(dept), sc.hooks.departmentPromptHook);
-      console.log(`  [${dept}] Analyzing...`);
-      emit('dept_start', { turn, year, department: dept });
-      try {
-        const r = await sess.send(ctx);
-        trackUsage(r);
-        const report = parseDeptReport(r.text, dept);
-        console.log(`  [${dept}] Done: ${report.citations.length} citations, ${report.risks.length} risks, ${report.forgedToolsUsed.length} tools`);
-        const validTools = report.forgedToolsUsed
-          .filter(t => t && (t.name || t.description))
-          .map(t => {
+      const deptPromises = depts.map(async (dept) => {
+        const sess = deptSess.get(dept);
+        if (!sess) return emptyReport(dept);
+        const ctx = buildDepartmentContext(dept, kernel.getState(), scenario, packet, deptMemory.get(dept), sc.hooks.departmentPromptHook);
+        emit('dept_start', { turn, year, department: dept, eventIndex: ei });
+        try {
+          const r = await sess.send(ctx);
+          trackUsage(r);
+          const report = parseDeptReport(r.text, dept);
+          const validTools = report.forgedToolsUsed.filter(t => t && (t.name || t.description)).map(t => {
             const rawOutput = t.output ? (typeof t.output === 'string' ? t.output : JSON.stringify(t.output)) : null;
-            let inputFields: string[] = [];
-            let outputFields: string[] = [];
-            if (rawOutput) {
-              try {
-                const parsed = JSON.parse(rawOutput);
-                if (parsed && typeof parsed === 'object') {
-                  const keys = Object.keys(parsed);
-                  const inKey = keys.find(k => ['inputs', 'input', 'parameters', 'params'].includes(k));
-                  if (inKey && parsed[inKey] && typeof parsed[inKey] === 'object') {
-                    inputFields = Object.keys(parsed[inKey]);
-                    outputFields = keys.filter(k => k !== inKey);
-                  } else {
-                    outputFields = keys;
-                  }
-                }
-              } catch {}
-            }
-            return {
-              name: t.name || t.description || 'tool',
-              mode: t.mode || 'sandbox',
-              confidence: t.confidence ?? 0.85,
-              description: t.description || humanizeToolName(t.name || ''),
-              output: rawOutput?.slice(0, 400) || null,
-              inputFields: inputFields.slice(0, 8),
-              outputFields: outputFields.slice(0, 8),
-              department: dept,
-              crisis: event.title,
-            };
+            let inputFields: string[] = [], outputFields: string[] = [];
+            if (rawOutput) { try { const p = JSON.parse(rawOutput); if (p && typeof p === 'object') { const keys = Object.keys(p); const inKey = keys.find(k => ['inputs','input','parameters','params'].includes(k)); if (inKey && p[inKey] && typeof p[inKey] === 'object') { inputFields = Object.keys(p[inKey]); outputFields = keys.filter(k => k !== inKey); } else { outputFields = keys; } } } catch {} }
+            return { name: t.name || t.description || 'tool', mode: t.mode || 'sandbox', confidence: t.confidence ?? 0.85, description: t.description || humanizeToolName(t.name || ''), output: rawOutput?.slice(0, 400) || null, inputFields: inputFields.slice(0, 8), outputFields: outputFields.slice(0, 8), department: dept, crisis: event.title };
           });
-        emit('dept_done', {
-          turn, year, department: dept, summary: report.summary,
-          citations: report.citations.length,
-          citationList: report.citations.slice(0, 5).map(c => ({ text: c.text, url: c.url, doi: c.doi })),
-          risks: report.risks, forgedTools: validTools,
-          recommendedActions: report.recommendedActions?.slice(0, 2),
-        });
-        if (report.forgedToolsUsed.length) {
-          const names = report.forgedToolsUsed.map(t => t?.name || t?.description || 'unnamed').filter(Boolean);
-          if (names.length) toolRegs[dept] = [...(toolRegs[dept] || []), ...names];
-        }
-        return report;
-      } catch (err) {
-        console.log(`  [${dept}] ERROR: ${err}`);
-        return emptyReport(dept);
-      }
-    });
-    const reports = await Promise.all(deptPromises);
-
-    // Collect tool outputs for next turn's director context
-    lastTurnToolOutputs = reports.flatMap(r =>
-      (r.forgedToolsUsed || []).filter(t => t?.output).map(t => ({
-        name: t.name || 'unnamed',
-        department: r.department,
-        output: typeof t.output === 'string' ? t.output.slice(0, 200) : JSON.stringify(t.output).slice(0, 200),
-      }))
-    );
-
-    // Store department memories for session continuity (will be completed with outcome after decision)
-    const pendingDeptMemories = new Map<Department, import('./departments.js').DepartmentTurnMemory>();
-    for (const r of reports) {
-      pendingDeptMemories.set(r.department, {
-        turn, year, crisis: event.title,
-        summary: r.summary,
-        recommendedActions: r.recommendedActions?.slice(0, 3) || [],
-        outcome: '', // filled after outcome classification
-        toolsForged: (r.forgedToolsUsed || []).map(t => t?.name || '').filter(Boolean),
+          emit('dept_done', { turn, year, department: dept, summary: report.summary, eventIndex: ei, citations: report.citations.length, citationList: report.citations.slice(0, 5).map(c => ({ text: c.text, url: c.url, doi: c.doi })), risks: report.risks, forgedTools: validTools, recommendedActions: report.recommendedActions?.slice(0, 2) });
+          if (report.forgedToolsUsed.length) { const names = report.forgedToolsUsed.map(t => t?.name || t?.description || 'unnamed').filter(Boolean); if (names.length) toolRegs[dept] = [...(toolRegs[dept] || []), ...names]; }
+          return report;
+        } catch (err) { console.log(`  [${dept}] ERROR: ${err}`); return emptyReport(dept); }
       });
-    }
+      const reports = await Promise.all(deptPromises);
 
-    const summaries = reports.map(r => `## ${r.department.toUpperCase()} (conf: ${r.confidence})\n${r.summary}\nRisks: ${r.risks.map(x => `[${x.severity}] ${x.description}`).join('; ') || 'none'}\nRecs: ${r.recommendedActions.join('; ') || 'none'}`).join('\n\n');
-    const optionText = event.options.length
-      ? '\n\nOPTIONS:\n' + event.options.map(o => `- ${o.id}: ${o.label} — ${o.description}${o.isRisky ? ' [RISKY]' : ''}`).join('\n') + '\n\nYou MUST include "selectedOptionId" in your JSON response.'
-      : '';
-    const effectsList = reports.flatMap(r => (r.recommendedEffects || []).map(e =>
-      `  - ${e.id} (${e.type}): ${e.description}${e.colonyDelta ? ' | Delta: ' + JSON.stringify(e.colonyDelta) : ''}`
-    ));
-    const effectsText = effectsList.length
-      ? '\n\nAVAILABLE POLICY EFFECTS (include "selectedEffectIds" array in your JSON to apply):\n' + effectsList.join('\n')
-      : '';
-    const cmdPrompt = `TURN ${turn} — ${year}: ${event.title}\n\n${event.description}\n\nDEPARTMENT REPORTS:\n${summaries}\n\nColony: Pop ${state.colony.population} | Morale ${Math.round(state.colony.morale * 100)}% | Food ${state.colony.foodMonthsReserve.toFixed(1)}mo${optionText}${effectsText}\n\nDecide. Return JSON.`;
+      // Accumulate tool outputs across events
+      lastTurnToolOutputs.push(...reports.flatMap(r => (r.forgedToolsUsed || []).filter(t => t?.output).map(t => ({ name: t.name || 'unnamed', department: r.department, output: typeof t.output === 'string' ? t.output.slice(0, 200) : JSON.stringify(t.output).slice(0, 200) }))));
 
-    console.log(`  [commander] Deciding...`);
-    emit('commander_deciding', { turn, year });
-    const cmdR = await cmdSess.send(cmdPrompt);
-    trackUsage(cmdR);
-    const decision = parseCmdDecision(cmdR.text, depts);
-    console.log(`  [commander] ${decision.decision.slice(0, 120)}...`);
-    emit('commander_decided', { turn, year, decision: decision.decision, rationale: decision.rationale, selectedPolicies: decision.selectedPolicies });
-
-    kernel.applyPolicy(decisionToPolicy(decision, reports, turn, year));
-
-    // Apply featured agent updates
-    const agentUpdates = reports.flatMap(r =>
-      (r.featuredAgentUpdates || []).filter(u => u && u.agentId && u.updates).map(u => ({
-        agentId: u.agentId,
-        health: u.updates?.health,
-        career: u.updates?.career,
-        narrativeEvent: u.updates?.narrative?.event,
-      }))
-    );
-    if (agentUpdates.length) kernel.applyAgentUpdates(agentUpdates);
-
-    // Classify outcome using structured option IDs
-    const outcomeRng = new SeededRng(seed).turnSeed(turn + 1000);
-    // Determine selected option: prefer explicit ID, then try to infer from decision text matching option labels
-    let resolvedOptionId = decision.selectedOptionId;
-    if (!resolvedOptionId && event.options.length) {
-      const decLower = (decision.decision || '').toLowerCase();
-      for (const opt of event.options) {
-        if (decLower.includes(opt.id) || decLower.includes(opt.label.toLowerCase())) {
-          resolvedOptionId = opt.id;
-          break;
-        }
+      // Department memory
+      for (const r of reports) {
+        const mem = { turn, year, crisis: event.title, summary: r.summary, recommendedActions: r.recommendedActions?.slice(0, 3) || [], outcome: '', toolsForged: (r.forgedToolsUsed || []).map(t => t?.name || '').filter(Boolean) };
+        const existing = deptMemory.get(r.department) || [];
+        existing.push(mem);
+        deptMemory.set(r.department, existing);
       }
-    }
-    const outcome = resolvedOptionId
-      ? classifyOutcomeById(resolvedOptionId, event.options, event.riskSuccessProbability, kernel.getState().colony, outcomeRng)
-      : classifyOutcome(decision.decision, scenario.riskyOption, event.riskSuccessProbability, kernel.getState().colony, outcomeRng);
 
-    // Apply outcome-driven colony effects via EffectRegistry
-    const outcomeEffectRng = new SeededRng(seed).turnSeed(turn + 2000);
-    const personalityBonus = (leader.hexaco.openness - 0.5) * 0.08 + (leader.hexaco.conscientiousness - 0.5) * 0.04;
-    const colonyDeltas = effectRegistry.applyOutcome(event.category, outcome, {
-      personalityBonus,
-      noise: outcomeEffectRng.next() * 0.2 - 0.1,
-    });
-    kernel.applyColonyDeltas(colonyDeltas as any, [{
-      turn, year, type: 'system',
-      description: `Outcome effect (${outcome}): ${Object.entries(colonyDeltas).map(([k, v]) => `${k} ${v >= 0 ? '+' : ''}${v}`).join(', ')}`,
-    }]);
+      // Commander
+      const summaries = reports.map(r => `## ${r.department.toUpperCase()} (conf: ${r.confidence})\n${r.summary}\nRisks: ${r.risks.map(x => `[${x.severity}] ${x.description}`).join('; ') || 'none'}\nRecs: ${r.recommendedActions.join('; ') || 'none'}`).join('\n\n');
+      const optionText = event.options.length ? '\n\nOPTIONS:\n' + event.options.map(o => `- ${o.id}: ${o.label} — ${o.description}${o.isRisky ? ' [RISKY]' : ''}`).join('\n') + '\n\nYou MUST include "selectedOptionId" in your JSON response.' : '';
+      const effectsList = reports.flatMap(r => (r.recommendedEffects || []).map(e => `  - ${e.id} (${e.type}): ${e.description}${e.colonyDelta ? ' | Delta: ' + JSON.stringify(e.colonyDelta) : ''}`));
+      const effectsText = effectsList.length ? '\n\nAVAILABLE POLICY EFFECTS:\n' + effectsList.join('\n') : '';
+      const eventLabel = turnEvents.length > 1 ? ` (Event ${ei + 1}/${turnEvents.length})` : '';
+      const cmdPrompt = `TURN ${turn}${eventLabel} — ${year}: ${event.title}\n\n${event.description}\n\nDEPARTMENT REPORTS:\n${summaries}\n\nColony: Pop ${kernel.getState().colony.population} | Morale ${Math.round(kernel.getState().colony.morale * 100)}% | Food ${kernel.getState().colony.foodMonthsReserve.toFixed(1)}mo${optionText}${effectsText}\n\nDecide. Return JSON.`;
 
-    // Apply politics deltas via scenario hook
-    const polDelta = sc.hooks.politicsHook?.(event.category, outcome);
-    if (polDelta) {
-      kernel.applyPoliticsDeltas(polDelta);
-    }
+      emit('commander_deciding', { turn, year, eventIndex: ei });
+      const cmdR = await cmdSess.send(cmdPrompt);
+      trackUsage(cmdR);
+      const decision = parseCmdDecision(cmdR.text, depts);
+      console.log(`  [commander] ${decision.decision.slice(0, 120)}...`);
+      emit('commander_decided', { turn, year, decision: decision.decision, rationale: decision.rationale, selectedPolicies: decision.selectedPolicies, eventIndex: ei });
 
+      kernel.applyPolicy(decisionToPolicy(decision, reports, turn, year));
+      const agentUpdates = reports.flatMap(r => (r.featuredAgentUpdates || []).filter(u => u && u.agentId && u.updates).map(u => ({ agentId: u.agentId, health: u.updates?.health, career: u.updates?.career, narrativeEvent: u.updates?.narrative?.event })));
+      if (agentUpdates.length) kernel.applyAgentUpdates(agentUpdates);
+
+      // Outcome
+      const outcomeRng = new SeededRng(seed).turnSeed(turn * 100 + ei);
+      let resolvedOptionId = decision.selectedOptionId;
+      if (!resolvedOptionId && event.options.length) { const decLower = (decision.decision || '').toLowerCase(); for (const opt of event.options) { if (decLower.includes(opt.id) || decLower.includes(opt.label.toLowerCase())) { resolvedOptionId = opt.id; break; } } }
+      const outcome = resolvedOptionId
+        ? classifyOutcomeById(resolvedOptionId, event.options, event.riskSuccessProbability, kernel.getState().colony, outcomeRng)
+        : classifyOutcome(decision.decision, scenario.riskyOption, event.riskSuccessProbability, kernel.getState().colony, outcomeRng);
+
+      const outcomeEffectRng = new SeededRng(seed).turnSeed(turn * 100 + ei + 50);
+      const personalityBonus = (leader.hexaco.openness - 0.5) * 0.08 + (leader.hexaco.conscientiousness - 0.5) * 0.04;
+      const colonyDeltas = effectRegistry.applyOutcome(event.category, outcome, { personalityBonus, noise: outcomeEffectRng.next() * 0.2 - 0.1 });
+      kernel.applyColonyDeltas(colonyDeltas as any, [{ turn, year, type: 'system', description: `Outcome effect (${outcome}): ${Object.entries(colonyDeltas).map(([k, v]) => `${k} ${v >= 0 ? '+' : ''}${v}`).join(', ')}` }]);
+
+      const polDelta = sc.hooks.politicsHook?.(event.category, outcome);
+      if (polDelta) kernel.applyPoliticsDeltas(polDelta);
+
+      outcomeLog.push({ turn, year, outcome });
+      eventHistory.push({ turn, title: event.title, category: event.category, selectedOptionId: resolvedOptionId, decision: decision.decision.slice(0, 200), outcome });
+      lastOutcome = outcome;
+      lastEventCategory = event.category;
+
+      console.log(`  [outcome] ${outcome} (${event.category}) effects: ${JSON.stringify(colonyDeltas)}`);
+      emit('outcome', { turn, year, outcome, category: event.category, emergent: !milestone, colonyDeltas, eventIndex: ei });
+    } // end inner event loop
+
+    // ── Post-events: drift, reactions, memory, artifacts ──────────────
     const prevYear = turn === 1 ? startYear : yearSchedule[turn - 2] ?? startYear;
-    kernel.applyDrift(leader.hexaco, outcome, Math.max(1, year - prevYear));
-    outcomeLog.push({ turn, year, outcome });
+    kernel.applyDrift(leader.hexaco, lastOutcome, Math.max(1, year - prevYear));
 
-    // Track crisis history for director context
-    eventHistory.push({ turn, title: event.title, category: event.category, selectedOptionId: decision.selectedOptionId, decision: decision.decision.slice(0, 100), outcome });
-
-    // Finalize department memories with outcome and store
-    for (const [dept, mem] of pendingDeptMemories) {
-      mem.outcome = outcome;
-      const existing = deptMemory.get(dept) || [];
-      existing.push(mem);
-      deptMemory.set(dept, existing);
-    }
-
-    console.log(`  [outcome] ${outcome} (${event.category}${milestone ? ', milestone' : ', emergent'}) effects: ${JSON.stringify(colonyDeltas)}`);
-    emit('outcome', { turn, year, outcome, riskyOption: scenario.riskyOption, category: event.category, emergent: !milestone, colonyDeltas });
-
-    // Log drift
     const drifted = kernel.getState().agents.filter(c => c.promotion && c.health.alive);
     const driftData: Record<string, { name: string; hexaco: any }> = {};
-    for (const p of drifted.slice(0, 5)) {
-      const h = p.hexaco;
-      driftData[p.core.id] = { name: p.core.name, hexaco: { O: +h.openness.toFixed(2), C: +h.conscientiousness.toFixed(2), E: +h.extraversion.toFixed(2), A: +h.agreeableness.toFixed(2) } };
-    }
+    for (const p of drifted.slice(0, 5)) { const h = p.hexaco; driftData[p.core.id] = { name: p.core.name, hexaco: { O: +h.openness.toFixed(2), C: +h.conscientiousness.toFixed(2), E: +h.extraversion.toFixed(2), A: +h.agreeableness.toFixed(2) } }; }
     emit('drift', { turn, year, agents: driftData });
 
-    // Generate colonist reactions in parallel (all alive agents, cheap model)
+    // Agent reactions (once per turn, reacting to ALL events)
     const reactionCtx = {
-      crisisTitle: event.title, crisisCategory: event.category,
-      outcome, decision: decision.decision.slice(0, 200),
+      crisisTitle: turnEventTitles.join(' / '),
+      crisisCategory: turnEvents.map(e => e.category).join(', '),
+      outcome: lastOutcome,
+      decision: turnEventTitles.join('. '),
       year, turn, colonyMorale: kernel.getState().colony.morale,
       colonyPopulation: kernel.getState().colony.population,
     };
-    let reactions: import('./agent-reactions.js').AgentReaction[] = [];
     try {
       reactions = await generateAgentReactions(
         kernel.getState().agents, reactionCtx,
         { provider, model: modelConfig.agentReactions || 'gpt-4o-mini', maxConcurrent: 25, reactionContextHook: sc.hooks.reactionContextHook },
       );
       if (reactions.length) {
-        // Emit top 8 most intense reactions for dashboard display
-        // Build memory summaries for display
         const agentMap = new Map(kernel.getState().agents.map(c => [c.core.id, c]));
         emit('agent_reactions', {
           turn, year,
@@ -806,41 +710,28 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
                 recentMemories: mem.shortTerm.slice(-3).map(m => ({ year: m.year, content: m.content, valence: m.valence })),
                 beliefs: mem.longTerm.slice(-3),
                 stances: Object.entries(mem.stances).filter(([, v]) => Math.abs(v) > 0.2).map(([k, v]) => ({ topic: k, value: v })),
-                relationships: Object.entries(mem.relationships)
-                  .filter(([, v]) => Math.abs(v) > 0.2)
-                  .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
-                  .slice(0, 3)
-                  .map(([id, v]) => ({ name: agentMap.get(id)?.core.name || id, sentiment: v })),
+                relationships: Object.entries(mem.relationships).filter(([, v]) => Math.abs(v) > 0.2).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1])).slice(0, 3).map(([id, v]) => ({ name: agentMap.get(id)?.core.name || id, sentiment: v })),
               } : null,
             };
           }),
           totalReactions: reactions.length,
         });
-        // Record reactions into persistent memory
-        for (const r of reactions) {
-          const c = agentMap.get(r.agentId);
-          if (c) recordReactionMemory(c, r, event.title, event.category, outcome, turn, year);
-        }
+        for (const r of reactions) { const c = agentMap.get(r.agentId); if (c) recordReactionMemory(c, r, turnEventTitles.join(' / '), lastEventCategory, lastOutcome, turn, year); }
         updateRelationshipsFromReactions(kernel.getState().agents, reactions);
-        // Consolidate any overflowing short-term memories
-        for (const c of kernel.getState().agents) {
-          if (c.health.alive) consolidateMemory(c);
-        }
+        for (const c of kernel.getState().agents) { if (c.health.alive) consolidateMemory(c); }
 
-        // Summarize mood for next turn's director
         const moodCounts: Record<string, number> = {};
         for (const r of reactions) moodCounts[r.mood] = (moodCounts[r.mood] || 0) + 1;
         const moodParts = Object.entries(moodCounts).sort((a, b) => b[1] - a[1]).map(([m, c]) => `${Math.round(c / reactions.length * 100)}% ${m}`);
         lastTurnMoodSummary = `${reactions.length} colonists: ${moodParts.join(', ')}`;
 
-        // Colony bulletin board: top 4 most intense reactions as public posts
+        const bulletinRng = new SeededRng(seed).turnSeed(turn + 3000);
         const bulletinPosts = reactions.slice(0, 4).map(r => ({
-          name: r.name, department: r.department, role: r.role,
-          marsborn: r.marsborn, age: r.age,
+          name: r.name, department: r.department, role: r.role, marsborn: r.marsborn, age: r.age,
           post: r.quote.length > 140 ? r.quote.slice(0, 137) + '...' : r.quote,
           mood: r.mood, intensity: r.intensity,
-          likes: Math.floor(r.intensity * 20 + outcomeEffectRng.next() * 10),
-          replies: Math.floor(r.intensity * 5 + outcomeEffectRng.next() * 3),
+          likes: Math.floor(r.intensity * 20 + bulletinRng.next() * 10),
+          replies: Math.floor(r.intensity * 5 + bulletinRng.next() * 3),
         }));
         emit('bulletin', { turn, year, posts: bulletinPosts });
       }
@@ -850,9 +741,9 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
 
     const after = kernel.getState();
     artifacts.push({
-      turn, year, crisis: event.title,
-      departmentReports: reports, commanderDecision: decision,
-      policyEffectsApplied: decision.selectedPolicies,
+      turn, year, crisis: turnEventTitles.join(' / '),
+      departmentReports: [], commanderDecision: emptyDecision(sc.departments.map(d => d.id as Department)),
+      policyEffectsApplied: [],
       stateSnapshotAfter: {
         population: after.colony.population, morale: after.colony.morale,
         foodMonthsReserve: after.colony.foodMonthsReserve, infrastructureModules: after.colony.infrastructureModules,
@@ -860,7 +751,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
       },
     });
     console.log(`  State: Pop ${after.colony.population} | Morale ${Math.round(after.colony.morale * 100)}% | Food ${after.colony.foodMonthsReserve.toFixed(1)}mo`);
-    emit('turn_done', { turn, year, colony: after.colony, toolsForged: Object.values(toolRegs).flat().length });
+    emit('turn_done', { turn, year, colony: after.colony, toolsForged: Object.values(toolRegs).flat().length, totalEvents: turnEvents.length });
 
     // Emit full agent roster for colony visualization
     const snapshotAgents = after.agents.map(a => ({

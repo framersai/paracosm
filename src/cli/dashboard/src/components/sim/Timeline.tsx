@@ -15,6 +15,7 @@ interface TurnEntry {
   category?: string;
   emergent?: boolean;
   current?: boolean;
+  subEvents?: Array<{ index: number; title: string; category: string }>;
 }
 
 function extractTurns(state: GameState, side: 'a' | 'b'): TurnEntry[] {
@@ -30,6 +31,18 @@ function extractTurns(state: GameState, side: 'a' | 'b'): TurnEntry[] {
         category: evt.data.category as string || '',
         emergent: evt.data.emergent as boolean || false,
       });
+    }
+    if (evt.type === 'event_start') {
+      const turnNum = evt.data.turn as number;
+      const t = turns.find(t => t.turn === turnNum);
+      if (t) {
+        if (!t.subEvents) t.subEvents = [];
+        t.subEvents.push({
+          index: Number(evt.data.eventIndex ?? 0),
+          title: String(evt.data.title || ''),
+          category: String(evt.data.category || ''),
+        });
+      }
     }
     if (evt.type === 'outcome') {
       const t = turns.find(t => t.turn === evt.data.turn);
@@ -138,7 +151,17 @@ function SideTimeline({ turns, side }: { turns: TurnEntry[]; side: Side }) {
                 {t.summary}
               </div>
             )}
-            {t.decision && (
+            {t.subEvents && t.subEvents.length > 1 && (
+              <div style={{ fontSize: '9px', color: 'var(--text-3)', marginTop: '2px', lineHeight: 1.3 }}>
+                {t.subEvents.map((se, i) => (
+                  <div key={i} style={{ display: 'flex', gap: '4px' }}>
+                    <span style={{ color: 'var(--rust)', fontFamily: 'var(--mono)', fontWeight: 700, flexShrink: 0 }}>{se.index + 1}.</span>
+                    <span>{se.title}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {t.decision && !t.subEvents?.length && (
               <div style={{ fontSize: '10px', color: 'var(--text-2)', marginTop: '2px', lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const }}>
                 {t.decision}
               </div>

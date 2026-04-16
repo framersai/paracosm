@@ -35,6 +35,13 @@ export interface DirectorEvent {
   turnSummary: string;
 }
 
+/** Batch of events generated for a single turn. */
+export interface DirectorEventBatch {
+  events: DirectorEvent[];
+  pacing: 'calm' | 'normal' | 'intense';
+  reasoning: string;
+}
+
 /** @deprecated Use DirectorEvent */
 export type DirectorCrisis = DirectorEvent & { crisis?: string };
 
@@ -80,21 +87,27 @@ export interface DirectorContext {
 
 const DEFAULT_DIRECTOR_INSTRUCTIONS = `You are the Event Director for a simulation. You observe simulation state and generate events that test the settlement's weaknesses, exploit consequences of prior decisions, and create narrative tension.
 
+You generate 1 to {MAX_EVENTS} events per turn. Decide how many based on:
+- World stability: low morale + low resources + recent failures = more events
+- Narrative pacing: vary the rhythm, don't always generate the maximum
+- Prior turn intensity: if the last turn had many events, consider fewer this turn
+- Turn position: early turns can have fewer events for ramp-up
+
 RULES:
 1. Each event has exactly 2-3 options with stable IDs (option_a, option_b, option_c)
-2. Exactly one option must be marked isRisky: true (higher upside, higher downside)
+2. Exactly one option per event must be marked isRisky: true
 3. Events must reference domain-appropriate knowledge
-4. Never repeat an event category from the immediately previous turn
-5. Escalate: later events should reference consequences of earlier decisions
-6. Calibrate difficulty to current state: struggling settlements get survivable events, thriving ones get existential ones
-7. Include actual state numbers in the event description
-8. Specify which departments should analyze (2-4 departments per event)
+4. No two events in the same batch should share a category
+5. Never repeat a category from the immediately previous turn
+6. Escalate: later events should reference consequences of earlier decisions
+7. Include actual state numbers in event descriptions
+8. Specify which departments should analyze each event (2-4 per event)
 
 Return ONLY valid JSON:
-{"title":"Event Title","description":"Full description with specific state numbers...","options":[{"id":"option_a","label":"Option Label","description":"What this option does","isRisky":false},{"id":"option_b","label":"Risky Option","description":"Higher upside, higher risk","isRisky":true}],"riskyOptionId":"option_b","riskSuccessProbability":0.55,"category":"environmental","researchKeywords":["keyword"],"relevantDepartments":["dept_id"],"turnSummary":"One sentence: why this event emerged from prior decisions"}`;
+{"events":[{"title":"...","description":"...","options":[{"id":"option_a","label":"...","description":"...","isRisky":false},{"id":"option_b","label":"...","description":"...","isRisky":true}],"riskyOptionId":"option_b","riskSuccessProbability":0.55,"category":"environmental","researchKeywords":["keyword"],"relevantDepartments":["dept_id"],"turnSummary":"One sentence"}],"pacing":"normal","reasoning":"Why this many events"}`;
 
 /** Build the prompt for the director given simulation context. */
-function buildDirectorPrompt(ctx: DirectorContext): string {
+function buildDirectorPrompt(ctx: DirectorContext, maxEvents: number = 3): string {
   const events = ctx.previousEvents ?? ctx.previousCrises ?? [];
   const prevHistory = events.length
     ? events.map(e => `  Turn ${e.turn}: "${e.title}" (${e.category}) -> ${e.outcome}${e.decision ? ': ' + e.decision.slice(0, 80) : ''}`).join('\n')
@@ -135,7 +148,7 @@ ${ctx.agentMoodSummary ? `\nAGENT MOOD: ${ctx.agentMoodSummary}` : ''}
 
 CONSTRAINT: Do NOT use category "${lastCategory}" (used last turn). Pick a different category.
 
-Generate an event that tests this settlement based on its current state, past decisions, and tool intelligence. The event should feel like a consequence of what happened before. Return JSON only.`;
+Generate 1 to ${maxEvents} events for this turn. Each event should feel like a consequence of what happened before. If the world is stable, 1 event is fine. If pressure is mounting, generate more. Return JSON with an "events" array.`;
 }
 
 /** Parse director LLM response into DirectorCrisis. */
@@ -165,6 +178,46 @@ function parseDirectorResponse(text: string): DirectorCrisis | null {
             relevantDepartments: raw.relevantDepartments || ['medical', 'engineering'],
             turnSummary: raw.turnSummary || '',
           };
+        }
+      } catch { /* try next block */ }
+      start = -1;
+    }}
+  }
+  return null;
+}
+
+/** Parse batch response: { events: [...], pacing, reasoning } or single event fallback. */
+function parseBatchResponse(text: string): DirectorEventBatch | null {
+  let depth = 0, start = -1;
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === '{') { if (depth === 0) start = i; depth++; }
+    if (text[i] === '}') { depth--; if (depth === 0 && start >= 0) {
+      try {
+        const raw = JSON.parse(text.slice(start, i + 1));
+
+        if (Array.isArray(raw.events) && raw.events.length > 0) {
+          const events: DirectorEvent[] = raw.events.map((e: any) => ({
+            title: e.title || 'Untitled Event',
+            description: e.description || e.crisis || '',
+            options: (e.options || []).map((o: any, idx: number) => ({
+              id: o.id || `option_${String.fromCharCode(97 + idx)}`,
+              label: o.label || `Option ${String.fromCharCode(65 + idx)}`,
+              description: o.description || '',
+              isRisky: o.isRisky === true,
+            })),
+            riskyOptionId: e.riskyOptionId || e.options?.find((o: any) => o.isRisky)?.id || 'option_b',
+            riskSuccessProbability: typeof e.riskSuccessProbability === 'number' ? e.riskSuccessProbability : 0.5,
+            category: e.category || 'infrastructure',
+            researchKeywords: e.researchKeywords || [],
+            relevantDepartments: e.relevantDepartments || ['medical', 'engineering'],
+            turnSummary: e.turnSummary || '',
+          }));
+          return { events, pacing: raw.pacing || 'normal', reasoning: raw.reasoning || '' };
+        }
+
+        if (raw.title && (raw.description || raw.crisis)) {
+          const single = parseDirectorResponse(text.slice(start, i + 1));
+          if (single) return { events: [single], pacing: 'normal', reasoning: 'single event' };
         }
       } catch { /* try next block */ }
       start = -1;
@@ -240,6 +293,48 @@ export class EventDirector {
     const fallback = FALLBACK_EVENTS[ctx.turn % FALLBACK_EVENTS.length];
     console.log(`  [director] Using fallback: "${fallback.title}"`);
     return { ...fallback };
+  }
+
+  /**
+   * Generate 1 to maxEvents events for a turn.
+   * Falls back to single-event generation if batch parsing fails.
+   */
+  async generateEventBatch(
+    ctx: DirectorContext,
+    maxEvents: number = 3,
+    provider: LlmProvider = 'openai',
+    model: string = 'gpt-5.4',
+    instructions?: string,
+  ): Promise<DirectorEventBatch> {
+    const prompt = buildDirectorPrompt(ctx, maxEvents);
+    const systemInstructions = (instructions || DEFAULT_DIRECTOR_INSTRUCTIONS)
+      .replace('{MAX_EVENTS}', String(maxEvents));
+
+    try {
+      const { generateText } = await import('@framers/agentos');
+      const result = await generateText({ provider, model, prompt: systemInstructions + '\n\n' + prompt });
+
+      const batch = parseBatchResponse(result.text);
+      if (batch && batch.events.length > 0) {
+        batch.events = batch.events.slice(0, maxEvents);
+        console.log(`  [director] Generated ${batch.events.length} events (${batch.pacing}) for ${ctx.leaderName}: ${batch.events.map(e => `"${e.title}"`).join(', ')}`);
+        return batch;
+      }
+
+      const single = parseDirectorResponse(result.text);
+      if (single) {
+        console.log(`  [director] Generated 1 event (single format) for ${ctx.leaderName}: "${single.title}"`);
+        return { events: [single], pacing: 'normal', reasoning: 'parsed as single event' };
+      }
+
+      console.log(`  [director] Failed to parse batch for ${ctx.leaderName}, using fallback`);
+    } catch (err) {
+      console.log(`  [director] Batch error for ${ctx.leaderName}: ${err}`);
+    }
+
+    const fallback = FALLBACK_EVENTS[ctx.turn % FALLBACK_EVENTS.length];
+    console.log(`  [director] Using fallback: "${fallback.title}"`);
+    return { events: [{ ...fallback }], pacing: 'normal', reasoning: 'fallback' };
   }
 
   /** @deprecated Use generateEvent */
