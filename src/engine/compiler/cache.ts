@@ -59,6 +59,61 @@ export function readCache(
   }
 }
 
+/**
+ * Read a cached seed-ingestion bundle. Cache key includes the seed source
+ * (text or URL) and the maxSearches cap so different seeds don't collide.
+ * Returns null on miss or if the seed signature differs.
+ */
+export function readSeedBundleCache(
+  scenarioJson: Record<string, unknown>,
+  seedSignature: string,
+  baseDir = DEFAULT_CACHE_DIR,
+): unknown | null {
+  const id = (scenarioJson as any).id ?? 'unknown';
+  const ver = (scenarioJson as any).version ?? '0.0.0';
+  const dir = cacheDir(id, ver, baseDir);
+  const path = join(dir, `seed-bundle-${seedSignature}.json`);
+  if (!existsSync(path)) return null;
+  try {
+    return JSON.parse(readFileSync(path, 'utf-8'));
+  } catch {
+    return null;
+  }
+}
+
+/** Write a seed-ingestion bundle to disk cache, keyed by seed signature. */
+export function writeSeedBundleCache(
+  scenarioJson: Record<string, unknown>,
+  seedSignature: string,
+  bundle: unknown,
+  baseDir = DEFAULT_CACHE_DIR,
+): void {
+  const id = (scenarioJson as any).id ?? 'unknown';
+  const ver = (scenarioJson as any).version ?? '0.0.0';
+  const dir = cacheDir(id, ver, baseDir);
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(
+    join(dir, `seed-bundle-${seedSignature}.json`),
+    JSON.stringify(bundle, null, 2),
+    'utf-8',
+  );
+}
+
+/**
+ * Compute a stable signature for a seed config. Same seed text/URL +
+ * search settings → same signature. Used as the cache key so we never
+ * re-ingest a previously-fetched bundle.
+ */
+export function seedSignature(opts: { seedText?: string; seedUrl?: string; webSearch?: boolean; maxSearches?: number }): string {
+  const payload = JSON.stringify({
+    text: opts.seedText ?? '',
+    url: opts.seedUrl ?? '',
+    web: opts.webSearch ?? true,
+    n: opts.maxSearches ?? 5,
+  });
+  return createHash('sha256').update(payload).digest('hex').slice(0, 16);
+}
+
 /** Write a hook result to disk cache. */
 export function writeCache(
   scenarioJson: Record<string, unknown>,

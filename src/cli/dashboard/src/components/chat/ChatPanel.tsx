@@ -114,11 +114,17 @@ function EventContext({ memory, events, scenario }: { memory: AgentMemoryInfo; e
 export function ChatPanel({ state }: ChatPanelProps) {
   const scenario = useScenarioContext();
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  // Per-agent message threads — switching agents no longer wipes history.
+  // The server-side AgentOS session also keeps its own history, so messages
+  // here are kept in sync on the client for visual continuity.
+  const [threads, setThreads] = useState<Map<string, ChatMessage[]>>(() => new Map());
+  const [historyByAgent, setHistoryByAgent] = useState<Map<string, Array<{ role: string; content: string }>>>(() => new Map());
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
-  const [history, setHistory] = useState<Array<{ role: string; content: string }>>([]);
   const messagesRef = useRef<HTMLDivElement>(null);
+
+  const messages = selectedId ? (threads.get(selectedId) ?? []) : [];
+  const history = selectedId ? (historyByAgent.get(selectedId) ?? []) : [];
 
   const agents = useMemo(() => {
     const map = new Map<string, AgentInfo>();
@@ -146,43 +152,66 @@ export function ChatPanel({ state }: ChatPanelProps) {
 
   useEffect(() => {
     if (messagesRef.current) messagesRef.current.scrollTo({ top: messagesRef.current.scrollHeight, behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, sending]);
 
   const selectAgent = (name: string) => {
     setSelectedId(name);
-    setMessages([]);
-    setHistory([]);
-    const c = agents.find(a => a.name === name);
-    if (c) {
-      setMessages([{
+    // Initialize a thread the first time we open this agent. Re-selects keep
+    // the existing thread intact so the user can switch agents and back
+    // without losing the conversation.
+    setThreads(prev => {
+      if (prev.has(name)) return prev;
+      const c = agents.find(a => a.name === name);
+      const greeting: ChatMessage = c ? {
         role: 'agent', name: c.name,
         text: `${c.role} in ${c.department}. Age ${c.age || '?'}. Ask me anything about life in the ${scenario.labels.settlementNoun}.`,
-      }]);
-    }
+      } : { role: 'agent', text: 'Connected.' };
+      const next = new Map(prev);
+      next.set(name, [greeting]);
+      return next;
+    });
+  };
+
+  const setMessagesFor = (agentId: string, updater: (prev: ChatMessage[]) => ChatMessage[]) => {
+    setThreads(prev => {
+      const next = new Map(prev);
+      next.set(agentId, updater(prev.get(agentId) ?? []));
+      return next;
+    });
+  };
+
+  const setHistoryFor = (agentId: string, updater: (prev: Array<{ role: string; content: string }>) => Array<{ role: string; content: string }>) => {
+    setHistoryByAgent(prev => {
+      const next = new Map(prev);
+      next.set(agentId, updater(prev.get(agentId) ?? []));
+      return next;
+    });
   };
 
   const send = async () => {
     if (!input.trim() || !selectedId || sending) return;
+    const targetId = selectedId;
     const msg = input.trim();
     setInput('');
     setSending(true);
-    setMessages(prev => [...prev, { role: 'user', text: msg }]);
-    const newHistory = [...history, { role: 'user', content: msg }];
-    setHistory(newHistory);
+    setMessagesFor(targetId, prev => [...prev, { role: 'user', text: msg }]);
+    const currentHistory = historyByAgent.get(targetId) ?? [];
+    const newHistory = [...currentHistory, { role: 'user', content: msg }];
+    setHistoryFor(targetId, () => newHistory);
     try {
       const res = await fetch('/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agentId: selectedId, message: msg, history: newHistory }),
+        body: JSON.stringify({ agentId: targetId, message: msg, history: newHistory }),
       });
       const data = await res.json();
       if (data.reply) {
-        setMessages(prev => [...prev, { role: 'agent', name: data.colonist || selectedId, text: data.reply }]);
-        setHistory(prev => [...prev, { role: 'assistant', content: data.reply }]);
+        setMessagesFor(targetId, prev => [...prev, { role: 'agent', name: data.colonist || targetId, text: data.reply }]);
+        setHistoryFor(targetId, prev => [...prev, { role: 'assistant', content: data.reply }]);
       } else {
-        setMessages(prev => [...prev, { role: 'agent', text: data.error || 'No response' }]);
+        setMessagesFor(targetId, prev => [...prev, { role: 'agent', text: data.error || 'No response' }]);
       }
     } catch (err) {
-      setMessages(prev => [...prev, { role: 'agent', text: `Chat failed: ${err}` }]);
+      setMessagesFor(targetId, prev => [...prev, { role: 'agent', text: `Chat failed: ${err}` }]);
     }
     setSending(false);
   };
@@ -269,6 +298,43 @@ export function ChatPanel({ state }: ChatPanelProps) {
               </div>
             </div>
           ))}
+
+          {/* Typing indicator while waiting on agent response */}
+          {sending && selectedId && (
+            <div style={{ maxWidth: '80%', alignSelf: 'flex-start' }} aria-live="polite" aria-label={`${selected?.name || 'Agent'} is typing`}>
+              <div style={{ fontSize: '10px', color: 'var(--amber)', fontWeight: 700, marginBottom: '4px' }}>
+                {selected?.name || selectedId}
+              </div>
+              <div style={{
+                padding: '10px 14px', borderRadius: '8px',
+                background: 'var(--bg-card)', border: '1px solid var(--border)',
+                color: 'var(--text-3)', display: 'inline-flex', alignItems: 'center', gap: 6,
+                boxShadow: 'var(--card-shadow)',
+              }}>
+                <span style={{ fontSize: 11, fontStyle: 'italic' }}>typing</span>
+                <span className="chat-dot" style={{ animationDelay: '0ms' }}>.</span>
+                <span className="chat-dot" style={{ animationDelay: '160ms' }}>.</span>
+                <span className="chat-dot" style={{ animationDelay: '320ms' }}>.</span>
+              </div>
+              <style>{`
+                @keyframes chat-dot-bounce {
+                  0%, 60%, 100% { opacity: 0.2; transform: translateY(0); }
+                  30%           { opacity: 1;   transform: translateY(-2px); }
+                }
+                .chat-dot {
+                  display: inline-block;
+                  font-weight: 800;
+                  font-size: 14px;
+                  line-height: 1;
+                  color: var(--amber);
+                  animation: chat-dot-bounce 1s ease-in-out infinite;
+                }
+                @media (prefers-reduced-motion: reduce) {
+                  .chat-dot { animation: none; opacity: 0.6; }
+                }
+              `}</style>
+            </div>
+          )}
         </div>
 
         {/* Input */}

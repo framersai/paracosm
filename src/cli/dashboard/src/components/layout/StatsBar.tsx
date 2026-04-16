@@ -1,6 +1,8 @@
 import type { ColonyState } from '../../hooks/useGameState';
 import { useScenarioContext } from '../../App';
 
+interface CostInfo { totalTokens: number; totalCostUSD: number; llmCalls: number }
+
 interface StatsBarProps {
   colonyA: ColonyState | null;
   colonyB: ColonyState | null;
@@ -13,7 +15,14 @@ interface StatsBarProps {
   citationsA: number;
   citationsB: number;
   crisisText?: string;
-  cost?: { totalTokens: number; totalCostUSD: number; llmCalls: number };
+  cost?: CostInfo;
+  costA?: CostInfo;
+  costB?: CostInfo;
+}
+
+function fmtUsd(v: number): string {
+  if (v <= 0) return '0';
+  return v < 0.01 ? v.toFixed(4) : v.toFixed(2);
 }
 
 function fmtVal(value: number, format: string): string {
@@ -49,7 +58,7 @@ function delta(curr: number, prev: number | undefined): string {
   return d > 0 ? `+${d}` : `${d}`;
 }
 
-export function StatsBar({ colonyA, colonyB, prevColonyA, prevColonyB, deathsA, deathsB, toolsA, toolsB, citationsA, citationsB, crisisText, cost }: StatsBarProps) {
+export function StatsBar({ colonyA, colonyB, prevColonyA, prevColonyB, deathsA, deathsB, toolsA, toolsB, citationsA, citationsB, crisisText, cost, costA, costB }: StatsBarProps) {
   const scenario = useScenarioContext();
 
   if (!colonyA && !colonyB) {
@@ -117,12 +126,28 @@ export function StatsBar({ colonyA, colonyB, prevColonyA, prevColonyB, deathsA, 
         <span style={{ color: 'var(--text-1)', fontWeight: 800 }}>{citationsB}</span>
       </span>
 
-      {/* Cost tracker */}
+      {/* Cost tracker — split per leader when both sides have data, with
+          combined total alongside. Falls back to combined-only when only
+          one side has reported. */}
       {cost && cost.llmCalls > 0 && (
-        <span style={{ display: 'flex', alignItems: 'baseline', gap: '4px', whiteSpace: 'nowrap', flexShrink: 0, paddingLeft: '8px', borderLeft: '1px solid var(--border)' }}>
-          <span style={{ fontSize: '10px', color: 'var(--green)', letterSpacing: '0.8px', fontWeight: 800, opacity: 0.8 }}>$</span>
-          <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--green)' }}>
-            {cost.totalCostUSD < 0.01 ? cost.totalCostUSD.toFixed(4) : cost.totalCostUSD.toFixed(2)}
+        <span
+          title={costA && costB
+            ? `Leader A: $${fmtUsd(costA.totalCostUSD)} (${(costA.totalTokens / 1000).toFixed(1)}k tok, ${costA.llmCalls} calls) · Leader B: $${fmtUsd(costB.totalCostUSD)} (${(costB.totalTokens / 1000).toFixed(1)}k tok, ${costB.llmCalls} calls)`
+            : `${cost.llmCalls} LLM calls, ${(cost.totalTokens / 1000).toFixed(1)}k tokens`}
+          style={{ display: 'flex', alignItems: 'baseline', gap: '4px', whiteSpace: 'nowrap', flexShrink: 0, paddingLeft: '8px', borderLeft: '1px solid var(--border)' }}
+        >
+          <span style={{ fontSize: '10px', color: 'var(--text-1)', letterSpacing: '0.8px', fontWeight: 800, opacity: 0.7 }}>COST</span>
+          {costA && costA.totalCostUSD > 0 && (
+            <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--vis)' }}>${fmtUsd(costA.totalCostUSD)}</span>
+          )}
+          {costA && costB && (costA.totalCostUSD > 0 || costB.totalCostUSD > 0) && (
+            <span style={{ color: 'var(--text-3)', fontSize: '10px' }}>vs</span>
+          )}
+          {costB && costB.totalCostUSD > 0 && (
+            <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--eng)' }}>${fmtUsd(costB.totalCostUSD)}</span>
+          )}
+          <span style={{ fontSize: '10px', color: 'var(--green)', fontWeight: 700, marginLeft: 4 }}>
+            ${fmtUsd(cost.totalCostUSD)}
           </span>
           <span style={{ fontSize: '9px', color: 'var(--text-3)' }}>
             {(cost.totalTokens / 1000).toFixed(0)}k tok

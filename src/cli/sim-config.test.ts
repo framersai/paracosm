@@ -50,7 +50,7 @@ test('normalizeSimulationConfig applies defaults for omitted optional fields', (
   assert.equal(config.execution.commanderMaxSteps, 5);
   assert.equal(config.execution.departmentMaxSteps, 8);
   assert.equal(config.models.commander, 'gpt-5.4');
-  assert.equal(config.models.departments, 'gpt-5.4-mini');
+  assert.equal(config.models.departments, 'gpt-5.4');
   assert.equal(config.models.judge, 'gpt-5.4');
   assert.equal(config.models.director, 'gpt-5.4');
   assert.equal(config.keyPersonnel.length, 5);
@@ -121,7 +121,7 @@ test('normalizeSimulationConfig honors anthropic provider defaults and rejects m
 
   assert.equal(config.provider, 'anthropic');
   assert.equal(config.models.commander, 'claude-sonnet-4-6');
-  assert.equal(config.models.departments, 'claude-haiku-4-5-20251001');
+  assert.equal(config.models.departments, 'claude-sonnet-4-6');
   assert.equal(config.models.judge, 'claude-sonnet-4-6');
   assert.equal(config.models.director, 'claude-sonnet-4-6');
 });
@@ -131,7 +131,7 @@ test('normalizeSimulationConfig infers provider from selected model family when 
     leaders: [leaderA, leaderB],
     models: {
       commander: 'claude-sonnet-4-6',
-      departments: 'claude-haiku-4-5-20251001',
+      departments: 'claude-sonnet-4-6',
       judge: 'claude-sonnet-4-6',
     },
   });
@@ -151,7 +151,8 @@ test('normalizeSimulationConfig keeps medical and engineering active even if omi
 test('resolveSimulationModels uses provider defaults when models are omitted for standalone runs', () => {
   const anthropicModels = resolveSimulationModels('anthropic');
   assert.equal(anthropicModels.commander, 'claude-sonnet-4-6');
-  assert.equal(anthropicModels.departments, 'claude-haiku-4-5-20251001');
+  assert.equal(anthropicModels.departments, 'claude-sonnet-4-6');
   assert.equal(anthropicModels.judge, 'claude-sonnet-4-6');
   assert.equal(anthropicModels.director, 'claude-sonnet-4-6');
+  assert.equal(anthropicModels.agentReactions, 'claude-haiku-4-5-20251001');
 });

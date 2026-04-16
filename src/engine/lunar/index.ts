@@ -3,7 +3,7 @@
  * Loads scenario data from scenario.json and attaches runtime hooks.
  */
 
-import type { ScenarioPackage } from '../types.js';
+import type { ScenarioPackage, ScenarioHooks } from '../types.js';
 import scenarioData from './scenario.json' with { type: 'json' };
 import {
   lunarProgressionHook,
@@ -51,5 +51,5 @@ export const lunarScenario: ScenarioPackage = {
     politicsHook: lunarPoliticsHook,
     reactionContextHook: lunarReactionContext,
     getMilestoneEvent: getLunarMilestoneCrisis,
-  },
+  } satisfies ScenarioHooks,
 };

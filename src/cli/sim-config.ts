@@ -150,6 +150,11 @@ export function resolveSimulationModels(
     departments: normalizeModel(models?.departments, defaults.departments),
     judge: normalizeModel(models?.judge, defaults.judge),
     director: normalizeModel(models?.director ?? models?.commander, defaults.director),
+    // agentReactions runs once per alive agent per turn (~100 calls), so it
+    // intentionally defaults to a cheaper model. Was being dropped here,
+    // forcing the orchestrator to fall back to a hardcoded gpt-4o-mini even
+    // when the run is on Anthropic.
+    agentReactions: normalizeModel(models?.agentReactions, defaults.agentReactions ?? defaults.departments),
   };
 }
 

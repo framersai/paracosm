@@ -56,7 +56,16 @@ interface PoolEntry {
 // Agent Pool
 // ============================================================================
 
-const MAX_POOL_SIZE = 10;
+/**
+ * Max simultaneous chat agents kept warm in-process. AgentOS sessions hold
+ * full conversation history, so an evicted agent loses the prior chat from
+ * the user's perspective even though messages still live on the client.
+ *
+ * 50 is comfortable for typical 100-colonist runs without blowing memory:
+ * with `gpt-4o-mini` chat model + sqlite-in-memory store, each agent is
+ * ~few MB. Tune via PARACOSM_CHAT_POOL_SIZE.
+ */
+const MAX_POOL_SIZE = Math.max(10, parseInt(process.env.PARACOSM_CHAT_POOL_SIZE || '50', 10));
 const pool = new Map<string, PoolEntry>();
 
 /**

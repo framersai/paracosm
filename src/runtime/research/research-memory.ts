@@ -15,6 +15,13 @@ let _memory: any = null;
 let _initialized = false;
 let _initPromise: Promise<void> | null = null;
 let _lastKnowledge: KnowledgeBundle | null = null;
+/**
+ * Per-simulation cache of recall results. Keyed by `${query}|${keywords}|${category}`.
+ * Two events with the same researchKeywords + category in one simulation
+ * share the same packet without re-hitting the memory store or live search.
+ * Reset by `closeResearchMemory()` between runs.
+ */
+const _recallCache = new Map<string, CrisisResearchPacket>();
 
 /** Flatten a KnowledgeBundle into ingestion entries */
 function flattenKnowledgeBundle(
@@ -75,17 +82,27 @@ export async function initResearchMemory(knowledge?: KnowledgeBundle): Promise<b
   return _initialized;
 }
 
-/** Recall research relevant to a crisis query */
+/** Recall research relevant to a crisis query. Memoized per simulation. */
 export async function recallResearch(query: string, keywords: string[] = [], category: string = 'infrastructure'): Promise<CrisisResearchPacket> {
+  // Memoization key: same researchKeywords + category in two events share the
+  // same packet without re-hitting memory or live search. Reset per simulation.
+  const cacheKey = `${query}|${keywords.slice(0, 4).join(',')}|${category}`;
+  const cached = _recallCache.get(cacheKey);
+  if (cached) return cached;
+
   if (!_memory || !_initialized) {
     // Fallback to scenario-aware research from knowledge bundle
     const { getResearchFromBundle } = await import('./scenario-research.js');
     // Use stored knowledge bundle if available, otherwise fall back to legacy
+    let packet: CrisisResearchPacket;
     if (_lastKnowledge) {
-      return getResearchFromBundle(_lastKnowledge, category, keywords);
+      packet = getResearchFromBundle(_lastKnowledge, category, keywords);
+    } else {
+      const { getResearchForCategory } = await import('./knowledge-base.js');
+      packet = getResearchForCategory(category, keywords);
     }
-    const { getResearchForCategory } = await import('./knowledge-base.js');
-    return getResearchForCategory(category, keywords);
+    _recallCache.set(cacheKey, packet);
+    return packet;
   }
 
   const searchQuery = [query, ...keywords.slice(0, 3)].join(' ');
@@ -115,11 +132,13 @@ export async function recallResearch(query: string, keywords: string[] = [], cat
     }
   }
 
-  return {
+  const packet: CrisisResearchPacket = {
     canonicalFacts: facts,
     counterpoints: [],
     departmentNotes: {},
   };
+  _recallCache.set(cacheKey, packet);
+  return packet;
 }
 
 /** Clean up memory on simulation end */
@@ -131,4 +150,5 @@ export async function closeResearchMemory(): Promise<void> {
     _initPromise = null;
     _lastKnowledge = null;
   }
+  _recallCache.clear();
 }

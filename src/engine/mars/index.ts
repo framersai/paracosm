@@ -3,7 +3,7 @@
  * Loads scenario data from scenario.json and attaches runtime hooks.
  */
 
-import type { ScenarioPackage } from '../types.js';
+import type { ScenarioPackage, ScenarioHooks } from '../types.js';
 import scenarioData from './scenario.json' with { type: 'json' };
 import {
   marsProgressionHook,
@@ -48,7 +48,10 @@ export const marsScenario: ScenarioPackage = {
   // Knowledge bundle (too large for JSON import, kept as TS module)
   knowledge: MARS_KNOWLEDGE_BUNDLE,
 
-  // Runtime hooks (functions, not serializable)
+  // Runtime hooks (functions, not serializable).
+  // Explicitly typed so excess-property checks catch silent typos (e.g. an
+  // earlier rename of getMilestoneCrisis → getMilestoneEvent went undetected
+  // here for months because the surrounding `as any` spread suppressed checks).
   hooks: {
     progressionHook: marsProgressionHook,
     departmentPromptHook: (ctx) => marsDepartmentPromptLines(ctx.department, ctx.state),
@@ -57,5 +60,5 @@ export const marsScenario: ScenarioPackage = {
     politicsHook: marsPoliticsHook,
     reactionContextHook: marsReactionContext,
     getMilestoneEvent: getMarsMilestoneCrisis,
-  },
+  } satisfies ScenarioHooks,
 };

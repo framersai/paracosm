@@ -21,7 +21,7 @@
 
 import type { ScenarioPackage, ScenarioHooks, LlmProvider } from '../types.js';
 import type { CompileOptions, GenerateTextFn } from './types.js';
-import { readCache, writeCache } from './cache.js';
+import { readCache, writeCache, readSeedBundleCache, writeSeedBundleCache, seedSignature } from './cache.js';
 import { generateProgressionHook, parseResponse as parseProgression } from './generate-progression.js';
 import { generateDirectorInstructions } from './generate-director.js';
 import { generateMilestones, parseMilestones } from './generate-milestones.js';
@@ -192,28 +192,45 @@ export async function compileScenario(
     onProgress?.(hookName, 'done');
   }
 
-  // Seed ingestion: enrich knowledge bundle from document or URL
+  // Seed ingestion: enrich knowledge bundle from document or URL.
+  // Cached on disk by seed signature (text/URL + maxSearches + webSearch flag)
+  // so re-running a compile with the same seed never re-fetches pages or
+  // re-runs the extraction LLM call.
   let knowledge = json.knowledge ?? { topics: {}, categoryMapping: {} };
-  if (options.seedUrl) {
-    onProgress?.('seed-ingestion', 'generating');
-    const seedBundle = await ingestFromUrl(options.seedUrl, {
-      generateText: genText,
-      webSearch: options.webSearch ?? true,
-      maxSearches: options.maxSearches ?? 5,
-      onProgress: (step, status) => onProgress?.(`seed-${step}`, status === 'start' ? 'generating' : 'done'),
+  if (options.seedUrl || options.seedText) {
+    const sig = seedSignature({
+      seedText: options.seedText,
+      seedUrl: options.seedUrl,
+      webSearch: options.webSearch,
+      maxSearches: options.maxSearches,
     });
+
+    let seedBundle: Awaited<ReturnType<typeof ingestSeed>> | null = null;
+    if (cache) {
+      const cached = readSeedBundleCache(json, sig, cacheDir);
+      if (cached && typeof cached === 'object') {
+        onProgress?.('seed-ingestion', 'cached');
+        seedBundle = cached as Awaited<ReturnType<typeof ingestSeed>>;
+      }
+    }
+
+    if (!seedBundle) {
+      onProgress?.('seed-ingestion', 'generating');
+      const ingestOpts = {
+        generateText: genText,
+        webSearch: options.webSearch ?? true,
+        maxSearches: options.maxSearches ?? 5,
+        onProgress: (step: string, status: 'start' | 'done') =>
+          onProgress?.(`seed-${step}`, status === 'start' ? 'generating' : 'done'),
+      };
+      seedBundle = options.seedUrl
+        ? await ingestFromUrl(options.seedUrl, ingestOpts)
+        : await ingestSeed(options.seedText!, ingestOpts);
+      if (cache) writeSeedBundleCache(json, sig, seedBundle, cacheDir);
+      onProgress?.('seed-ingestion', 'done');
+    }
+
     knowledge = mergeKnowledgeBundles(knowledge, seedBundle);
-    onProgress?.('seed-ingestion', 'done');
-  } else if (options.seedText) {
-    onProgress?.('seed-ingestion', 'generating');
-    const seedBundle = await ingestSeed(options.seedText, {
-      generateText: genText,
-      webSearch: options.webSearch ?? true,
-      maxSearches: options.maxSearches ?? 5,
-      onProgress: (step, status) => onProgress?.(`seed-${step}`, status === 'start' ? 'generating' : 'done'),
-    });
-    knowledge = mergeKnowledgeBundles(knowledge, seedBundle);
-    onProgress?.('seed-ingestion', 'done');
   }
 
   // Build world schema from metrics if not already structured
