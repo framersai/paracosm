@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 interface TooltipProps {
   content: ReactNode;
@@ -11,6 +12,17 @@ interface TooltipProps {
   block?: boolean;
 }
 
+/**
+ * Rendered tooltip width. Kept in sync with the style declaration below
+ * so the positioning clamp and the actual rendered size agree. Previously
+ * the clamp used 380px while the card rendered at 420px, which meant the
+ * right edge could overflow the viewport by up to 40px before the clamp
+ * kicked in. Moved to a constant so future width changes only touch one
+ * place.
+ */
+const TOOLTIP_WIDTH = 420;
+const TOOLTIP_MAX_HEIGHT_ESTIMATE = 260;
+
 export function Tooltip({ content, children, dot, block }: TooltipProps) {
   const [visible, setVisible] = useState(false);
   const [pos, setPos] = useState({ x: 0, y: 0 });
@@ -20,17 +32,16 @@ export function Tooltip({ content, children, dot, block }: TooltipProps) {
   const show = useCallback((e: React.MouseEvent) => {
     clearTimeout(timer.current);
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const tooltipW = Math.min(380, window.innerWidth - 20);
+    const tooltipW = Math.min(TOOLTIP_WIDTH, window.innerWidth - 20);
     let x = rect.left;
     // Default: position ABOVE the element
-    const tooltipHeight = 250;
-    let y = rect.top - tooltipHeight - 6;
+    let y = rect.top - TOOLTIP_MAX_HEIGHT_ESTIMATE - 6;
     // If no room above, flip below
     if (y < 10) y = rect.bottom + 6;
     // Clamp to viewport
     if (x + tooltipW > window.innerWidth - 10) x = window.innerWidth - tooltipW - 10;
     if (x < 10) x = 10;
-    if (y + tooltipHeight > window.innerHeight - 10) y = window.innerHeight - tooltipHeight - 10;
+    if (y + TOOLTIP_MAX_HEIGHT_ESTIMATE > window.innerHeight - 10) y = window.innerHeight - TOOLTIP_MAX_HEIGHT_ESTIMATE - 10;
     if (y < 10) y = 10;
     setPos({ x, y });
     setVisible(true);
@@ -39,6 +50,45 @@ export function Tooltip({ content, children, dot, block }: TooltipProps) {
   const hide = useCallback(() => {
     timer.current = setTimeout(() => setVisible(false), 100);
   }, []);
+
+  // Render the floating tooltip into document.body via a portal.
+  //
+  // Why: several callers render the tooltip trigger inside containers
+  // that apply CSS transforms (e.g. EventCard forge cards use
+  // `animation: forgeSlide` with `transform: translateX()` and fill mode
+  // `both`, which keeps `transform: translateX(0)` applied after the
+  // animation completes). Any non-static transform on an ancestor turns
+  // `position: fixed` into "fixed relative to that ancestor," which
+  // caused the tooltip to be clipped at the card's edges. The user saw
+  // this as text cut off mid-word ("✓ PASS · judge co...").
+  //
+  // Portaling into document.body removes the tooltip from the trigger's
+  // ancestor chain entirely, so position:fixed resolves against the
+  // viewport as intended.
+  const floatingTooltip = visible ? (
+    <div
+      id="paracosm-tooltip"
+      role="tooltip"
+      onMouseEnter={() => { clearTimeout(timer.current); setVisible(true); }}
+      onMouseLeave={hide}
+      style={{
+        position: 'fixed', left: pos.x, top: pos.y, zIndex: 99999,
+        background: 'var(--bg-card)', border: '2px solid var(--amber)', borderRadius: '8px',
+        padding: '14px 18px', fontSize: '12px', color: 'var(--text-1)', lineHeight: 1.6,
+        width: `${TOOLTIP_WIDTH}px`, maxWidth: '90vw',
+        // Cap height so an overflowing tooltip scrolls internally rather
+        // than overflowing the viewport. Previously the no-scroll policy
+        // could push tooltip content below the viewport when the text
+        // body ran long (FAIL tooltip with a verbose rejection reason).
+        maxHeight: '80vh', overflowY: 'auto',
+        boxShadow: '0 8px 40px rgba(0,0,0,.4)', pointerEvents: 'auto',
+        whiteSpace: 'normal', wordBreak: 'break-word',
+        animation: 'fadeUp 0.15s ease both',
+      }}
+    >
+      {content}
+    </div>
+  ) : null;
 
   return (
     <span
@@ -67,27 +117,13 @@ export function Tooltip({ content, children, dot, block }: TooltipProps) {
           flexShrink: 0, display: 'inline-block', verticalAlign: 'middle',
         }} aria-hidden="true" />
       )}
-      {visible && (
-        <div
-          id="paracosm-tooltip"
-          role="tooltip"
-          onMouseEnter={() => { clearTimeout(timer.current); setVisible(true); }}
-          onMouseLeave={hide}
-          style={{
-            position: 'fixed', left: pos.x, top: pos.y, zIndex: 99999,
-            background: 'var(--bg-card)', border: '2px solid var(--amber)', borderRadius: '8px',
-            padding: '14px 18px', fontSize: '12px', color: 'var(--text-1)', lineHeight: 1.6,
-            width: '420px', maxWidth: '90vw',
-            // No internal scrollbar — content sizes naturally and the
-            // tooltip stays a single self-contained card.
-            boxShadow: '0 8px 40px rgba(0,0,0,.4)', pointerEvents: 'auto',
-            whiteSpace: 'normal', wordBreak: 'break-word',
-            animation: 'fadeUp 0.15s ease both',
-          }}
-        >
-          {content}
-        </div>
-      )}
+      {/* SSR safety: document is only referenced inside the render
+          function body, which runs on the client. If this component ever
+          gets rendered in a SSR context the `typeof document` guard
+          returns null early without crashing. */}
+      {floatingTooltip && typeof document !== 'undefined'
+        ? createPortal(floatingTooltip, document.body)
+        : null}
     </span>
   );
 }
