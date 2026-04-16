@@ -35,6 +35,82 @@ const moodColors: Record<string, string> = {
   defiant: 'var(--rust)', hopeful: 'var(--green)', resigned: 'var(--text-3)', neutral: 'var(--text-2)',
 };
 
+function EventContext({ memory, events, scenario }: { memory: AgentMemoryInfo; events: GameState; scenario: { labels: { eventNoun?: string; eventNounSingular?: string } } }) {
+  // Collect crisis/event titles from both sides
+  const eventTimeline: Array<{ turn: number; year: number; title: string; category: string }> = [];
+  for (const side of ['a', 'b'] as const) {
+    for (const evt of events[side].events) {
+      if (evt.type === 'turn_start' && evt.data.title && evt.data.title !== 'Director generating...') {
+        const turn = evt.data.turn as number;
+        if (!eventTimeline.some(e => e.turn === turn)) {
+          eventTimeline.push({
+            turn,
+            year: evt.data.year as number || 0,
+            title: String(evt.data.title),
+            category: String(evt.data.category || ''),
+          });
+        }
+      }
+    }
+  }
+  eventTimeline.sort((a, b) => a.turn - b.turn);
+
+  const eventNoun = scenario.labels.eventNoun || 'events';
+  const hasMemories = memory.recentMemories?.length > 0;
+  const hasRelationships = memory.relationships?.length > 0;
+
+  if (!eventTimeline.length && !hasMemories) return null;
+
+  return (
+    <div style={{
+      padding: '8px 14px', borderRadius: 6, fontSize: 10, lineHeight: 1.5,
+      background: 'var(--bg-card)', border: '1px solid var(--border)',
+      marginBottom: 4,
+    }}>
+      {eventTimeline.length > 0 && (
+        <div style={{ marginBottom: hasMemories ? 8 : 0 }}>
+          <div style={{ fontWeight: 700, color: 'var(--rust)', fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.08em', marginBottom: 4 }}>
+            {eventNoun.toUpperCase()} EXPERIENCED
+          </div>
+          {eventTimeline.map(e => (
+            <div key={e.turn} style={{ display: 'flex', gap: 6, marginBottom: 2 }}>
+              <span style={{ fontFamily: 'var(--mono)', color: 'var(--text-3)', flexShrink: 0, minWidth: 45 }}>T{e.turn} {e.year}</span>
+              <span style={{ color: 'var(--text-1)', fontWeight: 600 }}>{e.title}</span>
+              {e.category && <span style={{ color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>{e.category}</span>}
+            </div>
+          ))}
+        </div>
+      )}
+      {hasMemories && (
+        <div style={{ marginBottom: hasRelationships ? 6 : 0 }}>
+          <div style={{ fontWeight: 700, color: 'var(--amber)', fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.08em', marginBottom: 3 }}>
+            RECENT MEMORIES
+          </div>
+          {memory.recentMemories.slice(0, 3).map((m, i) => (
+            <div key={i} style={{ color: 'var(--text-2)', paddingLeft: 6, borderLeft: `2px solid ${m.valence === 'positive' ? 'var(--green)' : m.valence === 'negative' ? 'var(--rust)' : 'var(--border)'}`, marginBottom: 2 }}>
+              <span style={{ fontFamily: 'var(--mono)', color: 'var(--text-3)' }}>Y{m.year}</span> {m.content}
+            </div>
+          ))}
+        </div>
+      )}
+      {hasRelationships && (
+        <div>
+          <div style={{ fontWeight: 700, color: 'var(--teal)', fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '.08em', marginBottom: 3 }}>
+            RELATIONSHIPS
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {memory.relationships.map((r, i) => (
+              <span key={i} style={{ color: r.sentiment > 0 ? 'var(--green)' : 'var(--rust)' }}>
+                {r.name} {r.sentiment > 0 ? '+' : ''}{r.sentiment.toFixed(1)}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ChatPanel({ state }: ChatPanelProps) {
   const scenario = useScenarioContext();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -168,11 +244,16 @@ export function ChatPanel({ state }: ChatPanelProps) {
               </div>
               <div style={{ fontSize: '11px', lineHeight: 1.6, maxWidth: '400px', margin: '0 auto' }}>
                 {agents.length
-                  ? `Each agent is a simulated ${scenario.labels.populationNoun.replace(/s$/, '')} with a unique HEXACO personality, persistent memory of crises they survived, evolving stances on topics, and relationships with other agents. Their responses reflect their actual simulation experience.`
-                  : `Run a simulation from the Settings tab. Once complete, all ${scenario.labels.populationNoun} become available here for post-simulation conversation. The chat system uses each agent's personality profile, memory, and crisis history to generate authentic in-character responses.`
+                  ? `Each agent is a simulated ${scenario.labels.populationNoun.replace(/s$/, '')} with a unique HEXACO personality, persistent memory of events they survived, evolving stances on topics, and relationships with other agents. Their responses reflect their actual simulation experience.`
+                  : `Run a simulation from the Settings tab. Once the first turn completes, agents become available for conversation. The chat system uses each agent's personality profile, memory, and event history to generate authentic in-character responses.`
                 }
               </div>
             </div>
+          )}
+
+          {/* Event context when agent is selected */}
+          {selectedId && selected?.memory && (
+            <EventContext memory={selected.memory} events={state} scenario={scenario} />
           )}
           {messages.map((msg, i) => (
             <div key={i} style={{ maxWidth: '80%', alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>

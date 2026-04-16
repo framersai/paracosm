@@ -10,6 +10,8 @@ export interface ScenarioClientPayload {
     populationNoun: string;
     settlementNoun: string;
     currency: string;
+    eventNoun?: string;
+    eventNounSingular?: string;
   };
   theme: {
     primaryColor: string;
