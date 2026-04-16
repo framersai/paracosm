@@ -164,7 +164,15 @@ export function ChatPanel({ state }: ChatPanelProps) {
       const c = agents.find(a => a.name === name);
       const greeting: ChatMessage = c ? {
         role: 'agent', name: c.name,
-        text: `${c.role} in ${c.department}. Age ${c.age || '?'}. Ask me anything about life in the ${scenario.labels.settlementNoun}.`,
+        // Steer the user toward simulation-grounded questions instead of
+        // generic chit-chat — the agent is a simulated character with a
+        // specific event history, not a virtual assistant.
+        text:
+          `${c.role} in ${c.department}, age ${c.age || '?'}. ` +
+          `I lived through this simulation — ask me about specific turns, the commander's decisions, ` +
+          `crises I witnessed, people I worked with, or how my department handled what came up. ` +
+          `Try: "what did you think of the commander's choice in turn 1?", ` +
+          `"who do you trust on the team?", or "what was the worst moment for you?"`,
       } : { role: 'agent', text: 'Connected.' };
       const next = new Map(prev);
       next.set(name, [greeting]);
