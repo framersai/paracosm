@@ -51,7 +51,19 @@ export function VizControls({
         <ControlButton onClick={onStepBack} disabled={currentTurn <= 0} label="Step back (←)">
           <span style={{ fontSize: 10 }}>&#9198;</span>
         </ControlButton>
-        <ControlButton onClick={onPlayPause} primary label={playing ? 'Pause (Space)' : 'Play (Space)'}>
+        <ControlButton
+          onClick={onPlayPause}
+          // Nothing to animate through when there is at most one
+          // snapshot, so play toggling the icon would feel broken.
+          // Greys out until a second snapshot arrives.
+          disabled={maxTurn <= 1}
+          primary
+          label={
+            maxTurn <= 1
+              ? 'Play (no snapshots yet)'
+              : playing ? 'Pause (Space)' : 'Play (Space)'
+          }
+        >
           <span style={{ fontSize: 10 }}>{playing ? '\u23F8' : '\u25B6'}</span>
         </ControlButton>
         <ControlButton onClick={onStepForward} disabled={currentTurn >= maxTurn - 1} label="Step forward (→)">

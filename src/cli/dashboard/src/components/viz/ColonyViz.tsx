@@ -27,9 +27,23 @@ export function ColonyViz({ state }: ColonyVizProps) {
   const canvasARef = useRef<ColonyCanvasHandle>(null);
   const canvasBRef = useRef<ColonyCanvasHandle>(null);
 
-  // Auto-advance to latest turn when new snapshots arrive
+  // Auto-advance to latest turn ONLY when new snapshots arrive (maxTurn
+  // grows), not on play/pause toggles. The previous implementation fired
+  // on every `playing` flip, so pausing mid-playback snapped the playhead
+  // back to maxTurn-1 — which made the pause button feel broken ("icon
+  // toggled but nothing happened"; really: playhead jumped instantly).
+  //
+  // Track the previously observed maxTurn in a ref so the effect can
+  // distinguish "new turn snapshot arrived from SSE" (legitimate
+  // auto-advance) from "user toggled playback" (do nothing).
+  const prevMaxTurnRef = useRef(0);
   useEffect(() => {
-    if (!playing && maxTurn > 0) {
+    const prev = prevMaxTurnRef.current;
+    prevMaxTurnRef.current = maxTurn;
+    // Only jump the playhead when maxTurn actually INCREASED. This is
+    // the "live streaming new turns in" path. Pausing and resuming does
+    // not grow maxTurn, so the playhead stays wherever the user left it.
+    if (maxTurn > prev && !playing) {
       setCurrentTurn(maxTurn - 1);
     }
   }, [maxTurn, playing]);
@@ -51,6 +65,12 @@ export function ColonyViz({ state }: ColonyVizProps) {
   }, [playing, speed, maxTurn]);
 
   const handlePlayPause = useCallback(() => {
+    // Defensive no-op when there is at most one snapshot: the play
+    // button is disabled in that case but the space-bar shortcut bypasses
+    // the disabled attribute, and flipping `playing` with nothing to
+    // advance just toggles the icon without visible effect (which is
+    // exactly the user-reported "play does nothing" behavior).
+    if (maxTurn <= 1) return;
     setPlaying(p => {
       if (!p && currentTurn >= maxTurn - 1) {
         setCurrentTurn(0);
