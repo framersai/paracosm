@@ -65,7 +65,16 @@ export function VizControls({
         max={Math.max(0, maxTurn - 1)}
         value={currentTurn}
         onChange={e => onTurnChange(parseInt(e.target.value))}
-        style={{ flex: 1, minWidth: 120, accentColor: 'var(--rust)' }}
+        className="pc-range"
+        style={{
+          flex: 1,
+          minWidth: 120,
+          accentColor: 'var(--rust)',
+          // Drives the WebKit track-fill gradient so the rail visibly
+          // fills as the user scrubs across turns.
+          ['--pc-range-fill' as string]: 'var(--rust)',
+          ['--pc-range-pct' as string]: `${maxTurn > 1 ? Math.round((currentTurn / (maxTurn - 1)) * 100) : 0}%`,
+        } as React.CSSProperties}
         aria-label="Turn scrubber"
       />
 

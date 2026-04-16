@@ -494,6 +494,80 @@
     .topbar-github { padding-left: 7px !important; padding-right: 7px !important; }
   }
 
+  /* === HEXACO range slider ===
+     Native <input type="range"> renders with browser-default tracks
+     (light gray on white) which vanish on the dark theme — only the
+     thumb dot was visible. Custom track + thumb styling for both
+     WebKit and Firefox so the rail is always legible, with the
+     accent-color filling the left of the thumb. */
+  input[type="range"].pc-range,
+  input[type="range"].pc-range:focus {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    height: 18px;
+    width: 100%;
+    cursor: pointer;
+    outline: none;
+  }
+  /* WebKit (Chrome, Safari, Edge) */
+  input[type="range"].pc-range::-webkit-slider-runnable-track {
+    height: 4px;
+    background: linear-gradient(
+      to right,
+      var(--pc-range-fill, var(--amber)) 0%,
+      var(--pc-range-fill, var(--amber)) var(--pc-range-pct, 50%),
+      var(--border) var(--pc-range-pct, 50%),
+      var(--border) 100%
+    );
+    border-radius: 999px;
+    border: 1px solid var(--border);
+  }
+  input[type="range"].pc-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--pc-range-fill, var(--amber));
+    border: 2px solid var(--bg-deep);
+    box-shadow: 0 0 0 1px var(--pc-range-fill, var(--amber)), 0 1px 4px rgba(0, 0, 0, 0.4);
+    margin-top: -6px;
+    cursor: grab;
+    transition: transform 0.1s;
+  }
+  input[type="range"].pc-range::-webkit-slider-thumb:active {
+    cursor: grabbing;
+    transform: scale(1.15);
+  }
+  /* Firefox */
+  input[type="range"].pc-range::-moz-range-track {
+    height: 4px;
+    background: var(--border);
+    border-radius: 999px;
+    border: 1px solid var(--border);
+  }
+  input[type="range"].pc-range::-moz-range-progress {
+    height: 4px;
+    background: var(--pc-range-fill, var(--amber));
+    border-radius: 999px;
+  }
+  input[type="range"].pc-range::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--pc-range-fill, var(--amber));
+    border: 2px solid var(--bg-deep);
+    box-shadow: 0 0 0 1px var(--pc-range-fill, var(--amber)), 0 1px 4px rgba(0, 0, 0, 0.4);
+    cursor: grab;
+  }
+  input[type="range"].pc-range:focus-visible::-webkit-slider-thumb {
+    box-shadow: 0 0 0 1px var(--pc-range-fill, var(--amber)), 0 0 0 4px rgba(232, 180, 74, 0.25);
+  }
+  input[type="range"].pc-range:focus-visible::-moz-range-thumb {
+    box-shadow: 0 0 0 1px var(--pc-range-fill, var(--amber)), 0 0 0 4px rgba(232, 180, 74, 0.25);
+  }
+
   /* === REDUCED MOTION (a11y) === */
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {

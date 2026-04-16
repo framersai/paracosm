@@ -19,6 +19,16 @@ function describeValue(short: string, val: number): string {
 export function HexacoSlider({ label, shortLabel, value, onChange, sideColor }: HexacoSliderProps) {
   const desc = describeValue(shortLabel, value);
   const color = sideColor || 'var(--amber)';
+  // Track-fill gradient is driven by --pc-range-pct (WebKit) and the
+  // browser-managed ::-moz-range-progress (Firefox). Pass the current
+  // percentage as a CSS var so the rail visibly fills as the user drags.
+  const pct = `${Math.round(value * 100)}%`;
+  const sliderStyle = {
+    flex: 1,
+    accentColor: color,
+    '--pc-range-fill': color,
+    '--pc-range-pct': pct,
+  } as React.CSSProperties;
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -28,7 +38,10 @@ export function HexacoSlider({ label, shortLabel, value, onChange, sideColor }: 
       <input
         type="range" min="0" max="1" step="0.05" value={value}
         onChange={e => onChange(parseFloat(e.target.value))}
-        style={{ flex: 1, accentColor: color }}
+        className="pc-range"
+        style={sliderStyle}
+        aria-label={label}
+        aria-valuetext={value.toFixed(2)}
       />
       <span style={{ fontSize: '13px', fontFamily: 'var(--mono)', minWidth: '36px', textAlign: 'right', color: 'var(--text-1)', fontWeight: 600 }}>
         {value.toFixed(2)}
