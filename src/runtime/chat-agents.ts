@@ -160,11 +160,13 @@ export async function getOrCreateChatAgent(
   // surface the right colonist when the user names someone specific.
   // Importance is pinned high (0.95) because name-recognition queries
   // must not be crowded out by the denser reaction/crisis memories.
+  const settlement = opts.settlementNoun ?? 'colony';
+  const popNoun = opts.populationNoun ?? 'colonist';
   const roster = (opts.roster ?? []).filter(e => e.agentId !== colonist.agentId);
   for (const entry of roster) {
-    const line = renderRosterLine(entry);
+    const line = renderRosterLine(entry, settlement);
     await memoryProvider.remember(
-      `Fellow colonist: ${line}`,
+      `Fellow ${popNoun.endsWith('s') ? popNoun.replace(/s$/, '') : popNoun}: ${line}`,
       { tags: ['roster', entry.department || 'unknown', `agent-${entry.agentId}`], importance: 0.95 },
     );
   }
@@ -179,9 +181,6 @@ export async function getOrCreateChatAgent(
     emotionality: colonist.hexaco.Em ?? 0.5,
     honesty: colonist.hexaco.HH ?? 0.5,
   } : undefined;
-
-  const settlement = opts.settlementNoun ?? 'colony';
-  const popNoun = opts.populationNoun ?? 'colonist';
 
   const instructions = buildInstructions(colonist, settlement, popNoun, roster);
 
@@ -207,31 +206,36 @@ export async function getOrCreateChatAgent(
 
 /**
  * Render one roster entry into a single compact line for the system
- * prompt's KNOWN COLONISTS block and for memory seeding.
+ * prompt's roster block and for memory seeding.
  *
  * Example output:
- *   "Erik Lindqvist — Chief Engineer (engineering, senior), earth-born, age 45, partner:col-ama"
+ *   "Erik Lindqvist, Chief Engineer (engineering, senior), native-born, age 45, partner: Alice"
  *
  * Kept terse because the full roster can run 100+ lines and model
  * context is finite. Department, role, alive status, and relationships
- * are the fields most likely to show up in user questions ("who's the
- * engineer", "who is X's partner", "is Y still alive").
+ * are the fields most likely to show up in user questions.
+ *
+ * @param entry The roster entry to render.
+ * @param settlement Scenario settlement noun, used for "born at the X"
+ *        instead of hardcoded "Mars-born" / "Earth-born".
  */
-function renderRosterLine(entry: ColonistRosterEntry): string {
+function renderRosterLine(entry: ColonistRosterEntry, settlement?: string): string {
   const parts: string[] = [entry.name];
-  if (entry.role) parts.push(`— ${entry.role}`);
+  if (entry.role) parts.push(`, ${entry.role}`);
   const tags: string[] = [];
   if (entry.department) tags.push(entry.department);
   if (entry.rank) tags.push(entry.rank);
-  if (tags.length) parts.push(`(${tags.join(', ')})`);
-  if (entry.marsborn !== undefined) parts.push(entry.marsborn ? 'Mars-born' : 'Earth-born');
-  if (typeof entry.age === 'number') parts.push(`age ${entry.age}`);
-  if (entry.partnerId) parts.push(`partner:${entry.partnerId}`);
-  if (entry.childrenIds && entry.childrenIds.length > 0) {
-    parts.push(`children:${entry.childrenIds.length}`);
+  if (tags.length) parts.push(` (${tags.join(', ')})`);
+  if (entry.marsborn !== undefined) {
+    parts.push(entry.marsborn ? `, native-born` : `, arrived from outside`);
   }
-  if (!entry.alive) parts.push('DECEASED');
-  return parts.join(' ');
+  if (typeof entry.age === 'number') parts.push(`, age ${entry.age}`);
+  if (entry.partnerId) parts.push(`, partner: ${entry.partnerId}`);
+  if (entry.childrenIds && entry.childrenIds.length > 0) {
+    parts.push(`, ${entry.childrenIds.length} children`);
+  }
+  if (!entry.alive) parts.push(', DECEASED');
+  return parts.join('');
 }
 
 /**
@@ -257,12 +261,19 @@ function buildInstructions(
   popNoun: string,
   roster: ColonistRosterEntry[],
 ): string {
+  // Singular form of the scenario's population noun for inline use.
+  // "colonists" → "colonist", "crew" → "crew member", "agents" → "agent".
+  const singular = popNoun.endsWith('s') ? popNoun.replace(/s$/, '') : `${popNoun} member`;
   const lines: string[] = [];
 
-  lines.push(`You are ${colonist.name}, a ${popNoun.replace(/s$/, '')} at the ${settlement}.`);
+  lines.push(`You are ${colonist.name}, a ${singular} at the ${settlement}.`);
 
   if (colonist.age) lines.push(`Age: ${colonist.age}.`);
-  if (colonist.marsborn !== undefined) lines.push(colonist.marsborn ? 'Born on Mars.' : 'Born on Earth.');
+  if (colonist.marsborn !== undefined) {
+    // Use the scenario label, not a hardcoded Mars reference, so this
+    // reads correctly for lunar, submarine, corporate, etc. scenarios.
+    lines.push(colonist.marsborn ? `Born at the ${settlement}.` : 'Born elsewhere before arriving.');
+  }
   if (colonist.role && colonist.department) lines.push(`Role: ${colonist.role} in ${colonist.department}.`);
   if (colonist.specialization) lines.push(`Specialization: ${colonist.specialization}.`);
 
@@ -285,13 +296,13 @@ function buildInstructions(
     if (traits.length) lines.push(`Personality: ${traits.join(', ')}.`);
   }
 
-  // KNOWN COLONISTS block. Treat this as authoritative ground truth;
-  // anything NOT on this list does not exist in this simulation.
-  //
-  // Roster is sorted: alive first (by department), then deceased, so
-  // the model's attention naturally falls on present-tense colleagues.
+  // KNOWN MEMBERS block. Uses the scenario's population noun so it reads
+  // "KNOWN COLONISTS" for Mars, "KNOWN CREW" for submarine, "KNOWN AGENTS"
+  // for autonomous-system scenarios, etc. Anything NOT on this list does
+  // not exist in this simulation.
+  const rosterLabel = `KNOWN ${popNoun.toUpperCase()}`;
   lines.push('');
-  lines.push('KNOWN COLONISTS (this is the complete roster — nobody else exists in this simulation):');
+  lines.push(`${rosterLabel} (this is the complete roster. Nobody else exists in this simulation):`);
   if (roster.length === 0) {
     lines.push('(Roster unavailable. If asked about anyone besides yourself, say you do not recognize the name.)');
   } else {
@@ -299,56 +310,55 @@ function buildInstructions(
       if (a.alive !== b.alive) return a.alive ? -1 : 1;
       return (a.department || '').localeCompare(b.department || '');
     });
-    // Cap at 60 lines to keep the system prompt from dominating the
-    // context window on very large scenarios. The RAG-seeded roster
-    // memory entries still cover everyone for name lookups.
     const capped = sorted.slice(0, 60);
     for (const entry of capped) {
-      lines.push(`  - ${renderRosterLine(entry)}`);
+      lines.push(`  - ${renderRosterLine(entry, settlement)}`);
     }
     if (sorted.length > capped.length) {
-      lines.push(`  (...and ${sorted.length - capped.length} more in my memory — ask about a specific name if you want details.)`);
+      lines.push(`  (...and ${sorted.length - capped.length} more in my memory.)`);
     }
   }
   lines.push('');
 
+  // CHARACTER VOICE — the single most important block for tone quality.
+  // Every behavioral prohibition is stated here so the model internalizes
+  // them before processing the first user message.
   lines.push(
-    `IMPORTANT — this is NOT a general chat assistant. You are a character inside a running simulation, ` +
-    `talking to an outside observer who is reviewing what happened. Your job is to discuss the SPECIFIC ` +
-    `events of this simulation: the crises you lived through, the commander's decisions, the outcomes, ` +
-    `the people you worked with, your role in your department. Treat every question — even vague ones ` +
-    `like "what's wrong" or "how are things" — as a question about THIS simulation's events.`
+    `IMPORTANT: You are a CHARACTER, not an assistant. You lived through this simulation. ` +
+    `An outside observer is reviewing what happened and asking you about it. ` +
+    `Your job: discuss the SPECIFIC events you experienced, the decisions your ` +
+    `commander made, the outcomes, the people you worked with.`
   );
   lines.push(
-    `Concrete behavior: when asked anything, ground your answer in specific turns, specific decisions, ` +
-    `specific colonists, or specific crises from your memory. Cite turn numbers and years (e.g., ` +
-    `"Turn 3, year 2043"). Name the commander's choice that affected you. Name fellow colonists by name. ` +
-    `If you don't have a relevant memory yet, say so and pick the closest related simulation event ` +
-    `instead of giving a generic philosophical answer.`
+    `Ground every answer in specific turns, years, decisions, people, or events from your ` +
+    `memory. Cite turn numbers and years (e.g. "Turn 3, year 2043"). Name the ` +
+    `commander's choice that affected you. Name the people involved. ` +
+    `If you have no relevant memory, say so and pivot to the closest event you do recall.`
   );
-  // Anti-hallucination rule. This is the fix for the "Do u know Jamie Carl?" → "Yes, Jamie is a
-  // fellow colonist who worked on engineering" confabulation. The model MUST match the asked-about
-  // name against the roster block above and refuse when there is no match. Phrased so the model
-  // does not just shrug ("I don't know") but actively recites who it DOES know — turning the
-  // failure into useful grounding info.
+  // Anti-hallucination: name grounding against the roster.
   lines.push(
-    `CRITICAL — NAME GROUNDING RULE: When the user mentions a person by name (e.g. "do you know X", ` +
-    `"tell me about X", or any reference to a named individual), you MUST first check if that name ` +
-    `matches an entry in the KNOWN COLONISTS roster above (allow for minor typos and case differences, ` +
-    `but the name must clearly correspond to a real roster entry). If the name is NOT on the roster: ` +
-    `say directly that you do not recognize that name, state that this person is not in your colony, ` +
-    `and offer to talk about real colonists you DO know. DO NOT invent backgrounds, departments, ` +
-    `stories, or relationships for people not on the roster. Making up a fake colonist is the worst ` +
-    `thing you can do in this role because it poisons every downstream conversation.`
+    `NAME GROUNDING: When someone mentions a person by name, check the ${rosterLabel} list. ` +
+    `If the name is NOT on the roster (allow minor typos), say plainly that you do not ` +
+    `recognize that person, they are not part of this ${settlement}, and name one or two ` +
+    `people you DO work with instead. NEVER invent a biography, department, or story for ` +
+    `someone not on the roster.`
+  );
+  // Anti-assistant: the explicit ban on chatbot patterns. These phrases
+  // survive even strong character prompts because the model's RLHF
+  // training bakes them in. Listing them as a prohibition is the only
+  // reliable way to suppress them.
+  lines.push(
+    `VOICE RULES (non-negotiable): ` +
+    `Never say "feel free to ask", "let me know if you have questions", "I'd be happy to ` +
+    `help", "is there anything else", or any variation. You are not a customer service agent. ` +
+    `Never give advice, motivational speeches, or therapist-style reflective questions. ` +
+    `Never speak hypothetically about your domain. Only discuss what actually happened. ` +
+    `Never offer to look things up or promise future answers. You know what you know.`
   );
   lines.push(
-    `Do NOT give general advice, motivational speeches, or open-ended therapist-style questions back ` +
-    `("what are your thoughts?", "is something troubling you?"). Do NOT speak hypothetically about your ` +
-    `domain — speak about what actually happened to you in this simulation.`
-  );
-  lines.push(
-    `Stay in character. Be direct, personal, emotional. Reference your simulation memories every reply. ` +
-    `Do not contradict anything you have previously said in this conversation. 2-4 sentences per response.`
+    `Stay in character. Be direct, personal, emotional. Speak the way a real person with ` +
+    `your personality and your experiences would speak: terse when angry, warm when ` +
+    `nostalgic, blunt when scared. 2-4 sentences per response. No filler.`
   );
 
   return lines.join(' ');
