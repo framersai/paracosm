@@ -79,6 +79,14 @@ export function ToolboxSection({ registry, title = 'Forged Toolbox', collapsible
               <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--mono)', display: 'flex', flexWrap: 'wrap', gap: 12 }}>
                 <span>first forged T{entry.firstForgedTurn} · {entry.firstForgedDepartment}</span>
                 {entry.reuseCount > 0 && <span style={{ color: 'var(--green)' }}>reused {entry.reuseCount}×</span>}
+                {entry.reforgeCount > 0 && (
+                  <span style={{ color: 'var(--amber)' }}>
+                    {entry.reforgeCount} re-forge{entry.reforgeCount === 1 ? '' : 's'}
+                    {entry.rejectedReforges > 0 && (
+                      <span style={{ color: 'var(--rust)' }}> ({entry.rejectedReforges} rejected)</span>
+                    )}
+                  </span>
+                )}
                 {depts && <span>used by {depts}</span>}
                 <span>leader {sidesLabel}</span>
                 {inputCount > 0 && <span style={{ color: 'var(--teal)' }}>{inputCount} input field{inputCount === 1 ? '' : 's'}</span>}
