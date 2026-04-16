@@ -135,9 +135,21 @@ export const DEFAULT_MODELS: Record<LlmProvider, SimulationModelConfig> = {
   },
 };
 
+/**
+ * Default per-agent step caps.
+ *
+ * commanderMaxSteps: 5 — commander rarely loops, decision is usually one
+ *   shot with rationale. 5 is headroom, not a target.
+ *
+ * departmentMaxSteps: 4 — a normal dept call is 3 steps (prompt → forge →
+ *   final JSON). 4 allows one retry. Previously 8, which doubled the
+ *   ceiling on misbehaving model tool-call loops and cost 5 extra
+ *   flagship-tier calls per incident before timing out. Lowered after
+ *   cost telemetry showed real spend during bad forge loops.
+ */
 export const DEFAULT_EXECUTION: SimulationExecutionConfig = {
   commanderMaxSteps: 5,
-  departmentMaxSteps: 8,
+  departmentMaxSteps: 4,
   sandboxTimeoutMs: 10000,
   sandboxMemoryMB: 128,
 };

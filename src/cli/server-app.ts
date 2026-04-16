@@ -53,14 +53,34 @@ interface RateLimitEntry {
   resetAt: number; // epoch ms
 }
 
+/**
+ * Supported rate-limit windows. Daily resets at next UTC midnight, hourly
+ * resets on the hour, so the math is always easy to eyeball in logs.
+ */
+type WindowKind = 'daily' | 'hourly';
+
 class IpRateLimiter {
-  private store = new Map<string, RateLimitEntry>();
+  // Three independent buckets keyed by IP. Simulations spend against
+  // `daily` (the most expensive action), compile spends against `compile`,
+  // and chat messages spend against `chat` (hourly because users may
+  // legitimately fire many messages in a short burst).
+  private simStore = new Map<string, RateLimitEntry>();
+  private compileStore = new Map<string, RateLimitEntry>();
+  private chatStore = new Map<string, RateLimitEntry>();
   private maxPerDay: number;
+  private maxCompilePerDay: number;
+  private maxChatPerHour: number;
   private cleanupTimer: ReturnType<typeof setInterval>;
 
-  constructor(maxPerDay: number = 3) {
+  constructor(
+    maxPerDay: number = 3,
+    maxCompilePerDay: number = 5,
+    maxChatPerHour: number = 200,
+  ) {
     this.maxPerDay = maxPerDay;
-    // Purge expired entries every hour
+    this.maxCompilePerDay = maxCompilePerDay;
+    this.maxChatPerHour = maxChatPerHour;
+    // Purge expired entries every hour.
     this.cleanupTimer = setInterval(() => this.cleanup(), 60 * 60 * 1000);
   }
 
@@ -78,43 +98,93 @@ class IpRateLimiter {
     return req.socket.remoteAddress || 'unknown';
   }
 
-  /** Check if request is allowed. Returns { allowed, remaining, resetAt } */
-  check(ip: string): { allowed: boolean; remaining: number; resetAt: number; limit: number } {
-    const now = Date.now();
-    let entry = this.store.get(ip);
-
-    if (!entry || now >= entry.resetAt) {
-      // New window: midnight UTC tomorrow
+  /** Return the next reset boundary for the given window. */
+  private nextReset(kind: WindowKind): number {
+    if (kind === 'daily') {
       const tomorrow = new Date();
       tomorrow.setUTCHours(24, 0, 0, 0);
-      entry = { count: 0, resetAt: tomorrow.getTime() };
-      this.store.set(ip, entry);
+      return tomorrow.getTime();
     }
-
-    const remaining = Math.max(0, this.maxPerDay - entry.count);
-    return { allowed: entry.count < this.maxPerDay, remaining, resetAt: entry.resetAt, limit: this.maxPerDay };
+    // hourly
+    const nextHour = new Date();
+    nextHour.setUTCMinutes(60, 0, 0);
+    return nextHour.getTime();
   }
 
-  /** Record a simulation start for this IP */
+  private bump(
+    store: Map<string, RateLimitEntry>,
+    ip: string,
+    limit: number,
+    kind: WindowKind,
+    mutate: boolean,
+  ): { allowed: boolean; remaining: number; resetAt: number; limit: number } {
+    const now = Date.now();
+    let entry = store.get(ip);
+    if (!entry || now >= entry.resetAt) {
+      entry = { count: 0, resetAt: this.nextReset(kind) };
+      store.set(ip, entry);
+    }
+    const allowed = entry.count < limit;
+    if (allowed && mutate) entry.count++;
+    const remaining = Math.max(0, limit - entry.count);
+    return { allowed, remaining, resetAt: entry.resetAt, limit };
+  }
+
+  /** Check the simulation-per-day quota without consuming it. */
+  check(ip: string): { allowed: boolean; remaining: number; resetAt: number; limit: number } {
+    return this.bump(this.simStore, ip, this.maxPerDay, 'daily', false);
+  }
+
+  /** Record a simulation start. Prefer `check` + `record` for legacy callers. */
   record(ip: string): void {
-    const entry = this.store.get(ip);
+    const entry = this.simStore.get(ip);
     if (entry) entry.count++;
   }
 
+  /**
+   * Check AND consume a slot for the /compile endpoint in one call.
+   * Returns false if the user is over the daily compile budget. Compile
+   * is a real cost (~$0.10/call) and deserves its own bucket so nothing
+   * a user does on /compile eats into their daily simulation allowance
+   * or vice versa.
+   */
+  consumeCompile(ip: string): { allowed: boolean; remaining: number; resetAt: number; limit: number } {
+    return this.bump(this.compileStore, ip, this.maxCompilePerDay, 'daily', true);
+  }
+
+  /**
+   * Check AND consume a slot for the /chat endpoint. Hourly window
+   * because a legitimate user exploring colonist conversations may fire
+   * dozens of messages in a sitting, but none of that is unusual within
+   * an hour. Prevents runaway scripts/loops without impeding real use.
+   */
+  consumeChat(ip: string): { allowed: boolean; remaining: number; resetAt: number; limit: number } {
+    return this.bump(this.chatStore, ip, this.maxChatPerHour, 'hourly', true);
+  }
+
   /** Get stats for monitoring */
-  stats(): { totalIps: number; entries: Array<{ ip: string; count: number; resetAt: string }> } {
+  stats(): {
+    totalIps: number;
+    sim: Array<{ ip: string; count: number; resetAt: string }>;
+    compile: Array<{ ip: string; count: number; resetAt: string }>;
+    chat: Array<{ ip: string; count: number; resetAt: string }>;
+  } {
+    const dump = (s: Map<string, RateLimitEntry>) =>
+      [...s.entries()].map(([ip, e]) => ({ ip, count: e.count, resetAt: new Date(e.resetAt).toISOString() }));
     return {
-      totalIps: this.store.size,
-      entries: [...this.store.entries()].map(([ip, e]) => ({
-        ip, count: e.count, resetAt: new Date(e.resetAt).toISOString(),
-      })),
+      totalIps: this.simStore.size + this.compileStore.size + this.chatStore.size,
+      sim: dump(this.simStore),
+      compile: dump(this.compileStore),
+      chat: dump(this.chatStore),
     };
   }
 
   private cleanup(): void {
     const now = Date.now();
-    for (const [ip, entry] of this.store) {
-      if (now >= entry.resetAt) this.store.delete(ip);
+    for (const store of [this.simStore, this.compileStore, this.chatStore]) {
+      for (const [ip, entry] of store) {
+        if (now >= entry.resetAt) store.delete(ip);
+      }
     }
   }
 
@@ -340,12 +410,39 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
     if (req.url === '/compile' && req.method === 'POST') {
       try {
         const body = JSON.parse(await readBody(req));
-        const { scenario: scenarioJson, provider: requestedProvider, model: requestedModel, seedText, seedUrl, webSearch, maxSearches } = body;
+        const { scenario: scenarioJson, provider: requestedProvider, model: requestedModel, seedText, seedUrl, webSearch, maxSearches, apiKey, anthropicKey } = body;
         if (!scenarioJson || typeof scenarioJson !== 'object') {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'scenario JSON object required' }));
           return;
         }
+
+        // Rate-limit compile against its own daily bucket. Each compile
+        // costs ~$0.10 against the host's API key, so even 10 uncontrolled
+        // hits is a real line item. Bypassed when the user supplies their
+        // own keys (same pattern as /setup).
+        const userSuppliedKey = !!(apiKey || anthropicKey);
+        if (rateLimiter && !userSuppliedKey) {
+          const ip = IpRateLimiter.getIp(req);
+          const { allowed, remaining, resetAt, limit } = rateLimiter.consumeCompile(ip);
+          if (!allowed) {
+            res.writeHead(429, {
+              'Content-Type': 'application/json',
+              'X-RateLimit-Limit': String(limit),
+              'X-RateLimit-Remaining': '0',
+              'X-RateLimit-Reset': String(Math.floor(resetAt / 1000)),
+            });
+            res.end(JSON.stringify({
+              error: `Compile rate limit exceeded. Maximum ${limit} compiles per day. Add your own API keys to bypass.`,
+              limit,
+              remaining: 0,
+              resetAt,
+            }));
+            return;
+          }
+          console.log(`  [rate-limit] /compile ${ip}: ${remaining} remaining of ${limit}`);
+        }
+
         const provider = requestedProvider || (env.ANTHROPIC_API_KEY ? 'anthropic' : 'openai');
         const model = requestedModel || (env.ANTHROPIC_API_KEY ? 'claude-sonnet-4-6' : 'gpt-5.4-mini');
 
@@ -411,6 +508,37 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
           res.end(JSON.stringify({ error: 'agentId and message required' }));
           return;
         }
+
+        // Rate-limit chat per IP per hour. Chat runs against the host's
+        // key (there is no user-supplied-key path for /chat today), so
+        // an abusive script could burn the host's haiku budget without
+        // this cap. 200/hour leaves plenty of headroom for real users
+        // exploring colonist conversations.
+        if (rateLimiter) {
+          const ip = IpRateLimiter.getIp(req);
+          const { allowed, remaining, resetAt, limit } = rateLimiter.consumeChat(ip);
+          if (!allowed) {
+            res.writeHead(429, {
+              'Content-Type': 'application/json',
+              'X-RateLimit-Limit': String(limit),
+              'X-RateLimit-Remaining': '0',
+              'X-RateLimit-Reset': String(Math.floor(resetAt / 1000)),
+            });
+            res.end(JSON.stringify({
+              error: `Chat rate limit exceeded. Maximum ${limit} messages per hour. Try again later.`,
+              limit,
+              remaining: 0,
+              resetAt,
+            }));
+            return;
+          }
+          if (remaining < 20) {
+            // Warn in logs when a user is nearing the cap; helps diagnose
+            // legit-user complaints from actual abuse.
+            console.log(`  [rate-limit] /chat ${ip}: ${remaining} remaining of ${limit}`);
+          }
+        }
+
         const hasSimData = eventBuffer.some(msg => msg.startsWith('event: result\n') || msg.includes('"agent_reactions"'));
         if (!hasSimData) {
           res.writeHead(400, { 'Content-Type': 'application/json' });

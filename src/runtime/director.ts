@@ -373,7 +373,20 @@ export class EventDirector {
 
     try {
       const { generateText } = await import('@framers/agentos');
-      const result = await generateText({ provider, model, prompt: systemInstructions + '\n\n' + prompt });
+      // Prompt caching: the director instructions (~1500-2000 tokens) are
+      // identical across all 6 turn calls in a run. Marking the system
+      // block as a cache breakpoint lets Anthropic serve turns 2-6 from
+      // its prefix cache at 0.1x cost. The per-turn context goes in the
+      // user prompt and is NOT cached. Providers without cache support
+      // (e.g. older OpenAI SDKs) ignore the breakpoint silently; for
+      // OpenAI, prompt caching is automatic for prompts >=1024 tokens
+      // and the block structure helps the hash align.
+      const result = await generateText({
+        provider,
+        model,
+        system: [{ text: systemInstructions, cacheBreakpoint: true }],
+        prompt,
+      });
       onUsage?.(result);
 
       const batch = parseBatchResponse(result.text);

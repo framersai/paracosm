@@ -200,7 +200,13 @@ export function ColonyViz({ state }: ColonyVizProps) {
         </span>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, flex: 1, padding: '8px 8px 0', overflow: 'hidden' }}>
+      {/*
+       * Mobile: stack the two canvases vertically via .leaders-row so a
+       * phone user sees full-width panels instead of two ~150px squished
+       * canvases with illegible cells. The class fires the existing
+       * responsive rule in tokens.css at <=768px.
+       */}
+      <div className="leaders-row" style={{ display: 'flex', gap: 8, flex: 1, padding: '8px 8px 0', overflow: 'hidden' }}>
         <ColonyCanvas
           ref={canvasARef}
           snapshots={snapsA}

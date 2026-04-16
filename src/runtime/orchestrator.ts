@@ -614,6 +614,12 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     history: ToolUseRecord[];
   }>();
 
+  // Commander does NOT use systemBlocks caching because AgentOS's
+  // `systemBlocks` path replaces the assembled system prompt entirely,
+  // dropping the HEXACO-derived personality descriptors that are the
+  // commander's entire voice. Commander runs only ~12 calls per head-to-
+  // head run, so savings from caching here (~$0.03) are not worth
+  // losing the trait-driven behavioral cues that make leaders diverge.
   const commander = agent({
     provider, model: modelConfig.commander,
     instructions: leader.instructions,
@@ -805,10 +811,18 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
   "featuredAgentUpdates": [],
   "proposedPatches": {}
 }`;
+    // Prompt caching: the combined role instructions + forge guidance
+    // (~1500-2500 tokens) are identical across every session.send() call
+    // for this department across all turns/events in one run. Moving it
+    // to a cacheable systemBlock means the second event's dept call and
+    // every subsequent one hit the provider's prefix cache at 0.1x
+    // billed rate on Anthropic. Combined across 5 depts x ~12 calls,
+    // this is the single largest savings in the sim pipeline.
+    const deptSystemPrompt = cfg.instructions + forgeGuidance;
     const a = agent({
       provider,
       model: modelConfig.departments || cfg.defaultModel,
-      instructions: cfg.instructions + forgeGuidance,
+      systemBlocks: [{ text: deptSystemPrompt, cacheBreakpoint: true }],
       tools,
       maxSteps: opts.execution?.departmentMaxSteps ?? DEFAULT_EXECUTION.departmentMaxSteps,
     });
