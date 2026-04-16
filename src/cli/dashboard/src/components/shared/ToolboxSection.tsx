@@ -21,7 +21,10 @@ export function ToolboxSection({ registry, title = 'Forged Toolbox', collapsible
   const inner = (
     <ol style={{
       margin: 0, padding: 0, listStyle: 'none',
-      display: 'flex', flexDirection: 'column', gap: 8,
+      // Two-column grid matches the side-by-side leader columns above.
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
+      gap: 8,
     }}>
       {registry.list.map(entry => {
         const depts = [...entry.departments].join(', ');

@@ -107,19 +107,28 @@ export function EventCard({ event, side }: EventCardProps) {
             border: `1px solid ${severity === 'critical' ? 'rgba(224,101,48,.25)' : severity === 'high' ? 'rgba(232,180,74,.2)' : 'var(--border)'}`,
             borderLeft: `3px solid ${severity === 'critical' ? 'var(--rust)' : severity === 'high' ? 'var(--amber)' : 'var(--teal)'}`,
           }}>
-            {/* Header: dept name, stats, severity */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+            {/* Header: dept name, tool count, severity badge, inline citation pills */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', flexWrap: 'wrap' }}>
               <span style={{ fontWeight: 800, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--teal)' }}>
                 {scenario.ui.departmentIcons[dept] || ''} {dept}
               </span>
-              <span style={{ fontSize: '10px', color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
-                {[citeCount > 0 && `${citeCount} citations`, tools.length > 0 && `${tools.length} tools forged`].filter(Boolean).join(' · ') || ''}
-              </span>
+              {tools.length > 0 && (
+                <span style={{ fontSize: '10px', color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
+                  {tools.length} tool{tools.length === 1 ? '' : 's'} forged
+                </span>
+              )}
               {severity && (
                 <span style={{ fontSize: '9px', fontWeight: 800, fontFamily: 'var(--mono)', padding: '1px 5px', borderRadius: '2px', background: severity === 'critical' ? 'rgba(224,101,48,.15)' : 'rgba(232,180,74,.1)', color: severity === 'critical' ? 'var(--rust)' : 'var(--amber)' }}>
                   {severity.toUpperCase()} RISK
                 </span>
               )}
+              {/* Inline citation pills — same row as the header so the
+                  card stays compact and scannable. Hover for full source. */}
+              <CitationPills
+                citations={(dd.citationList as Array<Record<string, string>>) || []}
+                inline
+                label=""
+              />
             </div>
 
             {/* Summary */}
@@ -156,11 +165,9 @@ export function EventCard({ event, side }: EventCardProps) {
               </div>
             )}
 
-            {/* Inline citations: compact [N] pills that link to the global
-                References section at the bottom of the report. Hover for the
-                full claim + DOI; the long-form list is shown only once at
-                the end so dept cards stay scannable. */}
-            <CitationPills citations={(dd.citationList as Array<Record<string, string>>) || []} />
+            {/* Citation pills are rendered inline next to the dept name
+                in the header above. The full source list lives in the
+                References section at the bottom of the report. */}
           </div>
 
           {/* Tool cards. NEW (first-forge) gets a bright amber pulse +

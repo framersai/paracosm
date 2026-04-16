@@ -18,7 +18,10 @@ export function ColonyViz({ state }: ColonyVizProps) {
   const [speed, setSpeed] = useState(1);
   const [mode, setMode] = useState<VizMode>('department');
   const [layout, setLayout] = useState<'department' | 'family'>('department');
-  const [showDivergence, setShowDivergence] = useState(false);
+  // Divergence overlay defaults ON because the two leaders share a seed
+  // for the kernel, so their rosters look almost identical until decisions
+  // compound. Without the overlay, viewers think the columns are duplicates.
+  const [showDivergence, setShowDivergence] = useState(true);
   const timerRef = useRef<number>(0);
 
   const canvasARef = useRef<ColonyCanvasHandle>(null);
@@ -96,11 +99,10 @@ export function ColonyViz({ state }: ColonyVizProps) {
   const snapB = snapsB[currentTurn];
   const year = snapA?.year || snapB?.year || 0;
 
-  // Divergence: cells alive in only one timeline at this turn
-  const divergence = useMemo(() => {
-    if (!showDivergence || !snapA || !snapB) return null;
-    return computeDivergence(snapA, snapB);
-  }, [showDivergence, snapA, snapB]);
+  // Divergence is always computed so the summary banner can quantify it,
+  // but only passed down to the canvases as an overlay when the toggle is on.
+  const divergenceData = useMemo(() => computeDivergence(snapA, snapB), [snapA, snapB]);
+  const divergence = showDivergence ? divergenceData : null;
 
   const leaderA = state.a.leader;
   const leaderB = state.b.leader;
@@ -135,8 +137,49 @@ export function ColonyViz({ state }: ColonyVizProps) {
     );
   }
 
+  // Quantified divergence: how many alive-only cells in each timeline at
+  // this turn. Even small numbers tell the viewer that what looks like an
+  // identical column is actually diverging from the other leader's run.
+  // Count is always shown; the visual overlay toggles independently.
+  const divCountA = divergenceData.aliveOnlyA.size;
+  const divCountB = divergenceData.aliveOnlyB.size;
+  const totalDivergence = divCountA + divCountB;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+      {/* Divergence summary banner — explains the (often subtle) difference
+          between the two columns at the current turn. Same seed → same
+          starting roster, so divergence builds slowly from decisions. */}
+      <div
+        role="status"
+        aria-label="Cross-leader divergence"
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '4px 12px', fontSize: 10, fontFamily: 'var(--mono)',
+          color: 'var(--text-3)', borderBottom: '1px solid var(--border)',
+          background: 'var(--bg-panel)', flexWrap: 'wrap', gap: 8,
+        }}
+      >
+        <span>
+          T{currentTurn + 1} divergence:{' '}
+          {totalDivergence === 0 ? (
+            <span style={{ color: 'var(--text-3)' }}>
+              both timelines identical so far &mdash; same seed, decisions haven&apos;t compounded yet
+            </span>
+          ) : (
+            <>
+              <span style={{ color: 'var(--vis)', fontWeight: 800 }}>{divCountA} A-only</span>
+              <span style={{ color: 'var(--text-3)' }}> · </span>
+              <span style={{ color: 'var(--eng)', fontWeight: 800 }}>{divCountB} B-only</span>
+              <span style={{ color: 'var(--text-3)' }}> alive cells</span>
+            </>
+          )}
+        </span>
+        <span style={{ color: 'var(--text-3)', fontStyle: 'italic' }}>
+          {showDivergence ? 'rust dashed border = diverged' : 'press D to show divergence overlay'}
+        </span>
+      </div>
+
       <div style={{ display: 'flex', gap: 8, flex: 1, padding: '8px 8px 0', overflow: 'hidden' }}>
         <ColonyCanvas
           ref={canvasARef}

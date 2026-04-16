@@ -20,7 +20,11 @@ export function ReferencesSection({ registry, title = 'References', collapsible 
   const inner = (
     <ol style={{
       margin: 0, padding: 0, listStyle: 'none',
-      display: 'flex', flexDirection: 'column', gap: 6,
+      // Two-column layout matches the side-by-side leader columns above.
+      // Drops to one column on narrow screens.
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
+      gap: 6,
     }}>
       {registry.list.map(entry => {
         const depts = [...entry.departments].join(', ');
