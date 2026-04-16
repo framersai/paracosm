@@ -129,9 +129,12 @@ export async function getOrCreateChatAgent(
 
   const instructions = buildInstructions(colonist, settlement, popNoun);
 
+  const provider = opts.provider || 'openai';
+  const model = provider === 'anthropic' ? 'claude-haiku-4-5-20251001' : 'gpt-4o-mini';
+
   const chatAgent = createAgent({
-    provider: opts.provider || 'openai',
-    model: 'gpt-4o-mini',
+    provider,
+    model,
     name: colonist.name,
     instructions,
     personality,
