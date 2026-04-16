@@ -1,5 +1,6 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
 import type { TurnSnapshot } from './viz-types';
+import { DEPARTMENT_COLORS } from './viz-types';
 import { buildSquareGrid, gridHitTest, type SquareGrid } from './ForceLayout';
 import { renderSquareGrid, drawLegend } from './CellRenderer';
 import { renderMetricOverlay } from './MetricOverlay';
@@ -89,6 +90,7 @@ export function ColonyCanvas({ snapshots, currentTurn, leaderName, leaderArchety
   }, []);
 
   const focusedCell = focusedId ? snap?.cells.find(c => c.agentId === focusedId) : null;
+  const hoveredCell = hoveredId ? snap?.cells.find(c => c.agentId === hoveredId) : null;
 
   return (
     <div
@@ -111,6 +113,29 @@ export function ColonyCanvas({ snapshots, currentTurn, leaderName, leaderArchety
           {leaderName.toUpperCase()}
         </div>
         <div style={{ fontSize: 10, color: 'var(--text-3)' }}>{leaderArchetype}</div>
+      </div>
+
+      {/* Hover info bar */}
+      <div style={{
+        padding: '3px 12px', fontSize: 10, color: 'var(--text-2)',
+        borderBottom: '1px solid var(--border)', flexShrink: 0,
+        height: 20, display: 'flex', alignItems: 'center', gap: 8,
+        background: hoveredCell ? 'var(--bg-card)' : 'transparent',
+        transition: 'background 0.15s',
+      }}>
+        {hoveredCell ? (
+          <>
+            <span style={{ fontWeight: 700, color: 'var(--text-1)' }}>{hoveredCell.name}</span>
+            <span style={{ color: DEPARTMENT_COLORS[hoveredCell.department] || '#a89878' }}>{hoveredCell.department}</span>
+            <span>{hoveredCell.role}</span>
+            <span style={{ fontFamily: 'var(--mono)', color: 'var(--text-3)' }}>{hoveredCell.rank}</span>
+            <span style={{ color: moodColor(hoveredCell.mood) }}>{hoveredCell.mood}</span>
+            <span style={{ fontFamily: 'var(--mono)', color: 'var(--text-3)' }}>psych:{hoveredCell.psychScore.toFixed(2)}</span>
+            {hoveredCell.marsborn && <span style={{ color: 'var(--rust)' }}>mars-born</span>}
+          </>
+        ) : (
+          <span style={{ color: 'var(--text-3)', fontStyle: 'italic' }}>Hover a cell for details. Click to inspect.</span>
+        )}
       </div>
 
       <div style={{ position: 'relative', flex: 1 }}>
@@ -139,4 +164,13 @@ export function ColonyCanvas({ snapshots, currentTurn, leaderName, leaderArchety
       )}
     </div>
   );
+}
+
+function moodColor(mood: string): string {
+  switch (mood) {
+    case 'positive': case 'hopeful': return '#6aad48';
+    case 'negative': case 'anxious': case 'resigned': return '#e06530';
+    case 'defiant': return '#e8b44a';
+    default: return '#a89878';
+  }
 }
