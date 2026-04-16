@@ -36,9 +36,16 @@ export function LeaderBar({ side, leader, popHistory, moraleHistory }: LeaderBar
     : '';
 
   return (
-    <div style={{ flex: 1, padding: '4px 12px', background: 'var(--bg-panel)', minWidth: 0, overflow: 'hidden' }}>
-      {/* Row 1 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+    // `overflow: hidden` previously clipped the trait strip when the
+    // viewport was narrower than the trait content width, silently
+    // dropping the last 1-2 HEXACO traits (HH, Em). Switched to `visible`
+    // so the row 1 flex can wrap to a second line when needed; traits
+    // row now uses flex-wrap to break gracefully instead of getting cut
+    // off mid-letter.
+    <div style={{ flex: 1, padding: '4px 12px', background: 'var(--bg-panel)', minWidth: 0 }}>
+      {/* Row 1 — allows wrap so name + archetype + colony + traits can
+          reflow to two lines when the browser can't fit them on one. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
         {archetype && (
           <span style={{
             fontSize: '9px', padding: '2px 8px', borderRadius: '3px', fontWeight: 800,
@@ -75,10 +82,14 @@ export function LeaderBar({ side, leader, popHistory, moraleHistory }: LeaderBar
         {traitLine && (
           <span className="leader-traits" style={{ display: 'contents' }}>
             <span style={{ color: 'var(--border)', margin: '0 2px' }}>|</span>
+            {/* Trait row: wraps to next line on narrow viewports instead
+                of truncating HH/Em at the ellipsis. The full HEXACO
+                numeric profile is also in the name tooltip for users
+                who want the canonical view. */}
             <span style={{
               fontFamily: 'var(--mono)', fontSize: '9px', color: sideColor,
-              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
               letterSpacing: 0, opacity: 0.9,
+              minWidth: 0,
             }}>
               {traitLine}
             </span>

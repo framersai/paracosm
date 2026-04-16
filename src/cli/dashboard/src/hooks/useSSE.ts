@@ -122,8 +122,34 @@ export function useSSE() {
     // wiping state.events (which would lose the user's view of completed
     // simulations after a transient browser-managed reconnect).
     const seenEventKeys = seenEventKeysRef.current;
-    const eventKey = (e: SimEvent): string =>
-      `${e.type}|${e.leader || ''}|${e.turn ?? ''}|${(e.data?.eventIndex ?? '')}|${(e.data?.department ?? '')}|${(e.data?.title ?? '')}`;
+    // Build a dedup key that uniquely identifies a logical event.
+    //
+    // IMPORTANT: the orchestrator emits events with turn nested in
+    // `e.data.turn`, not the top-level `e.turn` field. Earlier versions
+    // of this key only looked at `e.turn` (always undefined in practice)
+    // and relied on eventIndex/department/title as the real
+    // discriminators. That silently ate every turn after turn 1 for
+    // event types that have no other discriminator in their payload:
+    // colony_snapshot, turn_done, drift, bulletin, agent_reactions.
+    //
+    // The user-visible symptom was the viz tab stuck showing T1 while
+    // the sim tab correctly counted up to T3+ (because the only
+    // replacement colony_snapshot events for T2/T3 were filtered as
+    // "already seen"). Falling back to `e.data?.turn` when the top-level
+    // field is missing restores a monotonic key across turns for every
+    // emit path.
+    const eventKey = (e: SimEvent): string => {
+      const turnId = (e.turn ?? (e.data?.turn as number | undefined) ?? '');
+      const eventIndex = (e.data?.eventIndex ?? '');
+      const department = (e.data?.department ?? '');
+      const title = (e.data?.title ?? '');
+      // Some per-agent / per-tool payloads need extra discriminators
+      // too, so they don't collapse across different agents/tools in
+      // the same turn. Forge attempts carry `name`; agent reactions
+      // roll up into a single per-turn event so the turn suffices.
+      const forgeName = (e.data?.name ?? '');
+      return `${e.type}|${e.leader || ''}|${turnId}|${eventIndex}|${department}|${title}|${forgeName}`;
+    };
 
     const open = () => {
       if (cancelled) return;
