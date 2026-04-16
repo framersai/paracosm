@@ -145,7 +145,24 @@ function createEmergentEngine(
       throw err;
     }
   };
-  const registry = new EmergentToolRegistry();
+  // Session-tier tool limit. Previously the engine config set this to 20
+  // but the registry was constructed below WITHOUT receiving that config,
+  // so it fell through to AgentOS's DEFAULT_EMERGENT_CONFIG value of 10.
+  // That limit was reached by turn 3 in a 5-department run (5 depts ×
+  // ~2 tools each = 10) and every subsequent forge failed with "Session
+  // tool limit reached". Bumped to 50 and propagated to the registry so
+  // the limit and the config are actually the SAME number.
+  //
+  // 50 comfortably fits 5 depts × 6 turns × ~1.5 unique tools each ≈ 45,
+  // with headroom for re-forges and composition wrappers. Agent-tier
+  // stays at 50 (those are promotion targets across runs).
+  const SESSION_TOOL_LIMIT = 50;
+  const AGENT_TOOL_LIMIT = 50;
+
+  const registry = new EmergentToolRegistry({
+    maxSessionTools: SESSION_TOOL_LIMIT,
+    maxAgentTools: AGENT_TOOL_LIMIT,
+  });
   const judge = new EmergentJudge({ judgeModel, promotionModel: judgeModel, generateText: llmCb });
   const executor = async (name: string, args: unknown, ctx: any) => {
     const t = toolMap.get(name);
@@ -153,7 +170,9 @@ function createEmergentEngine(
   };
   const engine = new EmergentCapabilityEngine({
     config: {
-      enabled: true, maxSessionTools: 20, maxAgentTools: 50,
+      enabled: true,
+      maxSessionTools: SESSION_TOOL_LIMIT,
+      maxAgentTools: AGENT_TOOL_LIMIT,
       sandboxTimeoutMs: execution.sandboxTimeoutMs ?? DEFAULT_EXECUTION.sandboxTimeoutMs,
       sandboxMemoryMB: execution.sandboxMemoryMB ?? DEFAULT_EXECUTION.sandboxMemoryMB,
       promotionThreshold: { uses: 5, confidence: 0.8 },
@@ -850,11 +869,13 @@ ROBUSTNESS RULES (the judge enforces these — failed forges hurt the colony):
 1. Validate every numeric input. If a field is missing/null/undefined or NaN, default it to a safe value or return a conservative result. Never let the function throw or return NaN/Infinity.
 2. Wrap the body in a try/catch and return a defined object on error: { "score": 0, "warnings": ["missing input X"] }.
 3. Use Number.isFinite() before using any input in arithmetic. Avoid division — multiply by reciprocals or guard with (denominator || 1).
-4. Provide AT LEAST 3 testCases:
+4. ARRAYS: never call .includes(), .map(), .filter(), .some(), .find(), .length, etc. on an input without first checking Array.isArray(x). Default missing arrays to []: const arr = Array.isArray(input.items) ? input.items : []. A single "Cannot read properties of undefined (reading 'includes')" TypeError fails the whole tool and costs the colony morale + power.
+5. STRINGS: same rule — guard with typeof x === 'string' before .includes()/.split()/.toLowerCase(). Default to '' when missing.
+6. Provide AT LEAST 3 testCases:
    - one happy path with realistic numbers
    - one with a missing/zero input (must NOT throw)
    - one with a boundary value (population=0, capacity=1, etc.)
-5. Bound your output to a defined range (e.g., score 0..100, multiplier 0.1..10) so downstream code stays predictable.
+7. Bound your output to a defined range (e.g., score 0..100, multiplier 0.1..10) so downstream code stays predictable.
 
 Forge AT LEAST ONE tool per analysis when the event involves any quantitative reasoning. Run it to produce a number you reference in your summary. Re-use a previously-forged tool by name (no new forge needed) when the same calculation applies again.
 
