@@ -49,7 +49,7 @@
     "dashboard:smoke": "npx tsx src/cli/serve.ts 3",
     "compile": "npx tsx src/cli/compile.ts",
     "check:dashboard": "node --check src/cli/dashboard/main.legacy.js",
-    "test": "node --import tsx --test src/**/*.test.ts",
+    "test": "node --import tsx --test 'tests/**/*.test.ts' 'src/cli/dashboard/src/**/*.test.ts'",
     "docs": "typedoc",
     "prepublishOnly": "npm run build",
     "leader:a": "npx tsx src/cli/run-a.ts",

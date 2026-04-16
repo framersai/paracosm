@@ -7,10 +7,14 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "outDir": "dist",
-    "rootDir": "src",
+    // Root spans both src/ (published library code) and tests/ (test
+    // suite living outside src so the test layout is obvious from the
+    // repo tree). The build config (tsconfig.build.json) only emits
+    // src/ so no test code ships in the npm package.
+    "rootDir": ".",
     "declaration": true,
     "resolveJsonModule": true
   },
-  "include": ["src"],
-  "exclude": ["src/cli/dashboard"]
+  "include": ["src", "tests"],
+  "exclude": ["src/cli/dashboard", "scripts"]
 }

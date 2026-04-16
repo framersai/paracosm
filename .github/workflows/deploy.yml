@@ -138,19 +138,53 @@ jobs:
     if: github.ref == 'refs/heads/master'
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Need full history so the change-detection diff against the
+          # previous commit can resolve.
+          fetch-depth: 2
 
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           registry-url: https://registry.npmjs.org
 
+      # Skip the rest of the publish job when only the dashboard, docs,
+      # CI workflows, or other non-library files changed. The npm package
+      # ships dist/engine, dist/runtime, and dist/cli (server bits used by
+      # `npm run dashboard`). Dashboard React code is bundled at build time
+      # but not part of the public TS API surface — UI-only commits should
+      # NOT cut a new package version (was producing a release per UI tweak).
+      - name: Detect library changes
+        id: changes
+        run: |
+          # If we don't have a previous commit (initial push), publish.
+          if ! git rev-parse HEAD~1 >/dev/null 2>&1; then
+            echo "library_changed=true" >> "$GITHUB_OUTPUT"
+            echo "First commit — proceeding with publish."
+            exit 0
+          fi
+          CHANGED=$(git diff --name-only HEAD~1 HEAD)
+          echo "Changed files:"
+          echo "$CHANGED"
+          # Files that affect the published package surface
+          if echo "$CHANGED" | grep -qE '^(src/engine/|src/runtime/|src/cli/(serve|server-app|sim-config|cli-run-options|compile|run|run-a|run-b|pair-runner|custom-scenarios|types)\.ts|src/cli/(serve|server-app|sim-config|cli-run-options|compile|run|run-a|run-b|pair-runner|custom-scenarios|types)/|package\.json|tsconfig\.build\.json|README\.md|LICENSE)'; then
+            echo "library_changed=true" >> "$GITHUB_OUTPUT"
+            echo "Library code changed — will publish."
+          else
+            echo "library_changed=false" >> "$GITHUB_OUTPUT"
+            echo "Only dashboard/docs/CI changed — skipping npm publish + GitHub release."
+          fi
+
       - name: Install dependencies
+        if: steps.changes.outputs.library_changed == 'true'
         run: npm ci
 
       - name: Build
+        if: steps.changes.outputs.library_changed == 'true'
         run: npm run build
 
       - name: Auto-version from run number
+        if: steps.changes.outputs.library_changed == 'true'
         id: version
         run: |
           # Use major.minor from package.json + GitHub run number as patch
@@ -163,11 +197,13 @@ jobs:
           echo "Publishing ${NEXT} (run #${{ github.run_number }})"
 
       - name: Publish to npm
+        if: steps.changes.outputs.library_changed == 'true'
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create GitHub Release
+        if: steps.changes.outputs.library_changed == 'true'
         run: |
           gh release create "v${{ steps.version.outputs.version }}" \
             --title "v${{ steps.version.outputs.version }}" \

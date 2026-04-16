@@ -120,22 +120,67 @@ export interface Agent {
   memory: AgentMemory;
 }
 
+/**
+ * Universal settlement metrics shared by every scenario. Fields below the
+ * `population` and `morale` core are common but optional — a non-Mars
+ * scenario might not have `pressurizedVolumeM3` for example, and is free
+ * to set its own values via the index signature.
+ *
+ * Scenario-specific metrics (e.g., a submarine's hullPressureBars or a
+ * corporation's quarterlyRevenue) live alongside via `[key: string]: number`.
+ */
 export interface WorldSystems {
+  /** Alive headcount. */
   population: number;
-  powerKw: number;
-  foodMonthsReserve: number;
-  waterLitersPerDay: number;
-  pressurizedVolumeM3: number;
-  lifeSupportCapacity: number;
-  infrastructureModules: number;
-  scienceOutput: number;
+  /** Aggregate morale, 0..1. */
   morale: number;
+  /** Months of food reserve at current consumption. */
+  foodMonthsReserve: number;
+  /** Generated power capacity, kW. */
+  powerKw: number;
+  /** Daily water budget, liters. */
+  waterLitersPerDay: number;
+  /** Sealed habitable volume, m³ — Mars/Lunar/space-specific, optional in others. */
+  pressurizedVolumeM3: number;
+  /** Life support headroom (max sustainable population). */
+  lifeSupportCapacity: number;
+  /** Infrastructure modules / building units. */
+  infrastructureModules: number;
+  /** Science / research output index. */
+  scienceOutput: number;
+  /** Scenario-defined metrics beyond the universal set. */
+  [key: string]: number;
 }
 
+/**
+ * Universal political/social state shared by every scenario.
+ *
+ * The previous shape baked in Mars-specific fields (earthDependencyPct,
+ * governanceStatus 'earth-governed'/'commonwealth'/'independent',
+ * independencePressure). Those still ship as defaults so the Mars and
+ * Lunar scenarios continue to work without changes, but a custom scenario
+ * (e.g., medieval kingdom with `vassalLoyaltyPct`, corporate sim with
+ * `boardConfidence`) can extend via the index signature without touching
+ * engine core.
+ */
 export interface WorldPolitics {
+  /**
+   * Mars/Lunar-specific: percentage of supplies still relying on the
+   * parent body (Earth, planet, etc.). Custom scenarios may ignore.
+   */
   earthDependencyPct: number;
+  /**
+   * Mars/Lunar-specific governance trajectory. Custom scenarios may ignore
+   * or override with their own status string via the index signature.
+   */
   governanceStatus: 'earth-governed' | 'commonwealth' | 'independent';
+  /**
+   * Mars/Lunar-specific: 0..1 pressure toward independence. Custom
+   * scenarios may ignore.
+   */
   independencePressure: number;
+  /** Scenario-defined political variables beyond the universal set. */
+  [key: string]: number | string | boolean;
 }
 
 export interface SimulationMetadata {

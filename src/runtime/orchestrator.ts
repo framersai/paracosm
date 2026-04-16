@@ -454,8 +454,12 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   const kernel = new SimulationKernel(seed, leader.name, keyPersonnel, {
     startYear,
     initialPopulation: opts.initialPopulation,
-    startingResources: opts.startingResources,
-    startingPolitics: opts.startingPolitics,
+    // StartingResources / StartingPolitics are subsets of the kernel's
+    // Partial<WorldSystems / WorldPolitics> shape. The kernel's types
+    // carry index signatures for scenario-defined fields; the starter
+    // configs only declare the universal fields, so the cast is safe.
+    startingResources: opts.startingResources as Partial<import('../engine/core/state.js').WorldSystems> | undefined,
+    startingPolitics: opts.startingPolitics as Partial<import('../engine/core/state.js').WorldPolitics> | undefined,
   });
 
   const toolMap = new Map<string, ITool>();
