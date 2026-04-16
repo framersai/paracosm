@@ -30,6 +30,7 @@ import {
   type StartingResources,
 } from '../cli/sim-config.js';
 import { applyCustomEventToCrisis, buildPromotionPrompt, buildYearSchedule } from './runtime-helpers.js';
+import { classifyProviderError, shouldAbortRun, type ClassifiedProviderError } from './provider-errors.js';
 import { EffectRegistry } from '../engine/effect-registry.js';
 import { marsScenario } from '../engine/mars/index.js';
 import type { LeaderConfig } from '../engine/types.js';
@@ -119,14 +120,30 @@ function createEmergentEngine(
   judgeModel: string,
   execution: Partial<SimulationExecutionConfig> = {},
   onUsage?: (result: { usage?: { totalTokens?: number; promptTokens?: number; completionTokens?: number; costUSD?: number } }) => void,
+  /**
+   * Called when the judge's LLM call throws. Forwards to the run-level
+   * provider-error classifier so quota/auth failures on judge calls get
+   * reported the same way as failures on any other call site.
+   */
+  onProviderError?: (err: unknown) => void,
 ) {
   const llmCb = async (model: string, prompt: string) => {
-    const r = await generateText({ provider, model: model || judgeModel, prompt });
-    // Forward usage to the run-wide tracker. Judge calls were previously
-    // silently unaccounted, producing cost totals that looked like $0.25
-    // while the real bill was $5-8 per run on Anthropic defaults.
-    onUsage?.(r);
-    return r.text;
+    try {
+      const r = await generateText({ provider, model: model || judgeModel, prompt });
+      // Forward usage to the run-wide tracker. Judge calls were previously
+      // silently unaccounted, producing cost totals that looked like $0.25
+      // while the real bill was $5-8 per run on Anthropic defaults.
+      onUsage?.(r);
+      return r.text;
+    } catch (err) {
+      // The AgentOS EmergentJudge has its own try/catch around this
+      // callback and will record a rejected verdict on throw, which is
+      // correct behavior. Re-throw so its existing error path runs; the
+      // orchestrator's forge-wrapper catches propagation through
+      // reportProviderError on the dept-level try/catch below.
+      onProviderError?.(err);
+      throw err;
+    }
   };
   const registry = new EmergentToolRegistry();
   const judge = new EmergentJudge({ judgeModel, promotionModel: judgeModel, generateText: llmCb });
@@ -406,7 +423,7 @@ function decisionToPolicy(decision: CommanderDecision, reports: DepartmentReport
 // ---------------------------------------------------------------------------
 
 export type SimEvent = {
-  type: 'turn_start' | 'event_start' | 'dept_start' | 'dept_done' | 'forge_attempt' | 'commander_deciding' | 'commander_decided' | 'outcome' | 'drift' | 'agent_reactions' | 'bulletin' | 'turn_done' | 'promotion' | 'colony_snapshot';
+  type: 'turn_start' | 'event_start' | 'dept_start' | 'dept_done' | 'forge_attempt' | 'commander_deciding' | 'commander_decided' | 'outcome' | 'drift' | 'agent_reactions' | 'bulletin' | 'turn_done' | 'promotion' | 'colony_snapshot' | 'provider_error';
   leader: string;
   turn?: number;
   year?: number;
@@ -472,6 +489,52 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     opts.onEvent?.({ type, leader: leader.name, data: { ...data, _cost: { totalTokens, totalCostUSD: Math.round(totalCostUSD * 10000) / 10000, llmCalls } } });
   };
 
+  /**
+   * Run-scoped provider-error abort state. When a terminal error (quota
+   * exhaustion, invalid API key) is detected on ANY LLM call, the
+   * classifier fires `provider_error` over SSE once, sets this flag, and
+   * every subsequent LLM call site short-circuits immediately instead of
+   * thrashing against the same dead provider for another 5 turns.
+   *
+   * Reported via `output.providerError` on the returned result so
+   * programmatic consumers (not just the dashboard) can detect a failed
+   * run without parsing SSE.
+   */
+  let providerErrorState: ClassifiedProviderError | null = null;
+  /** True once we've emitted the SSE so we don't spam duplicate banners. */
+  let providerErrorEmitted = false;
+
+  /**
+   * Report a caught error from an LLM call site. Classifies it, and if it
+   * is a terminal auth/quota failure, emits the `provider_error` SSE
+   * (once) and sets the abort flag so subsequent turns skip LLM work.
+   *
+   * @param err The caught exception.
+   * @param site Short label for where the error happened (used in logs,
+   *        e.g. 'director', 'dept:medical', 'commander', 'reactions').
+   * @returns The classified error so the caller can react (e.g. log
+   *        differently for non-terminal errors).
+   */
+  const reportProviderError = (err: unknown, site: string): ClassifiedProviderError => {
+    const classified = classifyProviderError(err);
+    if (shouldAbortRun(classified.kind) && !providerErrorEmitted) {
+      providerErrorState = classified;
+      providerErrorEmitted = true;
+      console.error(`  [${site}] PROVIDER ERROR (${classified.kind}): ${classified.message}`);
+      emit('provider_error', {
+        kind: classified.kind,
+        provider: classified.provider,
+        message: classified.message,
+        actionUrl: classified.actionUrl,
+        site,
+      });
+    }
+    return classified;
+  };
+
+  /** True when the run should stop launching new LLM work. */
+  const isAborted = () => providerErrorState !== null;
+
   console.log(`\n${'═'.repeat(60)}`);
   console.log(`  ${sc.labels.name.toUpperCase()} v2`);
   console.log(`  Commander: ${leader.name} — "${leader.archetype}"`);
@@ -504,6 +567,10 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     // every forge review (often 30-50% of total API spend) was invisible to
     // the `cost` field returned from runSimulation().
     trackUsage,
+    // Pipe judge-call errors into the provider-error classifier so a 401
+    // or 429-with-insufficient-quota from the judge fires the same abort
+    // path as failures from any other LLM call site.
+    (err) => reportProviderError(err, 'judge'),
   );
   const toolRegs: Record<string, string[]> = {};
 
@@ -571,17 +638,31 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     if (h.honestyHumility < 0.4) cues.push('You leverage information asymmetries when useful');
     return cues.length ? `Your decision style: ${cues.join('. ')}.` : '';
   })();
-  trackUsage(await cmdSess.send(
-    `You are the colony commander. You receive department reports and make strategic decisions. ` +
-    `${personalityCue} ` +
-    `Your personality MUST visibly shape your choices — do not converge on a centrist option just because ` +
-    `it sounds reasonable. If your traits push you toward the risky option, take it; if they push you toward ` +
-    `the safe option, take it. The simulation's value is in how different leaders produce different outcomes ` +
-    `from the same starting state. ` +
-    `When the crisis includes options with IDs, you MUST include selectedOptionId in your JSON response. ` +
-    `Return JSON with selectedOptionId, decision, rationale, selectedPolicies, rejectedPolicies, ` +
-    `expectedTradeoffs, watchMetricsNextTurn. Acknowledge.`
-  ));
+  // Bootstrap the commander. This is the FIRST LLM call in the run, so if
+  // the user's API key is invalid or credits are exhausted, this is where
+  // we find out. Report it through the classifier so the dashboard banner
+  // fires before we burn compute launching a sim that has no hope of
+  // producing valid output.
+  try {
+    trackUsage(await cmdSess.send(
+      `You are the colony commander. You receive department reports and make strategic decisions. ` +
+      `${personalityCue} ` +
+      `Your personality MUST visibly shape your choices — do not converge on a centrist option just because ` +
+      `it sounds reasonable. If your traits push you toward the risky option, take it; if they push you toward ` +
+      `the safe option, take it. The simulation's value is in how different leaders produce different outcomes ` +
+      `from the same starting state. ` +
+      `When the crisis includes options with IDs, you MUST include selectedOptionId in your JSON response. ` +
+      `Return JSON with selectedOptionId, decision, rationale, selectedPolicies, rejectedPolicies, ` +
+      `expectedTradeoffs, watchMetricsNextTurn. Acknowledge.`
+    ));
+  } catch (err) {
+    reportProviderError(err, 'commander-bootstrap');
+    // If this is a terminal provider error, `isAborted()` is now true and
+    // the turn loop below will skip all LLM work. Continue into the turn
+    // loop anyway so the normal end-of-run cleanup path runs and the user
+    // gets a proper `complete` SSE event (with the `provider_error` event
+    // already sent above).
+  }
 
   // Turn 0: Commander promotes department heads from agent roster
   console.log('  [Turn 0] Commander evaluating roster for promotions...');
@@ -762,6 +843,32 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
 
   for (let turn = 1; turn <= maxTurns; turn++) {
     const year = yearSchedule[turn - 1] ?? (yearSchedule[yearSchedule.length - 1] + (turn - yearSchedule.length) * 5);
+
+    // ── Abort gate ───────────────────────────────────────────────────
+    // If a terminal provider error was hit on a previous turn (or on the
+    // commander bootstrap), every LLM call in this turn would throw the
+    // same way and be silently caught downstream. Skip the turn entirely
+    // and emit a minimal `turn_done` event with the error attached so the
+    // dashboard playhead advances to the abort point instead of looking
+    // stuck. This replaces ~5 turns of thrashing + empty reports with one
+    // crisp banner + graceful exit.
+    if (isAborted()) {
+      // Capture the provider error to a local const so TS narrowing holds
+      // inside the object literal below (closure-assigned lets lose their
+      // narrow through control-flow re-analysis).
+      const pe = providerErrorState as ClassifiedProviderError | null;
+      emit('turn_done', {
+        turn, year,
+        colony: kernel.getState().colony,
+        toolsForged: Object.values(toolRegs).flat().length,
+        aborted: true,
+        providerError: pe
+          ? { kind: pe.kind, provider: pe.provider, message: pe.message }
+          : undefined,
+      });
+      continue;
+    }
+
     try {
 
     // ── Event generation ──────────────────────────────────────────────
@@ -810,6 +917,10 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
         // Fold director spend into the run-wide cost tracker. One flagship
         // call per turn that was previously unaccounted.
         trackUsage,
+        // Classify director-call errors so quota exhaustion fires the
+        // abort banner instead of silently running six turns of canned
+        // fallback events.
+        (err) => reportProviderError(err, 'director'),
       );
       turnEvents = batch.events;
       batchPacing = batch.pacing;
@@ -1106,7 +1217,15 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
             if (names.length) toolRegs[dept] = [...(toolRegs[dept] || []), ...names];
           }
           return report;
-        } catch (err) { console.log(`  [${dept}] ERROR: ${err}`); return emptyReport(dept); }
+        } catch (err) {
+          // Classify before returning the empty report. A single dept
+          // failure on a transient error is fine, but if this is auth or
+          // quota, the first classification flips the run-scoped abort
+          // flag and the outer turn loop will skip the rest of the run.
+          reportProviderError(err, `dept:${dept}`);
+          console.log(`  [${dept}] ERROR: ${err}`);
+          return emptyReport(dept);
+        }
       });
       const reports = await Promise.all(deptPromises);
 
@@ -1244,8 +1363,13 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
       console.log(`  [outcome] ${outcome} (${event.category}) effects: ${JSON.stringify(colonyDeltas)}`);
       emit('outcome', { turn, year, outcome, category: event.category, emergent: !milestone, colonyDeltas, eventIndex: ei });
       } catch (err) {
+        // Classify event-loop errors. If the commander call threw a
+        // quota/auth error, this is where it lands. `reportProviderError`
+        // flips the run abort flag and the next turn iteration short-
+        // circuits via the isAborted() gate at the top of the loop.
+        reportProviderError(err, `event-loop:turn${turn}:event${ei + 1}`);
         console.error(`  [event ${ei + 1}/${turnEvents.length}] Failed: ${err}`);
-        // Continue to next event; don't kill the turn
+        // Continue to next event; don't kill the turn on transient errors
       }
     } // end inner event loop
 
@@ -1279,6 +1403,9 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
           // per turn, these calls were a large untracked line item on the
           // real API bill.
           onUsage: trackUsage,
+          // Classify the first reaction-batch error so an 80-agent wall of
+          // 429s produces one `provider_error` banner, not 80 toasts.
+          onProviderError: (err) => reportProviderError(err, 'reactions'),
         },
       );
       if (reactions.length) {
@@ -1419,6 +1546,10 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
       births, deaths,
     });
     } catch (err) {
+      // Classify first: if this is a terminal quota/auth error it flips
+      // the run-abort flag and the next turn will be skipped entirely via
+      // the isAborted() gate instead of falling into this degraded path.
+      reportProviderError(err, `turn${turn}:fatal`);
       console.error(`  [turn ${turn}] FATAL: ${err}`);
       // Emit a degraded colony_snapshot so the dashboard doesn't get stuck
       const fallbackAgents = kernel.getState().agents.map(a => ({
@@ -1597,6 +1728,23 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
     agentReactions: allAgentReactions,
     /** Cost telemetry for the run. */
     cost: { totalTokens, totalCostUSD: Math.round(totalCostUSD * 10000) / 10000, llmCalls },
+    /**
+     * When a terminal provider error (quota exhausted, invalid API key)
+     * was hit during the run, this carries the classified reason. `null`
+     * on a healthy run. Programmatic consumers should check this BEFORE
+     * consuming `finalState` or `turnArtifacts` because those will be
+     * partial/degraded from the turn the error was hit.
+     */
+    providerError: ((pe: ClassifiedProviderError | null) =>
+      pe
+        ? {
+            kind: pe.kind,
+            provider: pe.provider,
+            message: pe.message,
+            actionUrl: pe.actionUrl,
+          }
+        : null
+    )(providerErrorState),
     totalCitations: citationCatalog.length,
     totalToolsForged: forgedToolbox.length,
   };

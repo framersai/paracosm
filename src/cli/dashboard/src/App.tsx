@@ -8,6 +8,7 @@ import { useCitationRegistry, CitationRegistryContext } from './hooks/useCitatio
 import { useToolRegistry, ToolRegistryContext } from './hooks/useToolRegistry';
 import { TopBar } from './components/layout/TopBar';
 import { TabBar } from './components/layout/TabBar';
+import { ProviderErrorBanner } from './components/layout/ProviderErrorBanner';
 // Toolbar merged into TopBar
 import { SimView } from './components/sim/SimView';
 import { SettingsPanel } from './components/settings/SettingsPanel';
@@ -95,6 +96,18 @@ function AppContent() {
     toast('info', 'Cleared', 'Simulation data cleared.');
     setActiveTab('settings');
   }, [persistence, sse, toast]);
+
+  // Local dismiss flag for the provider-error banner. Lives outside useSSE
+  // so dismissing hides the current banner without clearing the underlying
+  // sse.providerError state (which stays available to programmatic readers
+  // and any later "why did my run fail?" logic). Reset when the error
+  // resolves (e.g. key fixed, sim re-run successfully).
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+  useEffect(() => {
+    // If the error state clears (sim reset), also clear the dismiss flag
+    // so the banner reappears on a fresh problem.
+    if (!sse.providerError) setBannerDismissed(false);
+  }, [sse.providerError]);
 
   // Show simulation errors as toasts
   const lastErrorCount = useRef(0);
@@ -327,6 +340,12 @@ function AppContent() {
        <CitationRegistryContext.Provider value={citationRegistry}>
         <ToolRegistryContext.Provider value={toolRegistry}>
         <div className="flex flex-col h-screen w-screen overflow-hidden scanline-overlay" style={{ background: 'var(--bg-deep)', color: 'var(--text-1)' }}>
+          {sse.providerError && !bannerDismissed ? (
+            <ProviderErrorBanner
+              providerError={sse.providerError}
+              onDismiss={() => setBannerDismissed(true)}
+            />
+          ) : null}
           <TopBar scenario={scenario} sse={sse} gameState={gameState} onSave={handleSave} onLoad={handleLoad} onClear={handleClear} onRun={handleRun} onTour={handleTourStart} onCopy={handleCopySummary} />
           <TabBar active={activeTab} onTabChange={setActiveTab} scenario={scenario} />
 

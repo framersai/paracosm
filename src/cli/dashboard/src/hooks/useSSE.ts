@@ -8,6 +8,24 @@ export interface SimEvent {
   data?: Record<string, unknown>;
 }
 
+/**
+ * Terminal provider error state — set when any leader's simulation hit a
+ * quota or auth error that killed the run. Rendered as a persistent banner
+ * (not a dismissable toast) because it represents an account-level problem
+ * the user must resolve before running another simulation.
+ */
+export interface ProviderErrorState {
+  /** 'quota' = credits exhausted; 'auth' = bad key. Other kinds do not
+   *  flip this flag because they are recoverable within the same run. */
+  kind: 'quota' | 'auth' | 'rate_limit' | 'network' | 'unknown';
+  provider?: string;
+  message: string;
+  actionUrl?: string;
+  /** Which leader hit the error first (useful when one leader's key works
+   *  and the other's doesn't — rare but possible). */
+  leader?: string;
+}
+
 interface SSEState {
   status: 'connecting' | 'connected' | 'error';
   events: SimEvent[];
@@ -15,6 +33,8 @@ interface SSEState {
   verdict: Record<string, unknown> | null;
   errors: string[];
   isComplete: boolean;
+  /** Terminal provider error (quota / auth). `null` when the run is healthy. */
+  providerError: ProviderErrorState | null;
 }
 
 export function useSSE() {
@@ -25,6 +45,7 @@ export function useSSE() {
     verdict: null,
     errors: [],
     isComplete: false,
+    providerError: null,
   });
   const esRef = useRef<EventSource | null>(null);
   // Dedupe set used by the connection effect. Lifted to a ref so reset()
@@ -46,6 +67,11 @@ export function useSSE() {
       // "Connecting..." just because the user pressed Clear.
       status: prev.status,
       events: [], results: [], verdict: null, errors: [], isComplete: false,
+      // Clear provider error on manual reset. If the underlying problem
+      // still exists (key still bad / still no credits), the next run's
+      // first LLM call will re-fire the `provider_error` event within
+      // seconds, which is the right UX: let the user try.
+      providerError: null,
     }));
     try {
       await fetch('/clear', { method: 'POST' });
@@ -56,6 +82,19 @@ export function useSSE() {
   }, []);
 
   const loadEvents = useCallback((events: SimEvent[], results?: unknown[], verdict?: Record<string, unknown> | null) => {
+    // Scan loaded events for any previously-persisted provider_error so
+    // a reload after a failed run restores the banner state, not just
+    // the viz/reports tabs.
+    const errEvent = events.find(e => e.type === 'provider_error');
+    const restoredProviderError: ProviderErrorState | null = errEvent
+      ? {
+          kind: (errEvent.data?.kind as ProviderErrorState['kind']) ?? 'unknown',
+          provider: errEvent.data?.provider as string | undefined,
+          message: String(errEvent.data?.message ?? 'Provider error'),
+          actionUrl: errEvent.data?.actionUrl as string | undefined,
+          leader: errEvent.leader,
+        }
+      : null;
     setState({
       status: 'connected',
       events,
@@ -63,6 +102,7 @@ export function useSSE() {
       verdict: verdict || null,
       errors: [],
       isComplete: true,
+      providerError: restoredProviderError,
     });
   }, []);
 
@@ -112,6 +152,27 @@ export function useSSE() {
           const key = eventKey(data);
           if (seenEventKeys.has(key)) return; // skip duplicate from buffer replay
           seenEventKeys.add(key);
+          // Intercept `provider_error` sim events and hoist them into a
+          // dedicated state slot for the persistent banner. We still keep
+          // them in `events` for audit / reload-restoration purposes.
+          if (data.type === 'provider_error' && data.data) {
+            const d = data.data as Record<string, unknown>;
+            setState(prev => ({
+              ...prev,
+              events: [...prev.events, data],
+              // If we already have a providerError set (e.g. leader A's
+              // error arrived first), do not overwrite: keep the first one
+              // because that is the root cause the user will act on.
+              providerError: prev.providerError ?? {
+                kind: (d.kind as ProviderErrorState['kind']) ?? 'unknown',
+                provider: d.provider as string | undefined,
+                message: String(d.message ?? 'Provider error'),
+                actionUrl: d.actionUrl as string | undefined,
+                leader: data.leader,
+              },
+            }));
+            return;
+          }
           setState(prev => ({ ...prev, events: [...prev.events, data] }));
         } catch {}
       });
