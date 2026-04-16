@@ -557,6 +557,19 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   let totalTokens = 0;
   let totalCostUSD = 0;
   let llmCalls = 0;
+  /**
+   * Run-wide prompt-cache accounting. Tracks cache-tier token counts
+   * returned by AgentOS on Anthropic calls (and OpenAI's automatic
+   * caching when it eventually exposes them). Surfaces as proof that
+   * the prompt-caching wiring actually hit — a run with `cacheReadTokens
+   * = 0` despite configured cache breakpoints means caching didn't work
+   * and the reported cost is not reflecting the savings we expected.
+   *
+   * Reported via `_cost` on every SSE emit so the dashboard breakdown
+   * modal can display cache hit rate and estimated savings.
+   */
+  let cacheReadTokens = 0;
+  let cacheCreationTokens = 0;
 
   /**
    * Per-call-site cost breakdown. Every `trackUsage` caller tags its
@@ -566,13 +579,26 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
    * developer reading the breakdown sees a clean mental model.
    */
   type CostSite = 'director' | 'commander' | 'departments' | 'judge' | 'reactions' | 'other';
-  const costBySite: Record<CostSite, { totalTokens: number; totalCostUSD: number; calls: number }> = {
-    director: { totalTokens: 0, totalCostUSD: 0, calls: 0 },
-    commander: { totalTokens: 0, totalCostUSD: 0, calls: 0 },
-    departments: { totalTokens: 0, totalCostUSD: 0, calls: 0 },
-    judge: { totalTokens: 0, totalCostUSD: 0, calls: 0 },
-    reactions: { totalTokens: 0, totalCostUSD: 0, calls: 0 },
-    other: { totalTokens: 0, totalCostUSD: 0, calls: 0 },
+  interface CostBucket {
+    totalTokens: number;
+    totalCostUSD: number;
+    calls: number;
+    /** Cache-read tokens billed at 0.1× input rate (prompt-cache hit). */
+    cacheReadTokens: number;
+    /** Cache-write tokens billed at 1.25× input rate (new cache entry). */
+    cacheCreationTokens: number;
+  }
+  const newBucket = (): CostBucket => ({
+    totalTokens: 0, totalCostUSD: 0, calls: 0,
+    cacheReadTokens: 0, cacheCreationTokens: 0,
+  });
+  const costBySite: Record<CostSite, CostBucket> = {
+    director: newBucket(),
+    commander: newBucket(),
+    departments: newBucket(),
+    judge: newBucket(),
+    reactions: newBucket(),
+    other: newBucket(),
   };
 
   // Per-million-token pricing estimates for cost tracking
@@ -597,38 +623,71 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
    *        meaningful).
    */
   function trackUsage(
-    result: { usage?: { totalTokens?: number; promptTokens?: number; completionTokens?: number; costUSD?: number } },
+    result: {
+      usage?: {
+        totalTokens?: number;
+        promptTokens?: number;
+        completionTokens?: number;
+        costUSD?: number;
+        cacheReadTokens?: number;
+        cacheCreationTokens?: number;
+      };
+    },
     site: CostSite = 'other',
   ) {
     if (!result?.usage) return;
     const tokensThisCall = result.usage.totalTokens ?? 0;
+    const callCacheRead = result.usage.cacheReadTokens ?? 0;
+    const callCacheCreate = result.usage.cacheCreationTokens ?? 0;
     let costThisCall: number;
     if (typeof result.usage.costUSD === 'number') {
+      // Provider returned a cost that already accounts for cache tiers.
       costThisCall = result.usage.costUSD;
     } else {
+      // Fallback: compute a cache-aware estimate using commander-tier
+      // pricing as an approximation. Cache reads billed at 0.1×, cache
+      // creations at 1.25× input rate. Previous estimate ignored cache
+      // entirely so a run with heavy caching would UNDER-report the
+      // billed amount by ~10-15%.
       const input = result.usage.promptTokens ?? 0;
       const output = result.usage.completionTokens ?? 0;
-      costThisCall = (input * defaultPricing.input / 1_000_000) + (output * defaultPricing.output / 1_000_000);
+      costThisCall =
+        (input * defaultPricing.input / 1_000_000)
+        + (output * defaultPricing.output / 1_000_000)
+        + (callCacheRead * defaultPricing.input * 0.10 / 1_000_000)
+        + (callCacheCreate * defaultPricing.input * 1.25 / 1_000_000);
     }
     totalTokens += tokensThisCall;
     totalCostUSD += costThisCall;
     llmCalls++;
+    cacheReadTokens += callCacheRead;
+    cacheCreationTokens += callCacheCreate;
     const bucket = costBySite[site];
     bucket.totalTokens += tokensThisCall;
     bucket.totalCostUSD += costThisCall;
     bucket.calls++;
+    bucket.cacheReadTokens += callCacheRead;
+    bucket.cacheCreationTokens += callCacheCreate;
   }
 
   const emit = (type: SimEvent['type'], data?: Record<string, unknown>) => {
     // Round breakdown numbers so the SSE payload stays compact and the
     // UI doesn't display 11 decimal places of float noise.
-    const breakdown: Record<string, { totalTokens: number; totalCostUSD: number; calls: number }> = {};
+    const breakdown: Record<string, {
+      totalTokens: number;
+      totalCostUSD: number;
+      calls: number;
+      cacheReadTokens?: number;
+      cacheCreationTokens?: number;
+    }> = {};
     for (const [k, v] of Object.entries(costBySite)) {
       if (v.calls > 0) {
         breakdown[k] = {
           totalTokens: v.totalTokens,
           totalCostUSD: Math.round(v.totalCostUSD * 10000) / 10000,
           calls: v.calls,
+          ...(v.cacheReadTokens > 0 ? { cacheReadTokens: v.cacheReadTokens } : {}),
+          ...(v.cacheCreationTokens > 0 ? { cacheCreationTokens: v.cacheCreationTokens } : {}),
         };
       }
     }
@@ -641,6 +700,8 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
           totalTokens,
           totalCostUSD: Math.round(totalCostUSD * 10000) / 10000,
           llmCalls,
+          cacheReadTokens,
+          cacheCreationTokens,
           breakdown,
         },
       },

@@ -115,6 +115,48 @@ export function CostBreakdownModal({ combined, leaderA, leaderB, leaderAName, le
           {fmtTokens(combined.totalTokens)} tokens
         </div>
 
+        {/* Prompt-cache summary. Only shown when the provider actually
+            reported cache tokens — absent for OpenAI runs (its automatic
+            caching doesn't expose per-call metrics) and for Anthropic
+            runs that never hit a cached prefix. When shown, the ratio
+            tells the user whether caching is delivering real savings or
+            just costing extra on creation without reuse. */}
+        {(combined.cacheReadTokens || combined.cacheCreationTokens) ? (
+          <div style={{
+            padding: '10px 12px', marginBottom: 16, borderRadius: 4,
+            background: 'rgba(106,173,72,0.06)', border: '1px solid rgba(106,173,72,0.2)',
+            fontSize: 11, fontFamily: 'var(--mono)', color: 'var(--text-2)',
+          }}>
+            <div style={{ color: 'var(--green)', fontWeight: 800, fontSize: 10, letterSpacing: '.08em', marginBottom: 4 }}>
+              PROMPT CACHE
+            </div>
+            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', lineHeight: 1.7 }}>
+              <span>
+                Reads: <b style={{ color: 'var(--green)' }}>{fmtTokens(combined.cacheReadTokens ?? 0)}</b>
+                <span style={{ color: 'var(--text-3)', marginLeft: 4 }}>(billed at 0.1× input)</span>
+              </span>
+              <span>
+                Creates: <b style={{ color: 'var(--amber)' }}>{fmtTokens(combined.cacheCreationTokens ?? 0)}</b>
+                <span style={{ color: 'var(--text-3)', marginLeft: 4 }}>(billed at 1.25× input)</span>
+              </span>
+              {(() => {
+                const reads = combined.cacheReadTokens ?? 0;
+                const creates = combined.cacheCreationTokens ?? 0;
+                if (reads + creates === 0) return null;
+                const ratio = reads / (reads + creates);
+                const label = reads === 0 ? 'no cache hits yet'
+                  : ratio > 0.5 ? 'caching is paying off'
+                  : 'low hit rate; cache may be expiring';
+                return (
+                  <span style={{ color: 'var(--text-3)', fontStyle: 'italic' }}>
+                    {Math.round(ratio * 100)}% read / {label}
+                  </span>
+                );
+              })()}
+            </div>
+          </div>
+        ) : null}
+
         {rows.length === 0 ? (
           <div style={{ padding: '24px 8px', color: 'var(--text-3)', fontSize: 13, textAlign: 'center' }}>
             No LLM calls have been billed yet. Start a simulation to see spend by pipeline stage.

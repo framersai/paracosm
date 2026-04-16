@@ -84,16 +84,34 @@ export interface ProcessedEvent {
  * Per-call-site spend within a run. Keys are pipeline-stage labels the
  * orchestrator tags (director, commander, departments, judge, reactions,
  * other). Empty when the run hasn't reported any calls yet.
+ *
+ * cacheReadTokens / cacheCreationTokens are present when a stage used
+ * Anthropic prompt caching: cacheReadTokens counts tokens served from
+ * the prefix cache at 0.1× cost, cacheCreationTokens counts tokens
+ * written to a new cache entry at 1.25× cost. A stage with many read
+ * tokens and few create tokens is benefiting from caching; a stage
+ * with only creates never re-used its cached prefix (TTL expired
+ * between calls, or something invalidated the prefix).
  */
 export type CostSiteBreakdown = Record<
   string,
-  { totalTokens: number; totalCostUSD: number; calls: number }
+  {
+    totalTokens: number;
+    totalCostUSD: number;
+    calls: number;
+    cacheReadTokens?: number;
+    cacheCreationTokens?: number;
+  }
 >;
 
 export interface CostBreakdown {
   totalTokens: number;
   totalCostUSD: number;
   llmCalls: number;
+  /** Total tokens served from provider prompt cache this run. */
+  cacheReadTokens?: number;
+  /** Total tokens written to provider prompt cache this run. */
+  cacheCreationTokens?: number;
   /** Per-site spend. Present when the server reports it (always in current version). */
   breakdown?: CostSiteBreakdown;
 }
@@ -156,6 +174,8 @@ export function useGameState(sseEvents: SimEvent[], isComplete: boolean): GameSt
         totalTokens?: number;
         totalCostUSD?: number;
         llmCalls?: number;
+        cacheReadTokens?: number;
+        cacheCreationTokens?: number;
         breakdown?: CostSiteBreakdown;
       } | undefined;
       if (evtCost && side) {
@@ -163,6 +183,8 @@ export function useGameState(sseEvents: SimEvent[], isComplete: boolean): GameSt
           totalTokens: evtCost.totalTokens ?? 0,
           totalCostUSD: evtCost.totalCostUSD ?? 0,
           llmCalls: evtCost.llmCalls ?? 0,
+          cacheReadTokens: evtCost.cacheReadTokens ?? 0,
+          cacheCreationTokens: evtCost.cacheCreationTokens ?? 0,
           breakdown: evtCost.breakdown,
         };
         if (side === 'a') state.costA = leaderBreakdown;
@@ -176,11 +198,16 @@ export function useGameState(sseEvents: SimEvent[], isComplete: boolean): GameSt
         for (const src of [state.costA.breakdown, state.costB.breakdown]) {
           if (!src) continue;
           for (const [siteKey, bucket] of Object.entries(src)) {
-            const existing = mergedBreakdown[siteKey] ?? { totalTokens: 0, totalCostUSD: 0, calls: 0 };
+            const existing = mergedBreakdown[siteKey] ?? {
+              totalTokens: 0, totalCostUSD: 0, calls: 0,
+              cacheReadTokens: 0, cacheCreationTokens: 0,
+            };
             mergedBreakdown[siteKey] = {
               totalTokens: existing.totalTokens + (bucket?.totalTokens ?? 0),
               totalCostUSD: Math.round((existing.totalCostUSD + (bucket?.totalCostUSD ?? 0)) * 10000) / 10000,
               calls: existing.calls + (bucket?.calls ?? 0),
+              cacheReadTokens: (existing.cacheReadTokens ?? 0) + (bucket?.cacheReadTokens ?? 0),
+              cacheCreationTokens: (existing.cacheCreationTokens ?? 0) + (bucket?.cacheCreationTokens ?? 0),
             };
           }
         }
@@ -189,6 +216,8 @@ export function useGameState(sseEvents: SimEvent[], isComplete: boolean): GameSt
           totalTokens: state.costA.totalTokens + state.costB.totalTokens,
           totalCostUSD: Math.round((state.costA.totalCostUSD + state.costB.totalCostUSD) * 10000) / 10000,
           llmCalls: state.costA.llmCalls + state.costB.llmCalls,
+          cacheReadTokens: (state.costA.cacheReadTokens ?? 0) + (state.costB.cacheReadTokens ?? 0),
+          cacheCreationTokens: (state.costA.cacheCreationTokens ?? 0) + (state.costB.cacheCreationTokens ?? 0),
           breakdown: Object.keys(mergedBreakdown).length > 0 ? mergedBreakdown : undefined,
         };
       }
