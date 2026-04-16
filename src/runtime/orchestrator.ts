@@ -461,6 +461,23 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   let totalCostUSD = 0;
   let llmCalls = 0;
 
+  /**
+   * Per-call-site cost breakdown. Every `trackUsage` caller tags its
+   * call with one of these labels so the dashboard can show WHERE the
+   * money actually went (usually departments + reactions dominate).
+   * Labels line up with the pipeline stages in the turn loop so a
+   * developer reading the breakdown sees a clean mental model.
+   */
+  type CostSite = 'director' | 'commander' | 'departments' | 'judge' | 'reactions' | 'other';
+  const costBySite: Record<CostSite, { totalTokens: number; totalCostUSD: number; calls: number }> = {
+    director: { totalTokens: 0, totalCostUSD: 0, calls: 0 },
+    commander: { totalTokens: 0, totalCostUSD: 0, calls: 0 },
+    departments: { totalTokens: 0, totalCostUSD: 0, calls: 0 },
+    judge: { totalTokens: 0, totalCostUSD: 0, calls: 0 },
+    reactions: { totalTokens: 0, totalCostUSD: 0, calls: 0 },
+    other: { totalTokens: 0, totalCostUSD: 0, calls: 0 },
+  };
+
   // Per-million-token pricing estimates for cost tracking
   const MODEL_PRICING: Record<string, { input: number; output: number }> = {
     'gpt-5.4': { input: 2.50, output: 10.00 },
@@ -471,22 +488,66 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   };
   const defaultPricing = MODEL_PRICING[modelConfig.commander] || { input: 2.50, output: 10.00 };
 
-  function trackUsage(result: { usage?: { totalTokens?: number; promptTokens?: number; completionTokens?: number; costUSD?: number } }) {
-    if (result?.usage) {
-      totalTokens += result.usage.totalTokens ?? 0;
-      llmCalls++;
-      if (typeof result.usage.costUSD === 'number') {
-        totalCostUSD += result.usage.costUSD;
-      } else {
-        const input = result.usage.promptTokens ?? 0;
-        const output = result.usage.completionTokens ?? 0;
-        totalCostUSD += (input * defaultPricing.input / 1_000_000) + (output * defaultPricing.output / 1_000_000);
-      }
+  /**
+   * Record token/cost usage from a single LLM call.
+   *
+   * @param result The result object from generateText / session.send(),
+   *        which carries an optional `usage` field populated by AgentOS.
+   * @param site Which pipeline stage made the call. Used to build the
+   *        per-site cost breakdown the dashboard StatsBar can drill into.
+   *        Defaults to 'other' when a call-site isn't tagged (harmless
+   *        fallback, but tag every new call site so the breakdown stays
+   *        meaningful).
+   */
+  function trackUsage(
+    result: { usage?: { totalTokens?: number; promptTokens?: number; completionTokens?: number; costUSD?: number } },
+    site: CostSite = 'other',
+  ) {
+    if (!result?.usage) return;
+    const tokensThisCall = result.usage.totalTokens ?? 0;
+    let costThisCall: number;
+    if (typeof result.usage.costUSD === 'number') {
+      costThisCall = result.usage.costUSD;
+    } else {
+      const input = result.usage.promptTokens ?? 0;
+      const output = result.usage.completionTokens ?? 0;
+      costThisCall = (input * defaultPricing.input / 1_000_000) + (output * defaultPricing.output / 1_000_000);
     }
+    totalTokens += tokensThisCall;
+    totalCostUSD += costThisCall;
+    llmCalls++;
+    const bucket = costBySite[site];
+    bucket.totalTokens += tokensThisCall;
+    bucket.totalCostUSD += costThisCall;
+    bucket.calls++;
   }
 
   const emit = (type: SimEvent['type'], data?: Record<string, unknown>) => {
-    opts.onEvent?.({ type, leader: leader.name, data: { ...data, _cost: { totalTokens, totalCostUSD: Math.round(totalCostUSD * 10000) / 10000, llmCalls } } });
+    // Round breakdown numbers so the SSE payload stays compact and the
+    // UI doesn't display 11 decimal places of float noise.
+    const breakdown: Record<string, { totalTokens: number; totalCostUSD: number; calls: number }> = {};
+    for (const [k, v] of Object.entries(costBySite)) {
+      if (v.calls > 0) {
+        breakdown[k] = {
+          totalTokens: v.totalTokens,
+          totalCostUSD: Math.round(v.totalCostUSD * 10000) / 10000,
+          calls: v.calls,
+        };
+      }
+    }
+    opts.onEvent?.({
+      type,
+      leader: leader.name,
+      data: {
+        ...data,
+        _cost: {
+          totalTokens,
+          totalCostUSD: Math.round(totalCostUSD * 10000) / 10000,
+          llmCalls,
+          breakdown,
+        },
+      },
+    });
   };
 
   /**
@@ -565,8 +626,9 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     opts.execution,
     // Forward judge-call usage into the run-wide cost tracker. Without this,
     // every forge review (often 30-50% of total API spend) was invisible to
-    // the `cost` field returned from runSimulation().
-    trackUsage,
+    // the `cost` field returned from runSimulation(). Tagged 'judge' so
+    // the StatsBar breakdown can show exactly how much review cost.
+    (result) => trackUsage(result, 'judge'),
     // Pipe judge-call errors into the provider-error classifier so a 401
     // or 429-with-insufficient-quota from the judge fires the same abort
     // path as failures from any other LLM call site.
@@ -660,7 +722,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
       `When the crisis includes options with IDs, you MUST include selectedOptionId in your JSON response. ` +
       `Return JSON with selectedOptionId, decision, rationale, selectedPolicies, rejectedPolicies, ` +
       `expectedTradeoffs, watchMetricsNextTurn. Acknowledge.`
-    ));
+    ), 'commander');
   } catch (err) {
     reportProviderError(err, 'commander-bootstrap');
     // If this is a terminal provider error, `isAborted()` is now true and
@@ -686,7 +748,8 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   const promoResult = await cmdSess.send(
     buildPromotionPrompt(candidateSummaries)
   );
-  trackUsage(promoResult);
+  // Promotion is a commander-session call, so it lands in the commander bucket.
+  trackUsage(promoResult, 'commander');
 
   const promoMatch = promoResult.text.match(/\{[\s\S]*"promotions"[\s\S]*\}/);
   if (promoMatch) {
@@ -929,8 +992,9 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
         modelConfig.director,
         dirInstructions,
         // Fold director spend into the run-wide cost tracker. One flagship
-        // call per turn that was previously unaccounted.
-        trackUsage,
+        // call per turn that was previously unaccounted. Tagged 'director'
+        // so the breakdown surfaces it separately from dept calls.
+        (result) => trackUsage(result, 'director'),
         // Classify director-call errors so quota exhaustion fires the
         // abort banner instead of silently running six turns of canned
         // fallback events.
@@ -1038,7 +1102,9 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
         const forgeBucketStart = deptForgeBuckets.get(dept)?.length ?? 0;
         try {
           const r = await sess.send(ctx);
-          trackUsage(r);
+          // Tag as 'departments' so the StatsBar breakdown shows this
+          // (biggest cost line item) separately from director/commander.
+          trackUsage(r, 'departments');
           const report = parseDeptReport(r.text, dept);
           // Citation provenance guarantee: when the LLM omits citations but the
           // research packet carried real sources, attribute them to the report.
@@ -1282,7 +1348,8 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
 
       emit('commander_deciding', { turn, year, eventIndex: ei });
       const cmdR = await cmdSess.send(cmdPrompt);
-      trackUsage(cmdR);
+      // Commander decision per event — lands in the commander bucket.
+      trackUsage(cmdR, 'commander');
       const decision = parseCmdDecision(cmdR.text, depts);
       console.log(`  [commander] ${decision.decision.slice(0, 120)}...`);
       emit('commander_decided', { turn, year, decision: decision.decision, rationale: decision.rationale, selectedPolicies: decision.selectedPolicies, eventIndex: ei });
@@ -1462,8 +1529,9 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
           batchSize: reactionBatchSize,
           // Fold reaction usage into run-wide cost tracking. With ~100 agents
           // per turn, these calls were a large untracked line item on the
-          // real API bill.
-          onUsage: trackUsage,
+          // real API bill. Tagged 'reactions' so the StatsBar breakdown
+          // separates reaction spend from dept/commander/director.
+          onUsage: (result) => trackUsage(result, 'reactions'),
           // Classify the first reaction-batch error so an 80-agent wall of
           // 429s produces one `provider_error` banner, not 80 toasts.
           onProviderError: (err) => reportProviderError(err, 'reactions'),

@@ -192,6 +192,8 @@ export function SimView({ state, sseStatus, onRun, verdict, launching: launching
         cost={state.cost}
         costA={state.costA}
         costB={state.costB}
+        leaderAName={state.a.leader?.name || presetLeaderA?.name}
+        leaderBName={state.b.leader?.name || presetLeaderB?.name}
       />
 
       {showIntro && state.a.events.length > 0 && <IntroBar onDismiss={dismissIntro} />}
