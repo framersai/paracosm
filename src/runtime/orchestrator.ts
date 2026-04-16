@@ -489,6 +489,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
 
   for (let turn = 1; turn <= maxTurns; turn++) {
     const year = yearSchedule[turn - 1] ?? (yearSchedule[yearSchedule.length - 1] + (turn - yearSchedule.length) * 5);
+    try {
 
     // ── Event generation ──────────────────────────────────────────────
     const maxEvents = sc.setup.maxEventsPerTurn ?? 3;
@@ -548,6 +549,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     let lastEventCategory = '';
 
     for (let ei = 0; ei < turnEvents.length; ei++) {
+      try {
       let event = applyCustomEventToCrisis(turnEvents[ei], opts.customEvents ?? [], turn);
 
       console.log(`  Event ${ei + 1}/${turnEvents.length}: ${event.title} (${event.category})`);
@@ -668,6 +670,10 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
 
       console.log(`  [outcome] ${outcome} (${event.category}) effects: ${JSON.stringify(colonyDeltas)}`);
       emit('outcome', { turn, year, outcome, category: event.category, emergent: !milestone, colonyDeltas, eventIndex: ei });
+      } catch (err) {
+        console.error(`  [event ${ei + 1}/${turnEvents.length}] Failed: ${err}`);
+        // Continue to next event; don't kill the turn
+      }
     } // end inner event loop
 
     // ── Post-events: drift, reactions, memory, artifacts ──────────────
@@ -777,6 +783,25 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
       foodReserve: after.colony.foodMonthsReserve,
       births, deaths,
     });
+    } catch (err) {
+      console.error(`  [turn ${turn}] FATAL: ${err}`);
+      // Emit a degraded colony_snapshot so the dashboard doesn't get stuck
+      const fallbackAgents = kernel.getState().agents.map(a => ({
+        agentId: a.core.id, name: a.core.name, department: a.core.department, role: a.core.role,
+        rank: a.career.rank, alive: a.health.alive, marsborn: a.core.marsborn,
+        psychScore: a.health.psychScore, partnerId: a.social.partnerId,
+        childrenIds: a.social.childrenIds, featured: a.narrative.featured,
+        mood: 'neutral', shortTermMemory: [],
+      }));
+      emit('colony_snapshot', {
+        turn, year, agents: fallbackAgents,
+        population: kernel.getState().colony.population,
+        morale: kernel.getState().colony.morale,
+        foodReserve: kernel.getState().colony.foodMonthsReserve,
+        births: 0, deaths: 0,
+      });
+      emit('turn_done', { turn, year, colony: kernel.getState().colony, toolsForged: Object.values(toolRegs).flat().length, error: String(err) });
+    }
   }
 
   const final = kernel.export();
