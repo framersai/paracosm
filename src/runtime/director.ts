@@ -108,6 +108,26 @@ RULES:
 7. Include actual state numbers in event descriptions
 8. Specify which departments should analyze each event (2-4 per event)
 
+OPTION POLARIZATION (CRITICAL — drives leader divergence):
+The whole point of the simulation is to surface how different personalities
+produce different civilizations from identical starting conditions. Boring
+options that mostly come out the same defeat that purpose. Make the safe
+option and the risky option DRAMATICALLY DIFFERENT in:
+  - Magnitude of effect (safe = small/incremental; risky = transformative or catastrophic)
+  - Scope of change (safe = preserve status quo; risky = restructure something fundamental)
+  - Time horizon (safe = address immediate symptom; risky = bet on a long arc)
+  - Required commitment (safe = reversible; risky = burns bridges)
+
+If the description of option_a could plausibly be swapped with option_b
+without changing much, the options are too similar — rewrite them so
+they reflect genuinely opposed philosophies (cautious-protocol vs
+bold-experiment, conservation vs expansion, equity vs efficiency, etc.).
+
+The risky option should be neither obviously stupid nor obviously correct.
+Aim for ~40-65% success probability so high-openness leaders genuinely
+gamble while high-conscientiousness leaders genuinely have a defensible
+case for the safe path.
+
 Return ONLY valid JSON:
 {"events":[{"title":"...","description":"...","options":[{"id":"option_a","label":"...","description":"...","isRisky":false},{"id":"option_b","label":"...","description":"...","isRisky":true}],"riskyOptionId":"option_b","riskSuccessProbability":0.55,"category":"environmental","researchKeywords":["keyword"],"relevantDepartments":["dept_id"],"turnSummary":"One sentence"}],"pacing":"normal","reasoning":"Why this many events"}`;
 
