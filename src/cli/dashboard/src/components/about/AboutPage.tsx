@@ -43,6 +43,14 @@ const FAQ: FaqItem[] = [
     a: 'The Event Director is an LLM agent that observes world state, resource levels, population, decision history, and tool intelligence from previous turns. It generates unique events per timeline: crises, opportunities, disruptions, transitions. Events test weaknesses, exploit consequences of prior decisions, and escalate over time. No two runs play the same way.',
   },
   {
+    q: 'What are promotions?',
+    a: 'At turn 0, before any events occur, each leader evaluates the full agent roster and promotes department heads. Medical gets a Chief Medical Officer, Engineering gets a Chief Engineer, and so on. The leader picks based on personality fit, specialization, and experience. A bold leader picks unconventional candidates. A cautious leader picks proven specialists. This matters because promoted agents become the department analysis LLM agents for the rest of the simulation. Their personality colors every report they produce, which shapes the information the leader sees, which shapes decisions. The leader never analyzes events directly. They only read department reports and decide.',
+  },
+  {
+    q: 'How does a turn work?',
+    a: 'Each turn is a time period (configurable, default ~4 years). The Event Director generates an event. The kernel advances time (births, deaths, aging). All department heads analyze the event in parallel, forging tools and citing research. The leader reads all reports and decides. The kernel classifies the outcome and applies effects. All alive agents react in parallel. Reactions become persistent memories. Personality traits drift. Then the next turn begins with the world changed by everything that happened.',
+  },
+  {
     q: 'What is runtime tool forging?',
     a: 'Department agents create computational tools on the fly: radiation dose calculators, food security projectors, structural analyzers, morale prediction models. Each tool is sandboxed in an isolated V8 environment, reviewed by an LLM-as-judge for safety and correctness, and produces real computed output that influences decisions. Nobody pre-programmed these tools.',
   },

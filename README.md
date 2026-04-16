@@ -164,6 +164,64 @@ Options: `--seed-text`, `--seed-url`, `--no-web-search`, `--max-searches`. Compi
 
 Both are included as `paracosm/mars` and `paracosm/lunar` exports. Use them as references for building your own scenarios.
 
+## How a Simulation Works
+
+### Turn 0: Promotions
+
+The commander evaluates the full agent roster and promotes department heads. Each department (Medical, Engineering, Agriculture, etc.) gets a leader chosen by the commander based on personality fit, specialization, and experience. A high-openness commander picks unconventional candidates. A high-conscientiousness commander picks by-the-book specialists.
+
+This matters because promoted agents become the department analysis LLM agents for the rest of the simulation. Their personality colors every analysis they produce, which shapes the information the commander sees, which shapes decisions. The commander never directly analyzes events. They only read department reports and decide.
+
+### Turns 1-N: The Turn Loop
+
+Each turn represents a configurable time period (default ~4 years). Every turn follows this pipeline:
+
+```
+1. EVENT DIRECTOR    Reads world state, prior decisions, tool intelligence.
+                     Generates an event that targets actual weaknesses.
+
+2. KERNEL ADVANCE    Deterministic time progression: births, deaths, aging,
+                     health decay, resource consumption. Seeded PRNG.
+
+3. DEPARTMENT ANALYSIS   All active departments analyze the event in parallel.
+                         Each department head (promoted at turn 0) uses their
+                         personality and tools. Departments can forge new
+                         computational tools at runtime (sandboxed V8, LLM-judged).
+
+4. COMMANDER DECISION    Reads all department reports. Selects an option.
+                         Personality shapes risk tolerance and priority weighting.
+
+5. OUTCOME               Deterministic kernel classifies the outcome (risky success,
+                         risky failure, safe success, safe failure) based on the
+                         option chosen, probability, and colony state.
+
+6. EFFECTS               Kernel applies colony deltas (population, morale, food,
+                         power, etc.) based on outcome and event category.
+
+7. AGENT REACTIONS       All alive agents (~100) react in parallel using a cheap
+                         model. Each reaction is shaped by the agent's personality,
+                         health, relationships, and accumulated memories.
+
+8. MEMORY                Reactions become persistent memories. Short-term memories
+                         consolidate into long-term beliefs. Stances drift.
+                         Relationships shift based on shared experiences.
+
+9. PERSONALITY DRIFT     HEXACO traits shift through leader pull, role activation,
+                         and outcome reinforcement.
+```
+
+### What Department Heads Do
+
+Department heads are LLM agents with domain-specific instructions, access to research citations, and the ability to forge computational tools. When a medical crisis hits, the Chief Medical Officer doesn't just say "this is bad." They:
+
+- Analyze the event against their department's research knowledge
+- Cite relevant scientific literature (DOI-linked)
+- Forge computational tools (e.g., a radiation dose calculator) in a sandboxed V8 environment
+- An LLM judge reviews each tool for safety and correctness
+- Produce a structured report: summary, risks, recommended actions, proposed colony state changes
+
+The commander sees all department reports and makes a decision. Different commanders weight different departments' advice differently based on personality.
+
 ## Architecture
 
 ```
@@ -178,10 +236,13 @@ src/
     orchestrator  turn pipeline: director -> kernel -> departments -> commander
     director      emergent event generation from simulation state
     departments   parallel department analysis agents
+    agent-reactions  parallel agent reactions (100+ cheap LLM calls)
+    agent-memory     persistent memory, consolidation, stance drift
+    chat-agents      post-simulation conversational agents
 
   cli/            server + dashboard (not exported)
     serve.ts      HTTP + SSE server
-    dashboard/    React/Vite live visualization
+    dashboard/    React/Vite live visualization + cellular automata viz
 ```
 
 **Design principle:** The engine owns the chassis. The scenario owns the domain. The kernel handles state, time, randomness, and invariants. The scenario handles event categories, department instructions, progression hooks, and research citations. The orchestrator connects them.
