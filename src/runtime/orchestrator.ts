@@ -625,6 +625,18 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   const eventHistory: DirectorContext['previousEvents'] = [];
   let lastTurnToolOutputs: Array<{ name: string; department: string; output: string }> = [];
   let lastTurnMoodSummary: string | undefined;
+  // Run-wide accumulators surfaced in the final runSimulation() result so
+  // programmatic consumers see the same data the dashboard sees via SSE.
+  const allDepartmentReports: Array<{ turn: number; year: number; eventIndex: number; eventTitle: string; report: DepartmentReport }> = [];
+  const allCommanderDecisions: Array<{ turn: number; year: number; eventIndex: number; eventTitle: string; decision: CommanderDecision; outcome: TurnOutcome }> = [];
+  const allForges: Array<CapturedForge & { turn: number; year: number; eventIndex: number }> = [];
+  const allAgentReactions: Array<{ turn: number; year: number; reactions: import('./agent-reactions.js').AgentReaction[] }> = [];
+  const allDirectorEvents: Array<{ turn: number; year: number; eventIndex: number; event: DirectorEvent; pacing: string }> = [];
+  // Per-turn slots that fill during the inner event loop and then get
+  // merged into TurnArtifact at the end of the turn.
+  let turnDeptReports: DepartmentReport[] = [];
+  let turnDecisions: CommanderDecision[] = [];
+  let turnPolicyEffects: string[] = [];
   const director = new EventDirector();
   const effectRegistry = new EffectRegistry(sc.effects[0]?.categoryDefaults ?? {});
   // Department memory: stores previous turn summaries per department for session continuity
@@ -695,6 +707,11 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     lastTurnToolOutputs = [];
     let lastOutcome: import('../engine/core/state.js').TurnOutcome = 'conservative_success';
     let lastEventCategory = '';
+    // Reset per-turn slots so the artifacts.push() below captures only this
+    // turn's reports / decisions / policies.
+    turnDeptReports = [];
+    turnDecisions = [];
+    turnPolicyEffects = [];
 
     for (let ei = 0; ei < turnEvents.length; ei++) {
       try {
@@ -912,6 +929,25 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
       });
       const reports = await Promise.all(deptPromises);
 
+      // Accumulate per-turn + run-wide so the final result includes the
+      // full department report payloads (programmatic API parity with SSE).
+      turnDeptReports.push(...reports);
+      for (const r of reports) {
+        allDepartmentReports.push({ turn, year, eventIndex: ei, eventTitle: event.title, report: r });
+      }
+      // Pull captured forges for this event into the run-wide ledger.
+      for (const dept of depts) {
+        const bucket = deptForgeBuckets.get(dept) ?? [];
+        // Only the entries added during THIS event live in the bucket
+        // beyond the snapshotIdx — the per-dept loop above already used
+        // them. We re-derive the slice here for the run-wide log.
+        for (const forge of bucket) {
+          if (!allForges.find(f => f.timestamp === forge.timestamp && f.name === forge.name)) {
+            allForges.push({ ...forge, turn, year, eventIndex: ei });
+          }
+        }
+      }
+
       // Accumulate tool outputs across events
       lastTurnToolOutputs.push(...reports.flatMap(r => (r.forgedToolsUsed || []).filter(t => t?.output).map(t => ({ name: t.name || 'unnamed', department: r.department, output: typeof t.output === 'string' ? t.output.slice(0, 200) : JSON.stringify(t.output).slice(0, 200) }))));
 
@@ -973,6 +1009,14 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
 
       outcomeLog.push({ turn, year, outcome });
       eventHistory.push({ turn, title: event.title, category: event.category, selectedOptionId: resolvedOptionId, decision: decision.decision.slice(0, 200), outcome });
+      // Accumulate full decision + outcome + event for the API result so
+      // programmatic consumers don't have to scrape SSE event buffers.
+      turnDecisions.push(decision);
+      if (decision.selectedPolicies?.length) {
+        turnPolicyEffects.push(...decision.selectedPolicies.map(p => typeof p === 'string' ? p : JSON.stringify(p)));
+      }
+      allCommanderDecisions.push({ turn, year, eventIndex: ei, eventTitle: event.title, decision, outcome });
+      allDirectorEvents.push({ turn, year, eventIndex: ei, event, pacing: batchPacing });
       lastOutcome = outcome;
       lastEventCategory = event.category;
 
@@ -1053,11 +1097,34 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
       console.log(`  [agents] Reaction generation failed: ${err}`);
     }
 
+    // Accumulate reactions for the run-wide log (also surfaced via SSE).
+    if (reactions.length) {
+      allAgentReactions.push({ turn, year, reactions });
+    }
+
     const after = kernel.getState();
+    // Bundle this turn's full data into the artifact (was empty placeholders
+    // before — meant the runSimulation() return value silently dropped
+    // every department report and commander decision the SSE stream had).
+    const mergedDecision = turnDecisions.length === 1
+      ? turnDecisions[0]
+      : turnDecisions.reduce(
+          (acc, d) => ({
+            ...acc,
+            decision: [acc.decision, d.decision].filter(Boolean).join(' | '),
+            rationale: [acc.rationale, d.rationale].filter(Boolean).join(' | '),
+            selectedPolicies: [...(acc.selectedPolicies || []), ...(d.selectedPolicies || [])],
+            rejectedPolicies: [...(acc.rejectedPolicies || []), ...(d.rejectedPolicies || [])],
+            expectedTradeoffs: [...(acc.expectedTradeoffs || []), ...(d.expectedTradeoffs || [])],
+            watchMetricsNextTurn: [...(acc.watchMetricsNextTurn || []), ...(d.watchMetricsNextTurn || [])],
+          }),
+          emptyDecision(sc.departments.map(d => d.id as Department)),
+        );
     artifacts.push({
       turn, year, crisis: turnEventTitles.join(' / '),
-      departmentReports: [], commanderDecision: emptyDecision(sc.departments.map(d => d.id as Department)),
-      policyEffectsApplied: [],
+      departmentReports: turnDeptReports.slice(),
+      commanderDecision: mergedDecision,
+      policyEffectsApplied: turnPolicyEffects.slice(),
       stateSnapshotAfter: {
         population: after.colony.population, morale: after.colony.morale,
         foodMonthsReserve: after.colony.foodMonthsReserve, infrastructureModules: after.colony.infrastructureModules,
@@ -1165,14 +1232,91 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     ? sc.hooks.fingerprintHook(final, outcomeLog, leader, toolRegs, maxTurns)
     : { summary: 'no fingerprint hook' };
 
+  // Build the canonical Forged Toolbox: deduplicate forge attempts by
+  // tool name, keep the first-forge metadata + accumulated reuse count.
+  // Includes the full input/output JSON Schemas pulled from the
+  // EmergentToolRegistry on first forge — the same data the dashboard's
+  // ToolboxSection renders, now available to programmatic consumers.
+  const forgedToolbox = (() => {
+    const byName = new Map<string, { name: string; description: string; mode: string; firstForgedTurn: number; firstForgedDepartment: string; departments: Set<string>; reuseCount: number; approved: boolean; confidence: number; inputSchema: unknown; outputSchema: unknown; lastOutput: unknown; }>();
+    for (const f of allForges) {
+      let entry = byName.get(f.name);
+      if (!entry) {
+        entry = {
+          name: f.name,
+          description: f.description,
+          mode: f.mode,
+          firstForgedTurn: f.turn,
+          firstForgedDepartment: f.department,
+          departments: new Set(),
+          reuseCount: 0,
+          approved: f.approved,
+          confidence: f.confidence,
+          inputSchema: f.inputSchema,
+          outputSchema: f.outputSchema,
+          lastOutput: f.output,
+        };
+        byName.set(f.name, entry);
+      } else {
+        entry.reuseCount += 1;
+        if (f.confidence > entry.confidence) entry.confidence = f.confidence;
+        if (f.output !== null && f.output !== undefined) entry.lastOutput = f.output;
+        // approval flips to true if any later attempt passed
+        if (f.approved) entry.approved = true;
+      }
+      entry.departments.add(f.department);
+    }
+    return [...byName.values()].map(e => ({ ...e, departments: [...e.departments] }));
+  })();
+
+  // Flat unique citation list across all department reports.
+  const citationCatalog = (() => {
+    const byKey = new Map<string, { text: string; url: string; doi?: string; departments: Set<string>; turns: Set<number> }>();
+    for (const { turn: t, report } of allDepartmentReports) {
+      for (const c of report.citations) {
+        const key = (c.url || '').trim() || `text:${(c.text || '').trim()}`;
+        if (!key) continue;
+        let entry = byKey.get(key);
+        if (!entry) {
+          entry = { text: c.text || c.url || '', url: c.url || '', doi: c.doi, departments: new Set(), turns: new Set() };
+          byKey.set(key, entry);
+        }
+        if (report.department) entry.departments.add(report.department);
+        entry.turns.add(t);
+        if (!entry.doi && c.doi) entry.doi = c.doi;
+      }
+    }
+    return [...byKey.values()].map(e => ({ ...e, departments: [...e.departments], turns: [...e.turns].sort((a, b) => a - b) }));
+  })();
+
   const output = {
-    simulation: `${sc.id}-v3`, leader: { name: leader.name, archetype: leader.archetype, colony: leader.colony, hexaco: leader.hexaco },
-    turnArtifacts: artifacts, finalState: final, toolRegistries: toolRegs,
+    simulation: `${sc.id}-v3`,
+    leader: { name: leader.name, archetype: leader.archetype, colony: leader.colony, hexaco: leader.hexaco },
+    /** Per-turn artifacts — now carry the full department reports +
+     *  merged commander decision + applied policies (was previously
+     *  just empty placeholders). */
+    turnArtifacts: artifacts,
+    finalState: final,
+    toolRegistries: toolRegs,
     agentTrajectories: trajectories,
     outcomeClassifications: outcomeLog,
     fingerprint,
-    totalCitations: artifacts.reduce((s, t) => s + t.departmentReports.reduce((s2, r) => s2 + r.citations.length, 0), 0),
-    totalToolsForged: Object.values(toolRegs).flat().length,
+    /** All director-generated events with options + research keywords. */
+    directorEvents: allDirectorEvents,
+    /** All commander decisions tied to their event + outcome. */
+    commanderDecisions: allCommanderDecisions,
+    /** All forge_tool attempts with schemas, success/failure, judge confidence. */
+    forgeAttempts: allForges,
+    /** Canonical deduplicated forged toolbox (parity with dashboard ToolboxSection). */
+    forgedToolbox,
+    /** Canonical deduplicated citation catalog (parity with References). */
+    citationCatalog,
+    /** Per-turn agent reactions with mood + quote + memory snippets. */
+    agentReactions: allAgentReactions,
+    /** Cost telemetry for the run. */
+    cost: { totalTokens, totalCostUSD: Math.round(totalCostUSD * 10000) / 10000, llmCalls },
+    totalCitations: citationCatalog.length,
+    totalToolsForged: forgedToolbox.length,
   };
 
   const outDir = resolve(__dirname, '..', '..', 'output');

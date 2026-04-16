@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import type { ProcessedEvent, Side } from '../../hooks/useGameState';
 import { useScenarioContext } from '../../App';
+import { useToolContext } from '../../hooks/useToolRegistry';
 import { Badge } from '../shared/Badge';
 import { Tooltip } from '../shared/Tooltip';
 import { CitationPills } from '../shared/CitationPills';
@@ -24,6 +26,11 @@ const moodColors: Record<string, string> = {
 
 export function EventCard({ event, side }: EventCardProps) {
   const scenario = useScenarioContext();
+  const toolRegistry = useToolContext();
+  // Open detail modal for a forge_attempt or dept_done tool card. Tracks
+  // the inspected tool's name so the modal can pull schema + sample
+  // output + reuse stats from the registry.
+  const [inspectingTool, setInspectingTool] = useState<string | null>(null);
   const sideColor = side === 'a' ? 'var(--vis)' : 'var(--eng)';
   const dd = event.data;
 
@@ -100,17 +107,25 @@ export function EventCard({ event, side }: EventCardProps) {
       const outputFields = Array.isArray(dd.outputFields) ? (dd.outputFields as string[]) : [];
 
       return (
-        <div style={{
-          margin: '0 8px 4px',
-          padding: '6px 10px',
-          fontSize: 11, lineHeight: 1.5,
-          background: approved ? 'rgba(232,180,74,0.07)' : 'rgba(224,101,48,0.04)',
-          borderLeft: `3px solid ${accent}`,
-          border: `1px solid ${approved ? 'rgba(232,180,74,0.25)' : 'rgba(224,101,48,0.2)'}`,
-          borderRadius: 4,
-          animation: 'forgeSlide 0.4s ease both',
-          boxShadow: approved ? '0 0 0 1px rgba(232,180,74,0.1)' : 'var(--card-shadow)',
-        }}>
+        <>
+        <button
+          type="button"
+          onClick={() => setInspectingTool(name)}
+          aria-label={`Inspect forged tool ${name}`}
+          style={{
+            display: 'block', width: 'auto', alignSelf: 'stretch', textAlign: 'left',
+            margin: '0 8px 4px',
+            padding: '6px 10px',
+            fontSize: 11, lineHeight: 1.5,
+            background: approved ? 'rgba(232,180,74,0.07)' : 'rgba(224,101,48,0.04)',
+            borderLeft: `3px solid ${accent}`,
+            border: `1px solid ${approved ? 'rgba(232,180,74,0.25)' : 'rgba(224,101,48,0.2)'}`,
+            borderRadius: 4,
+            animation: 'forgeSlide 0.4s ease both',
+            boxShadow: approved ? '0 0 0 1px rgba(232,180,74,0.1)' : 'var(--card-shadow)',
+            cursor: 'pointer', font: 'inherit', color: 'var(--text-1)',
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <span style={{
               fontSize: 9, fontWeight: 900, fontFamily: 'var(--mono)',
@@ -157,7 +172,15 @@ export function EventCard({ event, side }: EventCardProps) {
               {errorReason}
             </div>
           )}
-        </div>
+        </button>
+        {inspectingTool && (
+          <ToolDetailModal
+            entry={toolRegistry.getEntry(inspectingTool)}
+            fallbackName={inspectingTool}
+            onClose={() => setInspectingTool(null)}
+          />
+        )}
+        </>
       );
     }
 
@@ -576,6 +599,150 @@ export function EventCard({ event, side }: EventCardProps) {
     default:
       return null;
   }
+}
+
+import type { ToolEntry } from '../../hooks/useToolRegistry';
+
+/**
+ * Modal that surfaces the full toolbox entry for a forged tool — schemas,
+ * sample output, reuse counts, departments. Triggered by clicking a
+ * forge_attempt card in the sim flow.
+ */
+function ToolDetailModal({ entry, fallbackName, onClose }: {
+  entry: ToolEntry | undefined;
+  fallbackName: string;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Tool detail · ${entry?.name || fallbackName}`}
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 100000,
+        background: 'rgba(10,8,6,0.78)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 20,
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: 'var(--bg-panel)',
+          border: '1px solid var(--border)',
+          borderTop: '3px solid var(--amber)',
+          borderRadius: 10,
+          padding: '16px 20px',
+          maxWidth: 720, width: '100%', maxHeight: '85vh',
+          display: 'flex', flexDirection: 'column',
+          boxShadow: '0 12px 60px rgba(0,0,0,0.6)',
+          fontFamily: 'var(--sans)', color: 'var(--text-1)',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 9, fontFamily: 'var(--mono)', fontWeight: 800, letterSpacing: '0.12em', color: 'var(--amber)', textTransform: 'uppercase', marginBottom: 4 }}>
+              FORGED TOOL [{entry?.n ?? '?'}]
+            </div>
+            <div style={{ fontSize: 16, fontWeight: 800, fontFamily: 'var(--mono)', color: 'var(--text-1)', marginBottom: 4 }}>
+              {entry?.name || fallbackName}
+            </div>
+            {entry?.description && entry.description !== entry.name && (
+              <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5 }}>
+                {entry.description}
+              </div>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: 20, lineHeight: 1, padding: 4, marginLeft: 12 }}
+          >
+            ×
+          </button>
+        </div>
+
+        <div style={{ overflowY: 'auto', flex: 1, padding: '4px 2px' }}>
+          {entry ? (
+            <>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12, fontSize: 11, fontFamily: 'var(--mono)' }}>
+                <Pill label={`${entry.mode}`} color="var(--text-3)" />
+                <Pill label={entry.approved ? `PASS ${entry.confidence.toFixed(2)}` : 'FAIL'} color={entry.approved ? 'var(--green)' : 'var(--rust)'} />
+                <Pill label={`first forged T${entry.firstForgedTurn} · ${entry.firstForgedDepartment}`} color="var(--amber)" />
+                {entry.reuseCount > 0 && <Pill label={`reused ${entry.reuseCount}×`} color="var(--green)" />}
+                {entry.departments.size > 0 && <Pill label={`used by ${[...entry.departments].join(', ')}`} color="var(--teal)" />}
+              </div>
+
+              {entry.inputSchema && (
+                <ModalSection title="INPUT SCHEMA">
+                  <pre style={preStyle}>{JSON.stringify(entry.inputSchema, null, 2)}</pre>
+                </ModalSection>
+              )}
+              {entry.outputSchema && (
+                <ModalSection title="OUTPUT SCHEMA">
+                  <pre style={preStyle}>{JSON.stringify(entry.outputSchema, null, 2)}</pre>
+                </ModalSection>
+              )}
+              {!entry.inputSchema && !entry.outputSchema && (entry.inputFields.length > 0 || entry.outputFields.length > 0) && (
+                <ModalSection title="FIELDS (DERIVED)">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontFamily: 'var(--mono)', fontSize: 11 }}>
+                    {entry.inputFields.length > 0 && <div><span style={{ color: 'var(--teal)' }}>in:</span> {entry.inputFields.join(', ')}</div>}
+                    {entry.outputFields.length > 0 && <div><span style={{ color: 'var(--green)' }}>out:</span> {entry.outputFields.join(', ')}</div>}
+                  </div>
+                </ModalSection>
+              )}
+              {entry.sampleOutput && (
+                <ModalSection title="LATEST OUTPUT">
+                  <pre style={preStyle}>{entry.sampleOutput}</pre>
+                </ModalSection>
+              )}
+            </>
+          ) : (
+            <div style={{ fontSize: 12, color: 'var(--text-3)', fontStyle: 'italic' }}>
+              Tool entry not yet in the registry — the dept_done summary
+              for this forge hasn't arrived yet. Try again in a moment.
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const preStyle: React.CSSProperties = {
+  margin: '4px 0 0', padding: 10, fontSize: 11, lineHeight: 1.5,
+  fontFamily: 'var(--mono)', color: 'var(--text-2)',
+  background: 'var(--bg-deep)', border: '1px solid var(--border)', borderRadius: 4,
+  whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 280, overflow: 'auto',
+};
+
+function Pill({ label, color }: { label: string; color: string }) {
+  return (
+    <span style={{
+      padding: '2px 8px', borderRadius: 3,
+      color, background: `color-mix(in srgb, ${color} 12%, transparent)`,
+      border: `1px solid color-mix(in srgb, ${color} 30%, transparent)`,
+      fontWeight: 700, fontSize: 10, letterSpacing: '0.04em',
+    }}>
+      {label}
+    </span>
+  );
+}
+
+function ModalSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <div style={{
+        fontSize: 9, fontFamily: 'var(--mono)', fontWeight: 800,
+        color: 'var(--amber)', letterSpacing: '0.08em',
+        textTransform: 'uppercase', marginBottom: 6,
+      }}>
+        {title}
+      </div>
+      {children}
+    </div>
+  );
 }
 
 /**

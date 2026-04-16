@@ -472,7 +472,10 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       return;
     }
 
-    // GET /results — full simulation results including verdict
+    // GET /results — full structured simulation results including verdict.
+    // Reconstructs per-leader payloads from the SSE buffer so consumers
+    // get the same rich data the dashboard sees, without having to scrape
+    // raw events themselves.
     if (req.url === '/results' && req.method === 'GET') {
       const simEvents = eventBuffer
         .filter(msg => msg.startsWith('event: sim\n') || msg.startsWith('event: result\n') || msg.startsWith('event: verdict\n') || msg.startsWith('event: complete\n'))
@@ -486,8 +489,89 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       const verdict = simEvents.find(e => e.event === 'verdict')?.data || null;
       const isComplete = simEvents.some(e => e.event === 'complete');
       const turns = simEvents.filter(e => e.event === 'sim' && e.data?.type === 'turn_start').length / 2;
+
+      // Reconstruct per-leader timelines from the sim event stream.
+      // Group every sim event by leader name, then bucket interesting
+      // payload types into typed lists so consumers can pull turn-by-turn
+      // crisis info, dept reports, decisions, forges, citations, reactions.
+      const byLeader = new Map<string, {
+        events: Array<{ turn?: number; year?: number; eventIndex?: number; title?: string; category?: string; description?: string; emergent?: boolean }>;
+        decisions: Array<{ turn?: number; year?: number; eventIndex?: number; decision?: string; rationale?: string; selectedPolicies?: unknown[]; outcome?: string }>;
+        forges: Array<Record<string, unknown>>;
+        citations: Array<{ text?: string; url?: string; doi?: string; department?: string; turn?: number }>;
+        deptReports: Array<{ turn?: number; year?: number; eventIndex?: number; department?: string; summary?: string; risks?: unknown[]; recommendedActions?: unknown[]; citations?: number; toolCount?: number }>;
+        agentReactions: Array<{ turn?: number; year?: number; reactions?: unknown[]; totalReactions?: number }>;
+        promotions: Array<Record<string, unknown>>;
+        colonySnapshots: Array<Record<string, unknown>>;
+      }>();
+      const ensureLeader = (name: string) => {
+        if (!byLeader.has(name)) byLeader.set(name, { events: [], decisions: [], forges: [], citations: [], deptReports: [], agentReactions: [], promotions: [], colonySnapshots: [] });
+        return byLeader.get(name)!;
+      };
+      // Track decision pending state so we can attach it to outcomes per event
+      const pendingDecision = new Map<string, { decision?: string; rationale?: string; selectedPolicies?: unknown[] }>();
+      for (const e of simEvents) {
+        if (e.event !== 'sim') continue;
+        const inner = e.data as Record<string, unknown>;
+        const type = String(inner.type || '');
+        const leader = String(inner.leader || '');
+        if (!leader) continue;
+        const slot = ensureLeader(leader);
+        const data = (inner.data as Record<string, unknown>) ?? {};
+        const turn = data.turn as number | undefined;
+        const year = data.year as number | undefined;
+        const eventIndex = data.eventIndex as number | undefined;
+        const pendKey = `${leader}-${turn}-${eventIndex ?? 0}`;
+        if (type === 'event_start') {
+          slot.events.push({ turn, year, eventIndex, title: data.title as string, category: data.category as string, description: data.description as string, emergent: data.emergent as boolean });
+        } else if (type === 'turn_start' && data.title && data.title !== 'Director generating...') {
+          slot.events.push({ turn, year, title: data.title as string, category: data.category as string, description: data.crisis as string, emergent: data.emergent as boolean });
+        } else if (type === 'commander_decided') {
+          pendingDecision.set(pendKey, {
+            decision: data.decision as string,
+            rationale: data.rationale as string,
+            selectedPolicies: data.selectedPolicies as unknown[],
+          });
+        } else if (type === 'outcome') {
+          const p = pendingDecision.get(pendKey);
+          slot.decisions.push({ turn, year, eventIndex, ...p, outcome: data.outcome as string });
+          pendingDecision.delete(pendKey);
+        } else if (type === 'dept_done') {
+          const dept = data.department as string;
+          const cites = (data.citationList as Array<{ text?: string; url?: string; doi?: string }>) || [];
+          slot.deptReports.push({
+            turn, year, eventIndex, department: dept,
+            summary: data.summary as string,
+            risks: data.risks as unknown[],
+            recommendedActions: data.recommendedActions as unknown[],
+            citations: cites.length,
+            toolCount: Array.isArray(data.forgedTools) ? (data.forgedTools as unknown[]).length : 0,
+          });
+          for (const c of cites) {
+            slot.citations.push({ ...c, department: dept, turn });
+          }
+        } else if (type === 'forge_attempt') {
+          slot.forges.push({ turn, year, eventIndex, ...data });
+        } else if (type === 'agent_reactions') {
+          slot.agentReactions.push({ turn, year, reactions: data.reactions as unknown[], totalReactions: data.totalReactions as number });
+        } else if (type === 'promotion') {
+          slot.promotions.push({ ...data });
+        } else if (type === 'colony_snapshot') {
+          slot.colonySnapshots.push({ turn, year, ...data });
+        }
+      }
+      const leaders = [...byLeader.entries()].map(([name, slot]) => ({ name, ...slot }));
+
       res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ results, verdict, isComplete, turnsCompleted: Math.floor(turns), totalEvents: simEvents.length }));
+      res.end(JSON.stringify({
+        results,
+        verdict,
+        isComplete,
+        turnsCompleted: Math.floor(turns),
+        totalEvents: simEvents.length,
+        // New: structured per-leader payloads built from the SSE buffer
+        leaders,
+      }));
       return;
     }
 
