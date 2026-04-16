@@ -483,7 +483,34 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     maxSteps: opts.execution?.commanderMaxSteps ?? DEFAULT_EXECUTION.commanderMaxSteps,
   });
   const cmdSess = commander.session(`${sid}-cmd`);
-  trackUsage(await cmdSess.send('You are the colony commander. You receive department reports and make strategic decisions. When the crisis includes options with IDs, you MUST include selectedOptionId in your JSON response. Return JSON with selectedOptionId, decision, rationale, selectedPolicies, rejectedPolicies, expectedTradeoffs, watchMetricsNextTurn. Acknowledge.'));
+  // Bootstrap commander session. The HEXACO traits passed to agent() above
+  // already shape the LLM's voice; this kickoff message reinforces that
+  // decisions should be visibly personality-driven so two extreme leaders
+  // produce visibly different timelines, not centrist convergent choices.
+  const personalityCue = (() => {
+    const h = leader.hexaco;
+    const cues: string[] = [];
+    if (h.openness > 0.7) cues.push('You favor novel, untested approaches over proven ones');
+    if (h.openness < 0.3) cues.push('You favor proven protocols over experiments');
+    if (h.conscientiousness > 0.7) cues.push('You demand evidence and contingency plans before committing');
+    if (h.conscientiousness < 0.3) cues.push('You move fast and accept ambiguity');
+    if (h.emotionality > 0.7) cues.push('You weigh human cost heavily — even small mortality risks deter you');
+    if (h.emotionality < 0.3) cues.push('You will accept casualties for strategic gain');
+    if (h.agreeableness < 0.4) cues.push('You override department consensus when you see a better path');
+    if (h.honestyHumility < 0.4) cues.push('You leverage information asymmetries when useful');
+    return cues.length ? `Your decision style: ${cues.join('. ')}.` : '';
+  })();
+  trackUsage(await cmdSess.send(
+    `You are the colony commander. You receive department reports and make strategic decisions. ` +
+    `${personalityCue} ` +
+    `Your personality MUST visibly shape your choices — do not converge on a centrist option just because ` +
+    `it sounds reasonable. If your traits push you toward the risky option, take it; if they push you toward ` +
+    `the safe option, take it. The simulation's value is in how different leaders produce different outcomes ` +
+    `from the same starting state. ` +
+    `When the crisis includes options with IDs, you MUST include selectedOptionId in your JSON response. ` +
+    `Return JSON with selectedOptionId, decision, rationale, selectedPolicies, rejectedPolicies, ` +
+    `expectedTradeoffs, watchMetricsNextTurn. Acknowledge.`
+  ));
 
   // Turn 0: Commander promotes department heads from agent roster
   console.log('  [Turn 0] Commander evaluating roster for promotions...');
@@ -890,7 +917,20 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
         : classifyOutcome(decision.decision, scenario.riskyOption, event.riskSuccessProbability, kernel.getState().colony, outcomeRng);
 
       const outcomeEffectRng = new SeededRng(seed).turnSeed(turn * 100 + ei + 50);
-      const personalityBonus = (leader.hexaco.openness - 0.5) * 0.08 + (leader.hexaco.conscientiousness - 0.5) * 0.04;
+      // Personality bonus shapes outcome magnitude. Two extreme leaders
+      // (e.g. Visionary openness=0.95 vs Engineer openness=0.25) should
+      // produce visibly different colony trajectories. Prior coefficients
+      // (0.08/0.04) yielded ~3-5% effect spread which got lost in noise;
+      // bumped to 0.20/0.12 plus an alignment term so picking a risky
+      // option with high openness or a safe option with high conscientiousness
+      // is rewarded extra. Values are still bounded by the effect registry's
+      // delta caps, so this widens divergence without breaking the kernel.
+      const isRiskyChoice = resolvedOptionId === event.riskyOptionId;
+      const personalityBonus =
+        (leader.hexaco.openness - 0.5) * 0.20 +
+        (leader.hexaco.conscientiousness - 0.5) * 0.12 +
+        // Alignment kicker: choosing in line with personality boosts effect
+        (isRiskyChoice ? (leader.hexaco.openness - 0.5) : (leader.hexaco.conscientiousness - 0.5)) * 0.10;
       const colonyDeltas = effectRegistry.applyOutcome(event.category, outcome, { personalityBonus, noise: outcomeEffectRng.next() * 0.2 - 0.1 });
       kernel.applyColonyDeltas(colonyDeltas as any, [{ turn, year, type: 'system', description: `Outcome effect (${outcome}): ${Object.entries(colonyDeltas).map(([k, v]) => `${k} ${v >= 0 ? '+' : ''}${v}`).join(', ')}` }]);
 

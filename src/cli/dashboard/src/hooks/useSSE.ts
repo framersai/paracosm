@@ -53,23 +53,41 @@ export function useSSE() {
      * its full event buffer on reconnect, so resumed clients catch up
      * automatically. Backoff caps at 10s; reset on successful 'connected'.
      */
+    let connectCount = 0;
+    // Tracks event identity so we can dedupe across reconnects without
+    // wiping state.events (which would lose the user's view of completed
+    // simulations after a transient browser-managed reconnect).
+    const seenEventKeys = new Set<string>();
+    const eventKey = (e: SimEvent): string =>
+      `${e.type}|${e.leader || ''}|${e.turn ?? ''}|${(e.data?.eventIndex ?? '')}|${(e.data?.department ?? '')}|${(e.data?.title ?? '')}`;
+
     const open = () => {
       if (cancelled) return;
-      // Replace state.events on each reconnect to avoid duplicates from
-      // the server's buffer replay.
       const es = new EventSource('/events');
       esRef.current = es;
 
       es.addEventListener('connected', () => {
         attempt = 0;
-        // Reset events here too — server replays buffered events right
-        // after 'connected', so we want a clean slate before they arrive.
-        setState(prev => ({ ...prev, status: 'connected', events: [] }));
+        connectCount += 1;
+        // On the FIRST connect we want a clean slate (the server replays
+        // its full buffer right after 'connected'). On reconnects we keep
+        // existing events so a browser-managed reconnect after the sim
+        // finishes doesn't wipe the user's view of viz/reports/chat.
+        // The dedupe Set below handles any duplicates from buffer replay.
+        if (connectCount === 1) {
+          seenEventKeys.clear();
+          setState(prev => ({ ...prev, status: 'connected', events: [] }));
+        } else {
+          setState(prev => ({ ...prev, status: 'connected' }));
+        }
       });
 
       es.addEventListener('sim', (e: MessageEvent) => {
         try {
           const data = JSON.parse(e.data) as SimEvent;
+          const key = eventKey(data);
+          if (seenEventKeys.has(key)) return; // skip duplicate from buffer replay
+          seenEventKeys.add(key);
           setState(prev => ({ ...prev, events: [...prev.events, data] }));
         } catch {}
       });
