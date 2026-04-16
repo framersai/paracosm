@@ -489,6 +489,9 @@
 
     /* TopBar minimal */
     .topbar-meta { display: none !important; }
+    /* GitHub CTA collapses to icon-only on phone to save horizontal space */
+    .topbar-github-label { display: none !important; }
+    .topbar-github { padding-left: 7px !important; padding-right: 7px !important; }
   }
 
   /* === REDUCED MOTION (a11y) === */
