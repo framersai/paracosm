@@ -366,7 +366,9 @@ export function EventCard({ event, side }: EventCardProps) {
                     color: approved ? 'var(--green)' : 'var(--rust)',
                     border: `1px solid ${approved ? 'rgba(106,173,72,.3)' : 'rgba(224,101,48,.2)'}`,
                   }}>
-                    {approved ? 'PASS' : 'FAIL'} {(t.confidence || 0.85).toFixed(2)}
+                    {approved
+                      ? `PASS ${(typeof t.confidence === 'number' ? t.confidence : 0.85).toFixed(2)}`
+                      : 'FAIL'}
                   </span>
                   {/* Open the same ToolDetailModal that forge_attempt cards
                       use, so dept_done summary tools are clickable too. */}

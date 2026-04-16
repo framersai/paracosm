@@ -65,7 +65,7 @@ export function ToolboxSection({ registry, title = 'Forged Toolbox', collapsible
                   border: `1px solid ${entry.approved ? 'rgba(106,173,72,.3)' : 'rgba(224,101,48,.2)'}`,
                   fontWeight: 800,
                 }}>
-                  {entry.approved ? 'PASS' : 'FAIL'} {entry.confidence.toFixed(2)}
+                  {entry.approved ? `PASS ${entry.confidence.toFixed(2)}` : 'FAIL'}
                 </span>
                 <span style={{ fontSize: 10, fontFamily: 'var(--mono)', color: 'var(--text-3)' }}>
                   {entry.mode}

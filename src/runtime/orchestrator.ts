@@ -201,12 +201,22 @@ function wrapForgeTool(
         const r = await raw.execute(fixed as any, patched);
         const out = r.output as any;
         const verdict = out?.verdict || {};
-        const confidence = typeof verdict.confidence === 'number' ? verdict.confidence : 0.85;
+        // Judge confidence is the LLM-as-judge's score for whether the
+        // tool is safe + correct. When the judge fails the forge, its
+        // confidence is in REJECTING the tool; surfacing it as the tool's
+        // own quality score is misleading. So:
+        //   approved → use judge confidence if provided, else 0.85
+        //   rejected → confidence is 0 (the tool didn't get accepted at all)
+        // This matches what the UI's PASS/FAIL pill is trying to communicate.
+        const judgeConfidence = typeof verdict.confidence === 'number' ? verdict.confidence : null;
+        const confidence = r.success
+          ? (judgeConfidence ?? 0.85)
+          : 0;
         const errorReason = !r.success
           ? String(r.error || verdict.reasoning || out?.error || '').slice(0, 240)
           : undefined;
         if (r.success) {
-          console.log(`    🔧 [${dept}] ✓ "${toolName}" approved`);
+          console.log(`    🔧 [${dept}] ✓ "${toolName}" approved (conf ${confidence.toFixed(2)})`);
         } else {
           console.log(`    🔧 [${dept}] ✗ "${toolName}" — ${errorReason}`);
         }
@@ -909,11 +919,20 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
               if (!existing.output && t.output) existing.output = t.output;
               continue;
             }
+            // LLM cited an existing tool without re-forging. Use the
+            // tool's prior judge confidence from the ledger (set on its
+            // first successful forge) rather than fabricating an 0.85
+            // default. The LLM's t.confidence here is its OWN estimate
+            // of the result, not the judge's verdict on the tool.
+            const ledgerForName = forgedLedger.get(name);
+            const existingHistory = ledgerForName?.history || [];
+            const lastApproved = [...existingHistory].reverse().find(h => !h.rejected);
+            const ledgerConfidence = lastApproved?.confidence;
             toolByName.set(name, {
               name,
               description: String(t.description || humanizeToolName(name)),
               mode: String(t.mode || 'sandbox'),
-              confidence: typeof t.confidence === 'number' ? t.confidence : 0.85,
+              confidence: ledgerConfidence ?? (typeof t.confidence === 'number' ? t.confidence : 0.85),
               output: t.output ?? null,
               inputSchema: undefined,
               outputSchema: undefined,
@@ -1451,7 +1470,11 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
         reforgeCount,
         rejectedReforges,
         approved: approved || (firstForge?.approved ?? false),
-        confidence: maxConfidence || (firstForge?.confidence ?? 0.85),
+        // Use the highest judge confidence across this tool's invocations.
+        // If the tool was never approved (only failed forges), confidence
+        // is 0 — never fabricate an 0.85 default that misrepresents
+        // rejected tools as borderline-passable.
+        confidence: maxConfidence || (firstForge?.approved ? firstForge.confidence : 0),
         inputSchema: entry.inputSchema,
         outputSchema: entry.outputSchema,
         sampleOutput,

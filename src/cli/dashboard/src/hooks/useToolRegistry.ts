@@ -105,7 +105,14 @@ export function useToolRegistry(state: GameState): ToolRegistry {
               reuseCount: 0,
               reforgeCount: 0,
               rejectedReforges: 0,
-              confidence: typeof t.confidence === 'number' ? (t.confidence as number) : 0.85,
+              // Confidence is the judge's verdict on this tool. If the
+              // payload didn't include one (older sims), fall back to 0
+              // for rejected tools so we never misrepresent failures as
+              // borderline-passable. Approved tools without a confidence
+              // value default to 0.85 (the historical fallback).
+              confidence: typeof t.confidence === 'number'
+                ? (t.confidence as number)
+                : (t.approved !== false ? 0.85 : 0),
               approved: t.approved !== false,
               inputSchema: t.inputSchema,
               outputSchema: t.outputSchema,
