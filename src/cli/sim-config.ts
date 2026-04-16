@@ -32,6 +32,21 @@ export interface SimulationExecutionConfig {
   departmentMaxSteps: number;
   sandboxTimeoutMs: number;
   sandboxMemoryMB: number;
+  /**
+   * Agents per reaction LLM call. Default 10. Set to 1 for one-call-per-
+   * agent (legacy, most expensive). Set to 20 for fewest calls but
+   * higher risk of one bad batch losing 20 reactions.
+   */
+  reactionBatchSize: number;
+  /**
+   * When true (default), only featured + promoted + event-relevant
+   * agents react on turns 2+. Turn 1 always runs a full reaction pass
+   * to establish baseline memories and relationships. Cuts ~70% of
+   * reaction calls after turn 1 with minor memory-sparsity tradeoff
+   * (non-reacting agents don't update shortTerm memory that turn, but
+   * their crisis/decision/outcome memory entries still land).
+   */
+  progressiveReactions: boolean;
 }
 
 export interface SimulationSetupPayload {
@@ -152,6 +167,8 @@ export const DEFAULT_EXECUTION: SimulationExecutionConfig = {
   departmentMaxSteps: 4,
   sandboxTimeoutMs: 10000,
   sandboxMemoryMB: 128,
+  reactionBatchSize: 10,
+  progressiveReactions: true,
 };
 
 const DEFAULT_ACTIVE_DEPARTMENTS: Department[] = ['medical', 'engineering', 'agriculture', 'psychology', 'governance'];
@@ -261,6 +278,8 @@ export function normalizeSimulationConfig(input: SimulationSetupPayload): Normal
       departmentMaxSteps: input.execution?.departmentMaxSteps ?? DEFAULT_EXECUTION.departmentMaxSteps,
       sandboxTimeoutMs: input.execution?.sandboxTimeoutMs ?? DEFAULT_EXECUTION.sandboxTimeoutMs,
       sandboxMemoryMB: input.execution?.sandboxMemoryMB ?? DEFAULT_EXECUTION.sandboxMemoryMB,
+      reactionBatchSize: input.execution?.reactionBatchSize ?? DEFAULT_EXECUTION.reactionBatchSize,
+      progressiveReactions: input.execution?.progressiveReactions ?? DEFAULT_EXECUTION.progressiveReactions,
     },
     models: resolveSimulationModels(inferredProvider, input.models),
     apiKey: input.apiKey,

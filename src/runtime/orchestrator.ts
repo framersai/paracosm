@@ -1405,14 +1405,61 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
       year, turn, colonyMorale: kernel.getState().colony.morale,
       colonyPopulation: kernel.getState().colony.population,
     };
+
+    // Progressive reactions: turn 1 always runs the full colony so
+    // baseline personalities and memories get established. Turns 2+ pick
+    // only agents who materially experienced this turn's events
+    // (featured + promoted heads + anyone in a relevantDepartments for
+    // the turn), capped at ~30. This cuts ~70% of reaction calls after
+    // turn 1 with minor memory-sparsity tradeoff (non-reactors still
+    // accumulate crisis/decision/outcome entries via the orchestrator's
+    // per-event logging; only their shortTerm personal reaction memory
+    // thins out).
+    const progressiveReactions = opts.execution?.progressiveReactions ?? DEFAULT_EXECUTION.progressiveReactions;
+    const reactionBatchSize = opts.execution?.reactionBatchSize ?? DEFAULT_EXECUTION.reactionBatchSize;
+    const allAlive = kernel.getState().agents.filter(a => a.health.alive);
+    const eligibleAgents = (() => {
+      if (!progressiveReactions || turn === 1) return allAlive;
+      const relevantDepts = new Set<string>();
+      for (const ev of turnEvents) {
+        for (const d of ev.relevantDepartments || []) relevantDepts.add(String(d));
+      }
+      const picked = new Map<string, typeof allAlive[number]>();
+      const add = (a: typeof allAlive[number]) => { if (!picked.has(a.core.id)) picked.set(a.core.id, a); };
+      // Featured agents (5-8 typically): always react. These are the
+      // colonists users see in the bulletin and care about narratively.
+      for (const a of allAlive) if (a.narrative.featured) add(a);
+      // Promoted department heads (5): always react. They shape next
+      // turn's analysis so their psych state matters.
+      for (const a of allAlive) if (a.promotion) add(a);
+      // Department-affected agents: up to 6 per relevant dept, prioritized
+      // by absolute deviation from neutral psych (more dramatic reactors
+      // first). Keeps the bulletin textured with voices actually in the
+      // firing line of the event.
+      for (const dept of relevantDepts) {
+        const candidates = allAlive
+          .filter(a => a.core.department === dept && !picked.has(a.core.id))
+          .sort((a, b) => Math.abs(b.health.psychScore - 0.5) - Math.abs(a.health.psychScore - 0.5))
+          .slice(0, 6);
+        for (const a of candidates) add(a);
+      }
+      // Hard cap so a scenario with many relevant departments can't
+      // blow past budget by accident.
+      return Array.from(picked.values()).slice(0, 30);
+    })();
+    if (progressiveReactions && turn > 1) {
+      console.log(`  [agents] Progressive: ${eligibleAgents.length}/${allAlive.length} react this turn`);
+    }
+
     try {
       reactions = await generateAgentReactions(
-        kernel.getState().agents, reactionCtx,
+        eligibleAgents, reactionCtx,
         {
           provider,
           model: modelConfig.agentReactions || 'gpt-4o-mini',
           maxConcurrent: 25,
           reactionContextHook: sc.hooks.reactionContextHook,
+          batchSize: reactionBatchSize,
           // Fold reaction usage into run-wide cost tracking. With ~100 agents
           // per turn, these calls were a large untracked line item on the
           // real API bill.
