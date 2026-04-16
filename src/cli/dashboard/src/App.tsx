@@ -211,6 +211,35 @@ function AppContent() {
     });
   }, [gameState, scenario, toast]);
 
+  // App-level "launching" state: persists across tab navigation so the
+  // user can submit /setup, switch to viz/chat/etc., come back to sim,
+  // and still see the spinner instead of the empty-state Run button.
+  // Local SimView state was being lost on unmount, which made the user
+  // think nothing happened and click Run again.
+  const [launching, setLaunching] = useState(false);
+
+  // Auto-clear launching once the first event arrives, the simulation
+  // is reported as running by the SSE backend, or it's already complete.
+  // Also clear on connection error so a stuck launch doesn't block UI.
+  useEffect(() => {
+    if (!launching) return;
+    const hasEvents = sse.events.length > 0;
+    if (hasEvents || sse.isComplete || sse.status === 'error') {
+      setLaunching(false);
+    }
+  }, [launching, sse.events.length, sse.isComplete, sse.status]);
+
+  // Safety timeout: if /setup succeeded but no events arrived in 60s,
+  // give up and show the empty state instead of spinning forever.
+  useEffect(() => {
+    if (!launching) return;
+    const timer = setTimeout(() => {
+      setLaunching(false);
+      toast('error', 'Launch Stalled', 'No events received within 60 seconds. The simulation may still complete in the background.');
+    }, 60_000);
+    return () => clearTimeout(timer);
+  }, [launching, toast]);
+
   const handleRun = useCallback(async () => {
     const defaultPreset = scenario.presets.find(p => p.id === 'default');
     const leaders = defaultPreset?.leaders?.slice(0, 2).map((l, i) => ({
@@ -221,6 +250,11 @@ function AppContent() {
       { name: 'Leader B', archetype: 'The Engineer', colony: 'Colony Beta', hexaco: { openness: 0.25, conscientiousness: 0.97, extraversion: 0.3, agreeableness: 0.6, emotionality: 0.7, honestyHumility: 0.9 }, instructions: '' },
     ];
     try {
+      setLaunching(true);
+      // Switch to the sim tab immediately so the user sees the launching
+      // spinner there (the Run button on the empty state still works
+      // from any tab via the topbar).
+      setActiveTab('sim');
       toast('info', 'Launching', 'Starting simulation with default settings...');
       const res = await fetch('/setup', {
         method: 'POST',
@@ -238,13 +272,16 @@ function AppContent() {
       });
       const data = await res.json();
       if (res.status === 429) {
+        setLaunching(false);
         toast('error', 'Rate Limited', data.error || 'Too many simulations');
-      } else if (data.redirect) {
-        setActiveTab('sim');
-      } else {
+      } else if (!data.redirect) {
+        setLaunching(false);
         toast('error', 'Launch Failed', data.error || 'Unknown error');
       }
+      // Success path: leave launching=true; the effect above clears it
+      // when the first SSE event arrives.
     } catch (err) {
+      setLaunching(false);
       toast('error', 'Launch Failed', String(err));
     }
   }, [scenario, toast, setActiveTab]);
@@ -259,7 +296,7 @@ function AppContent() {
           <TabBar active={activeTab} onTabChange={setActiveTab} scenario={scenario} />
 
           <main id="main-content" className="flex-1 overflow-hidden" role="main" aria-label={`${activeTab} view`} style={{ background: 'var(--bg-deep)', display: 'flex', flexDirection: 'column' }}>
-            {activeTab === 'sim' && <SimView state={gameState} sseStatus={sse.status} onRun={handleRun} verdict={sse.verdict} />}
+            {activeTab === 'sim' && <SimView state={gameState} sseStatus={sse.status} onRun={handleRun} verdict={sse.verdict} launching={launching} />}
 
             {activeTab === 'viz' && <ColonyViz state={gameState} />}
 

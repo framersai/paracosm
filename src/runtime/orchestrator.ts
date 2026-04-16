@@ -619,15 +619,25 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
 EMERGENT TOOLING — REQUIRED:
 You have access to a forge_tool capability. Use it to invent a small computational model that helps you analyze the current event. Examples:
 - a dose calculator, a load analyzer, a yield projector, a cohesion scorer, a risk index, a budget balancer
-The implementation runs in a sandboxed V8 isolate (10s timeout, 128MB memory, no network unless allowlisted). An LLM judge reviews your tool for safety and correctness before it executes.
+The implementation runs in a sandboxed V8 isolate (10s timeout, 128MB memory, no network unless allowlisted). An LLM judge reviews your tool for safety AND CORRECTNESS before it executes.
 
 forge_tool args:
   name: snake_case identifier (e.g. radiation_dose_calculator)
   description: one-sentence purpose
-  inputSchema:  { "type": "object", "properties": { ... } }
+  inputSchema:  { "type": "object", "properties": { ... }, "required": [...] }
   outputSchema: { "type": "object", "properties": { ... } }
   implementation: { "mode": "sandbox", "code": "function execute(input) { return result; }", "allowlist": [] }
   testCases: [ { "input": {...}, "expectedOutput": {...} } ]
+
+ROBUSTNESS RULES (the judge enforces these — failed forges hurt the colony):
+1. Validate every numeric input. If a field is missing/null/undefined or NaN, default it to a safe value or return a conservative result. Never let the function throw or return NaN/Infinity.
+2. Wrap the body in a try/catch and return a defined object on error: { "score": 0, "warnings": ["missing input X"] }.
+3. Use Number.isFinite() before using any input in arithmetic. Avoid division — multiply by reciprocals or guard with (denominator || 1).
+4. Provide AT LEAST 3 testCases:
+   - one happy path with realistic numbers
+   - one with a missing/zero input (must NOT throw)
+   - one with a boundary value (population=0, capacity=1, etc.)
+5. Bound your output to a defined range (e.g., score 0..100, multiplier 0.1..10) so downstream code stays predictable.
 
 Forge AT LEAST ONE tool per analysis when the event involves any quantitative reasoning. Run it to produce a number you reference in your summary. Re-use a previously-forged tool by name (no new forge needed) when the same calculation applies again.
 

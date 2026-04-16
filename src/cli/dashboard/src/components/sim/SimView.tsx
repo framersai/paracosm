@@ -17,6 +17,9 @@ interface SimViewProps {
   sseStatus?: string;
   onRun?: () => void;
   verdict?: Record<string, unknown> | null;
+  /** App-level launching flag — survives tab navigation so users can
+   *  switch to viz/chat/etc. and come back to a still-loading sim. */
+  launching?: boolean;
 }
 
 function SideColumn({ side, sideState, state }: { side: Side; sideState: SideState; state: GameState }) {
@@ -117,24 +120,28 @@ function IntroBar({ onDismiss }: { onDismiss: () => void }) {
   );
 }
 
-export function SimView({ state, sseStatus, onRun, verdict }: SimViewProps) {
+export function SimView({ state, sseStatus, onRun, verdict, launching: launchingProp }: SimViewProps) {
   const scenario = useScenarioContext();
   const citationRegistry = useCitationContext();
   const toolRegistry = useToolContext();
-  const [launching, setLaunching] = useState(false);
+  // Local fallback only used when no parent-controlled launching flag is
+  // passed (legacy callers). The App now owns this state and threads it
+  // through so it survives tab navigation.
+  const [localLaunching, setLocalLaunching] = useState(false);
+  const launching = launchingProp ?? localLaunching;
 
   const hasEvents = state.a.events.length > 0 || state.b.events.length > 0;
   const showLoading = state.isRunning && !hasEvents;
 
-  // Clear launching state once events start arriving or sim is running
+  // Clear local launching state once events start arriving or sim is running
   useEffect(() => {
-    if (hasEvents || state.isRunning) setLaunching(false);
-  }, [hasEvents, state.isRunning]);
+    if ((hasEvents || state.isRunning) && launchingProp === undefined) setLocalLaunching(false);
+  }, [hasEvents, state.isRunning, launchingProp]);
 
   const handleRun = useCallback(() => {
-    setLaunching(true);
+    if (launchingProp === undefined) setLocalLaunching(true);
     onRun?.();
-  }, [onRun]);
+  }, [onRun, launchingProp]);
 
   // Fallback leader info from scenario presets when no simulation data yet
   const defaultPreset = scenario.presets.find(p => p.id === 'default');
