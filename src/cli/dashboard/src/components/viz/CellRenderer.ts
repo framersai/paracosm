@@ -92,22 +92,12 @@ export function renderSquareGrid(
       ctx.strokeRect(cell.px - 1, cell.py - 1, size + 2, size + 2);
     }
 
-    // Hover: name label
+    // Hover: highlight border
     if (isHovered && !isDimmed) {
-      ctx.globalAlpha = 1;
-      ctx.fillStyle = '#f5f0e4';
-      ctx.font = `600 ${Math.max(9, size * 0.8)}px var(--mono, monospace)`;
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'middle';
-      const labelX = cell.px + size + 4;
-      const labelY = cell.py + size / 2;
-      // Background for readability
-      const name = occ.name;
-      const metrics = ctx.measureText(name);
-      ctx.fillStyle = '#0a0806cc';
-      ctx.fillRect(labelX - 2, labelY - 7, metrics.width + 4, 14);
-      ctx.fillStyle = '#f5f0e4';
-      ctx.fillText(name, labelX, labelY);
+      ctx.globalAlpha = 0.8;
+      ctx.strokeStyle = '#f5f0e4';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(cell.px - 0.5, cell.py - 0.5, size + 1, size + 1);
     }
 
     ctx.globalAlpha = 1;

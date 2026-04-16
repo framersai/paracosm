@@ -433,7 +433,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         const memories = extractColonistMemories(agentId, simEvents);
 
         // Get or create the agent (lazy init with memory seeding)
-        const provider = (env.ANTHROPIC_API_KEY ? 'anthropic' : 'openai') as any;
+        const provider = (simConfig?.provider || (env.ANTHROPIC_API_KEY && !env.OPENAI_API_KEY ? 'anthropic' : 'openai')) as any;
         const { session, isNew } = await getOrCreateChatAgent(profile, memories, {
           provider,
           settlementNoun: activeScenario.labels?.settlementNoun,
