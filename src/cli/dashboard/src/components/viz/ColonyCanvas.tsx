@@ -56,14 +56,24 @@ export const ColonyCanvas = forwardRef<ColonyCanvasHandle, ColonyCanvasProps>(fu
       : buildSquareGrid(snap.cells, w, h);
   }, [snap, currentTurn, layout]);
 
-  // Render loop
+  // Render loop. Pauses when the document is hidden so the rAF-driven
+  // animation doesn't burn CPU/battery while the user is on another tab.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !containerRef.current) return;
 
     const ctx = canvas.getContext('2d')!;
+    let paused = typeof document !== 'undefined' && document.hidden;
+
+    const onVisibility = () => {
+      paused = document.hidden;
+      // Restart the loop when the tab becomes visible again
+      if (!paused && animRef.current === 0) animRef.current = requestAnimationFrame(render);
+    };
+    document.addEventListener('visibilitychange', onVisibility);
 
     const render = () => {
+      if (paused) { animRef.current = 0; return; }
       const wrap = canvasWrapRef.current;
       if (!wrap) { animRef.current = requestAnimationFrame(render); return; }
 
@@ -100,7 +110,11 @@ export const ColonyCanvas = forwardRef<ColonyCanvasHandle, ColonyCanvasProps>(fu
     };
 
     animRef.current = requestAnimationFrame(render);
-    return () => cancelAnimationFrame(animRef.current);
+    return () => {
+      cancelAnimationFrame(animRef.current);
+      animRef.current = 0;
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, [snap, snapshots, currentTurn, focusedId, hoveredId, mode, diff, divergedIds]);
 
   // PNG export — captured directly from the canvas

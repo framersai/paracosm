@@ -17,6 +17,7 @@ import { ColonyViz } from './components/viz/ColonyViz';
 // AboutPage consolidated into landing page at /
 import { Footer } from './components/layout/Footer';
 import { ToastProvider, useToast } from './components/shared/Toast';
+import { ShortcutsOverlay } from './components/shared/ShortcutsOverlay';
 import { Analytics } from './components/shared/Analytics';
 import { GuidedTour } from './components/tour/GuidedTour';
 import { DEMO_EVENTS } from './components/tour/demoData';
@@ -151,17 +152,11 @@ function AppContent() {
           const decision = evt.data._decision ? String(evt.data._decision).slice(0, 200) : '';
           toast(toastType, `${leader}: ${label}`, decision, 10000);
         }
-        if (evt.type === 'dept_done' && evt.data?.summary) {
-          const dept = String(evt.data.department || '');
-          const summary = String(evt.data.summary);
-          const leader = evt.leader || '';
-          const side = gameState.leaderMap[leader];
-          const toastType = side === 'a' ? 'crisis-a' : side === 'b' ? 'crisis-b' : 'info';
-          const toolCount = Array.isArray(evt.data.forgedTools) ? (evt.data.forgedTools as unknown[]).length : 0;
-          const citeCount = Number(evt.data.citations) || 0;
-          const stats = [citeCount > 0 && `${citeCount} citations`, toolCount > 0 && `${toolCount} tools forged`].filter(Boolean).join(', ');
-          toast(toastType, `${leader} / ${dept.toUpperCase()}`, [summary, stats].filter(Boolean).join('\n'), 8000);
-        }
+        // Dept_done toasts intentionally suppressed. With 2-5 depts per
+        // event × 1-3 events per turn × 2 leaders, surfacing each one
+        // produced 4-30 toasts per turn — overwhelming. The dept reports
+        // are still visible in the sim flow column itself; toasts are
+        // reserved for high-signal beats (event_start, outcome).
       }
       lastEventCount.current = effectiveEvents.length;
     }
@@ -325,6 +320,7 @@ function AppContent() {
               onRun={handleRun}
             />
           )}
+          <ShortcutsOverlay />
         </div>
         </ToolRegistryContext.Provider>
        </CitationRegistryContext.Provider>

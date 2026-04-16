@@ -131,12 +131,21 @@ export function EventCard({ event, side }: EventCardProps) {
               />
             </div>
 
-            {/* Summary */}
-            {summary && (
+            {/* Summary — falls back to a compact inventory line when the
+                LLM returned a sparse report so the card never looks empty. */}
+            {summary ? (
               <div style={{ fontSize: '12px', color: 'var(--text-1)', lineHeight: 1.5, marginBottom: '6px' }}>
                 {summary}
               </div>
-            )}
+            ) : (risks.length === 0 && recs.length === 0) && (citeCount > 0 || tools.length > 0) ? (
+              <div style={{ fontSize: '11px', color: 'var(--text-3)', fontStyle: 'italic', lineHeight: 1.5, marginBottom: '6px' }}>
+                Department analysis complete &mdash; no narrative summary returned, but
+                {citeCount > 0 && ` ${citeCount} source${citeCount === 1 ? '' : 's'} surveyed`}
+                {citeCount > 0 && tools.length > 0 && ' and '}
+                {tools.length > 0 && ` ${tools.length} tool${tools.length === 1 ? '' : 's'} forged`}
+                .
+              </div>
+            ) : null}
 
             {/* Risks */}
             {risks.length > 0 && (

@@ -44,53 +44,84 @@ export function useSSE() {
   }, []);
 
   useEffect(() => {
-    const es = new EventSource('/events');
-    esRef.current = es;
+    let cancelled = false;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let attempt = 0;
 
-    es.addEventListener('connected', () => {
-      setState(prev => ({ ...prev, status: 'connected' }));
-    });
+    /**
+     * Open a fresh EventSource and re-attach listeners. The server replays
+     * its full event buffer on reconnect, so resumed clients catch up
+     * automatically. Backoff caps at 10s; reset on successful 'connected'.
+     */
+    const open = () => {
+      if (cancelled) return;
+      // Replace state.events on each reconnect to avoid duplicates from
+      // the server's buffer replay.
+      const es = new EventSource('/events');
+      esRef.current = es;
 
-    es.addEventListener('sim', (e: MessageEvent) => {
-      try {
-        const data = JSON.parse(e.data) as SimEvent;
-        setState(prev => ({ ...prev, events: [...prev.events, data] }));
-      } catch {}
-    });
+      es.addEventListener('connected', () => {
+        attempt = 0;
+        // Reset events here too — server replays buffered events right
+        // after 'connected', so we want a clean slate before they arrive.
+        setState(prev => ({ ...prev, status: 'connected', events: [] }));
+      });
 
-    es.addEventListener('result', (e: MessageEvent) => {
-      try {
-        const data = JSON.parse(e.data);
-        setState(prev => ({ ...prev, results: [...prev.results, data] }));
-      } catch {}
-    });
+      es.addEventListener('sim', (e: MessageEvent) => {
+        try {
+          const data = JSON.parse(e.data) as SimEvent;
+          setState(prev => ({ ...prev, events: [...prev.events, data] }));
+        } catch {}
+      });
 
-    es.addEventListener('verdict', (e: MessageEvent) => {
-      try {
-        const data = JSON.parse(e.data);
-        setState(prev => ({ ...prev, verdict: data }));
-      } catch {}
-    });
+      es.addEventListener('result', (e: MessageEvent) => {
+        try {
+          const data = JSON.parse(e.data);
+          setState(prev => ({ ...prev, results: [...prev.results, data] }));
+        } catch {}
+      });
 
-    es.addEventListener('complete', () => {
-      setState(prev => ({ ...prev, isComplete: true }));
-    });
+      es.addEventListener('verdict', (e: MessageEvent) => {
+        try {
+          const data = JSON.parse(e.data);
+          setState(prev => ({ ...prev, verdict: data }));
+        } catch {}
+      });
 
-    es.addEventListener('sim_error', (e: MessageEvent) => {
-      try {
-        const data = JSON.parse(e.data);
-        const msg = String(data.error || 'Unknown simulation error');
-        console.error('[SSE] Simulation error:', msg);
-        setState(prev => ({ ...prev, errors: [...prev.errors, msg] }));
-      } catch {}
-    });
+      es.addEventListener('complete', () => {
+        setState(prev => ({ ...prev, isComplete: true }));
+      });
 
-    es.onerror = () => {
-      setState(prev => ({ ...prev, status: 'error' }));
+      es.addEventListener('sim_error', (e: MessageEvent) => {
+        try {
+          const data = JSON.parse(e.data);
+          const msg = String(data.error || 'Unknown simulation error');
+          console.error('[SSE] Simulation error:', msg);
+          setState(prev => ({ ...prev, errors: [...prev.errors, msg] }));
+        } catch {}
+      });
+
+      es.onerror = () => {
+        // Browser EventSource auto-reconnects in some failure modes but
+        // not all (e.g., 5xx, redeploys). Force a backoff reconnect to
+        // recover without a manual page refresh.
+        setState(prev => ({ ...prev, status: 'error' }));
+        try { es.close(); } catch {}
+        esRef.current = null;
+        if (cancelled) return;
+        attempt += 1;
+        const delay = Math.min(10_000, 500 * Math.pow(2, attempt - 1));
+        reconnectTimer = setTimeout(open, delay);
+      };
     };
 
+    open();
+
     return () => {
-      es.close();
+      cancelled = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      const es = esRef.current;
+      if (es) { try { es.close(); } catch {} }
       esRef.current = null;
     };
   }, []);
