@@ -401,6 +401,19 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   const { engine, forgeTool } = createEmergentEngine(toolMap, provider, modelConfig.judge, opts.execution);
   const toolRegs: Record<string, string[]> = {};
 
+  /**
+   * Per-simulation forged-tool ledger. Tracks the first turn each tool was
+   * seen so the UI can label new forges vs reuses, and stores the actual
+   * input/output JSON Schemas pulled from the EmergentToolRegistry when the
+   * tool first appears. Reset implicitly when a new simulation starts.
+   */
+  const forgedLedger = new Map<string, {
+    firstForgedTurn: number;
+    firstForgedDepartment: string;
+    inputSchema?: unknown;
+    outputSchema?: unknown;
+  }>();
+
   const commander = agent({
     provider, model: modelConfig.commander,
     instructions: leader.instructions,
@@ -625,7 +638,51 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
             const rawOutput = t.output ? (typeof t.output === 'string' ? t.output : JSON.stringify(t.output)) : null;
             let inputFields: string[] = [], outputFields: string[] = [];
             if (rawOutput) { try { const p = JSON.parse(rawOutput); if (p && typeof p === 'object') { const keys = Object.keys(p); const inKey = keys.find(k => ['inputs','input','parameters','params'].includes(k)); if (inKey && p[inKey] && typeof p[inKey] === 'object') { inputFields = Object.keys(p[inKey]); outputFields = keys.filter(k => k !== inKey); } else { outputFields = keys; } } } catch {} }
-            return { name: t.name || t.description || 'tool', mode: t.mode || 'sandbox', confidence: t.confidence ?? 0.85, description: t.description || humanizeToolName(t.name || ''), output: rawOutput?.slice(0, 400) || null, inputFields: inputFields.slice(0, 8), outputFields: outputFields.slice(0, 8), department: dept, crisis: event.title };
+            const toolName = t.name || t.description || 'tool';
+            // First-forge tracking: a tool is "new" only on the turn it was
+            // first seen in this simulation. All subsequent appearances are
+            // reuses of the same forged capability.
+            const seen = forgedLedger.get(toolName);
+            const isNew = !seen;
+            if (!seen) {
+              // Try to pull the actual input/output JSON Schema from the
+              // emergent registry. Schemas are stable per tool, so attaching
+              // them on first-forge is enough — UI keys by tool name.
+              let inputSchema: unknown | undefined;
+              let outputSchema: unknown | undefined;
+              try {
+                const registered = (engine as any).registry?.get?.(toolName);
+                if (registered) {
+                  inputSchema = registered.inputSchema;
+                  outputSchema = registered.outputSchema;
+                }
+              } catch { /* schema lookup is best-effort */ }
+              forgedLedger.set(toolName, {
+                firstForgedTurn: turn,
+                firstForgedDepartment: dept,
+                inputSchema,
+                outputSchema,
+              });
+            }
+            const ledgerEntry = forgedLedger.get(toolName)!;
+            return {
+              name: toolName,
+              mode: t.mode || 'sandbox',
+              confidence: t.confidence ?? 0.85,
+              description: t.description || humanizeToolName(toolName),
+              output: rawOutput?.slice(0, 400) || null,
+              inputFields: inputFields.slice(0, 8),
+              outputFields: outputFields.slice(0, 8),
+              department: dept,
+              crisis: event.title,
+              // Provenance fields used by the UI to highlight emergent
+              // first-forge events vs subsequent reuses.
+              isNew,
+              firstForgedTurn: ledgerEntry.firstForgedTurn,
+              firstForgedDepartment: ledgerEntry.firstForgedDepartment,
+              inputSchema: ledgerEntry.inputSchema,
+              outputSchema: ledgerEntry.outputSchema,
+            };
           });
           emit('dept_done', { turn, year, department: dept, summary: report.summary, eventIndex: ei, citations: report.citations.length, citationList: report.citations.slice(0, 5).map(c => ({ text: c.text, url: c.url, doi: c.doi })), risks: report.risks, forgedTools: validTools, recommendedActions: report.recommendedActions?.slice(0, 2) });
           if (report.forgedToolsUsed.length) { const names = report.forgedToolsUsed.map(t => t?.name || t?.description || 'unnamed').filter(Boolean); if (names.length) toolRegs[dept] = [...(toolRegs[dept] || []), ...names]; }

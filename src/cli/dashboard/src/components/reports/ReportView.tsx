@@ -1,9 +1,11 @@
 import { useMemo, useEffect, useRef } from 'react';
 import type { GameState } from '../../hooks/useGameState';
 import { useCitationContext } from '../../hooks/useCitationRegistry';
+import { useToolContext } from '../../hooks/useToolRegistry';
 import { Badge } from '../shared/Badge';
 import { CitationPills } from '../shared/CitationPills';
 import { ReferencesSection } from '../shared/ReferencesSection';
+import { ToolboxSection } from '../shared/ToolboxSection';
 import { VerdictCard } from '../sim/VerdictCard';
 
 interface ReportViewProps {
@@ -51,6 +53,7 @@ function getEventBlock(turn: TurnData, eventIndex: number, totalEvents: number):
 
 export function ReportView({ state, verdict }: ReportViewProps) {
   const citationRegistry = useCitationContext();
+  const toolRegistry = useToolContext();
   const turns = useMemo(() => {
     const map: Record<number, { a: TurnData; b: TurnData }> = {};
 
@@ -218,6 +221,12 @@ export function ReportView({ state, verdict }: ReportViewProps) {
           </div>
         );
       })}
+
+      {/* Forged Toolbox — every emergent tool catalogued, with first-forge
+          provenance, reuse counts, and JSON Schema (when registered). */}
+      {toolRegistry.list.length > 0 && (
+        <ToolboxSection registry={toolRegistry} title="Forged Toolbox" />
+      )}
 
       {/* Single References section at the end of the report. Inline [N]
           pills throughout the report deep-link here via #cite-N. */}

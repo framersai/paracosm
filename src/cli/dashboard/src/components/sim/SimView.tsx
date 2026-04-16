@@ -2,6 +2,7 @@ import { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import type { GameState, Side, SideState, LeaderInfo } from '../../hooks/useGameState';
 import { useScenarioContext } from '../../App';
 import { useCitationContext } from '../../hooks/useCitationRegistry';
+import { useToolContext } from '../../hooks/useToolRegistry';
 import { LeaderBar } from '../layout/LeaderBar';
 import { StatsBar } from '../layout/StatsBar';
 import { CrisisHeader } from './CrisisHeader';
@@ -10,6 +11,7 @@ import { DivergenceRail } from './DivergenceRail';
 import { Timeline } from './Timeline';
 import { VerdictCard } from './VerdictCard';
 import { ReferencesSection } from '../shared/ReferencesSection';
+import { ToolboxSection } from '../shared/ToolboxSection';
 
 interface SimViewProps {
   state: GameState;
@@ -119,6 +121,7 @@ function IntroBar({ onDismiss }: { onDismiss: () => void }) {
 export function SimView({ state, sseStatus, onRun, verdict }: SimViewProps) {
   const scenario = useScenarioContext();
   const citationRegistry = useCitationContext();
+  const toolRegistry = useToolContext();
   const [launching, setLaunching] = useState(false);
 
   const hasEvents = state.a.events.length > 0 || state.b.events.length > 0;
@@ -290,6 +293,13 @@ export function SimView({ state, sseStatus, onRun, verdict }: SimViewProps) {
 
       {/* Verdict card after simulation completes */}
       {verdict && <VerdictCard verdict={verdict} />}
+
+      {/* Global Forged Toolbox — every emergent tool catalogued once,
+          with first-forge provenance and the actual JSON Schemas pulled
+          from EmergentToolRegistry. Collapsed by default in the sim flow. */}
+      {toolRegistry.list.length > 0 && (
+        <ToolboxSection registry={toolRegistry} collapsible />
+      )}
 
       {/* Global References section — collapsed by default to keep the
           column flow uncluttered. Inline [N] pills inside dept cards

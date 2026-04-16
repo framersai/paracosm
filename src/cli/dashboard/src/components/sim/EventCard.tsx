@@ -163,78 +163,134 @@ export function EventCard({ event, side }: EventCardProps) {
             <CitationPills citations={(dd.citationList as Array<Record<string, string>>) || []} />
           </div>
 
-          {/* Tool forge cards with expandable detail */}
-          {tools.map((t: any, i: number) => (
-            <details key={i} style={{
-              margin: '0 8px 4px', borderRadius: '4px', fontSize: '12px',
-              animation: 'forgeSlide 0.4s ease both, forgeGlow 2s ease both',
-              background: t.approved !== false ? 'rgba(106,173,72,.08)' : 'rgba(224,101,48,.04)',
-              borderLeft: `3px solid ${t.approved !== false ? 'var(--green)' : 'var(--rust)'}`,
-              border: `1px solid ${t.approved !== false ? 'rgba(106,173,72,.25)' : 'rgba(224,101,48,.15)'}`,
-              borderLeftWidth: '3px',
-              boxShadow: 'var(--card-shadow)',
-            }}>
-              <summary style={{ padding: '8px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ flex: 1 }}>
-                  <span style={{ fontSize: '9px', color: 'var(--green)', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 800, fontFamily: 'var(--mono)', display: 'block', marginBottom: '2px' }}>
-                    FORGED
+          {/* Tool cards. NEW (first-forge) gets a bright amber pulse +
+              "NEWLY FORGED" badge to make emergent capabilities obvious;
+              REUSED stays subtle and green with a back-reference to the
+              first-forge turn. Schema and raw output are revealed on
+              expand. */}
+          {tools.map((t: any, i: number) => {
+            const approved = t.approved !== false;
+            const isNew = t.isNew === true;
+            // Color treatment: NEW = amber/rust accent (emergent); REUSED = green (stable)
+            const accent = !approved ? 'var(--rust)' : isNew ? 'var(--amber)' : 'var(--green)';
+            const bgTint = !approved
+              ? 'rgba(224,101,48,.04)'
+              : isNew ? 'rgba(232,180,74,.10)' : 'rgba(106,173,72,.06)';
+            const borderTint = !approved
+              ? 'rgba(224,101,48,.15)'
+              : isNew ? 'rgba(232,180,74,.4)' : 'rgba(106,173,72,.2)';
+            const inputSchema = t.inputSchema;
+            const outputSchema = t.outputSchema;
+            const hasFullSchema = !!inputSchema || !!outputSchema;
+
+            return (
+              <details key={i} style={{
+                margin: '0 8px 4px', borderRadius: '4px', fontSize: '12px',
+                animation: isNew
+                  ? 'forgeSlide 0.4s ease both, forgeGlow 2.4s ease both'
+                  : 'forgeSlide 0.3s ease both',
+                background: bgTint,
+                borderLeft: `3px solid ${accent}`,
+                border: `1px solid ${borderTint}`,
+                borderLeftWidth: '3px',
+                boxShadow: isNew ? '0 0 0 1px rgba(232,180,74,.15), var(--card-shadow)' : 'var(--card-shadow)',
+              }}>
+                <summary style={{ padding: '8px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                      {isNew ? (
+                        <span style={{
+                          fontSize: 9, color: 'var(--bg-deep)', background: 'var(--amber)',
+                          textTransform: 'uppercase', letterSpacing: '1.5px', fontWeight: 900,
+                          fontFamily: 'var(--mono)', padding: '2px 6px', borderRadius: 3,
+                          boxShadow: '0 0 8px rgba(232,180,74,.4)',
+                        }}>
+                          NEWLY FORGED
+                        </span>
+                      ) : (
+                        <span style={{
+                          fontSize: 9, color: 'var(--green)', background: 'rgba(106,173,72,.12)',
+                          textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 800,
+                          fontFamily: 'var(--mono)', padding: '1px 6px', borderRadius: 3,
+                          border: '1px solid rgba(106,173,72,.3)',
+                        }}>
+                          REUSED
+                        </span>
+                      )}
+                      {!isNew && t.firstForgedTurn != null && (
+                        <span style={{ fontSize: 9, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
+                          first forged T{t.firstForgedTurn}
+                          {t.firstForgedDepartment && t.firstForgedDepartment !== t.department
+                            ? ` · ${t.firstForgedDepartment}`
+                            : ''}
+                        </span>
+                      )}
+                      {hasFullSchema && (
+                        <span style={{
+                          fontSize: 8, color: 'var(--teal)', fontFamily: 'var(--mono)',
+                          padding: '1px 5px', borderRadius: 2,
+                          background: 'rgba(76,168,168,.1)', border: '1px solid rgba(76,168,168,.25)',
+                        }}>
+                          SCHEMA
+                        </span>
+                      )}
+                    </div>
+                    <span style={{ fontSize: '13px', color: 'var(--text-1)', fontWeight: 600, lineHeight: 1.3 }}>
+                      {String(t.description || t.name || '')}
+                    </span>
+                    <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-3)', fontFamily: 'var(--mono)', marginTop: '2px' }}>
+                      {t.name} {t.mode ? `(${t.mode})` : ''}
+                    </span>
+                  </div>
+                  <span style={{
+                    padding: '2px 6px', borderRadius: '3px', fontSize: '9px', fontWeight: 800,
+                    fontFamily: 'var(--mono)', whiteSpace: 'nowrap', flexShrink: 0,
+                    background: approved ? 'rgba(106,173,72,.15)' : 'rgba(224,101,48,.1)',
+                    color: approved ? 'var(--green)' : 'var(--rust)',
+                    border: `1px solid ${approved ? 'rgba(106,173,72,.3)' : 'rgba(224,101,48,.2)'}`,
+                  }}>
+                    {approved ? 'PASS' : 'FAIL'} {(t.confidence || 0.85).toFixed(2)}
                   </span>
-                  <span style={{ fontSize: '13px', color: 'var(--text-1)', fontWeight: 600, lineHeight: 1.3 }}>
-                    {String(t.description || t.name || '')}
-                  </span>
-                  <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-3)', fontFamily: 'var(--mono)', marginTop: '2px' }}>
-                    {t.name} {t.mode ? `(${t.mode})` : ''}
-                  </span>
+                </summary>
+                <div style={{ padding: '0 12px 8px', fontSize: '11px' }}>
+                  {t.crisis && (
+                    <div style={{ color: 'var(--text-3)', marginBottom: '4px' }}>
+                      <span style={{ fontWeight: 700, fontFamily: 'var(--mono)', fontSize: '9px', letterSpacing: '0.5px' }}>CRISIS: </span>
+                      {String(t.crisis)}
+                    </div>
+                  )}
+                  {t.department && (
+                    <div style={{ color: 'var(--text-3)', marginBottom: '4px' }}>
+                      <span style={{ fontWeight: 700, fontFamily: 'var(--mono)', fontSize: '9px', letterSpacing: '0.5px' }}>DEPT: </span>
+                      {String(t.department)}
+                    </div>
+                  )}
+
+                  {/* Input/output schemas — show the actual JSON Schema when
+                      available (pulled from EmergentToolRegistry on first
+                      forge), otherwise fall back to derived field names. */}
+                  {(inputSchema || (Array.isArray(t.inputFields) && t.inputFields.length > 0)) && (
+                    <SchemaBlock label="INPUT" color="var(--teal)" schema={inputSchema} fields={t.inputFields} />
+                  )}
+                  {(outputSchema || (Array.isArray(t.outputFields) && t.outputFields.length > 0)) && (
+                    <SchemaBlock label="OUTPUT" color="var(--green)" schema={outputSchema} fields={t.outputFields} />
+                  )}
+
+                  {t.output && (
+                    <details style={{ marginTop: '4px' }}>
+                      <summary style={{ fontSize: '10px', fontWeight: 600, cursor: 'pointer', color: sideColor, fontFamily: 'var(--mono)' }}>Raw Output</summary>
+                      <pre style={{ background: 'var(--bg-deep)', border: '1px solid var(--border)', borderRadius: '4px', padding: '8px', overflow: 'auto', maxHeight: '200px', fontSize: '10px', fontFamily: 'var(--mono)', color: 'var(--text-2)', lineHeight: 1.5, whiteSpace: 'pre-wrap', marginTop: '4px' }}>
+                        {typeof t.output === 'object' ? JSON.stringify(t.output, null, 2) : String(t.output)}
+                      </pre>
+                    </details>
+                  )}
+                  {!t.output && !inputSchema && !outputSchema && (!t.inputFields || t.inputFields.length === 0) && (
+                    <div style={{ color: 'var(--text-3)', fontStyle: 'italic' }}>Tool forged but no output captured. The tool will be available for subsequent turns.</div>
+                  )}
                 </div>
-                <span style={{
-                  padding: '2px 6px', borderRadius: '3px', fontSize: '9px', fontWeight: 800,
-                  fontFamily: 'var(--mono)', whiteSpace: 'nowrap', flexShrink: 0,
-                  background: t.approved !== false ? 'rgba(106,173,72,.15)' : 'rgba(224,101,48,.1)',
-                  color: t.approved !== false ? 'var(--green)' : 'var(--rust)',
-                  border: `1px solid ${t.approved !== false ? 'rgba(106,173,72,.3)' : 'rgba(224,101,48,.2)'}`,
-                }}>
-                  {t.approved !== false ? 'PASS' : 'FAIL'} {(t.confidence || 0.85).toFixed(2)}
-                </span>
-              </summary>
-              <div style={{ padding: '0 12px 8px', fontSize: '11px' }}>
-                {t.crisis && (
-                  <div style={{ color: 'var(--text-3)', marginBottom: '4px' }}>
-                    <span style={{ fontWeight: 700, fontFamily: 'var(--mono)', fontSize: '9px', letterSpacing: '0.5px' }}>CRISIS: </span>
-                    {String(t.crisis)}
-                  </div>
-                )}
-                {t.department && (
-                  <div style={{ color: 'var(--text-3)', marginBottom: '4px' }}>
-                    <span style={{ fontWeight: 700, fontFamily: 'var(--mono)', fontSize: '9px', letterSpacing: '0.5px' }}>DEPT: </span>
-                    {String(t.department)}
-                  </div>
-                )}
-                {Array.isArray(t.inputFields) && t.inputFields.length > 0 && (
-                  <div style={{ marginBottom: '4px' }}>
-                    <span style={{ fontWeight: 700, color: 'var(--teal)', fontFamily: 'var(--mono)', fontSize: '9px', letterSpacing: '0.5px' }}>INPUT FIELDS: </span>
-                    <span style={{ color: 'var(--text-2)', fontFamily: 'var(--mono)' }}>{t.inputFields.join(', ')}</span>
-                  </div>
-                )}
-                {Array.isArray(t.outputFields) && t.outputFields.length > 0 && (
-                  <div style={{ marginBottom: '4px' }}>
-                    <span style={{ fontWeight: 700, color: 'var(--green)', fontFamily: 'var(--mono)', fontSize: '9px', letterSpacing: '0.5px' }}>OUTPUT FIELDS: </span>
-                    <span style={{ color: 'var(--text-2)', fontFamily: 'var(--mono)' }}>{t.outputFields.join(', ')}</span>
-                  </div>
-                )}
-                {t.output && (
-                  <details style={{ marginTop: '4px' }}>
-                    <summary style={{ fontSize: '10px', fontWeight: 600, cursor: 'pointer', color: sideColor, fontFamily: 'var(--mono)' }}>Raw Output</summary>
-                    <pre style={{ background: 'var(--bg-deep)', border: '1px solid var(--border)', borderRadius: '4px', padding: '8px', overflow: 'auto', maxHeight: '200px', fontSize: '10px', fontFamily: 'var(--mono)', color: 'var(--text-2)', lineHeight: 1.5, whiteSpace: 'pre-wrap', marginTop: '4px' }}>
-                      {typeof t.output === 'object' ? JSON.stringify(t.output, null, 2) : String(t.output)}
-                    </pre>
-                  </details>
-                )}
-                {!t.output && (!t.inputFields || t.inputFields.length === 0) && (
-                  <div style={{ color: 'var(--text-3)', fontStyle: 'italic' }}>Tool forged but no output captured. The tool will be available for subsequent turns.</div>
-                )}
-              </div>
-            </details>
-          ))}
+              </details>
+            );
+          })}
         </div>
       );
     }
@@ -427,4 +483,76 @@ export function EventCard({ event, side }: EventCardProps) {
     default:
       return null;
   }
+}
+
+/**
+ * Render an INPUT or OUTPUT block for a forged tool.
+ *
+ * Prefers the actual JSON Schema (pulled from EmergentToolRegistry on
+ * first forge) when available, falling back to a simple field-name list
+ * derived from the tool's last invocation.
+ */
+function SchemaBlock({ label, color, schema, fields }: {
+  label: 'INPUT' | 'OUTPUT';
+  color: string;
+  schema?: unknown;
+  fields?: string[];
+}) {
+  const props = (schema && typeof schema === 'object' && (schema as any).properties) || null;
+  const required: string[] = (schema && typeof schema === 'object' && Array.isArray((schema as any).required))
+    ? (schema as any).required
+    : [];
+
+  // No real schema → render the legacy field-name list
+  if (!props) {
+    if (!fields || fields.length === 0) return null;
+    return (
+      <div style={{ marginBottom: 4 }}>
+        <span style={{ fontWeight: 700, color, fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '0.5px' }}>
+          {label} FIELDS:{' '}
+        </span>
+        <span style={{ color: 'var(--text-2)', fontFamily: 'var(--mono)' }}>
+          {fields.join(', ')}
+        </span>
+      </div>
+    );
+  }
+
+  const entries = Object.entries(props as Record<string, any>).slice(0, 12);
+  return (
+    <div style={{ marginBottom: 4 }}>
+      <div style={{
+        fontWeight: 700, color, fontFamily: 'var(--mono)', fontSize: 9,
+        letterSpacing: '0.5px', marginBottom: 2,
+      }}>
+        {label} SCHEMA
+      </div>
+      <table style={{
+        borderCollapse: 'collapse', fontFamily: 'var(--mono)', fontSize: 10,
+        width: '100%', tableLayout: 'fixed',
+      }}>
+        <tbody>
+          {entries.map(([key, def]) => {
+            const type = String(def?.type ?? 'any');
+            const desc = typeof def?.description === 'string' ? def.description : '';
+            const isRequired = required.includes(key);
+            return (
+              <tr key={key} style={{ borderTop: '1px solid var(--border)' }}>
+                <td style={{ padding: '2px 6px 2px 0', color: 'var(--text-1)', fontWeight: 700, width: '32%', verticalAlign: 'top' }}>
+                  {key}
+                  {isRequired && <span style={{ color: 'var(--rust)', marginLeft: 2 }}>*</span>}
+                </td>
+                <td style={{ padding: '2px 6px', color: color, width: '20%', verticalAlign: 'top' }}>
+                  {type}
+                </td>
+                <td style={{ padding: '2px 0', color: 'var(--text-3)', verticalAlign: 'top', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {desc}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
 }
