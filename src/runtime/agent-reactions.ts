@@ -144,6 +144,14 @@ export async function generateAgentReactions(
     maxConcurrent?: number;
     reactionContextHook?: (agent: any, ctx: any) => string;
     onUsage?: (result: { usage?: { totalTokens?: number; promptTokens?: number; completionTokens?: number; costUSD?: number } }) => void;
+    /**
+     * Called with the raw caught error when a reaction LLM call throws.
+     * Invoked AT MOST ONCE per batch even if every reaction throws: 100
+     * identical quota errors in one turn would otherwise spam the
+     * classifier. The orchestrator's provider-error flag is idempotent,
+     * but keeping the log output manageable matters too.
+     */
+    onProviderError?: (err: unknown) => void;
   } = {},
 ): Promise<AgentReaction[]> {
   const alive = agents.filter(c => c.health.alive);
@@ -156,6 +164,11 @@ export async function generateAgentReactions(
 
   // Process in batches to avoid rate limits
   const reactions: AgentReaction[] = [];
+  // Report the FIRST thrown error from the batch to the orchestrator.
+  // Subsequent errors in the same batch are almost always the same underlying
+  // cause (e.g. every call in a batch getting the same 429) so reporting once
+  // is the right signal and keeps the log readable.
+  let firstBatchError: unknown = null;
   for (let i = 0; i < alive.length; i += maxConcurrent) {
     const batch = alive.slice(i, i + maxConcurrent);
     const batchResults = await Promise.all(
@@ -167,12 +180,16 @@ export async function generateAgentReactions(
           // telemetry reflects what was actually billed to the provider.
           options.onUsage?.(result);
           return parseReaction(result.text, c, ctx.year);
-        } catch {
+        } catch (err) {
+          if (firstBatchError == null) firstBatchError = err;
           return null;
         }
       })
     );
     reactions.push(...batchResults.filter((r): r is AgentReaction => r !== null));
+  }
+  if (firstBatchError != null) {
+    options.onProviderError?.(firstBatchError);
   }
 
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);

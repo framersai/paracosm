@@ -357,6 +357,15 @@ export class EventDirector {
     model: string = 'gpt-5.4',
     instructions?: string,
     onUsage?: (result: { usage?: { totalTokens?: number; promptTokens?: number; completionTokens?: number; costUSD?: number } }) => void,
+    /**
+     * Called with the raw caught error when the director's LLM call throws.
+     * Lets the orchestrator classify the error (quota / auth / etc.) and
+     * emit a `provider_error` SSE event before the existing fallback path
+     * quietly substitutes canned events. Without this, a user whose API
+     * credits run out would see the director keep producing the same three
+     * fallback events across every turn with no explanation.
+     */
+    onProviderError?: (err: unknown) => void,
   ): Promise<DirectorEventBatch> {
     const prompt = buildDirectorPrompt(ctx, maxEvents);
     const systemInstructions = (instructions || DEFAULT_DIRECTOR_INSTRUCTIONS)
@@ -383,6 +392,12 @@ export class EventDirector {
       console.log(`  [director] Failed to parse batch for ${ctx.leaderName}, using fallback`);
     } catch (err) {
       console.log(`  [director] Batch error for ${ctx.leaderName}: ${err}`);
+      // Surface the raw error so the orchestrator can classify it. We
+      // still fall through to the canned fallback so a single transient
+      // error does not break the turn, but a terminal quota/auth error
+      // will flip the run-scoped abort flag and subsequent turns will
+      // short-circuit.
+      onProviderError?.(err);
     }
 
     const fallback = FALLBACK_EVENTS[ctx.turn % FALLBACK_EVENTS.length];
