@@ -1,4 +1,5 @@
-import type { ToolRegistry } from '../../hooks/useToolRegistry';
+import type { ToolRegistry, ToolEntry } from '../../hooks/useToolRegistry';
+import { Tooltip } from './Tooltip';
 
 interface ToolboxSectionProps {
   registry: ToolRegistry;
@@ -58,15 +59,17 @@ export function ToolboxSection({ registry, title = 'Forged Toolbox', collapsible
                 <span style={{ fontWeight: 700, color: 'var(--text-1)', fontFamily: 'var(--mono)' }}>
                   {entry.name}
                 </span>
-                <span style={{
-                  fontSize: 9, fontFamily: 'var(--mono)', padding: '1px 5px', borderRadius: 2,
-                  color: entry.approved ? 'var(--green)' : 'var(--rust)',
-                  background: entry.approved ? 'rgba(106,173,72,.10)' : 'rgba(224,101,48,.08)',
-                  border: `1px solid ${entry.approved ? 'rgba(106,173,72,.3)' : 'rgba(224,101,48,.2)'}`,
-                  fontWeight: 800,
-                }}>
-                  {entry.approved ? `PASS ${entry.confidence.toFixed(2)}` : 'FAIL'}
-                </span>
+                <Tooltip content={<ForgeVerdictTooltip entry={entry} />}>
+                  <span style={{
+                    fontSize: 9, fontFamily: 'var(--mono)', padding: '1px 5px', borderRadius: 2,
+                    color: entry.approved ? 'var(--green)' : 'var(--rust)',
+                    background: entry.approved ? 'rgba(106,173,72,.10)' : 'rgba(224,101,48,.08)',
+                    border: `1px solid ${entry.approved ? 'rgba(106,173,72,.3)' : 'rgba(224,101,48,.2)'}`,
+                    fontWeight: 800,
+                  }}>
+                    {entry.approved ? `PASS ${entry.confidence.toFixed(2)}` : 'FAIL'}
+                  </span>
+                </Tooltip>
                 <span style={{ fontSize: 10, fontFamily: 'var(--mono)', color: 'var(--text-3)' }}>
                   {entry.mode}
                 </span>
@@ -172,4 +175,67 @@ function countSchemaFields(schema: unknown, fallback: string[]): number {
     return Object.keys((schema as any).properties).length;
   }
   return fallback.length;
+}
+
+/**
+ * Tooltip content for the PASS/FAIL verdict pill on a forged tool.
+ *
+ * PASS tooltip: shows judge confidence and what the approved tool did
+ * for the simulation (added capability, provided quantitative grounding
+ * to the dept report, eligible for reuse with near-zero cost).
+ *
+ * FAIL tooltip: shows the judge's rejection reason verbatim + the
+ * concrete repercussions for the run (morale dip, power cost, no
+ * insight added to the dept report, dept's attention wasted this turn).
+ *
+ * Exported separately so EventCard and other forge-card surfaces can
+ * reuse the same tooltip body without duplicating the explanation text.
+ */
+export function ForgeVerdictTooltip({ entry }: { entry: ToolEntry }) {
+  if (entry.approved) {
+    return (
+      <div style={{ fontFamily: 'var(--sans)' }}>
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--green)', fontWeight: 800, marginBottom: 8 }}>
+          ✓ PASS · judge confidence {entry.confidence.toFixed(2)}
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--text-1)', lineHeight: 1.55 }}>
+          The LLM judge reviewed this tool's source code, test outputs, and sandbox allowlist,
+          and approved it across safety, correctness, determinism, and bounded execution.
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)', lineHeight: 1.55 }}>
+          <b style={{ color: 'var(--green)' }}>What this adds to the run:</b><br />
+          +0.04 outcome bonus for this event · the dept's report cites the tool's computed result ·
+          the tool is now reusable by any dept at near-zero cost (+0.02 per reuse).
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div style={{ fontFamily: 'var(--sans)' }}>
+      <div style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--rust)', fontWeight: 800, marginBottom: 8 }}>
+        ✗ FAIL · judge rejected
+      </div>
+      {entry.errorReason ? (
+        <div style={{
+          fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-1)',
+          padding: 8, background: 'rgba(224,101,48,.08)', borderRadius: 4,
+          border: '1px solid rgba(224,101,48,.2)',
+          whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.5,
+          marginBottom: 10,
+        }}>
+          {entry.errorReason}
+        </div>
+      ) : (
+        <div style={{ fontSize: 11, color: 'var(--text-3)', fontStyle: 'italic', marginBottom: 10 }}>
+          (No rejection reason captured. The judge blocked the tool before it could execute.)
+        </div>
+      )}
+      <div style={{ fontSize: 11, color: 'var(--text-2)', lineHeight: 1.55, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
+        <b style={{ color: 'var(--rust)' }}>Cost of a failed forge:</b><br />
+        −0.06 outcome bonus on this event · −0.015 morale per failure (crew confidence eroded) ·
+        −1.2&nbsp;kW power (sandbox compute consumed) · no quantitative grounding in the dept's report ·
+        the dept retries or moves on without the insight this tool would have provided.
+      </div>
+    </div>
+  );
 }

@@ -83,10 +83,20 @@ export function StatsBar({ colonyA, colonyB, prevColonyA, prevColonyB, deathsA, 
 
   const metrics = scenario.ui.headerMetrics.slice(0, 4);
 
+  // Stats bar layout:
+  //   overflowX: 'auto' so the cost pill and other late pills never get
+  //   clipped. On narrow desktops the bar now scrolls horizontally
+  //   instead of silently truncating items off-screen (the old
+  //   `overflow: hidden` was eating the COST pill's leader-B value).
+  //   The .stats-bar responsive CSS class (tokens.css) pins
+  //   `justify-content: flex-start` + `-webkit-overflow-scrolling: touch`
+  //   at tablet and below for iOS momentum scrolling.
   return (
     <div className="stats-bar" role="region" aria-label="Colony statistics" style={{
       display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'nowrap',
-      padding: '4px 12px', gap: '14px', overflow: 'hidden',
+      padding: '4px 12px', gap: '14px',
+      overflowX: 'auto', overflowY: 'hidden',
+      WebkitOverflowScrolling: 'touch',
       background: 'var(--bg-panel)', borderBottom: '1px solid var(--border)',
       fontFamily: 'var(--mono)',
     }}>

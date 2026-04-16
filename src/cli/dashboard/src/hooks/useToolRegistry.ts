@@ -45,6 +45,13 @@ export interface ToolEntry {
   outputSchema?: unknown;
   /** Latest sample output for this tool. */
   sampleOutput?: string | null;
+  /**
+   * The judge's stated reason the tool was REJECTED, when `approved` is
+   * false. Undefined when the tool passed or when the orchestrator did
+   * not capture a reason (older payloads). Rendered in the forge-verdict
+   * tooltip so users can see WHY a forge failed, not just that it failed.
+   */
+  errorReason?: string;
   inputFields: string[];
   outputFields: string[];
   /** Full per-invocation history. Empty when the orchestrator hasn't
@@ -117,6 +124,7 @@ export function useToolRegistry(state: GameState): ToolRegistry {
               inputSchema: t.inputSchema,
               outputSchema: t.outputSchema,
               sampleOutput: typeof t.output === 'string' ? (t.output as string) : null,
+              errorReason: typeof t.errorReason === 'string' ? (t.errorReason as string) : undefined,
               inputFields: Array.isArray(t.inputFields) ? (t.inputFields as string[]) : [],
               outputFields: Array.isArray(t.outputFields) ? (t.outputFields as string[]) : [],
               history: [],
@@ -133,6 +141,12 @@ export function useToolRegistry(state: GameState): ToolRegistry {
             // Backfill schema if a later occurrence has it.
             if (!entry.inputSchema && t.inputSchema) entry.inputSchema = t.inputSchema;
             if (!entry.outputSchema && t.outputSchema) entry.outputSchema = t.outputSchema;
+            // Backfill errorReason when a rejected re-forge attempt comes
+            // through AFTER the original pass: we want the tooltip to
+            // surface the latest rejection reason, not leave it blank.
+            if (typeof t.errorReason === 'string' && t.errorReason) {
+              entry.errorReason = t.errorReason as string;
+            }
           }
           if (dept) entry.departments.add(dept);
           entry.sides.add(side);
