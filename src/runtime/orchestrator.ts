@@ -1041,7 +1041,41 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
         (leader.hexaco.conscientiousness - 0.5) * 0.12 +
         // Alignment kicker: choosing in line with personality boosts effect
         (isRiskyChoice ? (leader.hexaco.openness - 0.5) : (leader.hexaco.conscientiousness - 0.5)) * 0.10;
-      const colonyDeltas = effectRegistry.applyOutcome(event.category, outcome, { personalityBonus, noise: outcomeEffectRng.next() * 0.2 - 0.1 });
+
+      // Tool intelligence factor — tally what departments forged THIS event
+      // and feed into the effect registry so emergent tools materially
+      // affect outcomes. Reuses are nearly free; failed forges cost
+      // morale + power. Run-wide cumulative count gives a small log-scaled
+      // innovation bonus with diminishing returns.
+      const eventForges = (() => {
+        let n = 0, reuse = 0, fail = 0;
+        const seenInEvent = new Set<string>();
+        for (const dept of depts) {
+          const bucket = deptForgeBuckets.get(dept) ?? [];
+          // Slice forges captured during this event (everything after the
+          // pre-send bucket length is "new this event").
+          // We can't easily know the pre-send length here without refactor,
+          // so use a conservative scan: count tools by name appearance.
+          for (const f of bucket) {
+            if (!f.approved) { fail++; continue; }
+            if (forgedLedger.has(f.name)) {
+              const ledgerEntry = forgedLedger.get(f.name)!;
+              if (ledgerEntry.firstForgedTurn === turn) {
+                if (!seenInEvent.has(f.name)) { n++; seenInEvent.add(f.name); }
+              } else {
+                reuse++;
+              }
+            }
+          }
+        }
+        return { newToolsThisEvent: n, reuseCountThisEvent: reuse, forgeFailures: fail, totalToolsForRun: forgedLedger.size };
+      })();
+
+      const colonyDeltas = effectRegistry.applyOutcome(event.category, outcome, {
+        personalityBonus,
+        noise: outcomeEffectRng.next() * 0.2 - 0.1,
+        toolModifiers: eventForges,
+      });
       kernel.applyColonyDeltas(colonyDeltas as any, [{ turn, year, type: 'system', description: `Outcome effect (${outcome}): ${Object.entries(colonyDeltas).map(([k, v]) => `${k} ${v >= 0 ? '+' : ''}${v}`).join(', ')}` }]);
 
       const polDelta = sc.hooks.politicsHook?.(event.category, outcome);
@@ -1267,10 +1301,18 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
       }])
   );
 
-  // Compute timeline fingerprint via scenario hook
-  const fingerprint = sc.hooks.fingerprintHook
+  // Compute timeline fingerprint. Always start from the generic engine-
+  // level fingerprint (resilience / innovation / riskStyle / decision
+  // discipline / tool counts) so EVERY scenario gets these classifications
+  // for free. Scenario hooks layer their own domain-specific fields on
+  // top (e.g., Mars: autonomy, marsbornFraction). Hook output keys win
+  // on conflict so authors can override generic values intentionally.
+  const { genericFingerprint } = await import('./generic-fingerprint.js');
+  const generic = genericFingerprint(final, outcomeLog, leader, toolRegs, maxTurns);
+  const scenarioOverlay = sc.hooks.fingerprintHook
     ? sc.hooks.fingerprintHook(final, outcomeLog, leader, toolRegs, maxTurns)
-    : { summary: 'no fingerprint hook' };
+    : {};
+  const fingerprint = { ...generic, ...scenarioOverlay };
 
   // Build the canonical Forged Toolbox: deduplicate forge attempts by
   // tool name, keep the first-forge metadata + accumulated reuse count.
