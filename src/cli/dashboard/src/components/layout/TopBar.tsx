@@ -4,7 +4,7 @@ import type { GameState } from '../../hooks/useGameState';
 
 interface TopBarProps {
   scenario: ScenarioClientPayload;
-  sse: { status: string; events: Array<unknown>; isComplete: boolean };
+  sse: { status: string; events: Array<unknown>; isComplete: boolean; isAborted?: boolean };
   gameState: GameState;
   onSave?: () => void;
   onLoad?: () => void;
@@ -50,13 +50,22 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
   const { resolved, setTheme } = useTheme();
   const hasEvents = gameState.a.events.length > 0 || gameState.b.events.length > 0;
 
-  const statusColor = sse.isComplete
+  // Status pill priority (highest first):
+  //   1. Unfinished — sim was cancelled (user navigated away, server
+  //      pulled the plug). Shown even if isComplete also flipped.
+  //   2. Complete — sim finished all turns, verdict broadcast.
+  //   3. Live / Reconnecting / Connecting — SSE connection state.
+  const statusColor = sse.isAborted
+    ? 'var(--amber)'
+    : sse.isComplete
     ? 'var(--rust)'
     : sse.status === 'connected'
     ? 'var(--color-success)'
     : 'var(--text-3)';
 
-  const statusText = sse.isComplete
+  const statusText = sse.isAborted
+    ? 'Unfinished'
+    : sse.isComplete
     ? 'Complete'
     : sse.status === 'connected'
     ? 'Live'

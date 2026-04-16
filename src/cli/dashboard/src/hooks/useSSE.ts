@@ -33,6 +33,13 @@ interface SSEState {
   verdict: Record<string, unknown> | null;
   errors: string[];
   isComplete: boolean;
+  /**
+   * True when the simulation was cancelled mid-run (user navigated
+   * away → server disconnect watchdog fired → orchestrator emitted
+   * `sim_aborted`). Distinct from isComplete; the dashboard shows this
+   * as an "Unfinished" badge with partial results preserved.
+   */
+  isAborted: boolean;
   /** Terminal provider error (quota / auth). `null` when the run is healthy. */
   providerError: ProviderErrorState | null;
 }
@@ -45,6 +52,7 @@ export function useSSE() {
     verdict: null,
     errors: [],
     isComplete: false,
+    isAborted: false,
     providerError: null,
   });
   const esRef = useRef<EventSource | null>(null);
@@ -67,6 +75,7 @@ export function useSSE() {
       // "Connecting..." just because the user pressed Clear.
       status: prev.status,
       events: [], results: [], verdict: null, errors: [], isComplete: false,
+      isAborted: false,
       // Clear provider error on manual reset. If the underlying problem
       // still exists (key still bad / still no credits), the next run's
       // first LLM call will re-fire the `provider_error` event within
@@ -95,6 +104,9 @@ export function useSSE() {
           leader: errEvent.leader,
         }
       : null;
+    // Restore isAborted from the loaded events so a saved "Unfinished"
+    // run doesn't reappear as "Complete" when the user reloads the file.
+    const restoredAborted = events.some(e => e.type === 'sim_aborted');
     setState({
       status: 'connected',
       events,
@@ -102,6 +114,7 @@ export function useSSE() {
       verdict: verdict || null,
       errors: [],
       isComplete: true,
+      isAborted: restoredAborted,
       providerError: restoredProviderError,
     });
   }, []);
@@ -199,6 +212,21 @@ export function useSSE() {
             }));
             return;
           }
+          // sim_aborted: orchestrator emits this when the run was
+          // cancelled by the server's disconnect watchdog. Flip
+          // isAborted so the topbar badge switches to "Unfinished".
+          // Set isComplete too so the run is treated as a finished
+          // (just not happily) state — downstream components that
+          // gate on isComplete (chat, reports) still activate.
+          if (data.type === 'sim_aborted') {
+            setState(prev => ({
+              ...prev,
+              events: [...prev.events, data],
+              isAborted: true,
+              isComplete: true,
+            }));
+            return;
+          }
           setState(prev => ({ ...prev, events: [...prev.events, data] }));
         } catch {}
       });
@@ -217,8 +245,22 @@ export function useSSE() {
         } catch {}
       });
 
-      es.addEventListener('complete', () => {
-        setState(prev => ({ ...prev, isComplete: true }));
+      es.addEventListener('complete', (e: MessageEvent) => {
+        // pair-runner emits `complete` with an optional `aborted: true`
+        // flag when either leader was cancelled. Fold that into
+        // isAborted here too, so the Unfinished badge shows up even if
+        // the sim_aborted SSE event got lost (older server versions
+        // might not emit it).
+        let wasAborted = false;
+        try {
+          const data = e.data ? JSON.parse(e.data) : null;
+          wasAborted = !!(data && data.aborted);
+        } catch { /* payload optional */ }
+        setState(prev => ({
+          ...prev,
+          isComplete: true,
+          isAborted: prev.isAborted || wasAborted,
+        }));
       });
 
       es.addEventListener('sim_error', (e: MessageEvent) => {

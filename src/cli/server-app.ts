@@ -202,12 +202,20 @@ function readBody(req: IncomingMessage): Promise<string> {
 
 export interface CreateMarsServerOptions {
   env?: NodeJS.ProcessEnv;
-  runPairSimulations?: (config: NormalizedSimulationConfig, broadcast: BroadcastFn) => Promise<void>;
+  runPairSimulations?: (config: NormalizedSimulationConfig, broadcast: BroadcastFn, signal?: AbortSignal) => Promise<void>;
   generateText?: (args: { provider: string; model: string; prompt: string }) => Promise<{ text: string }>;
   compileScenario?: (scenarioJson: Record<string, unknown>, options: Record<string, unknown>) => Promise<ScenarioPackage>;
   scenarioDir?: string;
   /** Max simulations per IP per day. 0 = unlimited. Default: 3. Set via RATE_LIMIT env var. */
   maxSimsPerDay?: number;
+  /**
+   * Grace period (ms) between the last SSE client disconnecting and the
+   * server cancelling the active simulation. Lets page refreshes and
+   * brief network drops reconnect before the watchdog trips. Default
+   * 3000ms: too short to interrupt a normal refresh, too long to keep
+   * burning API credits on an abandoned tab.
+   */
+  disconnectGraceMs?: number;
 }
 
 export interface MarsServer extends Server {
@@ -250,6 +258,44 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
   };
 
   const startSimulations = options.runPairSimulations ?? runPairSimulations;
+
+  // --- Cancel-on-disconnect watchdog ---------------------------------
+  //
+  // While a simulation is active, watch for the SSE client set going
+  // empty. If it stays empty for `disconnectGraceMs`, abort the run so
+  // the server stops burning API credits on work nobody is watching.
+  //
+  // The event buffer stays intact: a returning user reconnects, sees
+  // all events up to the cancellation point, and the dashboard labels
+  // the run "Unfinished" via the sim_aborted SSE event the orchestrator
+  // emits on cancel.
+  //
+  // Grace period handles the legitimate refresh / nav-across-tabs case:
+  // EventSource disconnects briefly, then reconnects within ~1-2s. We
+  // only pull the plug when no client has reconnected after 3s (default).
+  const disconnectGraceMs = options.disconnectGraceMs ?? 3000;
+  /** Current sim's AbortController, or null when no sim is running. */
+  let activeSimAbortController: AbortController | null = null;
+  /** Timer id for the pending disconnect-watchdog fire. Null when disarmed. */
+  let disconnectWatchdogTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const armDisconnectWatchdog = () => {
+    if (!activeSimAbortController) return; // no sim running, nothing to cancel
+    if (disconnectWatchdogTimer) return;   // already armed
+    disconnectWatchdogTimer = setTimeout(() => {
+      disconnectWatchdogTimer = null;
+      if (!activeSimAbortController) return;
+      if (clients.size > 0) return; // somebody reconnected just in time
+      console.log(`  [watchdog] No SSE clients for ${disconnectGraceMs}ms — aborting active simulation.`);
+      activeSimAbortController.abort();
+    }, disconnectGraceMs);
+  };
+  const disarmDisconnectWatchdog = () => {
+    if (disconnectWatchdogTimer) {
+      clearTimeout(disconnectWatchdogTimer);
+      disconnectWatchdogTimer = null;
+    }
+  };
   const runGenerateText = options.generateText ?? (async args => {
     const { generateText } = await import('@framers/agentos');
     return generateText(args as any);
@@ -289,7 +335,18 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         try { res.write(msg); } catch { break; }
       }
       clients.add(res);
-      req.on('close', () => clients.delete(res));
+      // Reconnection cancels any pending disconnect watchdog fire so
+      // the sim keeps running once the returning user is watching again.
+      disarmDisconnectWatchdog();
+      req.on('close', () => {
+        clients.delete(res);
+        if (clients.size === 0) {
+          // Start (or re-start) the grace-period countdown. If no
+          // client reconnects before it fires, the watchdog aborts
+          // the active sim.
+          armDisconnectWatchdog();
+        }
+      });
       return;
     }
 
@@ -1072,10 +1129,17 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       eventBuffer.length = 0;
       simConfig = config;
       simRunning = true;
+      // Create the per-run AbortController so the disconnect watchdog
+      // (and any future cancel endpoint) can abort this specific run
+      // without affecting future ones. Always tear down in finally so a
+      // thrown error doesn't leak the controller into the next sim.
+      activeSimAbortController = new AbortController();
       try {
-        await startSimulations(config, broadcast);
+        await startSimulations(config, broadcast, activeSimAbortController.signal);
       } finally {
         simRunning = false;
+        disarmDisconnectWatchdog();
+        activeSimAbortController = null;
       }
     },
   });

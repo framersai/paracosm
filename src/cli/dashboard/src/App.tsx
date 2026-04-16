@@ -43,6 +43,43 @@ export function useDashboardNavigation() {
   return ctx;
 }
 
+/**
+ * Decide whether a generic sim-error toast should be suppressed because
+ * the persistent provider-error banner already describes the same issue.
+ *
+ * Quota / auth exhaustion can produce multiple sim_error SSE events as
+ * downstream calls reject after the banner already fired. Without this
+ * filter, users saw one banner plus 5-10 red "Simulation Error" toasts
+ * for the same underlying problem.
+ */
+function isRedundantProviderErrorToast(
+  errMessage: string,
+  bannerKind: 'quota' | 'auth' | 'rate_limit' | 'network' | 'unknown',
+): boolean {
+  const lower = errMessage.toLowerCase();
+  // Signals that the toast text is about a provider/HTTP failure. If it
+  // matches ANY of these AND the banner is one of the terminal kinds,
+  // suppress — otherwise let it through (could be a real unrelated bug).
+  const isProviderShaped =
+    /\b(401|402|403|429|500|502|503|504)\b/.test(errMessage) ||
+    lower.includes('exceeded your current quota') ||
+    lower.includes('insufficient_quota') ||
+    lower.includes('credit_balance_too_low') ||
+    lower.includes('quota_exceeded') ||
+    lower.includes('rate_limit') ||
+    lower.includes('rate limit') ||
+    lower.includes('overloaded_error') ||
+    lower.includes('invalid_api_key') ||
+    lower.includes('authentication_error') ||
+    lower.includes('too many requests') ||
+    lower.includes('api key') ||
+    lower.includes('provider error') ||
+    lower.includes('openai') ||
+    lower.includes('anthropic');
+  const bannerCoversIt = bannerKind === 'quota' || bannerKind === 'auth' || bannerKind === 'rate_limit';
+  return isProviderShaped && bannerCoversIt;
+}
+
 function AppContent() {
   const { scenario } = useScenario();
   const sse = useSSE();
@@ -109,18 +146,34 @@ function AppContent() {
     if (!sse.providerError) setBannerDismissed(false);
   }, [sse.providerError]);
 
-  // Show simulation errors as toasts
+  // Show simulation errors as toasts — but suppress toasts that are
+  // already covered by the persistent provider-error banner. Quota /
+  // auth exhaustion fires ONE banner but CAN emit follow-up generic
+  // sim_error messages (e.g. when a leader's run promise eventually
+  // rejects after provider_error fired). Without dedup, users saw the
+  // banner AND a flurry of "Simulation Error: 429 ... exceeded your
+  // current quota" toasts for the same underlying issue, which they
+  // correctly read as spam.
+  //
+  // Heuristic: if the banner is active, silently swallow any toast
+  // whose text clearly describes the same class of failure (quota,
+  // auth, rate-limit, or provider/HTTP wording). Real non-provider
+  // errors (validation, runtime JS errors) still toast through.
   const lastErrorCount = useRef(0);
   useEffect(() => {
-    if (sse.errors.length > lastErrorCount.current) {
-      const newErrors = sse.errors.slice(lastErrorCount.current);
-      for (const err of newErrors) {
-        const short = err.length > 120 ? err.slice(0, 120) + '...' : err;
-        toast('error', 'Simulation Error', short);
+    if (sse.errors.length <= lastErrorCount.current) return;
+    const newErrors = sse.errors.slice(lastErrorCount.current);
+    lastErrorCount.current = sse.errors.length;
+    const banner = sse.providerError;
+    for (const err of newErrors) {
+      if (banner && isRedundantProviderErrorToast(err, banner.kind)) {
+        // Skip — the sticky banner already tells the user about this.
+        continue;
       }
-      lastErrorCount.current = sse.errors.length;
+      const short = err.length > 120 ? err.slice(0, 120) + '...' : err;
+      toast('error', 'Simulation Error', short);
     }
-  }, [sse.errors, toast]);
+  }, [sse.errors, sse.providerError, toast]);
 
   // Show crisis events as toasts so they're visible on any tab.
   //
