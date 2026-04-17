@@ -95,20 +95,46 @@ function SideColumn({ side, sideState, state }: { side: Side; sideState: SideSta
   );
 }
 
+/**
+ * Compact introduction bar. The old full-paragraph version took three
+ * text lines and shoved the actual sim columns below the fold on short
+ * viewports. Now collapses to a single short headline with a show/hide
+ * toggle; expanded body is only rendered when the user asks for it.
+ */
 function IntroBar({ onDismiss }: { onDismiss: () => void }) {
+  const [expanded, setExpanded] = useState(false);
   return (
     <div
       role="region"
       aria-label="How to read the simulation"
       style={{
-        padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '16px', fontSize: '11px',
+        padding: '6px 16px', display: 'flex', alignItems: 'baseline', gap: '12px', fontSize: '11px',
         background: 'linear-gradient(90deg, rgba(232,180,74,.08), rgba(76,168,168,.08))',
         borderBottom: '1px solid var(--border)',
+        flexWrap: 'wrap',
       }}
     >
-      <div style={{ flex: 1, color: 'var(--text-2)', lineHeight: 1.5 }}>
+      <div style={{ flex: 1, color: 'var(--text-2)', lineHeight: 1.5, minWidth: 200 }}>
         <b style={{ color: 'var(--text-1)' }}>How to read this:</b>{' '}
-        Two commanders with opposing HEXACO profiles run the same seed. Left is Leader A (amber), right is Leader B (teal). Each turn, departments analyze in parallel and may forge a new computational tool in a V8 sandbox or reuse an existing one. Commanders decide. The settlement diverges. Click any tile in Viz to drill into a colonist; click any forge card to inspect the generated code.
+        {expanded ? (
+          <>
+            Two commanders with opposing HEXACO profiles run the same seed. Left is Leader A (amber), right is Leader B (teal). Each turn, departments analyze in parallel and may forge a new computational tool in a V8 sandbox or reuse an existing one. Commanders decide. The settlement diverges. Click any tile in Viz to drill into a colonist; click any forge card to inspect the generated code.
+          </>
+        ) : (
+          <>
+            two commanders, one seed, divergent histories. HEXACO shapes every LLM call.{' '}
+            <button
+              onClick={() => setExpanded(true)}
+              style={{
+                background: 'none', border: 'none', color: 'var(--amber)',
+                cursor: 'pointer', padding: 0, fontSize: '11px', fontFamily: 'inherit',
+                textDecoration: 'underline', textDecorationStyle: 'dotted',
+              }}
+            >
+              more
+            </button>
+          </>
+        )}
       </div>
       <button
         onClick={onDismiss}
@@ -356,16 +382,28 @@ export function SimView({ state, sseStatus, onRun, verdict, launching: launching
           keeps the Sim layout focused on event streams after a run
           completes. */}
 
-      {/* Re-run-with-seed+1: single-click rerun of the last-launched
-          config, bumped by one deterministic tick so the outcome shifts
-          without forcing the user back to Settings. Reads the last
-          config from localStorage (written by SettingsPanel.launch).
-          Forwards any BYO keys the same way ChatPanel does. */}
+      {/* Timeline at bottom — gets the full vertical room now that
+          References / Toolbox have moved out of the inline column flow. */}
+      <Timeline state={state} />
+
+      {/* End-of-sim evidence bar: small pills that open References and
+          Forged Toolbox in modals so the timeline + columns above stay
+          fully visible. The user explicitly asked for this CTA pattern. */}
+      <SimFooterBar citationRegistry={citationRegistry} toolRegistry={toolRegistry} />
+
+      {/* Re-run-with-seed+1: moved to the very bottom of the Sim view
+          so it reads as an epilogue action rather than interrupting
+          the flow between the sim columns and the timeline. Single-
+          click rerun of the last-launched config, bumped by one
+          deterministic tick so the outcome shifts without forcing
+          the user back to Settings. Reads last config from
+          localStorage (written by SettingsPanel.launch). Forwards
+          any BYO keys the same way ChatPanel does. */}
       {state.isComplete && !state.isRunning && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10,
           padding: '8px 16px', background: 'var(--bg-panel)',
-          borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)',
+          borderTop: '1px solid var(--border)',
           fontFamily: 'var(--mono)', fontSize: 11,
         }}>
           <span style={{ color: 'var(--text-3)', fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase' }}>
@@ -431,15 +469,6 @@ export function SimView({ state, sseStatus, onRun, verdict, launching: launching
           </button>
         </div>
       )}
-
-      {/* Timeline at bottom — gets the full vertical room now that
-          References / Toolbox have moved out of the inline column flow. */}
-      <Timeline state={state} />
-
-      {/* End-of-sim evidence bar: small pills that open References and
-          Forged Toolbox in modals so the timeline + columns above stay
-          fully visible. The user explicitly asked for this CTA pattern. */}
-      <SimFooterBar citationRegistry={citationRegistry} toolRegistry={toolRegistry} />
     </div>
   );
 }

@@ -143,6 +143,13 @@ interface ColonyPanelProps {
   snapshot: TurnSnapshot | undefined;
   leaderName: string;
   leaderArchetype: string;
+  /** Settlement the leader commands (e.g. "Colony Alpha"). Empty
+   *  when state.leader is null and no preset fallback resolved. */
+  leaderColony?: string;
+  /** Full bio/instructions string from the leader config. Rendered
+   *  as a collapsible bio block so the Viz tab shows who is leading
+   *  each colony without hiding the personality behind a tooltip. */
+  leaderBio?: string;
   /** Panel accent color. Matches the leader's side color so the
    *  header rule, age histogram, and counters tint consistently. */
   sideColor: string;
@@ -166,7 +173,7 @@ interface ColonyPanelProps {
  * snapshots render identically across turn scrubs.
  */
 export function ColonyPanel(props: ColonyPanelProps) {
-  const { snapshot, leaderName, leaderArchetype, sideColor, mode, selectedId, divergedIds, onSelect, lagTurns = 0 } = props;
+  const { snapshot, leaderName, leaderArchetype, leaderColony = '', leaderBio = '', sideColor, mode, selectedId, divergedIds, onSelect, lagTurns = 0 } = props;
 
   const layout = useMemo(
     () => (snapshot ? computeLayout(snapshot, mode) : null),
@@ -204,22 +211,60 @@ export function ColonyPanel(props: ColonyPanelProps) {
     </div>
   );
 
+  // Trim the "You are X, ..." preamble + HEXACO boilerplate that
+  // usually prefixes the instructions string so the bio reads as a
+  // short personality statement rather than a prompt fragment.
+  const bioClean = leaderBio
+    .replace(/^You are [^.]+\.\s*/i, '')
+    .replace(/^"[^"]+"\.\s*/i, '')
+    .replace(/Your HEXACO profile drives your leadership.*$/i, '')
+    .trim();
+
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, padding: 8, minWidth: 0, overflow: 'auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingBottom: 4, borderBottom: '1px solid var(--border)' }}>
-        <div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-1)' }}>{leaderName}</div>
-          <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>{leaderArchetype}</div>
+      <div style={{ paddingBottom: 6, borderBottom: `1px solid ${sideColor}33` }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', minWidth: 0 }}>
+            <span style={{ fontSize: 14, fontWeight: 800, color: sideColor, letterSpacing: '0.02em' }}>{leaderName}</span>
+            {leaderArchetype && (
+              <span style={{
+                fontSize: 9, fontFamily: 'var(--mono)', fontWeight: 800,
+                padding: '2px 7px', borderRadius: 3, letterSpacing: '0.08em',
+                color: sideColor, background: `${sideColor}18`, border: `1px solid ${sideColor}55`,
+                textTransform: 'uppercase', whiteSpace: 'nowrap',
+              }}>
+                {leaderArchetype.replace(/^The\s+/i, '')}
+              </span>
+            )}
+            {leaderColony && (
+              <span style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
+                {leaderColony}
+              </span>
+            )}
+          </div>
+          <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--mono)', display: 'flex', alignItems: 'baseline', gap: 6 }}>
+            <span>T{snapshot.turn}</span>
+            <span>Pop {snapshot.population}</span>
+            {lagTurns > 0 && (
+              <span style={{ color: 'var(--amber)', fontStyle: 'italic' }} title={`This side is ${lagTurns} turn${lagTurns === 1 ? '' : 's'} behind; showing most recent snapshot`}>
+                lagging {lagTurns}
+              </span>
+            )}
+          </div>
         </div>
-        <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--mono)', display: 'flex', alignItems: 'baseline', gap: 6 }}>
-          <span>T{snapshot.turn}</span>
-          <span>Pop {snapshot.population}</span>
-          {lagTurns > 0 && (
-            <span style={{ color: 'var(--amber)', fontStyle: 'italic' }} title={`This side is ${lagTurns} turn${lagTurns === 1 ? '' : 's'} behind; showing most recent snapshot`}>
-              lagging {lagTurns}
-            </span>
-          )}
-        </div>
+        {bioClean && (
+          <div
+            title={bioClean}
+            style={{
+              fontSize: 11, color: 'var(--text-2)', fontStyle: 'italic',
+              marginTop: 4, lineHeight: 1.4,
+              display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+              overflow: 'hidden', textOverflow: 'ellipsis',
+            }}
+          >
+            {bioClean}
+          </div>
+        )}
       </div>
 
       <ColonyMetricsStrip snapshot={snapshot} sideColor={sideColor} />

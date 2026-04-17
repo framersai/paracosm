@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 
 interface VerdictData {
   winner: 'A' | 'B' | 'tie';
@@ -244,6 +244,16 @@ export function VerdictCard({ verdict: raw }: VerdictCardProps) {
   const v = raw as unknown as VerdictData;
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  // Escape key closes the modal when open. Matches the dismissal
+  // behavior of every other dashboard modal (CostBreakdown,
+  // ShortcutsOverlay, SimFooterBar pops, ToolDetailModal).
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open]);
 
   const handleExport = useCallback(() => {
     const md = buildMarkdownExport(v);

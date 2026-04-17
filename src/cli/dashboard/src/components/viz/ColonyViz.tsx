@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { GameState } from '../../hooks/useGameState.js';
+import type { GameState, LeaderInfo } from '../../hooks/useGameState.js';
+import { useScenarioContext } from '../../App';
 import { useVizSnapshots } from './useVizSnapshots.js';
 import { ColonyPanel } from './ColonyPanel.js';
 import { TurnBanner } from './TurnBanner.js';
@@ -169,8 +170,20 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
     );
   }
 
-  const leaderA = state.a.leader;
-  const leaderB = state.b.leader;
+  // Fall back to the scenario's default preset leaders when the live
+  // sim state hasn't populated them yet. Matches the SimView pattern
+  // so the Viz tab surfaces Aria Chen / Dietrich Voss identities
+  // rather than generic "Leader A" / "Leader B" placeholders.
+  const scenario = useScenarioContext();
+  const defaultPreset = scenario.presets.find(p => p.id === 'default');
+  const presetA: LeaderInfo | null = defaultPreset?.leaders?.[0]
+    ? { name: defaultPreset.leaders[0].name, archetype: defaultPreset.leaders[0].archetype, colony: 'Colony Alpha', hexaco: defaultPreset.leaders[0].hexaco, instructions: defaultPreset.leaders[0].instructions, quote: '' }
+    : null;
+  const presetB: LeaderInfo | null = defaultPreset?.leaders?.[1]
+    ? { name: defaultPreset.leaders[1].name, archetype: defaultPreset.leaders[1].archetype, colony: 'Colony Beta', hexaco: defaultPreset.leaders[1].hexaco, instructions: defaultPreset.leaders[1].instructions, quote: '' }
+    : null;
+  const leaderA = state.a.leader ?? presetA;
+  const leaderB = state.b.leader ?? presetB;
 
   const diffLine = snapA && snapB
     ? `A vs B: ${snapB.population - snapA.population >= 0 ? '+' : ''}${snapB.population - snapA.population} pop, ${Math.round((snapB.morale - snapA.morale) * 100)}% morale, ${snapB.foodReserve - snapA.foodReserve > 0 ? '+' : ''}${(snapB.foodReserve - snapA.foodReserve).toFixed(1)}mo food`
@@ -194,6 +207,8 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
           snapshot={snapA}
           leaderName={leaderA?.name ?? 'Leader A'}
           leaderArchetype={leaderA?.archetype ?? ''}
+          leaderColony={leaderA?.colony ?? ''}
+          leaderBio={leaderA?.instructions ?? ''}
           sideColor="var(--vis)"
           mode={mode}
           selectedId={selectedId}
@@ -205,6 +220,8 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
           snapshot={snapB}
           leaderName={leaderB?.name ?? 'Leader B'}
           leaderArchetype={leaderB?.archetype ?? ''}
+          leaderColony={leaderB?.colony ?? ''}
+          leaderBio={leaderB?.instructions ?? ''}
           sideColor="var(--eng)"
           mode={mode}
           selectedId={selectedId}
