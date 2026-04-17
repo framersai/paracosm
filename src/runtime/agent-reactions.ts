@@ -40,7 +40,11 @@ export interface AgentReaction {
 interface ReactionContext {
   eventTitle: string;
   eventCategory: string;
-  outcome: TurnOutcome;
+  /** Null on the first turn before the outcome roll, or when the
+   *  director batch produced zero events. String-interpolated into
+   *  the per-agent prompt so null renders as "null" — acceptable
+   *  because the prompt already carries the full event context. */
+  outcome: TurnOutcome | null;
   decision: string;
   year: number;
   turn: number;
