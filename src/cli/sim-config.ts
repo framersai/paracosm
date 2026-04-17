@@ -212,14 +212,14 @@ export const DEFAULT_EXECUTION: SimulationExecutionConfig = {
  */
 export const DEMO_MODELS: Record<LlmProvider, SimulationModelConfig> = {
   openai: {
-    // Demo uses the cheapest class across the board. Nano fails the
-    // forge judge more often than mini, but the judge already runs on
-    // nano (rejects go through the same quality bar), reforges are
-    // capped at one attempt by the lowered departmentMaxSteps, and
-    // $0.86 of department spend per 2 turns on mini was the largest
-    // single line item in the sim. Users on their own keys still get
-    // the mid-tier default via the Settings UI.
-    departments: 'gpt-5.4-nano',
+    // Departments stay on mid-tier. A brief trial on nano produced
+    // forges whose sandboxed code ran safely but returned empty
+    // objects for every declared test output, so the judge rejected
+    // every tool and the reuse economy collapsed. Mid-tier is the
+    // minimum quality needed for the forge judge's correctness bar.
+    // The other demo savings (departmentMaxSteps: 2, explicit verdict
+    // model) still apply and are still cost-positive.
+    departments: 'gpt-5.4-mini',
     commander: 'gpt-5.4-nano',
     director: 'gpt-5.4-nano',
     judge: 'gpt-5.4-nano',
