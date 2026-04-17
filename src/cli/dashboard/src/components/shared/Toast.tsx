@@ -57,7 +57,16 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const toast = useCallback((type: ToastMessage['type'], title: string, message: string, durationMs?: number) => {
     const id = nextId++;
     setToasts(prev => [...prev, { id, type, title, message }]);
-    const duration = durationMs ?? (type.startsWith('crisis') ? 12000 : 6000);
+    // Auto-size duration to content length so short ops ("Saved", "Cleared")
+    // flash briefly and long error messages ("No events received within 60
+    // seconds...") stay visible long enough to read. Roughly targets
+    // ~250 characters per 10 seconds of display time, clamped to [3s, 15s].
+    // An explicit durationMs override always wins.
+    const computedDuration = (() => {
+      const chars = title.length + message.length;
+      return Math.max(3000, Math.min(15000, 2500 + chars * 40));
+    })();
+    const duration = durationMs ?? computedDuration;
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
     }, duration);

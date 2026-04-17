@@ -175,98 +175,14 @@ function AppContent() {
     }
   }, [sse.errors, sse.providerError, toast]);
 
-  // Show crisis events as toasts so they're visible on any tab.
-  //
-  // Replay-storm fix: when the user reloads the page (or the SSE
-  // connection re-establishes after a transient drop), the server
-  // replays its full event buffer. We must NEVER toast during that
-  // replay — the user already saw those events, or is looking at the
-  // persisted state of a prior run, and a flood of stale toasts on
-  // page load is just noise.
-  //
-  // The server emits a `replay_done` SSE marker after flushing its
-  // buffer; `sse.replayDone` flips to true at that point. Events that
-  // arrive while replayDone is false are silently seeded into the
-  // dedupe set; events that arrive after are real-time and toast.
-  //
-  const lastEventCount = useRef(0);
-  const crisisToastSeen = useRef(new Set<string>());
-  useEffect(() => {
-    if (effectiveEvents.length <= lastEventCount.current) return;
-
-    const newEvents = effectiveEvents.slice(lastEventCount.current);
-    lastEventCount.current = effectiveEvents.length;
-
-    // During buffered-event replay (page reload, reconnect, tour demo
-    // events, save-file load) we seed the dedupe set without toasting
-    // so the live stream that follows produces fresh notifications
-    // without replaying historical ones. `sse.replayDone` flips true
-    // as soon as the server's `replay_done` SSE marker lands.
-    if (!sse.replayDone) {
-      for (const evt of newEvents) {
-        if (evt.type === 'event_start' && evt.data?.title) {
-          crisisToastSeen.current.add(`event-${evt.data.turn}-${evt.data.eventIndex}`);
-        } else if (evt.type === 'turn_start' && evt.data?.title && evt.data.title !== 'Director generating...') {
-          crisisToastSeen.current.add(`crisis-${evt.data.turn}`);
-        } else if (evt.type === 'outcome' && evt.data?.outcome) {
-          crisisToastSeen.current.add(`outcome-${evt.leader || ''}-${evt.data.turn}-${evt.data.eventIndex ?? 0}`);
-        }
-      }
-      return;
-    }
-
-    for (const evt of newEvents) {
-      if (evt.type === 'event_start' && evt.data?.title) {
-        const dedupeKey = `event-${evt.data.turn}-${evt.data.eventIndex}`;
-        if (crisisToastSeen.current.has(dedupeKey)) continue;
-        crisisToastSeen.current.add(dedupeKey);
-
-        const title = String(evt.data.title);
-        const desc = evt.data.description ? String(evt.data.description) : '';
-        const turn = evt.data.turn ? `T${String(evt.data.turn)}` : '';
-        const year = evt.data.year ? String(evt.data.year) : '';
-        const total = Number(evt.data.totalEvents ?? 1);
-        const idx = Number(evt.data.eventIndex ?? 0);
-        const eventLabel = total > 1 ? ` [${idx + 1}/${total}]` : '';
-        const category = evt.data.category ? String(evt.data.category).toUpperCase() : '';
-        const header = [turn, year, title + eventLabel].filter(Boolean).join(' ');
-        const body = [category, desc.length > 250 ? desc.slice(0, 250) + '...' : desc].filter(Boolean).join('\n');
-        toast('info', header, body, 15000);
-      }
-      // Legacy: toast for turn_start when no event_start events exist (old single-event data)
-      if (evt.type === 'turn_start' && evt.data?.title && evt.data.title !== 'Director generating...' && !evt.data.totalEvents) {
-        const dedupeKey = `crisis-${evt.data.turn}`;
-        if (crisisToastSeen.current.has(dedupeKey)) continue;
-        crisisToastSeen.current.add(dedupeKey);
-        const title = String(evt.data.title);
-        const crisis = evt.data.crisis ? String(evt.data.crisis) : '';
-        const header = `T${String(evt.data.turn || '')} ${String(evt.data.year || '')} ${title}`.trim();
-        toast('info', header, crisis.length > 200 ? crisis.slice(0, 200) + '...' : crisis, 10000);
-      }
-      if (evt.type === 'outcome' && evt.data?.outcome) {
-        // Outcome dedupe was missing entirely — re-establishing the SSE
-        // connection (which can fire even without a full page reload)
-        // would re-toast every outcome. Now keyed per (leader, turn, event).
-        const dedupeKey = `outcome-${evt.leader || ''}-${evt.data.turn}-${evt.data.eventIndex ?? 0}`;
-        if (crisisToastSeen.current.has(dedupeKey)) continue;
-        crisisToastSeen.current.add(dedupeKey);
-        const outcome = String(evt.data.outcome);
-        const isSuccess = outcome.includes('success');
-        const isRisky = outcome.includes('risky');
-        const label = isRisky ? (isSuccess ? 'Risky Success' : 'Risky Failure') : (isSuccess ? 'Safe Success' : 'Safe Failure');
-        const leader = evt.leader || 'Commander';
-        const side = gameState.leaderMap[leader];
-        const toastType = side === 'a' ? 'crisis-a' : side === 'b' ? 'crisis-b' : (isSuccess ? 'success' : 'error');
-        const decision = evt.data._decision ? String(evt.data._decision).slice(0, 200) : '';
-        toast(toastType, `${leader}: ${label}`, decision, 10000);
-      }
-      // Dept_done toasts intentionally suppressed. With 2-5 depts per
-      // event × 1-3 events per turn × 2 leaders, surfacing each one
-      // produced 4-30 toasts per turn — overwhelming. The dept reports
-      // are still visible in the sim flow column itself; toasts are
-      // reserved for high-signal beats (event_start, outcome).
-    }
-  }, [effectiveEvents, toast, gameState.leaderMap, sse.replayDone]);
+  // Narrative event/outcome toasts were removed. Event titles, descriptions,
+  // and per-leader outcome verdicts are already shown in the sim flow column
+  // and the stats bar. Surfacing them again as transient pop-ups produced
+  // walls of jargon ("Safe Success", "Safe Failure") and narrative text
+  // that read as alerts but carried no actionable signal. Toasts are now
+  // reserved for operational UX only: save, load, clear, copy, launch,
+  // launch-stalled, rate-limited, and simulation errors. The server's
+  // `replay_done` SSE marker stays in place for future transient UX.
 
   const handleTourStart = useCallback(() => {
     setTourActive(true);
