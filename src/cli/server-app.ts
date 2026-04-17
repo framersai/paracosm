@@ -387,9 +387,16 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
 
     // Admin config: tells client what's enabled
     if (req.url === '/admin-config' && req.method === 'GET') {
+      // Hosted-demo flag: when true, env-only API keys belong to the
+      // host (not the end user), so the dashboard treats env presence as
+      // "host is paying" and surfaces demo-mode UX (hidden model picker,
+      // rate-limit notice). Local dev leaves this unset and the picker
+      // becomes visible whenever any LLM key is configured.
+      const hostedDemo = (env.PARACOSM_HOSTED_DEMO || '').toLowerCase() === 'true';
       res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
       res.end(JSON.stringify({
         adminWrite,
+        hostedDemo,
         memoryScenarios: [...memoryScenarios.keys()],
         keys: {
           openai: !!env.OPENAI_API_KEY,
@@ -477,10 +484,14 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
 
         // Rate-limit compile against its own daily bucket. Each compile
         // costs ~$0.10 against the host's API key, so even 10 uncontrolled
-        // hits is a real line item. Bypassed when the user supplies their
-        // own keys (same pattern as /setup).
+        // hits is a real line item. Bypassed when the caller is not
+        // billing the host: either a session key was supplied, or the
+        // server is in local mode (PARACOSM_HOSTED_DEMO unset) where
+        // env keys belong to the operator.
         const userSuppliedKey = !!(apiKey || anthropicKey);
-        if (rateLimiter && !userSuppliedKey) {
+        const isHostedDemoCompile = (env.PARACOSM_HOSTED_DEMO || '').toLowerCase() === 'true';
+        const hostBilled = !userSuppliedKey && isHostedDemoCompile;
+        if (rateLimiter && hostBilled) {
           const ip = IpRateLimiter.getIp(req);
           const { allowed, remaining, resetAt, limit } = rateLimiter.consumeCompile(ip);
           if (!allowed) {
@@ -501,12 +512,23 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
           console.log(`  [rate-limit] /compile ${ip}: ${remaining} remaining of ${limit}`);
         }
 
+        // Apply user-supplied keys to env for this request so downstream
+        // LLM calls route to the user's account, not the host's. Mirrors
+        // /setup behavior. Placeholder values (e.g. "sk-...") are ignored
+        // so a masked display string never replaces a real key.
+        if (apiKey && typeof apiKey === 'string' && !apiKey.includes('...')) {
+          env.OPENAI_API_KEY = apiKey;
+        }
+        if (anthropicKey && typeof anthropicKey === 'string' && !anthropicKey.includes('...')) {
+          env.ANTHROPIC_API_KEY = anthropicKey;
+        }
+
         const provider = requestedProvider || (env.ANTHROPIC_API_KEY ? 'anthropic' : 'openai');
-        // Demo mode: force cheapest class for compile when no user key,
-        // ignoring whatever the client asked for. BYO-key compiles honor
-        // the requested model.
+        // Force the cheapest class only when the host is billing
+        // (hosted-demo mode + no session key). Local dev and BYO-key
+        // paths honor the requested model.
         const demoCompileModel = provider === 'anthropic' ? 'claude-haiku-4-5-20251001' : 'gpt-5.4-nano';
-        const model = userSuppliedKey
+        const model = !hostBilled
           ? (requestedModel || (provider === 'anthropic' ? 'claude-sonnet-4-6' : 'gpt-5.4-mini'))
           : demoCompileModel;
 
@@ -827,13 +849,14 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
 
         simConfig = normalizeSimulationConfig(config);
 
-        // Demo-mode enforcement: when the run bills against the host's
-        // provider keys (no user-supplied key), force cheap models and
-        // clamped scope regardless of what the client posted. Returning
-        // users with their own key hit `hasUserKeys` above and skip this
-        // branch entirely, so BYO-key runs keep the full tiered defaults
-        // and whatever model overrides they submitted.
-        if (!hasUserKeys) {
+        // Demo-mode enforcement: clamp only when the run bills against
+        // the host's provider keys AND the server is in hosted-demo
+        // mode. On local dev (PARACOSM_HOSTED_DEMO unset) env keys
+        // belong to the operator, so we trust the tiered defaults and
+        // any model overrides the client sent. On the hosted Linode
+        // this variable is set, so env-only requests get clamped.
+        const isHostedDemo = (env.PARACOSM_HOSTED_DEMO || '').toLowerCase() === 'true';
+        if (!hasUserKeys && isHostedDemo) {
           simConfig = applyDemoCaps(simConfig);
           console.log(
             `  [demo-mode] Capped run: turns=${simConfig.turns} pop=${simConfig.initialPopulation} ` +
