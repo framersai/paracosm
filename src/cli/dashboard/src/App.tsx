@@ -295,8 +295,8 @@ function AppContent() {
     if (!launching) return;
     const timer = setTimeout(() => {
       setLaunching(false);
-      toast('error', 'Launch Stalled', 'No events received within 60 seconds. The simulation may still complete in the background.');
-    }, 60_000);
+      toast('error', 'Launch Stalled', 'No events received within 30 seconds. The simulation may still complete in the background.');
+    }, 30_000);
     return () => clearTimeout(timer);
   }, [launching, toast]);
 
@@ -434,7 +434,15 @@ function AppContent() {
 
             {/* About tab redirects to the landing page */}
           </main>
-          <Footer cost={gameState.cost} />
+          <Footer
+            cost={gameState.cost}
+            simStatus={{
+              isRunning: gameState.isRunning,
+              isComplete: sse.isComplete,
+              isAborted: sse.isAborted,
+              connectionStatus: sse.status,
+            }}
+          />
           {tourActive && (
             <GuidedTour
               onTabChange={(tab) => setActiveTab(tab)}
