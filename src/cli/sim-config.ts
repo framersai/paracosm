@@ -247,6 +247,24 @@ export const DEMO_MODELS: Record<LlmProvider, SimulationModelConfig> = {
  * Sandbox limits stay identical to DEFAULT_EXECUTION — they protect the
  * host process from runaway forged code regardless of who is paying.
  */
+/**
+ * Resolve the demo-mode turn cap. Source of truth is the
+ * PARACOSM_DEMO_MAX_TURNS env var, clamped to [1, 20]. Lets operators
+ * flip between recording mode (bump the env var, pm2 restart) and
+ * normal hosted operation without a code push. Default is 6 for the
+ * current cloud recording window; revert to a lower value (e.g. 3)
+ * after the recording session by setting PARACOSM_DEMO_MAX_TURNS=3
+ * in /opt/paracosm/.env and `pm2 restart paracosm`.
+ */
+function resolveDemoMaxTurns(): number {
+  const raw = typeof process !== 'undefined' && process.env
+    ? process.env.PARACOSM_DEMO_MAX_TURNS
+    : undefined;
+  const parsed = raw ? parseInt(raw, 10) : NaN;
+  if (Number.isFinite(parsed) && parsed >= 1 && parsed <= 20) return parsed;
+  return 6;
+}
+
 export const DEMO_EXECUTION: SimulationExecutionConfig & {
   maxTurns: number;
   maxPopulation: number;
@@ -258,7 +276,7 @@ export const DEMO_EXECUTION: SimulationExecutionConfig & {
   sandboxMemoryMB: 128,
   reactionBatchSize: 10,
   progressiveReactions: true,
-  maxTurns: 3,
+  maxTurns: resolveDemoMaxTurns(),
   maxPopulation: 30,
   maxActiveDepartments: 3,
 };
