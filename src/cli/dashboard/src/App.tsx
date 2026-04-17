@@ -330,7 +330,16 @@ function AppContent() {
 
             {activeTab === 'reports' && <ReportView state={gameState} verdict={sse.verdict} />}
 
-            {activeTab === 'chat' && <ChatPanel state={gameState} />}
+            {/* ChatPanel stays mounted across tab switches so per-agent
+                message threads survive when the user jumps to Sim / Reports
+                / Viz and comes back. ChatPanel owns the `threads` Map in
+                local state; unmounting on tab change dropped every
+                conversation the moment the user navigated away. Other tabs
+                (Sim, Viz, Settings, Reports, Log) have no user-generated
+                state at risk and stay on the unmount-on-switch pattern. */}
+            <div style={{ display: activeTab === 'chat' ? 'flex' : 'none', flex: 1, minHeight: 0, flexDirection: 'column' }}>
+              <ChatPanel state={gameState} />
+            </div>
 
             {activeTab === 'log' && (
               <div className="flex-1 overflow-y-auto p-4 font-mono text-xs" role="log" aria-label="Event log" aria-live="polite" style={{ background: 'var(--bg-deep)', color: 'var(--text-3)' }}>

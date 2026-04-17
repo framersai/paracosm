@@ -213,6 +213,24 @@ export function useSSE() {
         setState(prev => ({ ...prev, replayDone: true }));
       });
 
+      // Status events carry run-wide metadata: the effective maxTurns
+      // (post demo-cap), the phase, and the leader roster at parallel
+      // launch. Without a listener they never reach the client and
+      // `gameState.maxTurns` stays at its default of 6, producing
+      // mislabeled progress like "T3/6" on a demo-capped 3-turn run.
+      // Normalize into a SimEvent so useGameState's existing `status`
+      // branch at line 235 picks it up without another code path.
+      es.addEventListener('status', (e: MessageEvent) => {
+        try {
+          const data = JSON.parse(e.data);
+          const evt: SimEvent = { type: 'status', leader: '', data };
+          const key = eventKey(evt);
+          if (seenEventKeys.has(key)) return;
+          seenEventKeys.add(key);
+          setState(prev => ({ ...prev, events: [...prev.events, evt] }));
+        } catch {}
+      });
+
       es.addEventListener('sim', (e: MessageEvent) => {
         try {
           const data = JSON.parse(e.data) as SimEvent;

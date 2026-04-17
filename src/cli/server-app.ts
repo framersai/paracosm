@@ -1,5 +1,5 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
-import { readFileSync, existsSync, readdirSync, statSync, unlinkSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, readdirSync, statSync, unlinkSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { normalizeSimulationConfig, applyDemoCaps, type NormalizedSimulationConfig } from './sim-config.js';
@@ -138,12 +138,49 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
   const customScenarioCatalog = loadDiskCustomScenarios(scenarioDir);
   const clients: Set<ServerResponse> = new Set();
 
-  // Event buffer: stores all broadcast events so new clients can catch up
-  const eventBuffer: string[] = [];
+  // Event buffer: stores all broadcast events so new clients can catch up.
+  // Persisted to disk so a server restart (CI/CD redeploy, pm2 reload,
+  // crash) does not evaporate a completed run from the /chat and /results
+  // endpoints, which otherwise would tell users "no simulation data" the
+  // moment they navigate away and come back after a deploy.
+  const eventBufferPath = resolve(env.APP_DIR || '.', '.event-buffer.json');
+  const eventBuffer: string[] = (() => {
+    try {
+      if (existsSync(eventBufferPath)) {
+        const raw = readFileSync(eventBufferPath, 'utf-8');
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          console.log(`  [event-buffer] Rehydrated ${parsed.length} buffered events from ${eventBufferPath}`);
+          return parsed.filter((x: unknown): x is string => typeof x === 'string');
+        }
+      }
+    } catch (err) {
+      console.log(`  [event-buffer] Failed to rehydrate (${err}); starting empty`);
+    }
+    return [];
+  })();
+
+  // Coalesce disk writes so a burst of broadcasts (e.g. 50 forge_attempt
+  // events during a turn) only triggers one persist call. 500ms debounce
+  // is short enough that a crash loses at most a half-second of events
+  // but long enough to avoid thrashing the disk during active runs.
+  let persistTimer: ReturnType<typeof setTimeout> | null = null;
+  const persistBufferSoon = () => {
+    if (persistTimer) return;
+    persistTimer = setTimeout(() => {
+      persistTimer = null;
+      try {
+        writeFileSync(eventBufferPath, JSON.stringify(eventBuffer));
+      } catch (err) {
+        console.log(`  [event-buffer] Persist failed: ${err}`);
+      }
+    }, 500);
+  };
 
   const broadcast: BroadcastFn = (event, data) => {
     const msg = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
     eventBuffer.push(msg);
+    persistBufferSoon();
     for (const res of clients) {
       try {
         res.write(msg);
@@ -151,6 +188,24 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         clients.delete(res);
       }
     }
+  };
+
+  /**
+   * Clear the in-memory event buffer AND remove the persisted snapshot on
+   * disk. Without the disk drop, /clear (or a new /setup that resets the
+   * buffer) would leave the old run's events on disk; a subsequent server
+   * restart would rehydrate them and overwrite what the user expected to
+   * be a fresh state. Cancels any pending write so the empty state wins.
+   */
+  const clearEventBuffer = () => {
+    eventBuffer.length = 0;
+    if (persistTimer) {
+      clearTimeout(persistTimer);
+      persistTimer = null;
+    }
+    try {
+      if (existsSync(eventBufferPath)) unlinkSync(eventBufferPath);
+    } catch { /* nothing to clean up */ }
   };
 
   const startSimulations = options.runPairSimulations ?? runPairSimulations;
@@ -364,7 +419,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         res.end(JSON.stringify({ error: `Unknown scenario: ${id}. Use /compile or /scenario/store for custom scenarios.` }));
         return;
       }
-      eventBuffer.length = 0;
+      clearEventBuffer();
       simConfig = null;
       res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
       res.end(JSON.stringify({ active: activeScenario.id, name: activeScenario.labels?.name }));
@@ -469,7 +524,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
     }
 
     if (req.url === '/clear' && req.method === 'POST') {
-      eventBuffer.length = 0;
+      clearEventBuffer();
       simConfig = null;
       // Clear chat agent pool when simulation is cleared
       import('../runtime/chat-agents.js').then(m => m.clearPool()).catch(() => {});
@@ -539,10 +594,14 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
           }
         }
 
-        const hasSimData = eventBuffer.some(msg => msg.startsWith('event: result\n') || msg.includes('"agent_reactions"'));
-        if (!hasSimData) {
+        // The chat route builds agents from the event buffer. If the
+        // buffer was lost (fresh boot with no persisted snapshot on disk,
+        // or the user hit /clear) there is nothing to build from. Phrase
+        // the error so users understand it is a server-side emptiness,
+        // not "the run you just finished is gone forever".
+        if (eventBuffer.length === 0) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'No simulation data yet. Wait for at least one turn to complete, or run a simulation first.' }));
+          res.end(JSON.stringify({ error: 'Server has no simulation in memory right now. Run a new simulation from the Settings tab, or reload this page so your saved events restore from cache.' }));
           return;
         }
 
@@ -1103,7 +1162,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
   const marsServer = Object.assign(server, {
     async startWithConfig(config: NormalizedSimulationConfig) {
       // Clear previous run data
-      eventBuffer.length = 0;
+      clearEventBuffer();
       simConfig = config;
       simRunning = true;
       // Per-run AbortController. Held in a local so the finally block
