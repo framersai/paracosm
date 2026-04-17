@@ -222,7 +222,7 @@ export function EventCard({ event, side }: EventCardProps) {
               </span>
               {tools.length > 0 && (
                 <span style={{ fontSize: '10px', color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
-                  {tools.length} tool{tools.length === 1 ? '' : 's'} forged
+                  +{tools.length} tool{tools.length === 1 ? '' : 's'}
                 </span>
               )}
               {severity && (
@@ -287,11 +287,14 @@ export function EventCard({ event, side }: EventCardProps) {
                 References section at the bottom of the report. */}
           </div>
 
-          {/* Tool cards. NEW (first-forge) gets a bright amber pulse +
-              "NEWLY FORGED" badge to make emergent capabilities obvious;
-              REUSED stays subtle and green with a back-reference to the
-              first-forge turn. Schema and raw output are revealed on
-              expand. */}
+          {/* Tool cards. First-forge gets a bright amber pulse +
+              "FORGED TOOL" badge to make emergent capabilities obvious;
+              reused calls stay subtle and green with a back-reference
+              to the first-forge turn. "FORGED TOOL" matches the header's
+              `+N tool` count language so the two labels read as the
+              same concept instead of two near-synonyms ("forged" vs
+              "newly forged") describing the same action. Schema and
+              raw output are revealed on expand. */}
           {tools.map((t: any, i: number) => {
             const approved = t.approved !== false;
             const isNew = t.isNew === true;
@@ -329,7 +332,7 @@ export function EventCard({ event, side }: EventCardProps) {
                           fontFamily: 'var(--mono)', padding: '2px 6px', borderRadius: 3,
                           boxShadow: '0 0 8px rgba(232,180,74,.4)',
                         }}>
-                          NEWLY FORGED
+                          FORGED TOOL
                         </span>
                       ) : (
                         <span style={{
