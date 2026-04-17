@@ -1322,10 +1322,40 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
         options: event.options,
       };
 
+      // Build a shared "previously forged tools" block for this turn so
+      // every department in this event sees the same inventory. Without
+      // this the system prompt tells depts to "reuse a previously-forged
+      // tool by name" but never names what's available — forgedLedger
+      // lives only in the orchestrator. Result: the LLM invents new
+      // names every turn (radiation_risk_index_v2, _v3, ...) instead of
+      // citing the ones already approved. Listing approved tools here
+      // turns those re-forges into cheap reuses.
+      const availableToolsBlock = (() => {
+        const approved: Array<{ name: string; description: string; dept: string }> = [];
+        for (const [name, ledger] of forgedLedger.entries()) {
+          const lastApproved = [...ledger.history].reverse().find(h => !h.rejected);
+          if (!lastApproved) continue;
+          approved.push({
+            name,
+            description: ledger.firstForgedEventTitle || name,
+            dept: ledger.firstForgedDepartment,
+          });
+        }
+        if (approved.length === 0) return '';
+        // Cap at 20 tools to keep the prompt bounded. Ordered by most
+        // recent first so the LLM sees the latest approved capabilities
+        // rather than stale ones from turn 1.
+        const lines = approved.slice(-20).reverse().map(t =>
+          `- ${t.name} (${t.dept}): ${t.description}`,
+        ).join('\n');
+        return `\n\nALREADY-FORGED TOOLS IN THIS SESSION (cite by name in forgedToolsUsed instead of re-forging; reuse is +0.02 outcome bonus each, re-forging the same concept is −0.06 and wastes the turn):\n${lines}\n`;
+      })();
+
       const deptPromises = depts.map(async (dept) => {
         const sess = deptSess.get(dept);
         if (!sess) return emptyReport(dept);
-        const ctx = buildDepartmentContext(dept, kernel.getState(), scenario, packet, deptMemory.get(dept), sc.hooks.departmentPromptHook);
+        const baseCtx = buildDepartmentContext(dept, kernel.getState(), scenario, packet, deptMemory.get(dept), sc.hooks.departmentPromptHook);
+        const ctx = baseCtx + availableToolsBlock;
         emit('dept_start', { turn, year, department: dept, eventIndex: ei });
         // Snapshot the dept's forge bucket index BEFORE the LLM call so we
         // can attribute new forges to this specific dept_done. The LLM
