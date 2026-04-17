@@ -87,30 +87,69 @@ export function buildDepartmentContext(
   const featured = alive.filter(c => c.narrative.featured);
   const deptNote = researchPacket.departmentNotes[dept] || '';
 
-  // Inject promoted leader's evolving HEXACO profile
+  // Inject promoted leader's evolving HEXACO profile plus the behavioural
+  // cues that match THIS dept head's actual trait values. Firing cues
+  // conditionally (O > 0.7 → explore more, O < 0.3 → stay with proven)
+  // produces sharper asymmetry than listing every axis's high-low
+  // guidance and asking the model to weight them. Earlier runs showed
+  // both leaders converging on similar forge counts; conditional cues
+  // steer each dept head's behaviour more directly.
   const leader = state.agents.find(c => c.promotion?.department === dept && c.health.alive);
   const hexacoBlock: string[] = [];
   if (leader) {
     const h = leader.hexaco;
+    const cues: string[] = [];
+
+    // Openness: the single strongest signal for forge-vs-reuse
+    if (h.openness > 0.7) {
+      cues.push('Your high openness invites exploration. When this event involves any analysis the current toolbox does not exactly cover, forge a new tool with a fresh angle or composed logic. Default to forging; reuse only when an existing tool produces EXACTLY the analysis you need unchanged.');
+    } else if (h.openness < 0.3) {
+      cues.push('Your low openness favours proven methods. Trust the existing toolbox. Reuse tools whenever their scope overlaps the current analysis. Forge a new tool only when an existing one would clearly mislead you on this specific event.');
+    } else {
+      cues.push('Your moderate openness balances reuse and forge. Prefer reusing when the existing tool fits; forge when a new angle would produce a materially different reading.');
+    }
+
+    // Conscientiousness: thoroughness + evidence standard
+    if (h.conscientiousness > 0.7) {
+      cues.push('Your high conscientiousness demands evidence and procedure. Your reports lead with uncertainty ranges and explicit assumptions. When forging is the right call, your test cases cover the boundary conditions the judge will probe. When reusing, you call out whether the reused tool\'s prior output still applies.');
+    } else if (h.conscientiousness < 0.3) {
+      cues.push('Your low conscientiousness accepts ambiguity. Move fast. Your reports name the top risk without inventorying the tail. You skip forging when a rough inference from existing data suffices; you forge quickly (single test case, minimal schema) when you need a number now.');
+    }
+
+    // Extraversion: report tone
+    if (h.extraversion > 0.7) {
+      cues.push('Your high extraversion writes with assertive voice: strong verbs, top-line recommendation first, clear advocacy for your chosen path.');
+    } else if (h.extraversion < 0.3) {
+      cues.push('Your low extraversion writes with measured voice: tradeoffs first, recommendation at the end, space for the commander to disagree.');
+    }
+
+    // Agreeableness: cross-dept framing
+    if (h.agreeableness > 0.7) {
+      cues.push('Your high agreeableness frames recommendations as proposals that acknowledge other departments\' constraints; flag cross-department coordination risks explicitly.');
+    } else if (h.agreeableness < 0.3) {
+      cues.push('Your low agreeableness writes direct recommendations without diplomatic hedging; treat cross-department friction as the other dept\'s problem to solve.');
+    }
+
+    // Emotionality: human impact weighting
+    if (h.emotionality > 0.7) {
+      cues.push('Your high emotionality weighs human impact heavily. Elevate morale, mental health, and mortality risks even when numerically small. Reject options that accept casualties for efficiency.');
+    } else if (h.emotionality < 0.3) {
+      cues.push('Your low emotionality treats headcount as a capacity number. Recommend options that trade individual mortality for structural colony survival when the math supports it.');
+    }
+
+    // Honesty-Humility: certainty presentation
+    if (h.honestyHumility > 0.7) {
+      cues.push('Your high honesty-humility exposes data gaps and low-confidence assumptions openly. Do not inflate certainty for the commander\'s benefit.');
+    } else if (h.honestyHumility < 0.3) {
+      cues.push('Your low honesty-humility presents recommendations with more confidence than the raw data strictly warrants when doing so advances the colony\'s strategic interest.');
+    }
+
     hexacoBlock.push(
       '',
       'YOUR PERSONALITY PROFILE (evolves over time based on leadership and experience):',
       `Openness: ${h.openness.toFixed(2)} | Conscientiousness: ${h.conscientiousness.toFixed(2)} | Extraversion: ${h.extraversion.toFixed(2)}`,
       `Agreeableness: ${h.agreeableness.toFixed(2)} | Emotionality: ${h.emotionality.toFixed(2)} | Honesty-Humility: ${h.honestyHumility.toFixed(2)}`,
-      // Personality actively shapes forge-vs-reuse behaviour AND the
-      // shape of the report itself (how risks are framed, how much
-      // uncertainty is exposed, how much the report defers to other
-      // depts). Six axes, each with a concrete effect on the output
-      // rather than the trait name itself — the goal is that two
-      // dept heads with different profiles on the same event produce
-      // measurably different reports, not just the same report with
-      // different adjectives.
-      'Higher openness: lean exploratory. When a new angle or composed logic would capture something the existing toolbox misses, forge a new tool. Reuse an existing tool only when it already fits your analysis exactly.',
-      'Higher conscientiousness: lean conservative. Strongly prefer reusing an existing tool. Only forge a new one when no existing tool genuinely covers the needed analysis, and demand clear evidence for the new logic.',
-      'Higher extraversion: write assertive reports with strong verbs and a clear top-line recommendation. Lower: write measured, qualified reports that name the tradeoffs before the recommendation.',
-      'Higher agreeableness: frame recommendations as proposals that acknowledge other departments\' constraints; flag cross-department coordination risks. Lower: write direct recommendations without diplomatic hedging; treat cross-department friction as the other dept\'s problem.',
-      'Higher emotionality: weigh human impact in every analysis; elevate morale/psych risks even when numerically small. Lower: write reports that treat headcount as a capacity number, not a moral weight.',
-      'Higher honesty-humility: expose data gaps and low-confidence assumptions openly; do not inflate certainty. Lower: present recommendations with more confidence than the data strictly warrants when doing so advances the colony\'s interest.',
+      ...cues,
       '',
     );
   }

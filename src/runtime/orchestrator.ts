@@ -361,10 +361,22 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     // author thought to add the instruction themselves.
     const forgeGuidance = `
 
-EMERGENT TOOLING — REQUIRED:
-You have access to a forge_tool capability. Use it to invent a small computational model that helps you analyze the current event. Examples:
-- a dose calculator, a load analyzer, a yield projector, a cohesion scorer, a risk index, a budget balancer
-The implementation runs in a sandboxed V8 isolate (10s timeout, 128MB memory, no network unless allowlisted). An LLM judge reviews your tool for safety AND CORRECTNESS before it executes.
+EMERGENT TOOLING — forge + reuse economy:
+
+You have TWO meta-tools for computational analysis:
+
+1. call_forged_tool(name, args): invoke a tool ALREADY in the ALREADY-FORGED TOOLS context block. No judge review. Costs nothing. Returns fresh output for new inputs. This is the FIRST thing to reach for when the toolbox has a tool whose scope covers your current question.
+
+2. forge_tool(...): build a NEW tool from scratch. Judge-reviewed for safety and correctness before it executes. Adds to the toolbox. Use only when no existing tool covers the analysis, or when a fresh angle would add real insight.
+
+Before every analysis, READ the ALREADY-FORGED TOOLS block carefully. Ask:
+  (a) Does an existing tool compute what I need? → call_forged_tool it.
+  (b) Does an existing tool almost compute it with different inputs? → call_forged_tool it, accept approximate fit.
+  (c) Does NO existing tool apply, or would a novel composition produce genuine new insight? → forge_tool.
+
+Forge when quantitative reasoning is needed and the toolbox has no applicable tool for it. Reuse when the toolbox already covers the question. Your personality profile above shapes how aggressive you are on either side of that line.
+
+The implementation of forged tools runs in a sandboxed V8 isolate (10s timeout, 128MB memory, no network unless allowlisted). An LLM judge reviews your tool for safety AND CORRECTNESS before it executes.
 
 forge_tool args:
   name: snake_case identifier (e.g. radiation_dose_calculator)
@@ -385,8 +397,6 @@ ROBUSTNESS RULES (the judge enforces these — failed forges hurt the colony):
    - one with a missing/zero input (must NOT throw)
    - one with a boundary value (population=0, capacity=1, etc.)
 7. Bound your output to a defined range (e.g., score 0..100, multiplier 0.1..10) so downstream code stays predictable.
-
-Forge AT LEAST ONE tool per analysis when the event involves any quantitative reasoning. Run it to produce a number you reference in your summary. Re-use a previously-forged tool by name (no new forge needed) when the same calculation applies again.
 
 REPORT FORMAT:
 Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
