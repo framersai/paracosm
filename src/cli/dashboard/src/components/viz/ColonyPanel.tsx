@@ -173,6 +173,11 @@ interface ColonyPanelProps {
   automatonCollapsed: boolean;
   onAutomatonModeChange: (mode: AutomatonMode) => void;
   onAutomatonCollapseToggle: () => void;
+  /** Forge automaton inputs derived from the SSE event ledger. */
+  forgeAttempts?: Array<{ turn: number; eventIndex: number; department: string; name: string; approved: boolean; confidence?: number }>;
+  reuseCalls?: Array<{ turn: number; originDept: string; callingDept: string; name: string }>;
+  /** Department ids from the scenario — used by the ecology hex grid. */
+  scenarioDepartments?: string[];
   /**
    * Non-zero when this side's latest snapshot is older than the other
    * leader's (e.g. the other side finished turn 5 but this side is
@@ -194,6 +199,7 @@ export function ColonyPanel(props: ColonyPanelProps) {
     sideColor, mode, selectedId, divergedIds, onSelect, lagTurns = 0,
     side, hexacoById, automatonMode, automatonCollapsed,
     onAutomatonModeChange, onAutomatonCollapseToggle,
+    forgeAttempts, reuseCalls, scenarioDepartments,
   } = props;
 
   const layout = useMemo(
@@ -301,6 +307,9 @@ export function ColonyPanel(props: ColonyPanelProps) {
         onCollapseToggle={onAutomatonCollapseToggle}
         eventCategories={snapshot.eventCategories}
         eventIntensity={snapshot.deaths > 0 ? 0.75 : 0.45}
+        forgeAttempts={forgeAttempts}
+        reuseCalls={reuseCalls}
+        scenarioDepartments={scenarioDepartments}
         onSelectAgent={onSelect}
       />
 

@@ -59,10 +59,16 @@ export const TOUR_STEPS: TourStep[] = [
     description: 'Once a simulation runs, this area renders tiered tiles: featured colonists at the top, family pods in the middle, department bands at the bottom, ghost outlines for the deceased. The grid grows and thins with attrition as you scrub turns. Click any tile to open the drilldown panel with HEXACO, mood, family, memories, and chat handoff.',
   },
   {
+    target: '.automaton-band',
+    tab: 'viz',
+    title: 'Automaton View',
+    description: 'Ambient canvas band per leader. MOOD renders cellular mood propagation (cells blend toward neighbor-weighted moods, HEXACO gates the empathy). FORGE draws particles for every forge + reuse call, with orbit counters around departments whose tools got reused. ECOLOGY shows a sector hex grid with resource health. Press 1 / 2 / 3 to switch, A to collapse.',
+  },
+  {
     target: '[aria-label="Cluster mode"]',
     tab: 'viz',
     title: 'Cluster Toggle',
-    description: 'Reshuffle the grid by clustering axis: Families (default), Departments, Mood, or Age. Every toggle is visible, no hidden keyboard shortcuts required. M on keyboard cycles them for power users; D toggles the divergence tint.',
+    description: 'Reshuffle the tile grid by clustering axis: Families (default), Departments, Mood, or Age. M cycles them; D toggles the divergence tint.',
   },
   {
     target: '.settings-content',

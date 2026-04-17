@@ -14,6 +14,10 @@ const SHORTCUTS: Shortcut[] = [
   { keys: ['Space'], description: 'Play / pause playback', scope: 'Visualization' },
   { keys: ['M'], description: 'Cycle cluster mode (families · departments · mood · age)', scope: 'Visualization' },
   { keys: ['D'], description: 'Toggle divergence tint overlay', scope: 'Visualization' },
+  { keys: ['A'], description: 'Collapse / expand the automaton band', scope: 'Visualization' },
+  { keys: ['1'], description: 'Automaton: mood propagation', scope: 'Visualization' },
+  { keys: ['2'], description: 'Automaton: forge flow', scope: 'Visualization' },
+  { keys: ['3'], description: 'Automaton: ecology grid', scope: 'Visualization' },
   { keys: ['Enter'], description: 'Send chat message', scope: 'Chat' },
 ];
 
