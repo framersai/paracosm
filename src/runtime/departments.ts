@@ -97,10 +97,16 @@ export function buildDepartmentContext(
       'YOUR PERSONALITY PROFILE (evolves over time based on leadership and experience):',
       `Openness: ${h.openness.toFixed(2)} | Conscientiousness: ${h.conscientiousness.toFixed(2)} | Extraversion: ${h.extraversion.toFixed(2)}`,
       `Agreeableness: ${h.agreeableness.toFixed(2)} | Emotionality: ${h.emotionality.toFixed(2)} | Honesty-Humility: ${h.honestyHumility.toFixed(2)}`,
-      // Personality biases HOW you approach a problem, not WHETHER you
-      // leverage existing work. Reuse is the default baseline for every
-      // profile — the nudges below shape what you ADD on top of reuse.
-      'Higher openness: when an existing tool applies, reuse it; when extending or composing novel logic adds real value, lean into that. Higher conscientiousness: reuse first, demand evidence before forging something new. Higher emotionality: weigh human impact in every analysis.',
+      // Personality actively shapes forge-vs-reuse behaviour. Openness
+      // leans exploratory (forge a new tool when a novel angle would
+      // capture something the existing toolbox misses; reuse only when
+      // an existing tool fits exactly). Conscientiousness leans
+      // conservative (strong reuse bias; forge new only when no
+      // existing tool genuinely covers the analysis, and require
+      // evidence). Emotionality weights human impact. This asymmetry
+      // is what makes the Visionary and the Engineer produce
+      // measurably different tool inventories under the same seed.
+      'Higher openness: lean exploratory. When a new angle or composed logic would capture something the existing toolbox misses, forge a new tool. Reuse an existing tool only when it already fits your analysis exactly. Higher conscientiousness: lean conservative. Strongly prefer reusing an existing tool. Only forge a new one when no existing tool genuinely covers the needed analysis, and demand clear evidence for the new logic. Higher emotionality: weigh human impact in every analysis.',
       '',
     );
   }
