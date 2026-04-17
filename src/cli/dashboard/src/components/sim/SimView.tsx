@@ -100,10 +100,7 @@ function IntroBar({ onDismiss }: { onDismiss: () => void }) {
     >
       <div style={{ flex: 1, color: 'var(--text-2)', lineHeight: 1.5 }}>
         <b style={{ color: 'var(--text-1)' }}>How to read this:</b>{' '}
-        Same settlement, two AI commanders with different personalities.
-        Left column = Leader A. Right column = Leader B.
-        Each turn is a crisis. Departments analyze, commanders decide, the settlement changes.
-        Tools are computational models the AI invents at runtime. Hover anything for details.
+        Two commanders with opposing HEXACO profiles run the same seed. Left is Leader A (amber), right is Leader B (teal). Each turn, departments analyze in parallel and may forge a new computational tool in a V8 sandbox or reuse an existing one. Commanders decide. The settlement diverges. Click any tile in Viz to drill into a colonist; click any forge card to inspect the generated code.
       </div>
       <button
         onClick={onDismiss}
