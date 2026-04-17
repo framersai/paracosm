@@ -352,10 +352,20 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       // rate-limit notice). Local dev leaves this unset and the picker
       // becomes visible whenever any LLM key is configured.
       const hostedDemo = (env.PARACOSM_HOSTED_DEMO || '').toLowerCase() === 'true';
+      // Expose the effective demo caps so the Settings UI can show
+      // accurate `demo:N` lock labels without hardcoding the number
+      // in the client. Lets operators flip the env var + pm2 restart
+      // and the UI updates on the next page load without a redeploy.
+      const { DEMO_EXECUTION } = await import('./sim-config.js');
       res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
       res.end(JSON.stringify({
         adminWrite,
         hostedDemo,
+        demoCaps: {
+          maxTurns: DEMO_EXECUTION.maxTurns,
+          maxPopulation: DEMO_EXECUTION.maxPopulation,
+          maxActiveDepartments: DEMO_EXECUTION.maxActiveDepartments,
+        },
         memoryScenarios: [...memoryScenarios.keys()],
         keys: {
           openai: !!env.OPENAI_API_KEY,

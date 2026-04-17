@@ -136,6 +136,12 @@ export function SettingsPanel() {
   // API key state: env flags tell us what's configured server-side; overrides are user-entered values
   const [envKeys, setEnvKeys] = useState<Record<string, boolean>>({});
   const [hostedDemo, setHostedDemo] = useState(false);
+  // Demo caps fetched from the server so lock labels read the current
+  // effective numbers (driven by PARACOSM_DEMO_MAX_TURNS env var on
+  // prod) instead of a stale client-side constant.
+  const [demoCaps, setDemoCaps] = useState<{ maxTurns: number; maxPopulation: number; maxActiveDepartments: number }>({
+    maxTurns: 6, maxPopulation: 30, maxActiveDepartments: 3,
+  });
   // Keys persist in localStorage so users don't have to re-enter them on every
   // page reload. Written on change, read on mount. The key itself never
   // leaves the browser except as part of a /setup or /compile request body;
@@ -207,6 +213,13 @@ export function SettingsPanel() {
       .then(data => {
         if (data.keys) setEnvKeys(data.keys);
         if (typeof data.hostedDemo === 'boolean') setHostedDemo(data.hostedDemo);
+        if (data.demoCaps && typeof data.demoCaps.maxTurns === 'number') {
+          setDemoCaps({
+            maxTurns: data.demoCaps.maxTurns,
+            maxPopulation: data.demoCaps.maxPopulation ?? 30,
+            maxActiveDepartments: data.demoCaps.maxActiveDepartments ?? 3,
+          });
+        }
       })
       .catch(() => {});
     return subscribeScenarioUpdates(window, refreshScenarioCatalog);
@@ -358,7 +371,7 @@ export function SettingsPanel() {
             fontSize: 11, color: 'var(--text-2)', lineHeight: 1.5,
           }}>
             <strong style={{ color: 'var(--amber)' }}>Demo caps will apply:</strong>{' '}
-            turns clamped to 3, population to 30, active departments to 3.
+            turns clamped to {demoCaps.maxTurns}, population to {demoCaps.maxPopulation}, active departments to {demoCaps.maxActiveDepartments}.
             Values you enter below are honored up to those ceilings. Add a
             session API key above to lift the caps.
           </div>
@@ -368,15 +381,15 @@ export function SettingsPanel() {
             <label htmlFor="turns-input" style={labelStyle}>
               Turns
               {hostedDemo && !hasSessionLlmKey && (
-                <span style={{ color: 'var(--amber)', fontSize: 9, fontWeight: 400, marginLeft: 4 }} title="Hosted demo caps turns at 3. Add a session API key to unlock.">
-                  {'\u{1F512}'} demo:3
+                <span style={{ color: 'var(--amber)', fontSize: 9, fontWeight: 400, marginLeft: 4 }} title={`Hosted demo caps turns at ${demoCaps.maxTurns}. Add a session API key to unlock.`}>
+                  {'\u{1F512}'} demo:{demoCaps.maxTurns}
                 </span>
               )}
             </label>
             <input
               id="turns-input"
               type="number"
-              value={hostedDemo && !hasSessionLlmKey ? 3 : turns}
+              value={hostedDemo && !hasSessionLlmKey ? demoCaps.maxTurns : turns}
               onChange={e => setTurns(parseInt(e.target.value) || 12)}
               min={1}
               max={20}
@@ -386,7 +399,7 @@ export function SettingsPanel() {
                 opacity: hostedDemo && !hasSessionLlmKey ? 0.5 : 1,
                 cursor: hostedDemo && !hasSessionLlmKey ? 'not-allowed' : 'auto',
               }}
-              title={hostedDemo && !hasSessionLlmKey ? 'Locked at 3 in hosted demo mode. Add your own OpenAI or Anthropic key above to unlock full scope.' : ''}
+              title={hostedDemo && !hasSessionLlmKey ? `Locked at ${demoCaps.maxTurns} in hosted demo mode. Add your own OpenAI or Anthropic key above to unlock full scope.` : ''}
             />
           </div>
           <div>
@@ -564,7 +577,7 @@ export function SettingsPanel() {
         }}>
           <strong style={{ color: 'var(--amber)' }}>Demo mode.</strong>{' '}
           {hostedDemo
-            ? 'Runs against the host API keys are capped to 3 turns, 30 colonists, 3 departments, and the cheapest model class. Add your own OpenAI or Anthropic key above to unlock full scope and per-tier model selection.'
+            ? `Runs against the host API keys are capped to ${demoCaps.maxTurns} turns, ${demoCaps.maxPopulation} colonists, ${demoCaps.maxActiveDepartments} departments, and the cheapest model class. Add your own OpenAI or Anthropic key above to unlock full scope and per-tier model selection.`
             : 'No API key configured. Add an OpenAI or Anthropic key above or set one in .env to enable simulations and the per-tier model picker.'}
         </div>
       )}
