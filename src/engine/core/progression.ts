@@ -260,40 +260,118 @@ export function progressBetweenTurns(
     }
   }
 
-  // 3. Births
-  const aliveAdults = colonists.filter(c => c.health.alive && (year - c.core.birthYear) >= 20 && (year - c.core.birthYear) <= 42);
-  const birthProb = colony.morale > 0.4 && colony.foodMonthsReserve > 6 ? 0.08 * yearDelta : 0.02 * yearDelta;
-  const potentialParents = aliveAdults.filter(c => c.social.childrenIds.length < 3);
+  // 3a. Partnership formation — bridge between unpartnered adults with
+  // compatible profiles. Without this, the only partnerships in the
+  // sim are whatever the initial population generator seeded, and
+  // every unpartnered colonist stays unpartnered for the whole run.
+  // Compatibility is scored off HEXACO similarity (closer = higher
+  // affinity) with a small Extraversion boost (extraverts initiate
+  // more readily) and morale floor (low-morale colonies form fewer
+  // relationships). Deterministic from seed.
+  const unpartneredAdults = colonists.filter(c => c.health.alive
+    && (year - c.core.birthYear) >= 20
+    && (year - c.core.birthYear) <= 60
+    && !c.social.partnerId);
+  const partnerProb = colony.morale > 0.35 ? 0.10 * yearDelta : 0.03 * yearDelta;
+  for (let i = 0; i < unpartneredAdults.length; i++) {
+    const a = unpartneredAdults[i];
+    if (a.social.partnerId) continue;
+    if (!turnRng.chance(partnerProb * (0.5 + a.hexaco.extraversion))) continue;
+    // Pick a candidate: prefer HEXACO-compatible colonist of similar age
+    const candidates = unpartneredAdults
+      .filter(b => b.core.id !== a.core.id && !b.social.partnerId)
+      .map(b => {
+        const ageDelta = Math.abs((year - a.core.birthYear) - (year - b.core.birthYear));
+        const hexDistance = (['openness','conscientiousness','extraversion','agreeableness','emotionality','honestyHumility'] as const)
+          .reduce((sum, k) => sum + Math.abs(a.hexaco[k] - b.hexaco[k]), 0) / 6;
+        return { cell: b, affinity: (1 - hexDistance) * (1 - Math.min(1, ageDelta / 15)) };
+      })
+      .sort((x, y) => y.affinity - x.affinity);
+    if (candidates.length === 0 || candidates[0].affinity < 0.4) continue;
+    const b = candidates[0].cell;
+    a.social.partnerId = b.core.id;
+    b.social.partnerId = a.core.id;
+    a.narrative.lifeEvents.push({ year, event: `Partnered with ${b.core.name}`, source: 'kernel' });
+    b.narrative.lifeEvents.push({ year, event: `Partnered with ${a.core.name}`, source: 'kernel' });
+    events.push({ turn, year, type: 'relationship', description: `${a.core.name} and ${b.core.name} formed a partnership`, agentId: a.core.id });
+  }
 
-  for (let i = 0; i < potentialParents.length - 1; i += 2) {
-    if (turnRng.chance(birthProb)) {
-      const p1 = potentialParents[i];
-      const p2 = potentialParents[i + 1];
-      const childName = `${turnRng.pick(['Nova', 'Kai', 'Sol', 'Tera', 'Eos', 'Zan', 'Lyra', 'Orion', 'Vega', 'Juno', 'Atlas', 'Iris', 'Clio', 'Pax', 'Io', 'Thea'])} ${p1.core.name.split(' ').pop()}`;
-      const childId = `col-mars-${year}-${turnRng.int(1000, 9999)}`;
-      // Child inherits blend of parents' traits with slight noise
-      const childHexaco: any = {};
-      for (const trait of ['openness', 'conscientiousness', 'extraversion', 'agreeableness', 'emotionality', 'honestyHumility'] as const) {
-        childHexaco[trait] = Math.max(0.05, Math.min(0.95,
-          (p1.hexaco[trait] + p2.hexaco[trait]) / 2 + turnRng.next() * 0.1 - 0.05
-        ));
+  // 3b. Condition recovery — non-fatal injuries and illness should heal
+  // over time unless they cascade. Light conditions clear on a roll;
+  // severe ones linger. This prevents the conditions array from
+  // accumulating indefinitely and gives colonists a path back from a
+  // bad crisis turn.
+  for (const c of colonists) {
+    if (!c.health.alive) continue;
+    if (!Array.isArray(c.health.conditions) || c.health.conditions.length === 0) continue;
+    c.health.conditions = c.health.conditions.filter(cond => {
+      const severe = /severe|chronic|cancer|permanent/i.test(cond);
+      const recovered = turnRng.chance((severe ? 0.05 : 0.35) * yearDelta);
+      if (recovered) {
+        c.narrative.lifeEvents.push({ year, event: `Recovered from ${cond}`, source: 'kernel' });
       }
-      const child: Agent = {
-        core: { id: childId, name: childName, birthYear: year, marsborn: true, department: 'science', role: 'Child' },
-        health: { alive: true, boneDensityPct: 88, cumulativeRadiationMsv: 0, psychScore: 0.9, conditions: [] },
-        career: { specialization: 'Undetermined', yearsExperience: 0, rank: 'junior', achievements: ['Born on Mars'] },
-        social: { childrenIds: [], friendIds: [], earthContacts: 0 },
-        narrative: { lifeEvents: [{ year, event: `Born on Mars to ${p1.core.name} and ${p2.core.name}`, source: 'kernel' }], featured: false },
-        hexaco: childHexaco,
-        hexacoHistory: [{ turn, year, hexaco: { ...childHexaco } }],
-        memory: { shortTerm: [], longTerm: [], stances: {}, relationships: {} },
-      };
-      p1.social.childrenIds.push(childId);
-      p2.social.childrenIds.push(childId);
-      p1.narrative.lifeEvents.push({ year, event: `Child born: ${childName}`, source: 'kernel' });
-      p2.narrative.lifeEvents.push({ year, event: `Child born: ${childName}`, source: 'kernel' });
-      colonists.push(child);
-      events.push({ turn, year, type: 'birth', description: `${childName} born to ${p1.core.name} and ${p2.core.name}`, agentId: childId });
+      return !recovered;
+    });
+  }
+
+  // 3c. Births — partnered couples first, then fall back to pairing
+  // unpartnered-but-eligible adults. Partnerships meaningfully raise
+  // birth probability; random pairings are a sparse background rate.
+  const aliveAdults = colonists.filter(c => c.health.alive && (year - c.core.birthYear) >= 20 && (year - c.core.birthYear) <= 42);
+  const partneredCouples: Array<[Agent, Agent]> = [];
+  const seenPairs = new Set<string>();
+  for (const a of aliveAdults) {
+    if (a.social.childrenIds.length >= 3) continue;
+    if (!a.social.partnerId) continue;
+    if (seenPairs.has(a.core.id)) continue;
+    const b = aliveAdults.find(x => x.core.id === a.social.partnerId && x.social.childrenIds.length < 3);
+    if (!b) continue;
+    seenPairs.add(a.core.id);
+    seenPairs.add(b.core.id);
+    partneredCouples.push([a, b]);
+  }
+  const baseBirthProb = colony.morale > 0.4 && colony.foodMonthsReserve > 6 ? 0.08 * yearDelta : 0.02 * yearDelta;
+  // Partnered couples: 3x the base rate (stable relationships, higher
+  // intentional birth decisions). Unpartnered pairs: 0.3x the base rate.
+  const partneredBirthProb = Math.min(0.6, baseBirthProb * 3);
+  const solitaryBirthProb = baseBirthProb * 0.3;
+  const tryBirth = (p1: Agent, p2: Agent) => {
+    // deterministic shared block below; inlined so both paths reuse the
+    // same child-creation logic without duplicating the heavy literal.
+    const childName = `${turnRng.pick(['Nova', 'Kai', 'Sol', 'Tera', 'Eos', 'Zan', 'Lyra', 'Orion', 'Vega', 'Juno', 'Atlas', 'Iris', 'Clio', 'Pax', 'Io', 'Thea'])} ${p1.core.name.split(' ').pop()}`;
+    const childId = `col-mars-${year}-${turnRng.int(1000, 9999)}`;
+    const childHexaco: any = {};
+    for (const trait of ['openness', 'conscientiousness', 'extraversion', 'agreeableness', 'emotionality', 'honestyHumility'] as const) {
+      childHexaco[trait] = Math.max(0.05, Math.min(0.95,
+        (p1.hexaco[trait] + p2.hexaco[trait]) / 2 + turnRng.next() * 0.1 - 0.05
+      ));
+    }
+    const child: Agent = {
+      core: { id: childId, name: childName, birthYear: year, marsborn: true, department: 'science', role: 'Child' },
+      health: { alive: true, boneDensityPct: 88, cumulativeRadiationMsv: 0, psychScore: 0.9, conditions: [] },
+      career: { specialization: 'Undetermined', yearsExperience: 0, rank: 'junior', achievements: ['Born on Mars'] },
+      social: { childrenIds: [], friendIds: [], earthContacts: 0 },
+      narrative: { lifeEvents: [{ year, event: `Born on Mars to ${p1.core.name} and ${p2.core.name}`, source: 'kernel' }], featured: false },
+      hexaco: childHexaco,
+      hexacoHistory: [{ turn, year, hexaco: { ...childHexaco } }],
+      memory: { shortTerm: [], longTerm: [], stances: {}, relationships: {} },
+    };
+    p1.social.childrenIds.push(childId);
+    p2.social.childrenIds.push(childId);
+    p1.narrative.lifeEvents.push({ year, event: `Child born: ${childName}`, source: 'kernel' });
+    p2.narrative.lifeEvents.push({ year, event: `Child born: ${childName}`, source: 'kernel' });
+    colonists.push(child);
+    events.push({ turn, year, type: 'birth', description: `${childName} born to ${p1.core.name} and ${p2.core.name}`, agentId: childId });
+  };
+  // First: partnered couples
+  for (const [p1, p2] of partneredCouples) {
+    if (turnRng.chance(partneredBirthProb)) tryBirth(p1, p2);
+  }
+  // Then: unpartnered potential-parent pairs at a much lower rate
+  const unpartneredPool = aliveAdults.filter(c => c.social.childrenIds.length < 3 && !seenPairs.has(c.core.id));
+  for (let i = 0; i < unpartneredPool.length - 1; i += 2) {
+    if (turnRng.chance(solitaryBirthProb)) {
+      tryBirth(unpartneredPool[i], unpartneredPool[i + 1]);
     }
   }
 
