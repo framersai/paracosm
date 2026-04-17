@@ -92,6 +92,17 @@ function AppContent() {
   const [verdictDismissedKey, setVerdictDismissedKey] = useState<string | null>(null);
   const [verdictModalOpen, setVerdictModalOpen] = useState(false);
 
+  // Escape closes the verdict modal. All other dashboard modals
+  // (CostBreakdown, ShortcutsOverlay, ToolDetail, VerdictCard inline
+  // modal) already have the same handler; this keeps keyboard
+  // dismissal consistent across every overlay.
+  useEffect(() => {
+    if (!verdictModalOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setVerdictModalOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [verdictModalOpen]);
+
   // Dynamic page title
   useEffect(() => {
     document.title = `${scenario.labels.name} \u2014 Paracosm`;
