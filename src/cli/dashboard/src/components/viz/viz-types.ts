@@ -132,3 +132,38 @@ export function computeDivergence(snapsA: TurnSnapshot | undefined, snapsB: Turn
   }
   return { aliveOnlyA, aliveOnlyB };
 }
+
+/** Clustering mode selected in the toggle row. */
+export type ClusterMode = 'families' | 'departments' | 'mood' | 'age';
+
+/** Narrative importance tier of a single colonist tile. */
+export interface TileTier {
+  tier: 'featured' | 'partnered' | 'solo' | 'dead';
+  size: 'xl' | 'md' | 'sm' | 'ghost';
+}
+
+/** A cell plus its tier and (if partnered) pod membership. */
+export interface LayoutTile extends CellSnapshot {
+  tierInfo: TileTier;
+  podId?: string;
+  podRole?: 'anchor' | 'partner' | 'child';
+}
+
+/** A family pod: anchor, partner, and children. */
+export interface LayoutPod {
+  id: string;
+  tiles: LayoutTile[];
+  sharedTint: string;
+}
+
+/** Grouped output of the layout computation for one leader's snapshot. */
+export interface ViewLayout {
+  featured: LayoutTile[];
+  pods: LayoutPod[];
+  deptBands: Record<string, LayoutTile[]>;
+  ghosts: LayoutTile[];
+}
+
+/** Maximum featured tiles per leader at once. Keeps the top row
+ *  readable at narrow widths. */
+export const FEATURED_CAP = 6;
