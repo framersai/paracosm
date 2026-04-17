@@ -146,9 +146,15 @@ export function ReportView({ state, verdict }: ReportViewProps) {
           const block = getEventBlock(t, eventIndex, totalEvents);
           const dept = evt.data?.department as string;
           if (dept) {
+            // Only count approved forges against the report's tool tally.
+            // Rejected forges still render on their own cards (they live
+            // in _filteredTools) but they never entered the registry and
+            // should not inflate the "N tools" summary.
+            const filtered = (evt.data?._filteredTools as Array<Record<string, unknown>>) || [];
+            const approvedCount = filtered.filter((t) => t?.approved !== false).length;
             block.depts[dept] = {
               summary: (evt.data?.summary as string) || '',
-              tools: ((evt.data?._filteredTools as unknown[]) || []).length,
+              tools: approvedCount,
               citations: Number(evt.data?.citations ?? 0),
               citationList: (evt.data?.citationList as Array<{ text: string; url: string; doi?: string }>) || [],
             };

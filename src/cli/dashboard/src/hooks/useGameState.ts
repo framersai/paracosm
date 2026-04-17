@@ -328,10 +328,17 @@ export function useGameState(sseEvents: SimEvent[], isComplete: boolean): GameSt
           break;
 
         case 'dept_done': {
-          const tools = Array.isArray(dd.forgedTools) ? dd.forgedTools.filter((t: any) => t?.name && t.name !== 'unnamed') : [];
-          s.tools += tools.length;
+          // Keep every named forge in _filteredTools (approved + rejected)
+          // so the Toolbox can render "attempted but failed" cards, but
+          // only count APPROVED tools toward the TOOLS stat. Rejecting a
+          // forge means the tool never entered the session registry, so
+          // it is not part of the leader's real capability inventory;
+          // counting it inflated the headline against reality.
+          const allTools = Array.isArray(dd.forgedTools) ? dd.forgedTools.filter((t: any) => t?.name && t.name !== 'unnamed') : [];
+          const approvedTools = allTools.filter((t: any) => t.approved !== false);
+          s.tools += approvedTools.length;
           s.citations += Number(dd.citations) || 0;
-          s.events.push({ ...processed, data: { ...dd, _filteredTools: tools } });
+          s.events.push({ ...processed, data: { ...dd, _filteredTools: allTools } });
           break;
         }
 
