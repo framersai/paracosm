@@ -40,8 +40,8 @@ import type { SimEvent } from './orchestrator.js';
  * aggregate colony state rather than just the latest event title.
  */
 export interface ReactionContext {
-  crisisTitle: string;
-  crisisCategory: string;
+  eventTitle: string;
+  eventCategory: string;
   outcome: TurnOutcome | null;
   decision: string;
   year: number;
@@ -94,8 +94,8 @@ export async function runReactionStep(args: RunReactionStepArgs): Promise<Reacti
   } = args;
 
   const reactionCtx: ReactionContext = {
-    crisisTitle: turnEventTitles.join(' / '),
-    crisisCategory: turnEvents.map(e => (e as { category?: string }).category || '').filter(Boolean).join(', '),
+    eventTitle: turnEventTitles.join(' / '),
+    eventCategory: turnEvents.map(e => (e as { category?: string }).category || '').filter(Boolean).join(', '),
     outcome: lastOutcome,
     decision: turnEventTitles.join('. '),
     year, turn,

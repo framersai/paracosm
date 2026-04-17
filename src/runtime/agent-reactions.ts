@@ -38,8 +38,8 @@ export interface AgentReaction {
 }
 
 interface ReactionContext {
-  crisisTitle: string;
-  crisisCategory: string;
+  eventTitle: string;
+  eventCategory: string;
   outcome: TurnOutcome;
   decision: string;
   year: number;
@@ -69,7 +69,7 @@ function buildBatchSystemPrompt(ctx: ReactionContext): string {
   return `You are each of several colony members reacting to what just happened at your settlement. Based on each person's personality, health, relationships, and memories, give a short reaction in their voice.
 
 SHARED SITUATION:
-Turn ${ctx.turn}, Year ${ctx.year}. Event: "${ctx.crisisTitle}" (${ctx.crisisCategory}).
+Turn ${ctx.turn}, Year ${ctx.year}. Event: "${ctx.eventTitle}" (${ctx.eventCategory}).
 Commander decided: ${ctx.decision.slice(0, 200)}
 Outcome: ${ctx.outcome}. Current morale: ${Math.round(ctx.colonyMorale * 100)}%. Population: ${ctx.colonyPopulation}.
 
@@ -217,7 +217,7 @@ Health: bone density ${(c.health.boneDensityPct ?? 0).toFixed(0)}%, radiation ${
 ${socialLine}
 ${c.promotion ? `Promoted to ${c.promotion.role} by ${c.promotion.promotedBy}.` : ''}${lifeHistory}${memoryContext}
 
-WHAT HAPPENED: Turn ${ctx.turn}, Year ${ctx.year}. Crisis: "${ctx.crisisTitle}" (${ctx.crisisCategory}).
+WHAT HAPPENED: Turn ${ctx.turn}, Year ${ctx.year}. Event: "${ctx.eventTitle}" (${ctx.eventCategory}).
 Commander decided: ${ctx.decision.slice(0, 200)}
 Outcome: ${ctx.outcome}. Colony morale: ${Math.round(ctx.colonyMorale * 100)}%. Population: ${ctx.colonyPopulation}.
 

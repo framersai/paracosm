@@ -24,8 +24,8 @@ const LONG_TERM_MAX = 10; // Max long-term belief summaries
 export function recordReactionMemory(
   agent: Agent,
   reaction: AgentReaction,
-  crisisTitle: string,
-  crisisCategory: string,
+  eventTitle: string,
+  eventCategory: string,
   outcome: string,
   turn: number,
   year: number,
@@ -37,18 +37,18 @@ export function recordReactionMemory(
   const entry: AgentMemoryEntry = {
     turn,
     year,
-    content: `Crisis "${crisisTitle}": ${reaction.quote}`,
+    content: `Event "${eventTitle}": ${reaction.quote}`,
     valence: reaction.mood === 'positive' || reaction.mood === 'hopeful' ? 'positive'
            : reaction.mood === 'neutral' ? 'neutral'
            : 'negative',
-    category: crisisCategory,
+    category: eventCategory,
     salience: reaction.intensity,
   };
 
   agent.memory.shortTerm.push(entry);
 
   // Update stance on crisis category based on outcome
-  updateStance(agent.memory, crisisCategory, outcome, reaction.mood);
+  updateStance(agent.memory, eventCategory, outcome, reaction.mood);
 }
 
 /**
