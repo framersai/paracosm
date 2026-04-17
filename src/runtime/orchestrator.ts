@@ -939,8 +939,15 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
       const optionText = event.options.length ? '\n\nOPTIONS:\n' + event.options.map(o => `- ${o.id}: ${o.label} — ${o.description}${o.isRisky ? ' [RISKY]' : ''}`).join('\n') + '\n\nYou MUST include "selectedOptionId" in your JSON response.' : '';
       const effectsList = reports.flatMap(r => (r.recommendedEffects || []).map(e => `  - ${e.id} (${e.type}): ${e.description}${e.colonyDelta ? ' | Delta: ' + JSON.stringify(e.colonyDelta) : ''}`));
       const effectsText = effectsList.length ? '\n\nAVAILABLE POLICY EFFECTS:\n' + effectsList.join('\n') : '';
+      // Expose the current forged toolbox to the commander so their
+      // rationale can cite specific tool outputs (e.g. "per Medical's
+      // radiation_dose_calculator returning 3.4 mSv"). Without this,
+      // commanders acknowledge tools in prose but never reference
+      // specific outputs, which reads as generic risk framing rather
+      // than evidence-driven decision-making.
+      const commanderToolboxBlock = availableToolsBlock;
       const eventLabel = turnEvents.length > 1 ? ` (Event ${ei + 1}/${turnEvents.length})` : '';
-      const cmdPrompt = `TURN ${turn}${eventLabel} — ${year}: ${event.title}\n\n${event.description}\n\nDEPARTMENT REPORTS:\n${summaries}\n\nColony: Pop ${kernel.getState().colony.population} | Morale ${Math.round(kernel.getState().colony.morale * 100)}% | Food ${kernel.getState().colony.foodMonthsReserve.toFixed(1)}mo${optionText}${effectsText}\n\nDecide. Return JSON.`;
+      const cmdPrompt = `TURN ${turn}${eventLabel} — ${year}: ${event.title}\n\n${event.description}\n\nDEPARTMENT REPORTS:\n${summaries}\n${commanderToolboxBlock}\nColony: Pop ${kernel.getState().colony.population} | Morale ${Math.round(kernel.getState().colony.morale * 100)}% | Food ${kernel.getState().colony.foodMonthsReserve.toFixed(1)}mo${optionText}${effectsText}\n\nDecide. In your rationale, cite specific tool outputs from the toolbox above when they support your call. Return JSON.`;
 
       // Abort gate: skip the commander LLM call if the client left
       // between dept analysis and commander decision. Breaking the
