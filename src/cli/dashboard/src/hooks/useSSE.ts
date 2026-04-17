@@ -42,6 +42,15 @@ interface SSEState {
   isAborted: boolean;
   /** Terminal provider error (quota / auth). `null` when the run is healthy. */
   providerError: ProviderErrorState | null;
+  /**
+   * True once the server has finished flushing its buffered-event replay
+   * for the current connection. Events received before this flag flips
+   * are historical (the user already saw them, or is reloading the page);
+   * events received after are genuinely live and should drive transient
+   * UX like toasts. Reset to false on reconnect so reconnect replays are
+   * also treated as historical.
+   */
+  replayDone: boolean;
 }
 
 export function useSSE() {
@@ -54,6 +63,7 @@ export function useSSE() {
     isComplete: false,
     isAborted: false,
     providerError: null,
+    replayDone: false,
   });
   const esRef = useRef<EventSource | null>(null);
   // Dedupe set used by the connection effect. Lifted to a ref so reset()
@@ -81,6 +91,9 @@ export function useSSE() {
       // first LLM call will re-fire the `provider_error` event within
       // seconds, which is the right UX: let the user try.
       providerError: null,
+      // After a manual clear the buffer is empty, so the next events we
+      // receive are live by definition.
+      replayDone: true,
     }));
     try {
       await fetch('/clear', { method: 'POST' });
@@ -116,6 +129,9 @@ export function useSSE() {
       isComplete: true,
       isAborted: restoredAborted,
       providerError: restoredProviderError,
+      // Loading events from a saved file is historical by definition, so
+      // downstream toast gating should treat the replay as finished.
+      replayDone: true,
     });
   }, []);
 
@@ -177,12 +193,24 @@ export function useSSE() {
         // existing events so a browser-managed reconnect after the sim
         // finishes doesn't wipe the user's view of viz/reports/chat.
         // The dedupe Set below handles any duplicates from buffer replay.
+        //
+        // `replayDone` flips back to false for both paths: the server is
+        // about to re-send its buffered events, and the client should
+        // treat that stream as historical (seed the toast dedupe set but
+        // do not fire transient notifications). The server emits a
+        // trailing `replay_done` SSE event once the buffer flush is
+        // complete; the listener below flips the flag true again so
+        // subsequent truly-live events can toast.
         if (connectCount === 1) {
           seenEventKeys.clear();
-          setState(prev => ({ ...prev, status: 'connected', events: [] }));
+          setState(prev => ({ ...prev, status: 'connected', events: [], replayDone: false }));
         } else {
-          setState(prev => ({ ...prev, status: 'connected' }));
+          setState(prev => ({ ...prev, status: 'connected', replayDone: false }));
         }
+      });
+
+      es.addEventListener('replay_done', () => {
+        setState(prev => ({ ...prev, replayDone: true }));
       });
 
       es.addEventListener('sim', (e: MessageEvent) => {

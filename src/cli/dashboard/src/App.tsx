@@ -179,27 +179,30 @@ function AppContent() {
   //
   // Replay-storm fix: when the user reloads the page (or the SSE
   // connection re-establishes after a transient drop), the server
-  // replays its full event buffer in one batch. Previously this
-  // produced a flood of toasts for events the user already saw.
+  // replays its full event buffer. We must NEVER toast during that
+  // replay — the user already saw those events, or is looking at the
+  // persisted state of a prior run, and a flood of stale toasts on
+  // page load is just noise.
   //
-  // Strategy: on first run of this effect, mark every existing event
-  // as already-seen WITHOUT toasting. Only events that arrive AFTER
-  // the page mounted produce toasts. Refreshing the page therefore
-  // never replays toasts for prior turns; only new live events do.
+  // The server emits a `replay_done` SSE marker after flushing its
+  // buffer; `sse.replayDone` flips to true at that point. Events that
+  // arrive while replayDone is false are silently seeded into the
+  // dedupe set; events that arrive after are real-time and toast.
+  //
   const lastEventCount = useRef(0);
   const crisisToastSeen = useRef(new Set<string>());
-  const initialReplayConsumed = useRef(false);
   useEffect(() => {
     if (effectiveEvents.length <= lastEventCount.current) return;
 
     const newEvents = effectiveEvents.slice(lastEventCount.current);
     lastEventCount.current = effectiveEvents.length;
 
-    // First pass: just seed the dedupe set without toasting. The buffered
-    // events are historical from the user's perspective — they'll see them
-    // in the sim flow column already.
-    if (!initialReplayConsumed.current) {
-      initialReplayConsumed.current = true;
+    // During buffered-event replay (page reload, reconnect, tour demo
+    // events, save-file load) we seed the dedupe set without toasting
+    // so the live stream that follows produces fresh notifications
+    // without replaying historical ones. `sse.replayDone` flips true
+    // as soon as the server's `replay_done` SSE marker lands.
+    if (!sse.replayDone) {
       for (const evt of newEvents) {
         if (evt.type === 'event_start' && evt.data?.title) {
           crisisToastSeen.current.add(`event-${evt.data.turn}-${evt.data.eventIndex}`);
@@ -263,7 +266,7 @@ function AppContent() {
       // are still visible in the sim flow column itself; toasts are
       // reserved for high-signal beats (event_start, outcome).
     }
-  }, [effectiveEvents, toast, gameState.leaderMap]);
+  }, [effectiveEvents, toast, gameState.leaderMap, sse.replayDone]);
 
   const handleTourStart = useCallback(() => {
     setTourActive(true);
