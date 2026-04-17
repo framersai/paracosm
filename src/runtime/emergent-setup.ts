@@ -21,6 +21,7 @@ import type { ITool } from '@framers/agentos';
 import {
   EmergentCapabilityEngine, EmergentJudge, EmergentToolRegistry,
   ComposableToolBuilder, SandboxedToolForge, ForgeToolMetaTool, generateText,
+  type EmergentTool,
 } from '@framers/agentos';
 import { DEFAULT_EXECUTION, type SimulationExecutionConfig } from '../cli/sim-config.js';
 import type { LlmProvider } from '../engine/types.js';
@@ -115,6 +116,14 @@ export function createEmergentEngine(
   execution: Partial<SimulationExecutionConfig> = {},
   onUsage?: (result: { usage?: { totalTokens?: number; promptTokens?: number; completionTokens?: number; costUSD?: number } }) => void,
   onProviderError?: (err: unknown) => void,
+  /**
+   * Shared map that receives every approved forged tool's executable.
+   * The orchestrator threads this into createCallForgedTool() so dept
+   * agents in later turns can actually CALL a previously-forged tool
+   * (rather than only cite it by name). Populated via the engine's
+   * onToolForged callback; the same map is read by the meta-tool.
+   */
+  forgedExecutables?: Map<string, ITool>,
 ) {
   const llmCb = async (model: string, prompt: string) => {
     try {
@@ -192,8 +201,73 @@ export function createEmergentEngine(
     composableBuilder: new ComposableToolBuilder(executor as any),
     sandboxForge: new SandboxedToolForge(),
     judge, registry,
+    // Capture every approved forged tool's executable into the shared
+    // map so the call_forged_tool meta-tool can dispatch to it in
+    // later turns. Without this, forged tools were citable but not
+    // callable — the LLM had no path to produce fresh output from an
+    // existing tool other than re-forging it.
+    onToolForged: forgedExecutables
+      ? async (tool: EmergentTool, executable: ITool) => {
+          forgedExecutables.set(tool.name, executable);
+        }
+      : undefined,
   });
   return { engine, forgeTool: new ForgeToolMetaTool(engine) };
+}
+
+// ---------------------------------------------------------------------------
+// call_forged_tool meta-tool
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns an ITool that lets dept agents execute a previously-forged
+ * tool by name. Closes over the `forgedExecutables` map populated by
+ * `createEmergentEngine`'s `onToolForged` callback, so tools forged in
+ * turn 1 are callable by any department in turns 2+ at no forge cost.
+ *
+ * Without this meta-tool, the dept LLM could only cite a tool by name
+ * in its JSON report (no real execution) or re-invoke `forge_tool`
+ * with the same name (full judge review again, counted as re-forge).
+ * Both are worse than just running the approved tool on new inputs.
+ *
+ * Dispatch is strict: unknown names return an error rather than
+ * silently missing, so the LLM's JSON output reliably reflects what
+ * actually happened.
+ */
+export function createCallForgedTool(forgedExecutables: Map<string, ITool>): ITool {
+  return {
+    id: 'tool.call_forged_tool',
+    name: 'call_forged_tool',
+    displayName: 'Call Forged Tool',
+    description: 'Execute a previously-forged tool by name with new inputs. Use this instead of re-forging when an existing tool already covers your analysis. The tool name must match one listed in the ALREADY-FORGED TOOLS block of your context.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Machine-readable name of the tool to call (e.g. radiation_dose_calculator).' },
+        args: { type: 'object', description: 'Input arguments for the tool. Must match the tool\'s declared inputSchema.' },
+      },
+      required: ['name'],
+    },
+    hasSideEffects: false,
+    async execute(args: Record<string, unknown>, ctx: any) {
+      const name = String(args.name || '').trim();
+      if (!name) return { success: false, error: 'name is required' };
+      const executable = forgedExecutables.get(name);
+      if (!executable) {
+        return {
+          success: false,
+          error: `Tool "${name}" not found. Available forged tools: ${[...forgedExecutables.keys()].join(', ') || '(none yet)'}`,
+        };
+      }
+      try {
+        const payload = (args.args && typeof args.args === 'object') ? args.args as Record<string, unknown> : {};
+        const result = await executable.execute(payload, ctx);
+        return result;
+      } catch (err) {
+        return { success: false, error: String(err).slice(0, 240) };
+      }
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------
