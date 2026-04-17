@@ -335,6 +335,82 @@ export function SimView({ state, sseStatus, onRun, verdict, launching: launching
       {/* Verdict card after simulation completes */}
       {verdict && <VerdictCard verdict={verdict} />}
 
+      {/* Re-run-with-seed+1: single-click rerun of the last-launched
+          config, bumped by one deterministic tick so the outcome shifts
+          without forcing the user back to Settings. Reads the last
+          config from localStorage (written by SettingsPanel.launch).
+          Forwards any BYO keys the same way ChatPanel does. */}
+      {state.isComplete && !state.isRunning && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '8px 16px', background: 'var(--bg-panel)',
+          borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)',
+          fontFamily: 'var(--mono)', fontSize: 11,
+        }}>
+          <span style={{ color: 'var(--text-3)', fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+            Re-run
+          </span>
+          <span style={{ color: 'var(--text-2)' }}>
+            Spin up a new run with the same leaders + scenario, seed bumped by one.
+          </span>
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                const raw = localStorage.getItem('paracosm:lastLaunchConfig');
+                if (!raw) {
+                  alert('No previous launch config found. Run once from Settings first.');
+                  return;
+                }
+                const prev = JSON.parse(raw) as Record<string, unknown>;
+                const storedKeys = (() => {
+                  try { return JSON.parse(localStorage.getItem('paracosm:keyOverrides') || '{}') as Record<string, string>; }
+                  catch { return {}; }
+                })();
+                const next: Record<string, unknown> = {
+                  ...prev,
+                  seed: (typeof prev.seed === 'number' ? prev.seed : 950) + 1,
+                  ...(storedKeys.openai ? { apiKey: storedKeys.openai } : {}),
+                  ...(storedKeys.anthropic ? { anthropicKey: storedKeys.anthropic } : {}),
+                  ...(storedKeys.serper ? { serperKey: storedKeys.serper } : {}),
+                  ...(storedKeys.firecrawl ? { firecrawlKey: storedKeys.firecrawl } : {}),
+                  ...(storedKeys.tavily ? { tavilyKey: storedKeys.tavily } : {}),
+                  ...(storedKeys.cohere ? { cohereKey: storedKeys.cohere } : {}),
+                };
+                const res = await fetch('/setup', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(next),
+                });
+                const data = await res.json();
+                if (res.status === 429) {
+                  alert(data.error || 'Rate limit hit. Add an API key in Settings to bypass.');
+                  return;
+                }
+                if (data.redirect) {
+                  // Persist the new seed so the next "Re-run" button bumps
+                  // from this run's seed, not the original one.
+                  try {
+                    localStorage.setItem('paracosm:lastLaunchConfig', JSON.stringify(next));
+                  } catch { /* silent */ }
+                  window.location.href = data.redirect;
+                }
+              } catch (err) {
+                alert(`Re-run failed: ${err}`);
+              }
+            }}
+            style={{
+              marginLeft: 'auto', fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700,
+              padding: '4px 12px', borderRadius: 4,
+              background: 'linear-gradient(135deg, var(--rust), #c44a1e)',
+              color: 'white', border: 'none', cursor: 'pointer',
+            }}
+          >
+            Run again with seed+1 ›
+          </button>
+        </div>
+      )}
+
       {/* Timeline at bottom — gets the full vertical room now that
           References / Toolbox have moved out of the inline column flow. */}
       <Timeline state={state} />

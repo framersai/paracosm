@@ -237,6 +237,14 @@ export function SettingsPanel() {
         provider, turns, seed, startYear, yearsPerTurn: yearsPerTurn || undefined, population, liveSearch,
         activeDepartments: scenario.departments.map(d => d.id),
       };
+      // Persist the last-launched config shape so a "re-run with seed+1"
+      // button on the completed-sim screen can reuse it without asking
+      // the user to fill the Settings form again. Only store
+      // non-sensitive fields — API keys already live under
+      // paracosm:keyOverrides with their own retention semantics.
+      try {
+        localStorage.setItem('paracosm:lastLaunchConfig', JSON.stringify(config));
+      } catch { /* quota or privacy mode — silent */ }
       // Attach any user-provided key overrides (never sends .env values)
       if (keyOverrides.openai) config.apiKey = keyOverrides.openai;
       if (keyOverrides.anthropic) config.anthropicKey = keyOverrides.anthropic;

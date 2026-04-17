@@ -24,6 +24,13 @@ interface AgentInfo {
   marsborn?: boolean;
   agentId?: string;
   memory?: AgentMemoryInfo | null;
+  /** HEXACO profile captured from the colonist's latest agent_reaction
+   *  payload. Lets the chat panel render the personality the agent is
+   *  actually replying with, not a fabricated neutral one. */
+  hexaco?: { O: number; C: number; E: number; A: number; Em: number; HH: number };
+  psychScore?: number;
+  boneDensity?: number;
+  radiation?: number;
 }
 
 interface ChatPanelProps {
@@ -139,6 +146,10 @@ export function ChatPanel({ state }: ChatPanelProps) {
                 department: r.department as string || '', mood: r.mood as string || 'neutral',
                 age: r.age as number, marsborn: r.marsborn as boolean,
                 agentId: r.agentId as string, memory: r.memory as AgentMemoryInfo | null,
+                hexaco: r.hexaco as AgentInfo['hexaco'],
+                psychScore: r.psychScore as number,
+                boneDensity: r.boneDensity as number,
+                radiation: r.radiation as number,
               });
             }
           }
@@ -284,6 +295,46 @@ export function ChatPanel({ state }: ChatPanelProps) {
                 {s.topic}: {s.value > 0.5 ? 'confident' : s.value > 0 ? 'cautious' : 'wary'}
               </span>
             ))}
+          </div>
+        )}
+
+        {/* HEXACO + health strip: the personality the agent is actually
+            replying with, plus the health signals that shape their tone.
+            Hidden when the colonist's reactions haven't carried a full
+            trait vector (older cached runs). */}
+        {selectedId && selected?.hexaco && (
+          <div style={{
+            padding: '6px 16px', borderBottom: '1px solid var(--border)',
+            background: 'var(--bg-panel)',
+            display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+            fontFamily: 'var(--mono)', fontSize: 10,
+          }}>
+            <span style={{ fontWeight: 700, color: 'var(--text-3)', letterSpacing: '0.5px' }}>HEXACO</span>
+            {(['O', 'C', 'E', 'A', 'Em', 'HH'] as const).map(k => {
+              const v = selected.hexaco![k];
+              const filled = Math.round(v * 4);
+              const bar = '\u2588'.repeat(filled) + '\u2591'.repeat(4 - filled);
+              return (
+                <span key={k} title={`${k}: ${v.toFixed(2)}`} style={{ color: 'var(--amber)' }}>
+                  {k} <span style={{ color: 'var(--text-2)' }}>{bar}</span> {v.toFixed(2)}
+                </span>
+              );
+            })}
+            {typeof selected.psychScore === 'number' && (
+              <span style={{ color: selected.psychScore < 0.4 ? 'var(--rust)' : 'var(--text-2)' }}>
+                psych {(selected.psychScore * 100).toFixed(0)}%
+              </span>
+            )}
+            {typeof selected.boneDensity === 'number' && selected.boneDensity > 0 && (
+              <span style={{ color: selected.boneDensity < 70 ? 'var(--rust)' : 'var(--text-3)' }}>
+                bone {selected.boneDensity.toFixed(0)}%
+              </span>
+            )}
+            {typeof selected.radiation === 'number' && selected.radiation > 0 && (
+              <span style={{ color: selected.radiation > 2000 ? 'var(--rust)' : 'var(--text-3)' }}>
+                rad {selected.radiation.toFixed(0)}mSv
+              </span>
+            )}
           </div>
         )}
 
