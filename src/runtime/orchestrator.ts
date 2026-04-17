@@ -17,8 +17,9 @@ import {
   emptyDecision,
   decisionToPolicy,
 } from './parsers.js';
-import { buildPriceForSite, getDefaultPricing, type CostSite } from './pricing.js';
-import { buildAvailableToolsBlock, type ForgedLedger } from './tool-ledger.js';
+import { createCostTracker } from './cost-tracker.js';
+import { buildAvailableToolsBlock, buildForgedToolbox, type ForgedLedger } from './tool-ledger.js';
+import { buildCitationCatalog } from './citations-catalog.js';
 import type { Department, TurnOutcome } from '../engine/core/state.js';
 import { SeededRng } from '../engine/core/rng.js';
 import { classifyOutcome, classifyOutcomeById } from '../engine/core/progression.js';
@@ -106,168 +107,21 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   const sid = `${sc.labels.shortName}-v2-${leader.archetype.toLowerCase().replace(/\s+/g, '-')}`;
   const modelConfig = resolveSimulationModels(provider, opts.models);
   // Cost tracking: accumulate token usage and estimated cost across all LLM calls
-  let totalTokens = 0;
-  let totalCostUSD = 0;
-  let llmCalls = 0;
-  /**
-   * Run-wide prompt-cache accounting. Tracks cache-tier token counts
-   * returned by AgentOS on Anthropic calls (and OpenAI's automatic
-   * caching when it eventually exposes them). Surfaces as proof that
-   * the prompt-caching wiring actually hit — a run with `cacheReadTokens
-   * = 0` despite configured cache breakpoints means caching didn't work
-   * and the reported cost is not reflecting the savings we expected.
-   *
-   * Reported via `_cost` on every SSE emit so the dashboard breakdown
-   * modal can display cache hit rate and estimated savings.
-   */
-  let cacheReadTokens = 0;
-  let cacheCreationTokens = 0;
-
-  /**
-   * Per-call-site cost breakdown. Every `trackUsage` caller tags its
-   * call with one of these labels so the dashboard can show WHERE the
-   * money actually went (usually departments + reactions dominate).
-   * Labels line up with the pipeline stages in the turn loop so a
-   * developer reading the breakdown sees a clean mental model.
-   */
-  interface CostBucket {
-    totalTokens: number;
-    totalCostUSD: number;
-    calls: number;
-    /** Cache-read tokens billed at 0.1× input rate (prompt-cache hit). */
-    cacheReadTokens: number;
-    /** Cache-write tokens billed at 1.25× input rate (new cache entry). */
-    cacheCreationTokens: number;
-  }
-  const newBucket = (): CostBucket => ({
-    totalTokens: 0, totalCostUSD: 0, calls: 0,
-    cacheReadTokens: 0, cacheCreationTokens: 0,
-  });
-  const costBySite: Record<CostSite, CostBucket> = {
-    director: newBucket(),
-    commander: newBucket(),
-    departments: newBucket(),
-    judge: newBucket(),
-    reactions: newBucket(),
-    other: newBucket(),
-  };
-
-  // Pricing comes from pricing.ts so MODEL_PRICING has one home.
-  const defaultPricing = getDefaultPricing(modelConfig);
-  const priceForSite = buildPriceForSite(modelConfig);
-
-  /**
-   * Record token/cost usage from a single LLM call.
-   *
-   * @param result The result object from generateText / session.send(),
-   *        which carries an optional `usage` field populated by AgentOS.
-   * @param site Which pipeline stage made the call. Used to build the
-   *        per-site cost breakdown the dashboard StatsBar can drill into.
-   *        Defaults to 'other' when a call-site isn't tagged (harmless
-   *        fallback, but tag every new call site so the breakdown stays
-   *        meaningful).
-   */
-  function trackUsage(
-    result: {
-      usage?: {
-        totalTokens?: number;
-        promptTokens?: number;
-        completionTokens?: number;
-        costUSD?: number;
-        cacheReadTokens?: number;
-        cacheCreationTokens?: number;
-      };
-    },
-    site: CostSite = 'other',
-  ) {
-    if (!result?.usage) return;
-    const tokensThisCall = result.usage.totalTokens ?? 0;
-    const callCacheRead = result.usage.cacheReadTokens ?? 0;
-    const callCacheCreate = result.usage.cacheCreationTokens ?? 0;
-    let costThisCall: number;
-    if (typeof result.usage.costUSD === 'number') {
-      // Provider returned a cost that already accounts for cache tiers.
-      costThisCall = result.usage.costUSD;
-    } else {
-      // Fallback: compute a cache-aware estimate using commander-tier
-      // pricing as an approximation. Cache reads billed at 0.1×, cache
-      // creations at 1.25× input rate. Previous estimate ignored cache
-      // entirely so a run with heavy caching would UNDER-report the
-      // billed amount by ~10-15%.
-      const input = result.usage.promptTokens ?? 0;
-      const output = result.usage.completionTokens ?? 0;
-      costThisCall =
-        (input * defaultPricing.input / 1_000_000)
-        + (output * defaultPricing.output / 1_000_000)
-        + (callCacheRead * defaultPricing.input * 0.10 / 1_000_000)
-        + (callCacheCreate * defaultPricing.input * 1.25 / 1_000_000);
-    }
-    totalTokens += tokensThisCall;
-    totalCostUSD += costThisCall;
-    llmCalls++;
-    cacheReadTokens += callCacheRead;
-    cacheCreationTokens += callCacheCreate;
-    const bucket = costBySite[site];
-    bucket.totalTokens += tokensThisCall;
-    bucket.totalCostUSD += costThisCall;
-    bucket.calls++;
-    bucket.cacheReadTokens += callCacheRead;
-    bucket.cacheCreationTokens += callCacheCreate;
-  }
+  // Cost tracker: per-site buckets + cache-aware fallback estimation.
+  // Lives in cost-tracker.ts so the math has one home and the turn loop
+  // reads as dispatch. trackUsage(result, site) is called at every LLM
+  // call site with a site tag; buildCostPayload() is called before each
+  // SSE emit so the dashboard breakdown modal sees live data.
+  const costTracker = createCostTracker(modelConfig);
+  const trackUsage = costTracker.trackUsage;
 
   const emit = (type: SimEvent['type'], data?: Record<string, unknown>) => {
-    // Per-site cache savings math: estimate USD saved vs a hypothetical
-    // no-caching run. Anthropic bills cache_read at 0.10x input rate
-    // (saves 0.90x) and cache_creation at 1.25x (costs +0.25x). So net
-    // savings per site = (reads × 0.90 - creates × 0.25) × inputPrice.
-    // A fresh creation on turn 1 is a net COST relative to no-cache
-    // (the run hasn't amortized the 1.25x overhead yet). By turn 3+
-    // with reads dominating, savings are substantial.
-    let runCacheSavingsUSD = 0;
-    const breakdown: Record<string, {
-      totalTokens: number;
-      totalCostUSD: number;
-      calls: number;
-      cacheReadTokens?: number;
-      cacheCreationTokens?: number;
-      /** USD saved vs no-caching run. Negative during turn 1 when cache
-       *  is being filled; positive from turn 2+ if reads land. */
-      cacheSavingsUSD?: number;
-    }> = {};
-    for (const [k, v] of Object.entries(costBySite)) {
-      if (v.calls > 0) {
-        const sitePricing = priceForSite(k as CostSite);
-        const siteSavings =
-          ((v.cacheReadTokens * 0.90) - (v.cacheCreationTokens * 0.25))
-          * sitePricing.input / 1_000_000;
-        runCacheSavingsUSD += siteSavings;
-        breakdown[k] = {
-          totalTokens: v.totalTokens,
-          totalCostUSD: Math.round(v.totalCostUSD * 10000) / 10000,
-          calls: v.calls,
-          ...(v.cacheReadTokens > 0 ? { cacheReadTokens: v.cacheReadTokens } : {}),
-          ...(v.cacheCreationTokens > 0 ? { cacheCreationTokens: v.cacheCreationTokens } : {}),
-          ...(Math.abs(siteSavings) >= 0.0001
-            ? { cacheSavingsUSD: Math.round(siteSavings * 10000) / 10000 }
-            : {}),
-        };
-      }
-    }
     opts.onEvent?.({
       type,
       leader: leader.name,
       data: {
         ...data,
-        _cost: {
-          totalTokens,
-          totalCostUSD: Math.round(totalCostUSD * 10000) / 10000,
-          llmCalls,
-          cacheReadTokens,
-          cacheCreationTokens,
-          /** Run-wide USD saved by prompt caching vs a no-cache run. */
-          cacheSavingsUSD: Math.round(runCacheSavingsUSD * 10000) / 10000,
-          breakdown,
-        },
+        _cost: costTracker.buildCostPayload(),
       },
     });
   };
@@ -1483,106 +1337,14 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
     : {};
   const fingerprint = { ...generic, ...scenarioOverlay };
 
-  // Build the canonical Forged Toolbox: deduplicate forge attempts by
-  // tool name, keep the first-forge metadata + accumulated reuse count.
-  // Includes the full input/output JSON Schemas pulled from the
-  // EmergentToolRegistry on first forge — the same data the dashboard's
-  // ToolboxSection renders, now available to programmatic consumers.
-  // Build the canonical Forged Toolbox from the forgedLedger (which has
-  // the authoritative history). allForges is the raw stream of judge
-  // calls; the ledger.history captures every USE (forge or reuse).
-  const forgedToolbox = (() => {
-    const out: Array<{
-      name: string;
-      description: string;
-      mode: string;
-      firstForgedTurn: number;
-      firstForgedDepartment: string;
-      firstForgedEventTitle: string;
-      departments: string[];
-      /** Total uses minus the original forge. */
-      reuseCount: number;
-      /** Total uses including the original forge. */
-      totalUses: number;
-      /** How many of those uses were re-forge attempts. */
-      reforgeCount: number;
-      /** Re-forge attempts that the judge rejected. */
-      rejectedReforges: number;
-      approved: boolean;
-      confidence: number;
-      inputSchema: unknown;
-      outputSchema: unknown;
-      sampleOutput: unknown;
-      /** Full audit trail: every invocation with turn, year, dept, output. */
-      history: Array<{ turn: number; year: number; eventIndex: number; eventTitle: string; department: string; output: string | null; isReforge: boolean; rejected: boolean; confidence?: number }>;
-    }> = [];
-    for (const [name, entry] of forgedLedger) {
-      // Find the original forge metadata (description, mode) from the
-      // first matching captured forge if available; fall back to history.
-      const firstForge = allForges.find(f => f.name === name);
-      const departments = new Set<string>();
-      let approved = false;
-      let maxConfidence = 0;
-      let sampleOutput: string | null = null;
-      let reforgeCount = 0;
-      let rejectedReforges = 0;
-      for (const h of entry.history) {
-        departments.add(h.department);
-        if (!h.rejected) approved = true;
-        if (typeof h.confidence === 'number' && h.confidence > maxConfidence) maxConfidence = h.confidence;
-        if (h.output) sampleOutput = h.output;
-        if (h.isReforge) {
-          reforgeCount++;
-          if (h.rejected) rejectedReforges++;
-        }
-      }
-      const totalUses = entry.history.length;
-      out.push({
-        name,
-        description: firstForge?.description || name,
-        mode: firstForge?.mode || 'sandbox',
-        firstForgedTurn: entry.firstForgedTurn,
-        firstForgedDepartment: entry.firstForgedDepartment,
-        firstForgedEventTitle: entry.firstForgedEventTitle,
-        departments: [...departments],
-        reuseCount: Math.max(0, totalUses - 1),
-        totalUses,
-        reforgeCount,
-        rejectedReforges,
-        approved: approved || (firstForge?.approved ?? false),
-        // Use the highest judge confidence across this tool's invocations.
-        // If the tool was never approved (only failed forges), confidence
-        // is 0 — never fabricate an 0.85 default that misrepresents
-        // rejected tools as borderline-passable.
-        confidence: maxConfidence || (firstForge?.approved ? firstForge.confidence : 0),
-        inputSchema: entry.inputSchema,
-        outputSchema: entry.outputSchema,
-        sampleOutput,
-        history: entry.history.slice(),
-      });
-    }
-    return out.sort((a, b) => a.firstForgedTurn - b.firstForgedTurn);
-  })();
+  // Canonical Forged Toolbox: deduplicated by tool name with first-forge
+  // metadata, full invocation history, and reuse/rejection rollups.
+  // Matches the data the dashboard's ToolboxSection renders.
+  const forgedToolbox = buildForgedToolbox(forgedLedger, allForges);
 
-  // Flat unique citation list across all department reports.
-  const citationCatalog = (() => {
-    const byKey = new Map<string, { text: string; url: string; doi?: string; departments: Set<string>; turns: Set<number> }>();
-    for (const { turn: t, report } of allDepartmentReports) {
-      for (const c of report.citations) {
-        const key = (c.url || '').trim() || `text:${(c.text || '').trim()}`;
-        if (!key) continue;
-        let entry = byKey.get(key);
-        if (!entry) {
-          entry = { text: c.text || c.url || '', url: c.url || '', doi: c.doi, departments: new Set(), turns: new Set() };
-          byKey.set(key, entry);
-        }
-        if (report.department) entry.departments.add(report.department);
-        entry.turns.add(t);
-        if (!entry.doi && c.doi) entry.doi = c.doi;
-      }
-    }
-    return [...byKey.values()].map(e => ({ ...e, departments: [...e.departments], turns: [...e.turns].sort((a, b) => a - b) }));
-  })();
+  // Flat unique citation list across all department reports. URL is the
+  // dedup key; each entry carries the departments + turns that cited it.
+  const citationCatalog = buildCitationCatalog(allDepartmentReports);
 
   const output = {
     simulation: `${sc.id}-v3`,
@@ -1609,7 +1371,7 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
     /** Per-turn agent reactions with mood + quote + memory snippets. */
     agentReactions: allAgentReactions,
     /** Cost telemetry for the run. */
-    cost: { totalTokens, totalCostUSD: Math.round(totalCostUSD * 10000) / 10000, llmCalls },
+    cost: costTracker.finalCost(),
     /**
      * When a terminal provider error (quota exhausted, invalid API key)
      * was hit during the run, this carries the classified reason. `null`
