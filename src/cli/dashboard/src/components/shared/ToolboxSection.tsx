@@ -1,5 +1,4 @@
 import type { ToolRegistry, ToolEntry } from '../../hooks/useToolRegistry';
-import { Tooltip } from './Tooltip';
 
 interface ToolboxSectionProps {
   registry: ToolRegistry;
@@ -59,17 +58,15 @@ export function ToolboxSection({ registry, title = 'Forged Toolbox', collapsible
                 <span style={{ fontWeight: 700, color: 'var(--text-1)', fontFamily: 'var(--mono)' }}>
                   {entry.name}
                 </span>
-                <Tooltip content={<ForgeVerdictTooltip entry={entry} />}>
-                  <span style={{
-                    fontSize: 9, fontFamily: 'var(--mono)', padding: '1px 5px', borderRadius: 2,
-                    color: entry.approved ? 'var(--green)' : 'var(--rust)',
-                    background: entry.approved ? 'rgba(106,173,72,.10)' : 'rgba(224,101,48,.08)',
-                    border: `1px solid ${entry.approved ? 'rgba(106,173,72,.3)' : 'rgba(224,101,48,.2)'}`,
-                    fontWeight: 800,
-                  }}>
-                    {entry.approved ? `PASS ${entry.confidence.toFixed(2)}` : 'FAIL'}
-                  </span>
-                </Tooltip>
+                <span style={{
+                  fontSize: 9, fontFamily: 'var(--mono)', padding: '1px 5px', borderRadius: 2,
+                  color: entry.approved ? 'var(--green)' : 'var(--rust)',
+                  background: entry.approved ? 'rgba(106,173,72,.10)' : 'rgba(224,101,48,.08)',
+                  border: `1px solid ${entry.approved ? 'rgba(106,173,72,.3)' : 'rgba(224,101,48,.2)'}`,
+                  fontWeight: 800,
+                }}>
+                  {entry.approved ? `PASS ${entry.confidence.toFixed(2)}` : 'FAIL'}
+                </span>
                 <span style={{ fontSize: 10, fontFamily: 'var(--mono)', color: 'var(--text-3)' }}>
                   {entry.mode}
                 </span>
@@ -95,8 +92,53 @@ export function ToolboxSection({ registry, title = 'Forged Toolbox', collapsible
                 {inputCount > 0 && <span style={{ color: 'var(--teal)' }}>{inputCount} input field{inputCount === 1 ? '' : 's'}</span>}
                 {outputCount > 0 && <span style={{ color: 'var(--green)' }}>{outputCount} output field{outputCount === 1 ? '' : 's'}</span>}
               </div>
+              {/* Expandable judge-verdict explanation. Replaces the old
+                  hover-popover with inline details that stays open as
+                  long as the user wants and is accessible on touch. */}
+              <details style={{ marginTop: 6 }}>
+                <summary style={{
+                  fontSize: 10, fontFamily: 'var(--mono)',
+                  color: entry.approved ? 'var(--green)' : 'var(--rust)',
+                  cursor: 'pointer', fontWeight: 700, letterSpacing: '0.05em',
+                }}>
+                  {entry.approved ? 'WHY IT PASSED' : 'WHY IT FAILED'}
+                </summary>
+                <div style={{
+                  marginTop: 6, padding: '8px 10px', borderRadius: 4,
+                  background: 'var(--bg-deep)', border: '1px solid var(--border)',
+                  fontSize: 11, lineHeight: 1.55, color: 'var(--text-2)',
+                }}>
+                  <ForgeVerdictBody entry={entry} />
+                </div>
+              </details>
+              {/* Reuse history (when any). Shows each event this tool
+                  was used on, so users can verify the tool paid off
+                  across multiple turns instead of getting abandoned. */}
+              {entry.history.length > 0 && (
+                <details style={{ marginTop: 4 }}>
+                  <summary style={{ fontSize: 10, fontFamily: 'var(--mono)', color: 'var(--teal)', cursor: 'pointer', fontWeight: 700, letterSpacing: '0.05em' }}>
+                    USE HISTORY · {entry.history.length}
+                  </summary>
+                  <ol style={{
+                    margin: '6px 0 0', padding: '0 0 0 20px', fontSize: 10, lineHeight: 1.5,
+                    fontFamily: 'var(--mono)', color: 'var(--text-2)',
+                  }}>
+                    {entry.history.map((h, i) => (
+                      <li key={i} style={{
+                        color: h.rejected ? 'var(--rust)' : (h.isReforge ? 'var(--amber)' : 'var(--text-2)'),
+                      }}>
+                        T{h.turn} · {h.department} · <span style={{ color: h.side === 'a' ? 'var(--vis)' : 'var(--eng)' }}>side {h.side.toUpperCase()}</span>
+                        {' · '}
+                        {i === 0 ? 'first forge' : h.isReforge ? (h.rejected ? 're-forge rejected' : 're-forge accepted') : 'reuse'}
+                        {typeof h.confidence === 'number' && ` · conf ${h.confidence.toFixed(2)}`}
+                        {h.eventTitle && <span style={{ color: 'var(--text-3)' }}> · "{h.eventTitle}"</span>}
+                      </li>
+                    ))}
+                  </ol>
+                </details>
+              )}
               {Boolean(entry.inputSchema || entry.outputSchema) && (
-                <details style={{ marginTop: 6 }}>
+                <details style={{ marginTop: 4 }}>
                   <summary style={{ fontSize: 10, fontFamily: 'var(--mono)', color: 'var(--amber)', cursor: 'pointer', fontWeight: 700, letterSpacing: '0.05em' }}>
                     SCHEMA
                   </summary>
@@ -178,32 +220,32 @@ function countSchemaFields(schema: unknown, fallback: string[]): number {
 }
 
 /**
- * Tooltip content for the PASS/FAIL verdict pill on a forged tool.
+ * Inline verdict body for the PASS/FAIL pill on a forged tool. Rendered
+ * in an expandable <details> block so the explanation stays open as long
+ * as the user needs it — no hover-timeout, no touch awkwardness.
  *
- * PASS tooltip: shows judge confidence and what the approved tool did
- * for the simulation (added capability, provided quantitative grounding
- * to the dept report, eligible for reuse with near-zero cost).
+ * PASS body: judge confidence + what the approved tool adds to the run
+ * (capability gain, dept-report grounding, reuse economy).
  *
- * FAIL tooltip: shows the judge's rejection reason verbatim + the
- * concrete repercussions for the run (morale dip, power cost, no
- * insight added to the dept report, dept's attention wasted this turn).
+ * FAIL body: judge's verbatim rejection reason + the concrete cost of a
+ * failed forge (outcome bonus, morale hit, power cost, lost insight).
  *
- * Exported separately so EventCard and other forge-card surfaces can
- * reuse the same tooltip body without duplicating the explanation text.
+ * Exported so EventCard and other forge-card surfaces can reuse the
+ * same copy without duplicating the explanation text.
  */
-export function ForgeVerdictTooltip({ entry }: { entry: ToolEntry }) {
+export function ForgeVerdictBody({ entry }: { entry: ToolEntry }) {
   if (entry.approved) {
     return (
       <div style={{ fontFamily: 'var(--sans)' }}>
-        <div style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--green)', fontWeight: 800, marginBottom: 8 }}>
-          ✓ PASS · judge confidence {entry.confidence.toFixed(2)}
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--green)', fontWeight: 800, marginBottom: 6 }}>
+          ✓ judge confidence {entry.confidence.toFixed(2)}
         </div>
-        <div style={{ fontSize: 12, color: 'var(--text-1)', lineHeight: 1.55 }}>
+        <div>
           The LLM judge reviewed this tool's source code, test outputs, and sandbox allowlist,
           and approved it across safety, correctness, determinism, and bounded execution.
         </div>
-        <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)', lineHeight: 1.55 }}>
-          <b style={{ color: 'var(--green)' }}>What this adds to the run:</b><br />
+        <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+          <b style={{ color: 'var(--green)' }}>What this adds to the run:</b>{' '}
           +0.04 outcome bonus for this event · the dept's report cites the tool's computed result ·
           the tool is now reusable by any dept at near-zero cost (+0.02 per reuse).
         </div>
@@ -212,8 +254,8 @@ export function ForgeVerdictTooltip({ entry }: { entry: ToolEntry }) {
   }
   return (
     <div style={{ fontFamily: 'var(--sans)' }}>
-      <div style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--rust)', fontWeight: 800, marginBottom: 8 }}>
-        ✗ FAIL · judge rejected
+      <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--rust)', fontWeight: 800, marginBottom: 6 }}>
+        ✗ judge rejected
       </div>
       {entry.errorReason ? (
         <div style={{
@@ -221,17 +263,17 @@ export function ForgeVerdictTooltip({ entry }: { entry: ToolEntry }) {
           padding: 8, background: 'rgba(224,101,48,.08)', borderRadius: 4,
           border: '1px solid rgba(224,101,48,.2)',
           whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.5,
-          marginBottom: 10,
+          marginBottom: 8,
         }}>
           {entry.errorReason}
         </div>
       ) : (
-        <div style={{ fontSize: 11, color: 'var(--text-3)', fontStyle: 'italic', marginBottom: 10 }}>
+        <div style={{ fontStyle: 'italic', color: 'var(--text-3)', marginBottom: 8 }}>
           (No rejection reason captured. The judge blocked the tool before it could execute.)
         </div>
       )}
-      <div style={{ fontSize: 11, color: 'var(--text-2)', lineHeight: 1.55, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
-        <b style={{ color: 'var(--rust)' }}>Cost of a failed forge:</b><br />
+      <div style={{ paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+        <b style={{ color: 'var(--rust)' }}>Cost of a failed forge:</b>{' '}
         −0.06 outcome bonus on this event · −0.015 morale per failure (crew confidence eroded) ·
         −1.2&nbsp;kW power (sandbox compute consumed) · no quantitative grounding in the dept's report ·
         the dept retries or moves on without the insight this tool would have provided.
@@ -239,3 +281,10 @@ export function ForgeVerdictTooltip({ entry }: { entry: ToolEntry }) {
     </div>
   );
 }
+
+/**
+ * Backwards-compatible alias. EventCard still wraps the forge-verdict pill
+ * in a hover Tooltip; when those pills migrate to expandable details too
+ * this alias can be removed.
+ */
+export { ForgeVerdictBody as ForgeVerdictTooltip };

@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { ColonyState, CostSiteBreakdown } from '../../hooks/useGameState';
+import type { ToolRegistry } from '../../hooks/useToolRegistry';
 import { useScenarioContext } from '../../App';
 import { CostBreakdownModal } from './CostBreakdownModal';
 
@@ -31,6 +32,10 @@ interface StatsBarProps {
   /** Used as the label on the per-leader breakdown card in the modal. */
   leaderAName?: string;
   leaderBName?: string;
+  /** Per-simulation forged-tool registry. Used to surface per-side
+   *  reuse counts in the stats bar so users can see how much each
+   *  leader leaned on emergent tools across the run. */
+  toolRegistry?: ToolRegistry;
 }
 
 function fmtUsd(v: number): string {
@@ -71,11 +76,27 @@ function delta(curr: number, prev: number | undefined): string {
   return d > 0 ? `+${d}` : `${d}`;
 }
 
-export function StatsBar({ colonyA, colonyB, prevColonyA, prevColonyB, deathsA, deathsB, toolsA, toolsB, citationsA, citationsB, crisisText, cost, costA, costB, leaderAName, leaderBName }: StatsBarProps) {
+export function StatsBar({ colonyA, colonyB, prevColonyA, prevColonyB, deathsA, deathsB, toolsA, toolsB, citationsA, citationsB, crisisText, cost, costA, costB, leaderAName, leaderBName, toolRegistry }: StatsBarProps) {
   const scenario = useScenarioContext();
   // Local state: whether the click-through cost breakdown modal is open.
   // Lives here (not in App) because only StatsBar triggers it.
   const [breakdownOpen, setBreakdownOpen] = useState(false);
+
+  // Per-side reuse counts derived from the forged-tool ledger. A reuse is
+  // any tool-use event after the first forge, counted per side from the
+  // authoritative orchestrator history. Computed here so the StatsBar
+  // reflects the same data the Forged Toolbox section renders below.
+  const { reuseA, reuseB } = useMemo(() => {
+    let a = 0; let b = 0;
+    for (const entry of toolRegistry?.list ?? []) {
+      for (let i = 1; i < entry.history.length; i++) {
+        const h = entry.history[i];
+        if (h.rejected) continue;
+        if (h.side === 'a') a++; else if (h.side === 'b') b++;
+      }
+    }
+    return { reuseA: a, reuseB: b };
+  }, [toolRegistry]);
 
   if (!colonyA && !colonyB) {
     return null;
@@ -94,7 +115,11 @@ export function StatsBar({ colonyA, colonyB, prevColonyA, prevColonyB, deathsA, 
   return (
     <div className="stats-bar" role="region" aria-label="Colony statistics" style={{
       display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'nowrap',
-      padding: '4px 12px', gap: '14px',
+      // Tightened gap + padding so POP/MORALE/POWER/DEATHS/TOOLS/CITES/
+      // REUSE/$ all fit within a single desktop width. overflowX still
+      // allows graceful horizontal scroll on narrower viewports where
+      // the CSS media query kicks in.
+      padding: '4px 10px', gap: '10px',
       overflowX: 'auto', overflowY: 'hidden',
       WebkitOverflowScrolling: 'touch',
       background: 'var(--bg-panel)', borderBottom: '1px solid var(--border)',
@@ -152,47 +177,44 @@ export function StatsBar({ colonyA, colonyB, prevColonyA, prevColonyB, deathsA, 
         <span style={{ color: 'var(--text-1)', fontWeight: 800 }}>{citationsB}</span>
       </span>
 
-      {/* Cost tracker — split per leader when both sides have data, with
-          combined total alongside. Falls back to combined-only when only
-          one side has reported. Clickable: opens the per-stage breakdown
-          modal so the user can see where the money went (usually depts
-          + reactions dominate). */}
+      {/* Forged-tool reuse per leader. Reuses are the strongest signal
+          that emergent tools paid off — a tool forged once and reused
+          three times amortizes its judge cost across four events. */}
+      {toolRegistry && toolRegistry.list.length > 0 && (
+        <span style={{ display: 'flex', alignItems: 'baseline', gap: '4px', whiteSpace: 'nowrap', flexShrink: 0, paddingLeft: '8px', borderLeft: '1px solid var(--border)' }}
+          title={`Forged-tool reuse count per leader. Reuses amortize forge cost across multiple events.`}
+        >
+          <span style={{ fontSize: '10px', color: 'var(--text-1)', letterSpacing: '0.8px', fontWeight: 800, marginRight: '2px', opacity: 0.7 }}>REUSE</span>
+          <span style={{ color: reuseA > 0 ? 'var(--green)' : 'var(--text-1)', fontWeight: 800 }}>{reuseA}</span>
+          <span style={{ color: 'var(--text-3)', fontSize: '10px' }}>/</span>
+          <span style={{ color: reuseB > 0 ? 'var(--green)' : 'var(--text-1)', fontWeight: 800 }}>{reuseB}</span>
+        </span>
+      )}
+
+      {/* Aggregate cost pill. The per-leader vs comparison moved out
+          of the stats bar entirely to keep it responsive and reduce
+          noise; the click-through still opens the full breakdown modal
+          (per-stage, per-leader, cache hit rate). */}
       {cost && cost.llmCalls > 0 && (
         <button
           type="button"
           onClick={() => setBreakdownOpen(true)}
           aria-label="Show cost breakdown by pipeline stage"
-          title={costA && costB
-            ? `Click for breakdown · Leader A: $${fmtUsd(costA.totalCostUSD)} (${(costA.totalTokens / 1000).toFixed(1)}k tok, ${costA.llmCalls} calls) · Leader B: $${fmtUsd(costB.totalCostUSD)} (${(costB.totalTokens / 1000).toFixed(1)}k tok, ${costB.llmCalls} calls)`
-            : `Click for breakdown · ${cost.llmCalls} LLM calls, ${(cost.totalTokens / 1000).toFixed(1)}k tokens`}
+          title={`Click for full cost breakdown · ${cost.llmCalls} LLM calls · ${(cost.totalTokens / 1000).toFixed(1)}k tokens`}
           style={{
             display: 'flex', alignItems: 'baseline', gap: '4px', whiteSpace: 'nowrap',
             flexShrink: 0, paddingLeft: '8px', paddingRight: '4px',
             borderLeft: '1px solid var(--border)',
             background: 'transparent', border: 'none',
-            borderTop: 'none', borderRight: 'none', borderBottom: 'none',
             cursor: 'pointer',
             color: 'var(--text-1)',
             fontFamily: 'var(--mono)',
           }}
         >
-          <span style={{ fontSize: '10px', color: 'var(--text-1)', letterSpacing: '0.8px', fontWeight: 800, opacity: 0.7 }}>COST</span>
-          {costA && costA.totalCostUSD > 0 && (
-            <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--vis)' }}>${fmtUsd(costA.totalCostUSD)}</span>
-          )}
-          {costA && costB && (costA.totalCostUSD > 0 || costB.totalCostUSD > 0) && (
-            <span style={{ color: 'var(--text-3)', fontSize: '10px' }}>vs</span>
-          )}
-          {costB && costB.totalCostUSD > 0 && (
-            <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--eng)' }}>${fmtUsd(costB.totalCostUSD)}</span>
-          )}
-          <span style={{ fontSize: '10px', color: 'var(--green)', fontWeight: 700, marginLeft: 4 }}>
-            ${fmtUsd(cost.totalCostUSD)}
+          <span style={{ fontSize: '10px', color: 'var(--text-1)', letterSpacing: '0.8px', fontWeight: 800, opacity: 0.7 }}>$</span>
+          <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--green)' }}>
+            {fmtUsd(cost.totalCostUSD)}
           </span>
-          <span style={{ fontSize: '9px', color: 'var(--text-3)' }}>
-            {(cost.totalTokens / 1000).toFixed(0)}k tok
-          </span>
-          {/* Affordance hint so users know the pill is interactive. */}
           <span aria-hidden="true" style={{ fontSize: '9px', color: 'var(--text-3)', marginLeft: 2 }}>›</span>
         </button>
       )}
