@@ -135,7 +135,7 @@ export function EventCard({ event, side }: EventCardProps) {
               background: accent,
               boxShadow: approved ? '0 0 8px rgba(232,180,74,0.4)' : 'none',
             }}>
-              {approved ? '✦ FORGED' : '✗ FORGE FAILED'}
+              {approved ? '✦ FORGED TOOL' : '✗ FORGED TOOL'}
             </span>
             <span style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
               {dept}
