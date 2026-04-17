@@ -383,6 +383,18 @@ export function useGameState(sseEvents: SimEvent[], isComplete: boolean): GameSt
       }
     }
 
+    // Reconciliation: once the run has reached a terminal state the
+    // sim is no longer "running", regardless of whether a `status
+    // phase=parallel` event earlier flipped isRunning to true. Without
+    // this, reloading a page with a completed or aborted run in the
+    // event buffer replays the status event and leaves state.isRunning
+    // stuck at true forever, so SimView renders the in-run view
+    // instead of the "Unfinished" / "Complete" terminal UI.
+    const aborted = sseEvents.some(e => e.type === 'sim_aborted');
+    if (state.isComplete || aborted) {
+      state.isRunning = false;
+    }
+
     return state;
   }, [sseEvents, isComplete]);
 }

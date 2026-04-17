@@ -102,7 +102,11 @@ export function EventCard({ event, side }: EventCardProps) {
       const approved = dd.approved !== false;
       const confidence = typeof dd.confidence === 'number' ? dd.confidence : 0.85;
       const errorReason = dd.errorReason ? String(dd.errorReason) : '';
-      const accent = approved ? 'var(--amber)' : 'var(--rust)';
+      // Approved forge cards pick up the leader-side color (amber for A,
+      // teal for B) so the stream makes it obvious at a glance which
+      // column's forge just happened. Failed forges always stay rust —
+      // failure is a semantic signal, not a leader attribution.
+      const accent = approved ? sideColor : 'var(--rust)';
       const inputFields = Array.isArray(dd.inputFields) ? (dd.inputFields as string[]) : [];
       const outputFields = Array.isArray(dd.outputFields) ? (dd.outputFields as string[]) : [];
 
@@ -117,12 +121,18 @@ export function EventCard({ event, side }: EventCardProps) {
             margin: '0 8px 4px',
             padding: '6px 10px',
             fontSize: 11, lineHeight: 1.5,
-            background: approved ? 'rgba(232,180,74,0.07)' : 'rgba(224,101,48,0.04)',
+            background: approved
+              ? `color-mix(in srgb, ${sideColor} 7%, transparent)`
+              : 'rgba(224,101,48,0.04)',
             borderLeft: `3px solid ${accent}`,
-            border: `1px solid ${approved ? 'rgba(232,180,74,0.25)' : 'rgba(224,101,48,0.2)'}`,
+            border: `1px solid ${approved
+              ? `color-mix(in srgb, ${sideColor} 25%, transparent)`
+              : 'rgba(224,101,48,0.2)'}`,
             borderRadius: 4,
             animation: 'forgeSlide 0.4s ease both',
-            boxShadow: approved ? '0 0 0 1px rgba(232,180,74,0.1)' : 'var(--card-shadow)',
+            boxShadow: approved
+              ? `0 0 0 1px color-mix(in srgb, ${sideColor} 10%, transparent)`
+              : 'var(--card-shadow)',
             cursor: 'pointer', font: 'inherit', color: 'var(--text-1)',
           }}
         >
@@ -298,14 +308,18 @@ export function EventCard({ event, side }: EventCardProps) {
           {tools.map((t: any, i: number) => {
             const approved = t.approved !== false;
             const isNew = t.isNew === true;
-            // Color treatment: NEW = amber/rust accent (emergent); REUSED = green (stable)
-            const accent = !approved ? 'var(--rust)' : isNew ? 'var(--amber)' : 'var(--green)';
+            // Color treatment: newly-forged tool uses the leader-side
+            // color (amber for A, teal for B) so a quick visual scan of
+            // the sim flow shows which column invented the capability.
+            // Reused calls stay green (stable, same across leaders).
+            // Failed forges stay rust (semantic failure signal).
+            const accent = !approved ? 'var(--rust)' : isNew ? sideColor : 'var(--green)';
             const bgTint = !approved
               ? 'rgba(224,101,48,.04)'
-              : isNew ? 'rgba(232,180,74,.10)' : 'rgba(106,173,72,.06)';
+              : isNew ? `color-mix(in srgb, ${sideColor} 10%, transparent)` : 'rgba(106,173,72,.06)';
             const borderTint = !approved
               ? 'rgba(224,101,48,.15)'
-              : isNew ? 'rgba(232,180,74,.4)' : 'rgba(106,173,72,.2)';
+              : isNew ? `color-mix(in srgb, ${sideColor} 40%, transparent)` : 'rgba(106,173,72,.2)';
             const inputSchema = t.inputSchema;
             const outputSchema = t.outputSchema;
             const hasFullSchema = !!inputSchema || !!outputSchema;
@@ -320,17 +334,19 @@ export function EventCard({ event, side }: EventCardProps) {
                 borderLeft: `3px solid ${accent}`,
                 border: `1px solid ${borderTint}`,
                 borderLeftWidth: '3px',
-                boxShadow: isNew ? '0 0 0 1px rgba(232,180,74,.15), var(--card-shadow)' : 'var(--card-shadow)',
+                boxShadow: isNew
+                  ? `0 0 0 1px color-mix(in srgb, ${sideColor} 15%, transparent), var(--card-shadow)`
+                  : 'var(--card-shadow)',
               }}>
                 <summary style={{ padding: '8px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
                       {isNew ? (
                         <span style={{
-                          fontSize: 9, color: 'var(--bg-deep)', background: 'var(--amber)',
+                          fontSize: 9, color: 'var(--bg-deep)', background: sideColor,
                           textTransform: 'uppercase', letterSpacing: '1.5px', fontWeight: 900,
                           fontFamily: 'var(--mono)', padding: '2px 6px', borderRadius: 3,
-                          boxShadow: '0 0 8px rgba(232,180,74,.4)',
+                          boxShadow: `0 0 8px color-mix(in srgb, ${sideColor} 40%, transparent)`,
                         }}>
                           FORGED TOOL
                         </span>
