@@ -1,8 +1,57 @@
 interface FooterProps {
   cost?: { totalTokens: number; totalCostUSD: number; llmCalls: number };
+  /**
+   * Mirrors the TopBar status pill so the user sees the run state at
+   * the bottom of the page too. Driven by the same three booleans the
+   * TopBar reads (isComplete, isAborted, connection status) so the
+   * colour + text stay in lockstep between the two surfaces.
+   */
+  simStatus?: {
+    isRunning: boolean;
+    isComplete: boolean;
+    isAborted: boolean;
+    connectionStatus: 'connecting' | 'connected' | 'error';
+  };
 }
 
-export function Footer({ cost }: FooterProps) {
+function StatusChip({ s }: { s: NonNullable<FooterProps['simStatus']> }) {
+  const color = s.isAborted
+    ? 'var(--amber)'
+    : s.isComplete
+    ? 'var(--green)'
+    : s.isRunning
+    ? 'var(--color-success, var(--green))'
+    : s.connectionStatus === 'connected'
+    ? 'var(--text-3)'
+    : 'var(--text-3)';
+  const text = s.isAborted
+    ? 'Unfinished'
+    : s.isComplete
+    ? 'Complete'
+    : s.isRunning
+    ? 'Running'
+    : s.connectionStatus === 'connected'
+    ? 'Idle'
+    : s.connectionStatus === 'error'
+    ? 'Reconnecting'
+    : 'Connecting';
+  const glyph = s.isRunning && !s.isComplete && !s.isAborted ? '\u25CF' : '\u25CB';
+  return (
+    <span
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 4,
+        color, fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 700,
+      }}
+      role="status"
+      aria-live="polite"
+      aria-label={`Simulation status: ${text}`}
+    >
+      {glyph} {text}
+    </span>
+  );
+}
+
+export function Footer({ cost, simStatus }: FooterProps) {
   return (
     <footer
       className="shrink-0"
@@ -27,6 +76,8 @@ export function Footer({ cost }: FooterProps) {
         <a href="/docs" style={{ color: 'var(--rust)', fontWeight: 600 }}>docs</a>
         <a href="https://agentos.sh/blog" target="_blank" rel="noopener" style={{ color: 'var(--rust)', fontWeight: 600 }}>blog</a>
       </nav>
+
+      {simStatus && <StatusChip s={simStatus} />}
 
       {cost && (cost.totalTokens > 0 || cost.llmCalls > 0) && (
         <span style={{ display: 'flex', alignItems: 'baseline', gap: '6px', fontFamily: 'var(--mono)', fontSize: '10px' }}>
