@@ -101,6 +101,8 @@ export type CostSiteBreakdown = Record<
     calls: number;
     cacheReadTokens?: number;
     cacheCreationTokens?: number;
+    /** USD saved by caching on this site vs a no-cache hypothetical. */
+    cacheSavingsUSD?: number;
   }
 >;
 
@@ -112,6 +114,9 @@ export interface CostBreakdown {
   cacheReadTokens?: number;
   /** Total tokens written to provider prompt cache this run. */
   cacheCreationTokens?: number;
+  /** USD saved by caching vs a no-cache run. Negative early (cache
+   *  fill), positive once reads amortize the creation overhead. */
+  cacheSavingsUSD?: number;
   /** Per-site spend. Present when the server reports it (always in current version). */
   breakdown?: CostSiteBreakdown;
 }
@@ -176,6 +181,7 @@ export function useGameState(sseEvents: SimEvent[], isComplete: boolean): GameSt
         llmCalls?: number;
         cacheReadTokens?: number;
         cacheCreationTokens?: number;
+        cacheSavingsUSD?: number;
         breakdown?: CostSiteBreakdown;
       } | undefined;
       if (evtCost && side) {
@@ -185,6 +191,7 @@ export function useGameState(sseEvents: SimEvent[], isComplete: boolean): GameSt
           llmCalls: evtCost.llmCalls ?? 0,
           cacheReadTokens: evtCost.cacheReadTokens ?? 0,
           cacheCreationTokens: evtCost.cacheCreationTokens ?? 0,
+          cacheSavingsUSD: evtCost.cacheSavingsUSD ?? 0,
           breakdown: evtCost.breakdown,
         };
         if (side === 'a') state.costA = leaderBreakdown;
@@ -200,7 +207,7 @@ export function useGameState(sseEvents: SimEvent[], isComplete: boolean): GameSt
           for (const [siteKey, bucket] of Object.entries(src)) {
             const existing = mergedBreakdown[siteKey] ?? {
               totalTokens: 0, totalCostUSD: 0, calls: 0,
-              cacheReadTokens: 0, cacheCreationTokens: 0,
+              cacheReadTokens: 0, cacheCreationTokens: 0, cacheSavingsUSD: 0,
             };
             mergedBreakdown[siteKey] = {
               totalTokens: existing.totalTokens + (bucket?.totalTokens ?? 0),
@@ -208,6 +215,7 @@ export function useGameState(sseEvents: SimEvent[], isComplete: boolean): GameSt
               calls: existing.calls + (bucket?.calls ?? 0),
               cacheReadTokens: (existing.cacheReadTokens ?? 0) + (bucket?.cacheReadTokens ?? 0),
               cacheCreationTokens: (existing.cacheCreationTokens ?? 0) + (bucket?.cacheCreationTokens ?? 0),
+              cacheSavingsUSD: Math.round(((existing.cacheSavingsUSD ?? 0) + (bucket?.cacheSavingsUSD ?? 0)) * 10000) / 10000,
             };
           }
         }
@@ -218,6 +226,7 @@ export function useGameState(sseEvents: SimEvent[], isComplete: boolean): GameSt
           llmCalls: state.costA.llmCalls + state.costB.llmCalls,
           cacheReadTokens: (state.costA.cacheReadTokens ?? 0) + (state.costB.cacheReadTokens ?? 0),
           cacheCreationTokens: (state.costA.cacheCreationTokens ?? 0) + (state.costB.cacheCreationTokens ?? 0),
+          cacheSavingsUSD: Math.round(((state.costA.cacheSavingsUSD ?? 0) + (state.costB.cacheSavingsUSD ?? 0)) * 10000) / 10000,
           breakdown: Object.keys(mergedBreakdown).length > 0 ? mergedBreakdown : undefined,
         };
       }
