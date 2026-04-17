@@ -492,7 +492,18 @@
     /* GitHub CTA collapses to icon-only on phone to save horizontal space */
     .topbar-github-label { display: none !important; }
     .topbar-github { padding-left: 7px !important; padding-right: 7px !important; }
+
+    /* Stats bar: collapse full-word pill labels to single-char icons so
+       POP / MORALE / POWER / DEATHS / TOOLS / CITES / REUSE fit a single
+       phone-width row instead of forcing horizontal scroll. The data
+       attribute carries the short label; .pill-label-full hides and
+       .pill-label-short shows at <480px. */
+    .pill-label-full { display: none !important; }
+    .pill-label-short { display: inline !important; }
   }
+
+  /* The short-label span stays hidden above phone breakpoint. */
+  .pill-label-short { display: none; }
 
   /* === HEXACO range slider ===
      Native <input type="range"> renders with browser-default tracks
