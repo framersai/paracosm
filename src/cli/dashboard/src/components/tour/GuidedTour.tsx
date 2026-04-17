@@ -10,7 +10,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 
 export interface TourStep {
   target: string;
-  tab: 'sim' | 'settings' | 'reports' | 'chat' | 'log';
+  tab: 'sim' | 'viz' | 'settings' | 'reports' | 'chat' | 'log';
   title: string;
   description: string;
 }
@@ -20,67 +20,79 @@ export const TOUR_STEPS: TourStep[] = [
     target: '.topbar',
     tab: 'sim',
     title: 'Top Bar',
-    description: 'Scenario name, turn progress, and controls. Run, save, load, or clear simulations. The status dot shows the live SSE connection.',
+    description: 'Scenario name, turn progress, and controls. Run, save, load, or clear simulations. The status dot shows connection + run state: Live, Running, Complete, or Unfinished.',
   },
   {
     target: '.tab-bar',
     tab: 'sim',
     title: 'Navigation',
-    description: 'Switch between Simulation, Settings, Reports, Character Chat, Event Log, and the About page.',
+    description: 'Switch between Simulation, Viz, Settings, Reports, Character Chat, Event Log, and About. Viz is where family pods, drilldowns, and leader-side colour coding live.',
   },
   {
     target: '.leaders-row',
     tab: 'sim',
     title: 'Leader Cards',
-    description: 'Two AI commanders with different HEXACO personalities run the same scenario. Left = Leader A, right = Leader B. Archetype, colony, and trait sparklines shown here.',
+    description: 'Two AI commanders with opposing HEXACO profiles run the same seed. Left column is Leader A (amber), right is Leader B (teal). All downstream UI picks up the same two colours so you always know which side you are looking at.',
   },
   {
     target: '[aria-label="Colony statistics"]',
     tab: 'sim',
     title: 'Stats Bar',
-    description: 'Live colony metrics for both sides. Population, morale, food, water, power, infrastructure. Arrows show per-turn delta. Compare how personality drives resource outcomes.',
+    description: 'Per-leader metrics side by side. Tools + Reuse are adjacent because together they tell the emergent-capability story: how many unique tools a side forged, and how many times those tools got reused without re-forging. Reuse is where cost savings come from.',
   },
   {
     target: '.sim-columns',
     tab: 'sim',
     title: 'Event Streams',
-    description: 'The core view. Each turn, both leaders face the same crisis but decide differently. Departments analyze, commanders decide, tools get forged at runtime. Hover any card for detail.',
+    description: 'The core view. Each turn, both leaders face events the Director generated for them based on accumulated state. Departments analyze in parallel and may forge new tools. Commanders decide. Tools tint by leader side. Click any forge card to inspect the schema and code.',
   },
   {
     target: '[aria-label="Divergence rail"]',
     tab: 'sim',
     title: 'Divergence Rail',
-    description: 'Shows how much the two colonies have diverged from the same starting conditions. Same crisis, different civilizations.',
+    description: 'How far the two colonies have diverged at the current turn. Shows the two decision texts and outcomes side by side, humanized (no "Safe Success" jargon). Same seed, different histories because HEXACO shaped every LLM call.',
+  },
+  {
+    target: '.leaders-row',
+    tab: 'viz',
+    title: 'Viz Tab — Colony Structure',
+    description: 'Tiered tiles: large featured colonists at the top, family pods in the middle, department bands at the bottom, ghost outlines for the deceased. The grid grows pods and thins with attrition as you scrub turns. Click any tile to open the drilldown panel.',
+  },
+  {
+    target: '[aria-label="Cluster mode"]',
+    tab: 'viz',
+    title: 'Cluster Toggle',
+    description: 'Reshuffle the grid by clustering axis: Families (default), Departments, Mood, or Age. Every toggle is visible, no hidden keyboard shortcuts required. M on keyboard cycles them for power users; D toggles the divergence tint.',
   },
   {
     target: '.settings-content',
     tab: 'settings',
     title: 'Settings',
-    description: 'Configure leaders, HEXACO personality sliders, simulation params, AI provider, API keys, and the Scenario Editor for custom worlds.',
+    description: 'Configure leaders with HEXACO sliders, pick a scenario, set turns and population, and drop in your own OpenAI or Anthropic key to bypass the hosted-demo caps. Locked demo inputs unlock the moment you paste a key.',
   },
   {
     target: '.reports-content',
     tab: 'reports',
     title: 'Reports',
-    description: 'Turn-by-turn comparison: both leaders\' decisions, department analyses, forged tools, agent reactions, and colony state deltas side by side.',
+    description: 'Turn-by-turn rollup: commander decisions, department analyses, forged toolbox across both sides, agent reactions, verdict comparison. The full provenance record of the run.',
   },
   {
     target: '.chat-layout',
     tab: 'chat',
     title: 'Character Chat',
-    description: 'Talk to any agent in the simulation. They remember what happened, hold opinions about commander decisions, and respond in character.',
+    description: 'Talk to any colonist from the run. Each carries their HEXACO profile, the memories they formed during the sim, and their relationships. Drilldown panel in Viz has a direct Chat handoff button that preselects the colonist here.',
   },
   {
     target: '[role="log"]',
     tab: 'log',
     title: 'Event Log',
-    description: 'Raw SSE event stream. Every simulation event as it arrives.',
+    description: 'Raw SSE event stream. Every status, turn_start, dept_done, commander_decided, outcome, reaction, forge_attempt event as it arrived.',
   },
   {
     target: '.topbar',
     tab: 'sim',
     title: 'Ready to Launch',
-    description: 'That was demo data. Now configure your own two commanders with different personalities and watch them diverge on real crises. Hit RUN in the top bar or go to Settings to customize everything first.',
+    description: 'That was demo data. Hit RUN in the top bar to launch a live simulation against the host caps, or go to Settings and paste your own API key for full-scope runs. The sim deploys to the same dashboard in real time.',
   },
 ];
 
@@ -122,7 +134,7 @@ const TOUR_STYLES = `
 `;
 
 interface GuidedTourProps {
-  onTabChange: (tab: 'sim' | 'settings' | 'reports' | 'chat' | 'log') => void;
+  onTabChange: (tab: 'sim' | 'viz' | 'settings' | 'reports' | 'chat' | 'log') => void;
   onClose: () => void;
   onRun?: () => void;
 }
