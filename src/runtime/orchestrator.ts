@@ -612,6 +612,23 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   const defaultPricing = MODEL_PRICING[modelConfig.commander] || { input: 2.50, output: 10.00 };
 
   /**
+   * Per-site model pricing so cache-savings math bills each stage at
+   * its actual model rate (judge on haiku ≠ commander on sonnet).
+   * Falls back to the run's default pricing (commander tier) when a
+   * site's model isn't in the pricing table.
+   */
+  const siteModelMap: Record<CostSite, string> = {
+    director: modelConfig.director,
+    commander: modelConfig.commander,
+    departments: modelConfig.departments,
+    judge: modelConfig.judge,
+    reactions: modelConfig.agentReactions ?? modelConfig.commander,
+    other: modelConfig.commander,
+  };
+  const priceForSite = (site: CostSite) =>
+    MODEL_PRICING[siteModelMap[site]] ?? defaultPricing;
+
+  /**
    * Record token/cost usage from a single LLM call.
    *
    * @param result The result object from generateText / session.send(),
@@ -671,23 +688,40 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   }
 
   const emit = (type: SimEvent['type'], data?: Record<string, unknown>) => {
-    // Round breakdown numbers so the SSE payload stays compact and the
-    // UI doesn't display 11 decimal places of float noise.
+    // Per-site cache savings math: estimate USD saved vs a hypothetical
+    // no-caching run. Anthropic bills cache_read at 0.10x input rate
+    // (saves 0.90x) and cache_creation at 1.25x (costs +0.25x). So net
+    // savings per site = (reads × 0.90 - creates × 0.25) × inputPrice.
+    // A fresh creation on turn 1 is a net COST relative to no-cache
+    // (the run hasn't amortized the 1.25x overhead yet). By turn 3+
+    // with reads dominating, savings are substantial.
+    let runCacheSavingsUSD = 0;
     const breakdown: Record<string, {
       totalTokens: number;
       totalCostUSD: number;
       calls: number;
       cacheReadTokens?: number;
       cacheCreationTokens?: number;
+      /** USD saved vs no-caching run. Negative during turn 1 when cache
+       *  is being filled; positive from turn 2+ if reads land. */
+      cacheSavingsUSD?: number;
     }> = {};
     for (const [k, v] of Object.entries(costBySite)) {
       if (v.calls > 0) {
+        const sitePricing = priceForSite(k as CostSite);
+        const siteSavings =
+          ((v.cacheReadTokens * 0.90) - (v.cacheCreationTokens * 0.25))
+          * sitePricing.input / 1_000_000;
+        runCacheSavingsUSD += siteSavings;
         breakdown[k] = {
           totalTokens: v.totalTokens,
           totalCostUSD: Math.round(v.totalCostUSD * 10000) / 10000,
           calls: v.calls,
           ...(v.cacheReadTokens > 0 ? { cacheReadTokens: v.cacheReadTokens } : {}),
           ...(v.cacheCreationTokens > 0 ? { cacheCreationTokens: v.cacheCreationTokens } : {}),
+          ...(Math.abs(siteSavings) >= 0.0001
+            ? { cacheSavingsUSD: Math.round(siteSavings * 10000) / 10000 }
+            : {}),
         };
       }
     }
@@ -702,6 +736,8 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
           llmCalls,
           cacheReadTokens,
           cacheCreationTokens,
+          /** Run-wide USD saved by prompt caching vs a no-cache run. */
+          cacheSavingsUSD: Math.round(runCacheSavingsUSD * 10000) / 10000,
           breakdown,
         },
       },

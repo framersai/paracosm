@@ -115,47 +115,70 @@ export function CostBreakdownModal({ combined, leaderA, leaderB, leaderAName, le
           {fmtTokens(combined.totalTokens)} tokens
         </div>
 
-        {/* Prompt-cache summary. Only shown when the provider actually
-            reported cache tokens — absent for OpenAI runs (its automatic
-            caching doesn't expose per-call metrics) and for Anthropic
-            runs that never hit a cached prefix. When shown, the ratio
-            tells the user whether caching is delivering real savings or
-            just costing extra on creation without reuse. */}
-        {(combined.cacheReadTokens || combined.cacheCreationTokens) ? (
-          <div style={{
-            padding: '10px 12px', marginBottom: 16, borderRadius: 4,
-            background: 'rgba(106,173,72,0.06)', border: '1px solid rgba(106,173,72,0.2)',
-            fontSize: 11, fontFamily: 'var(--mono)', color: 'var(--text-2)',
-          }}>
-            <div style={{ color: 'var(--green)', fontWeight: 800, fontSize: 10, letterSpacing: '.08em', marginBottom: 4 }}>
-              PROMPT CACHE
+        {/* Prompt-cache savings block. Only renders when the provider
+            reported cache activity (Anthropic on Sonnet/Haiku). OpenAI's
+            automatic caching is not exposed per-call so this stays
+            hidden for OpenAI runs. Consumer-facing framing:
+              - headline: concrete dollars saved
+              - sub: hit rate as percentage of input tokens
+              - details: reads / creates in raw tokens for the curious */}
+        {(combined.cacheReadTokens || combined.cacheCreationTokens) ? (() => {
+          const reads = combined.cacheReadTokens ?? 0;
+          const creates = combined.cacheCreationTokens ?? 0;
+          const savings = combined.cacheSavingsUSD ?? 0;
+          // Hit rate = reads as a share of (reads + creates). 100% means
+          // every cache-tagged token on this run was served from an
+          // existing cache entry (turn 2+ on a stable prefix). 0% means
+          // nothing was reused — the cache filled but didn't pay off.
+          const total = reads + creates;
+          const hitRate = total > 0 ? reads / total : 0;
+
+          let verdictColor = 'var(--text-3)';
+          let verdictLine: string;
+          if (savings > 0.001) {
+            verdictColor = 'var(--green)';
+            verdictLine = `Saved ${fmtUsd(savings)} via prompt caching`;
+          } else if (savings < -0.001) {
+            verdictColor = 'var(--amber)';
+            // Negative savings means creation overhead hasn't been
+            // amortized yet. Normal on turn 1; concerning by turn 3+.
+            verdictLine = `Cache priming cost ${fmtUsd(-savings)} so far · reuse will repay this`;
+          } else if (reads > 0) {
+            verdictColor = 'var(--green)';
+            verdictLine = 'Cache reuse breaking even with priming cost';
+          } else {
+            verdictColor = 'var(--amber)';
+            verdictLine = 'Cache filled but nothing reused yet · retry run or check prompt stability';
+          }
+
+          return (
+            <div style={{
+              padding: '12px 14px', marginBottom: 16, borderRadius: 4,
+              background: 'rgba(106,173,72,0.06)',
+              border: '1px solid rgba(106,173,72,0.2)',
+            }}>
+              <div style={{
+                color: 'var(--green)', fontWeight: 800, fontSize: 10,
+                letterSpacing: '.08em', fontFamily: 'var(--mono)', marginBottom: 6,
+              }}>
+                PROMPT CACHING
+              </div>
+              <div style={{
+                fontSize: 15, fontWeight: 700, color: verdictColor,
+                marginBottom: 4, fontFamily: 'var(--sans)',
+              }}>
+                {verdictLine}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-2)', fontFamily: 'var(--sans)', marginBottom: 6 }}>
+                {Math.round(hitRate * 100)}% hit rate on cached input ({fmtTokens(reads)} reused / {fmtTokens(total)} cache tokens)
+              </div>
+              <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--mono)', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                <span>reads {fmtTokens(reads)} <span style={{ opacity: 0.7 }}>@0.10×</span></span>
+                <span>creates {fmtTokens(creates)} <span style={{ opacity: 0.7 }}>@1.25×</span></span>
+              </div>
             </div>
-            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', lineHeight: 1.7 }}>
-              <span>
-                Reads: <b style={{ color: 'var(--green)' }}>{fmtTokens(combined.cacheReadTokens ?? 0)}</b>
-                <span style={{ color: 'var(--text-3)', marginLeft: 4 }}>(billed at 0.1× input)</span>
-              </span>
-              <span>
-                Creates: <b style={{ color: 'var(--amber)' }}>{fmtTokens(combined.cacheCreationTokens ?? 0)}</b>
-                <span style={{ color: 'var(--text-3)', marginLeft: 4 }}>(billed at 1.25× input)</span>
-              </span>
-              {(() => {
-                const reads = combined.cacheReadTokens ?? 0;
-                const creates = combined.cacheCreationTokens ?? 0;
-                if (reads + creates === 0) return null;
-                const ratio = reads / (reads + creates);
-                const label = reads === 0 ? 'no cache hits yet'
-                  : ratio > 0.5 ? 'caching is paying off'
-                  : 'low hit rate; cache may be expiring';
-                return (
-                  <span style={{ color: 'var(--text-3)', fontStyle: 'italic' }}>
-                    {Math.round(ratio * 100)}% read / {label}
-                  </span>
-                );
-              })()}
-            </div>
-          </div>
-        ) : null}
+          );
+        })() : null}
 
         {rows.length === 0 ? (
           <div style={{ padding: '24px 8px', color: 'var(--text-3)', fontSize: 13, textAlign: 'center' }}>
