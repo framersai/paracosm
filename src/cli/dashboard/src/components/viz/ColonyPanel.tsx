@@ -5,6 +5,10 @@ import { Tile } from './Tile.js';
 import { FamilyPod } from './FamilyPod.js';
 import { DeptBand } from './DeptBand.js';
 import { GhostLayer } from './GhostLayer.js';
+import { AutomatonBand } from './automaton/AutomatonBand.js';
+import type { AutomatonMode } from './automaton/shared.js';
+
+interface HexacoShape { O: number; C: number; E: number; A: number; Em: number; HH: number }
 
 /**
  * Compact metrics strip rendered at the top of every ColonyPanel. Gives
@@ -157,6 +161,18 @@ interface ColonyPanelProps {
   selectedId: string | null;
   divergedIds: Set<string> | undefined;
   onSelect: (agentId: string) => void;
+  /** Side indicator so the automaton band knows which column it is. */
+  side: 'a' | 'b';
+  /** HEXACO profiles keyed by agent id. Drives per-cell empathy gating
+   *  in the mood propagation automaton. */
+  hexacoById?: Map<string, HexacoShape>;
+  /** Shared automaton mode. Lifted to ColonyViz so both leader panels
+   *  always render the same lens. */
+  automatonMode: AutomatonMode;
+  /** Shared collapsed flag. Same lifting rationale. */
+  automatonCollapsed: boolean;
+  onAutomatonModeChange: (mode: AutomatonMode) => void;
+  onAutomatonCollapseToggle: () => void;
   /**
    * Non-zero when this side's latest snapshot is older than the other
    * leader's (e.g. the other side finished turn 5 but this side is
@@ -173,7 +189,12 @@ interface ColonyPanelProps {
  * snapshots render identically across turn scrubs.
  */
 export function ColonyPanel(props: ColonyPanelProps) {
-  const { snapshot, leaderName, leaderArchetype, leaderColony = '', leaderBio = '', sideColor, mode, selectedId, divergedIds, onSelect, lagTurns = 0 } = props;
+  const {
+    snapshot, leaderName, leaderArchetype, leaderColony = '', leaderBio = '',
+    sideColor, mode, selectedId, divergedIds, onSelect, lagTurns = 0,
+    side, hexacoById, automatonMode, automatonCollapsed,
+    onAutomatonModeChange, onAutomatonCollapseToggle,
+  } = props;
 
   const layout = useMemo(
     () => (snapshot ? computeLayout(snapshot, mode) : null),
@@ -268,6 +289,20 @@ export function ColonyPanel(props: ColonyPanelProps) {
       </div>
 
       <ColonyMetricsStrip snapshot={snapshot} sideColor={sideColor} />
+
+      <AutomatonBand
+        snapshot={snapshot}
+        hexacoById={hexacoById}
+        side={side}
+        sideColor={sideColor}
+        mode={automatonMode}
+        collapsed={automatonCollapsed}
+        onModeChange={onAutomatonModeChange}
+        onCollapseToggle={onAutomatonCollapseToggle}
+        eventCategories={snapshot.eventCategories}
+        eventIntensity={snapshot.deaths > 0 ? 0.75 : 0.45}
+        onSelectAgent={onSelect}
+      />
 
       <div>
         {sectionHeader('Featured', layout.featured.length)}

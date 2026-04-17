@@ -617,6 +617,14 @@
     cursor: pointer;
   }
 
+  /* === AUTOMATON BAND (viz tab) ===
+     Collapsed state animates a side-tinted gradient to signal the
+     automaton is still running without the full canvas visible. */
+  @keyframes automaton-pulse {
+    0%, 100% { opacity: 0.55; }
+    50% { opacity: 0.95; }
+  }
+
   /* === REDUCED MOTION (a11y) === */
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {

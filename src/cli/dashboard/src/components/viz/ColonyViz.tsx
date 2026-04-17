@@ -1,6 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GameState, LeaderInfo } from '../../hooks/useGameState.js';
 import { useScenarioContext } from '../../App';
+import type { AutomatonMode } from './automaton/shared.js';
+
+const AUTOMATON_MODE_KEY = 'paracosm:vizAutomatonMode';
+const AUTOMATON_COLLAPSED_KEY = 'paracosm:vizAutomatonCollapsed';
+
+function readStoredMode(): AutomatonMode {
+  try {
+    const raw = localStorage.getItem(AUTOMATON_MODE_KEY);
+    if (raw === 'mood' || raw === 'forge' || raw === 'ecology') return raw;
+  } catch { /* silent */ }
+  return 'mood';
+}
+function readStoredCollapsed(): boolean {
+  try { return localStorage.getItem(AUTOMATON_COLLAPSED_KEY) === '1'; }
+  catch { return false; }
+}
 import { useVizSnapshots } from './useVizSnapshots.js';
 import { ColonyPanel } from './ColonyPanel.js';
 import { TurnBanner } from './TurnBanner.js';
@@ -38,6 +54,23 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
   const [mode, setMode] = useState<ClusterMode>('families');
   const [showDivergence, setShowDivergence] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Automaton mode + collapsed flag. Lifted to the viz root so both
+  // leader panels render in the same lens simultaneously. Seeded from
+  // localStorage so the user's last-picked mode persists.
+  const [automatonMode, setAutomatonModeState] = useState<AutomatonMode>(() => readStoredMode());
+  const [automatonCollapsed, setAutomatonCollapsedState] = useState<boolean>(() => readStoredCollapsed());
+  const setAutomatonMode = useCallback((m: AutomatonMode) => {
+    setAutomatonModeState(m);
+    try { localStorage.setItem(AUTOMATON_MODE_KEY, m); } catch { /* silent */ }
+  }, []);
+  const toggleAutomatonCollapsed = useCallback(() => {
+    setAutomatonCollapsedState(prev => {
+      const next = !prev;
+      try { localStorage.setItem(AUTOMATON_COLLAPSED_KEY, next ? '1' : '0'); } catch { /* silent */ }
+      return next;
+    });
+  }, []);
   const timerRef = useRef<number>(0);
   const prevMaxTurnRef = useRef(0);
 
@@ -96,10 +129,14 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
         setMode(curr => CLUSTER_MODES[(CLUSTER_MODES.indexOf(curr) + 1) % CLUSTER_MODES.length]);
       }
       else if (e.key === 'd' || e.key === 'D') setShowDivergence(d => !d);
+      else if (e.key === 'a' || e.key === 'A') { e.preventDefault(); toggleAutomatonCollapsed(); }
+      else if (e.key === '1') { e.preventDefault(); setAutomatonMode('mood'); }
+      else if (e.key === '2') { e.preventDefault(); setAutomatonMode('forge'); }
+      else if (e.key === '3') { e.preventDefault(); setAutomatonMode('ecology'); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [handleStepBack, handleStepForward, handlePlayPause]);
+  }, [handleStepBack, handleStepForward, handlePlayPause, setAutomatonMode, toggleAutomatonCollapsed]);
 
   // Per-side snapshot resolution with lag tolerance. Two leaders run in
   // parallel via Promise.all, but one side can lag by 10-30 seconds
@@ -215,6 +252,12 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
           divergedIds={divergedIds?.aliveOnlyA}
           onSelect={setSelectedId}
           lagTurns={snapATurn < snapBTurn ? snapBTurn - snapATurn : 0}
+          side="a"
+          hexacoById={hexacoById}
+          automatonMode={automatonMode}
+          automatonCollapsed={automatonCollapsed}
+          onAutomatonModeChange={setAutomatonMode}
+          onAutomatonCollapseToggle={toggleAutomatonCollapsed}
         />
         <ColonyPanel
           snapshot={snapB}
@@ -228,6 +271,12 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
           divergedIds={divergedIds?.aliveOnlyB}
           onSelect={setSelectedId}
           lagTurns={snapBTurn < snapATurn ? snapATurn - snapBTurn : 0}
+          side="b"
+          hexacoById={hexacoById}
+          automatonMode={automatonMode}
+          automatonCollapsed={automatonCollapsed}
+          onAutomatonModeChange={setAutomatonMode}
+          onAutomatonCollapseToggle={toggleAutomatonCollapsed}
         />
       </div>
       <Legend />
