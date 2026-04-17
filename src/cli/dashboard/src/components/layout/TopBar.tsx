@@ -51,14 +51,11 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
   const hasEvents = gameState.a.events.length > 0 || gameState.b.events.length > 0;
 
   // Status pill priority (highest first):
-  //   1. Unfinished — sim was cancelled (user navigated away, server
-  //      pulled the plug). Shown even if isComplete also flipped.
+  //   1. Interrupted — sim was cancelled (user navigated away, server
+  //      pulled the plug, quota exhausted). Hover surfaces the specific
+  //      reason captured from the first sim_aborted SSE event.
   //   2. Complete — sim finished all turns, verdict broadcast.
   //   3. Live / Reconnecting / Connecting — SSE connection state.
-  // Complete reads as green (success) instead of the earlier rust
-  // which read as failure/error to users. Unfinished stays amber
-  // (interrupted, not failed). Running is a pulsed green; idle-
-  // connected is a steady text color.
   const statusColor = sse.isAborted
     ? 'var(--amber)'
     : sse.isComplete
@@ -68,7 +65,7 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
     : 'var(--text-3)';
 
   const statusText = sse.isAborted
-    ? 'Unfinished'
+    ? 'Interrupted'
     : sse.isComplete
     ? 'Complete'
     : sse.status === 'connected'
@@ -76,6 +73,46 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
     : sse.status === 'error'
     ? 'Reconnecting'
     : 'Connecting';
+
+  // Human-readable tooltip. Every pill state gets a one-line hint, and
+  // an interrupted run additionally names the cause (quota, disconnect,
+  // user cancel) so the user knows whether to retry, top up credits,
+  // or keep the partial results.
+  const abortReasonLabel = (raw: string): string => {
+    switch (raw) {
+      case 'client_disconnected': return 'browser tab closed before the sim finished';
+      case 'quota_exhausted': return 'provider credits exhausted';
+      case 'user_aborted': return 'cancelled by the user';
+      case 'provider_error': return 'provider returned an unrecoverable error';
+      case 'unknown': return 'reason not recorded by the server';
+      default: return raw;
+    }
+  };
+  const statusTitle = sse.isAborted
+    ? (() => {
+        // Provider errors take priority over the generic abort reason
+        // because they are always the actionable cause (top up credits,
+        // fix the key). The orchestrator does not emit sim_aborted for
+        // provider errors, so without this branch the pill would read
+        // "reason not recorded" on quota exhaustion.
+        if (sse.providerError) {
+          return `Run interrupted: ${sse.providerError.message}. Click Clear to reset.`;
+        }
+        const r = sse.abortReason;
+        if (!r) return 'Run was interrupted before finishing all turns. Click Clear to reset.';
+        const base = `Run interrupted: ${abortReasonLabel(r.reason)}`;
+        const where = typeof r.completedTurns === 'number'
+          ? ` after ${r.completedTurns} turn${r.completedTurns === 1 ? '' : 's'}`
+          : '';
+        return `${base}${where}. Click Clear to reset.`;
+      })()
+    : sse.isComplete
+    ? 'Run finished all turns. Verdict is broadcast in Reports.'
+    : sse.status === 'connected'
+    ? 'Connected to the simulation server. Press RUN to start.'
+    : sse.status === 'error'
+    ? 'Reconnecting to the simulation server.'
+    : 'Connecting to the simulation server.';
 
   return (
     <header
@@ -207,7 +244,12 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
         <span style={{ color: 'var(--border)', fontSize: '12px' }} aria-hidden="true">|</span>
 
         {/* Status */}
-        <span style={{ fontSize: '10px', fontFamily: 'var(--mono)', color: statusColor, fontWeight: 700 }} role="status" aria-live="polite">
+        <span
+          style={{ fontSize: '10px', fontFamily: 'var(--mono)', color: statusColor, fontWeight: 700, cursor: 'help' }}
+          role="status"
+          aria-live="polite"
+          title={statusTitle}
+        >
           {sse.status === 'connected' && !sse.isComplete ? '\u25CF' : '\u25CB'} {statusText}
         </span>
 

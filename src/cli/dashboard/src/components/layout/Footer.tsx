@@ -25,7 +25,7 @@ function StatusChip({ s }: { s: NonNullable<FooterProps['simStatus']> }) {
     ? 'var(--text-3)'
     : 'var(--text-3)';
   const text = s.isAborted
-    ? 'Unfinished'
+    ? 'Interrupted'
     : s.isComplete
     ? 'Complete'
     : s.isRunning

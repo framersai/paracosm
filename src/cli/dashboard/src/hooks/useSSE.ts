@@ -26,6 +26,19 @@ export interface ProviderErrorState {
   leader?: string;
 }
 
+/**
+ * Captured detail from the first `sim_aborted` event of the current run.
+ * Surfaced so the topbar status pill can explain WHY the sim stopped
+ * instead of showing an opaque "Unfinished" badge. Null when the run
+ * finished cleanly or is still in flight.
+ */
+export interface AbortReasonState {
+  reason: string;
+  turn?: number;
+  completedTurns?: number;
+  leader?: string;
+}
+
 interface SSEState {
   status: 'connecting' | 'connected' | 'error';
   events: SimEvent[];
@@ -37,9 +50,11 @@ interface SSEState {
    * True when the simulation was cancelled mid-run (user navigated
    * away → server disconnect watchdog fired → orchestrator emitted
    * `sim_aborted`). Distinct from isComplete; the dashboard shows this
-   * as an "Unfinished" badge with partial results preserved.
+   * as an "Interrupted" badge with partial results preserved.
    */
   isAborted: boolean;
+  /** Detail of the first abort (reason, turn, leader). Null when unset. */
+  abortReason: AbortReasonState | null;
   /** Terminal provider error (quota / auth). `null` when the run is healthy. */
   providerError: ProviderErrorState | null;
   /**
@@ -62,6 +77,7 @@ export function useSSE() {
     errors: [],
     isComplete: false,
     isAborted: false,
+    abortReason: null,
     providerError: null,
     replayDone: false,
   });
@@ -86,6 +102,7 @@ export function useSSE() {
       status: prev.status,
       events: [], results: [], verdict: null, errors: [], isComplete: false,
       isAborted: false,
+      abortReason: null,
       // Clear provider error on manual reset. If the underlying problem
       // still exists (key still bad / still no credits), the next run's
       // first LLM call will re-fire the `provider_error` event within
@@ -117,9 +134,18 @@ export function useSSE() {
           leader: errEvent.leader,
         }
       : null;
-    // Restore isAborted from the loaded events so a saved "Unfinished"
+    // Restore isAborted from the loaded events so a saved "Interrupted"
     // run doesn't reappear as "Complete" when the user reloads the file.
-    const restoredAborted = events.some(e => e.type === 'sim_aborted');
+    const firstAborted = events.find(e => e.type === 'sim_aborted');
+    const restoredAborted = !!firstAborted;
+    const restoredAbortReason: AbortReasonState | null = firstAborted
+      ? {
+          reason: String(firstAborted.data?.reason ?? 'unknown'),
+          turn: firstAborted.data?.turn as number | undefined,
+          completedTurns: firstAborted.data?.completedTurns as number | undefined,
+          leader: firstAborted.leader,
+        }
+      : null;
     setState({
       status: 'connected',
       events,
@@ -128,6 +154,7 @@ export function useSSE() {
       errors: [],
       isComplete: true,
       isAborted: restoredAborted,
+      abortReason: restoredAbortReason,
       providerError: restoredProviderError,
       // Loading events from a saved file is historical by definition, so
       // downstream toast gating should treat the replay as finished.
@@ -260,16 +287,27 @@ export function useSSE() {
           }
           // sim_aborted: orchestrator emits this when the run was
           // cancelled by the server's disconnect watchdog. Flip
-          // isAborted so the topbar badge switches to "Unfinished".
+          // isAborted so the topbar badge switches to "Interrupted".
           // Set isComplete too so the run is treated as a finished
           // (just not happily) state — downstream components that
           // gate on isComplete (chat, reports) still activate.
           if (data.type === 'sim_aborted') {
+            const payload = (data.data ?? {}) as Record<string, unknown>;
+            const firstAbort: AbortReasonState = {
+              reason: String(payload.reason ?? 'unknown'),
+              turn: typeof payload.turn === 'number' ? payload.turn : undefined,
+              completedTurns: typeof payload.completedTurns === 'number' ? payload.completedTurns : undefined,
+              leader: typeof data.leader === 'string' ? data.leader : undefined,
+            };
             setState(prev => ({
               ...prev,
               events: [...prev.events, data],
               isAborted: true,
               isComplete: true,
+              // Keep only the earliest reason so both leaders firing
+              // the same disconnect cause don't overwrite it with the
+              // second fire.
+              abortReason: prev.abortReason ?? firstAbort,
             }));
             return;
           }
@@ -294,7 +332,7 @@ export function useSSE() {
       es.addEventListener('complete', (e: MessageEvent) => {
         // pair-runner emits `complete` with an optional `aborted: true`
         // flag when either leader was cancelled. Fold that into
-        // isAborted here too, so the Unfinished badge shows up even if
+        // isAborted here too, so the Interrupted badge shows up even if
         // the sim_aborted SSE event got lost (older server versions
         // might not emit it).
         let wasAborted = false;
@@ -306,6 +344,10 @@ export function useSSE() {
           ...prev,
           isComplete: true,
           isAborted: prev.isAborted || wasAborted,
+          // When pair-runner reports aborted without an earlier
+          // sim_aborted event (older server or race), leave a generic
+          // marker so the pill still explains itself.
+          abortReason: prev.abortReason ?? (wasAborted ? { reason: 'unknown' } : null),
         }));
       });
 

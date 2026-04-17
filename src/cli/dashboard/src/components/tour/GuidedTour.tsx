@@ -20,7 +20,7 @@ export const TOUR_STEPS: TourStep[] = [
     target: '.topbar',
     tab: 'sim',
     title: 'Top Bar',
-    description: 'Scenario name, turn progress, and controls. Run, save, load, or clear simulations. The status dot shows connection + run state: Live, Running, Complete, or Unfinished.',
+    description: 'Scenario name, turn progress, and controls. Run, save, load, or clear simulations. The status dot shows connection + run state: Live, Running, Complete, or Interrupted. Hover the dot for the reason.',
   },
   {
     target: '.tab-bar',
