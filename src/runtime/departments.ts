@@ -97,7 +97,10 @@ export function buildDepartmentContext(
       'YOUR PERSONALITY PROFILE (evolves over time based on leadership and experience):',
       `Openness: ${h.openness.toFixed(2)} | Conscientiousness: ${h.conscientiousness.toFixed(2)} | Extraversion: ${h.extraversion.toFixed(2)}`,
       `Agreeableness: ${h.agreeableness.toFixed(2)} | Emotionality: ${h.emotionality.toFixed(2)} | Honesty-Humility: ${h.honestyHumility.toFixed(2)}`,
-      'Higher openness: consider novel solutions. Higher conscientiousness: demand evidence. Higher emotionality: weigh human impact.',
+      // Personality biases HOW you approach a problem, not WHETHER you
+      // leverage existing work. Reuse is the default baseline for every
+      // profile — the nudges below shape what you ADD on top of reuse.
+      'Higher openness: when an existing tool applies, reuse it; when extending or composing novel logic adds real value, lean into that. Higher conscientiousness: reuse first, demand evidence before forging something new. Higher emotionality: weigh human impact in every analysis.',
       '',
     );
   }
