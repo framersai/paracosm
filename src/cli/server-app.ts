@@ -226,10 +226,15 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         'Access-Control-Allow-Origin': '*',
       });
       res.write('event: connected\ndata: {}\n\n');
-      // Replay all buffered events so new clients catch up
+      // Replay all buffered events so new clients catch up. The trailing
+      // `replay_done` marker lets the client distinguish historical-buffer
+      // events from truly live ones so toasts (transient per-event
+      // notifications) only fire for events that arrive AFTER the user
+      // reached the page, never for the replay of a prior run.
       for (const msg of eventBuffer) {
         try { res.write(msg); } catch { break; }
       }
+      try { res.write('event: replay_done\ndata: {}\n\n'); } catch {}
       clients.add(res);
       // Reconnection cancels any pending disconnect watchdog fire so
       // the sim keeps running once the returning user is watching again.
