@@ -98,10 +98,27 @@ export async function runPairSimulations(
         const fp = v.result.fingerprint || {};
         const toolbox = v.result.forgedToolbox || [];
         const topTools = toolbox.slice(0, 5).map((t: any) => `${t.name}(${t.firstForgedDepartment}, reused ${t.reuseCount}x)`).join('; ');
+        // Cause-of-death breakdown. Each death in the event log carries
+        // an attributed cause (natural, radiation cancer, starvation,
+        // despair, fatal fracture, accident). Roll up for the verdict
+        // prompt so the LLM can reason about HOW colonists died, not
+        // just how many — a Mars colony losing 5 to radiation reads
+        // very differently from losing 5 to accidents.
+        const deathEvents = (v.result.finalState?.eventLog ?? []).filter((e: any) => e.type === 'death');
+        const causeCounts: Record<string, number> = {};
+        for (const d of deathEvents) {
+          const raw = (d.cause as string | undefined) ?? 'unknown';
+          const key = raw.startsWith('accident:') ? 'accident' : raw;
+          causeCounts[key] = (causeCounts[key] ?? 0) + 1;
+        }
+        const causeSummary = Object.keys(causeCounts).length > 0
+          ? Object.entries(causeCounts).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${n} ${k}`).join(', ')
+          : 'no deaths';
         return [
           `${label}: ${v.leader.name} "${v.leader.archetype}" (${v.leader.colony})`,
           `  HEXACO: O${v.leader.hexaco.openness.toFixed(2)} C${v.leader.hexaco.conscientiousness.toFixed(2)} E${v.leader.hexaco.extraversion.toFixed(2)} A${v.leader.hexaco.agreeableness.toFixed(2)} Em${v.leader.hexaco.emotionality.toFixed(2)} HH${v.leader.hexaco.honestyHumility.toFixed(2)}`,
           `  Final: Pop ${col?.population ?? '?'}, Morale ${Math.round((col?.morale ?? 0) * 100)}%, Food ${col?.foodMonthsReserve?.toFixed(1) ?? '?'}mo, Power ${col?.powerKw?.toFixed(0) ?? '?'}kW, Modules ${col?.infrastructureModules?.toFixed(1) ?? '?'}, Science ${col?.scienceOutput ?? '?'}`,
+          `  Mortality: ${deathEvents.length} total (${causeSummary})`,
           `  Innovation: ${toolbox.length} unique tools forged (${fp.innovation || 'n/a'}), citations ${v.result.totalCitations}`,
           topTools ? `  Top tools: ${topTools}` : '  No tools forged',
           `  Fingerprint: ${fp.summary || 'n/a'}`,
@@ -119,6 +136,8 @@ ${formatLeader('LEADER A', a, colA)}
 ${formatLeader('LEADER B', b, colB)}
 
 Tool forging is a tradeoff: each forged tool costs power and analyst attention, failed forges damage morale, but successful tools provide quantitative grounding for decisions. A leader who built fewer but reused tools may show better discipline; a leader who forged many novel tools may show emergent capability advantage. Factor this into the innovation score AND the overall verdict.
+
+Mortality is a second tradeoff. The "Mortality" line above names how each colonist died — natural causes, radiation cancer, starvation, despair, fatal fracture, or accident. A leader who lost 5 to starvation chose differently on resource allocation than a leader who lost 5 to radiation cancer; a leader with despair deaths was presiding over a colony in psychological freefall. Reference the specific causes in keyDivergence and summary when they shape the story; do not paper over cause differences by comparing raw death totals alone.
 
 Respond with JSON:
 {
