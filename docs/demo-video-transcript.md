@@ -1,107 +1,81 @@
 ---
 title: "Mars Genesis Demo Video: Narration Transcript"
-length: "2:30 - 3:00"
-target: "YouTube / landing page / agentos.sh blog embed"
+length: "2:45 target"
+target: "YouTube, landing page, agentos.sh blog embed"
 companion_post: "/blog/inside-mars-genesis-ai-colony-simulation"
 ---
 
 # Mars Genesis Demo Video: Narration Transcript
 
-Narration script for a screen-recorded demo of the Paracosm dashboard running a single full Mars Genesis simulation. Paced for roughly 2 minutes 45 seconds of voiceover. Record the full simulation at normal speed, then speed-ramp the middle turns so total video duration comes in at 2:30-3:00 after editing.
+Narration for a 2:45 screen recording of the Paracosm dashboard running a single Mars Genesis simulation. Target ~385 spoken words at 140 wpm. Record the full run at normal speed, then speed-ramp turns 2 through 4 so total video duration lands between 2:30 and 3:00 after edit.
 
-Timestamps below assume a normal-speed opening and closing with the middle turns sped up 2-4x. Adjust the exact ramp points to the actual length of your recorded simulation.
-
----
-
-## Opening: The First Thirty Seconds (0:00 - 0:30)
-
-**[SHOT: dashboard at Turn 0, Mars Genesis scenario loaded, seed visible in top-right badge, 100 colonists spawned in the roster panel]**
-
-**VO:** This is Mars Genesis. One hundred colonists, six turns, fifty simulated years on the same seed. Every person on screen carries a full HEXACO personality profile, a running mood, and a memory system that decides what they remember from every crisis.
-
-**[CUT: zoom into a single colonist card in the roster, show HEXACO bars and department assignment]**
-
-**VO:** This is Dr. Amara Okonkwo. Chief Medical Officer. High Conscientiousness, high Emotionality, moderate Openness. Her traits are going to decide which details she notices, how strongly her memory encodes them, and under pressure, which tools she writes.
+Timestamps below assume normal-speed opening and closing with the middle turns sped up 3x. Adjust the exact ramp points to the length of your raw recording.
 
 ---
 
-## Turn Zero: Personality Feeds Promotions (0:30 - 0:45)
+## Opening (0:00 - 0:15)
 
-**[SHOT: promotion cards appearing, candidate HEXACO profiles visible on hover]**
+**[SHOT: dashboard at Turn 0. Two leader panels side by side, Aria Chen on the left, Dietrich Voss on the right. 30 colonists spawned per side. Seed 950 badge visible top-right.]**
 
-**VO:** Before turn one, the commander reads the HEXACO profile of every promotion candidate and picks department heads. The agents running this are AgentOS agents with the HEXACO vector wired directly into their memory encoding weights. Same roster, different commander personality, different promotions.
-
----
-
-## Turn One: The Crisis (0:45 - 1:15)
-
-**[SHOT: advance to Turn 1. Event Director card appears. Dust storm event animates in with risk probability and relevant departments tagged]**
-
-**VO:** Turn one. The Event Director reads world state, aggregate crew mood from the last reaction pass, a research packet of real Mars radiation data, and emits a storm event. Each relevant department kicks off a parallel analysis.
-
-**[CUT: Medical department card animates open. A forge_tool card appears mid-analysis, showing a radiation dose calculator with input schema, sandbox code, and three test cases]**
-
-**VO:** Dr. Okonkwo's first move is not to pick an option. She writes a tool. A radiation dose calculator, with its own input schema, sandboxed JavaScript, and test cases. The LLM judge reviews it for safety and correctness.
-
-**[HIGHLIGHT: forge verdict pill showing "PASS, confidence 0.87"]**
-
-**VO:** Approved. Confidence 0.87. The tool runs inside a V8 isolate, executes against her test cases, returns a projected exposure, and that number lands in the report the commander reads.
+**VO:** Two commanders. One seed. Thirty colonists each. Same starting roster, opposing HEXACO profiles. Watch where the two runs diverge over the next six turns.
 
 ---
 
-## Memory, Live (1:15 - 1:45)
+## HEXACO Profiles (0:15 - 0:40)
 
-**[SPEED RAMP: 3x. Turns 2 and 3 roll by. Agent reactions stream in on the right. Colonist cards pulse as their mood shifts. The memory tab opens on one colonist showing new memories landing with strength scores]**
+**[CUT: zoom into both leader headers. HEXACO bars expand on each side, showing all six axes.]**
 
-**VO:** While this runs, every alive colonist reacts to the crisis on a cheap model in parallel. Each reaction feeds the cognitive memory pipeline. HEXACO attention weights decide what gets encoded strongly. Yerkes-Dodson says moderate arousal encodes best. Flashbulb detection fires for anything above intensity 0.8. The storm hits that threshold for half the crew.
-
-**[CUT: memory graph visualization showing edges strengthening between related memories]**
-
-**VO:** The memory graph walks spreading activation across related nodes, so when a colonist recalls the storm later, connected memories come back with it. Unrelated memories decay by an Ebbinghaus curve and get soft-deleted below the threshold.
+**VO:** Every agent in Paracosm carries a full HEXACO profile. Six traits, both poles, each one rewriting the prompt the agent runs on. Aria scores high Openness and low Conscientiousness. She favors novel tools and leads from the front. Dietrich scores high Conscientiousness and high Honesty-Humility. He demands evidence and works through technical channels.
 
 ---
 
-## Tool Reuse and Toolbox (1:45 - 2:00)
+## Turn 1: Forge (0:40 - 1:10)
 
-**[CUT: toolbox tab visible. Dr. Okonkwo's dose calculator now has a usage counter at 3. Engineering has forged a load analyzer. Agriculture has forged a yield projection tool]**
+**[ADVANCE to Turn 1. The Event Director card renders on both sides. Landfall milestone appears. Department analysis streams in parallel. Aria's Chief Engineer writes a landing-site scorer. An amber forge badge pops in the event log. On Dietrich's side, a teal badge fires when his own forge clears the judge.]**
 
-**VO:** The dose calculator from turn one is still in the session registry. Engineering reuses it during a later power event. After five uses above confidence 0.8, the promotion panel reviews it, and on approval it becomes an agent-tier tool that can be exported as a skill. That is how runtime forging becomes durable capability.
-
----
-
-## Reports and Colony Visualization (2:00 - 2:20)
-
-**[RETURN TO NORMAL SPEED. Reports tab open, department reports streaming in with inline citations back to the research packet]**
-
-**VO:** Every department report carries citations to the scenario's knowledge bundle. The orchestrator guarantees provenance even when the language model forgets to cite, so the research packet's facts ride along with the report.
-
-**[CUT: Colony Visualization tab, colonists rendered as cells colored by department. Some cells are dimmed where agents died]**
-
-**VO:** The Colony Visualization renders every colonist as a cell. Survival, deaths, department distribution, and timeline divergence are all visible at a glance. This is the state heading into the final turn.
+**VO:** Turn one. The Event Director generates a crisis. Each department analyzes in parallel, and Aria's Chief Engineer writes a landing-site scorer on the spot. Input schema, sandboxed code, test cases. The judge approves at confidence 0.86. A leader-coloured forge badge fires in the event log. The tool is now callable by every department in the session.
 
 ---
 
-## Chat With a Survivor (2:20 - 2:40)
+## Reuse Economy (1:10 - 1:40)
 
-**[CUT: chat panel opens against a specific Mars-born engineer who survived all six turns. User types: "What do you remember about the radiation storm?"]**
+**[SPEED RAMP 3x. Turns 2 through 4 roll by. Stats bar TOOLS and REUSE counters tick upward with per-turn deltas. Teal and amber REUSE badges fire in the event log each time a later department calls an already-forged tool.]**
 
-**VO:** After the simulation ends, every surviving colonist is chat-ready. Their agent carries the exact HEXACO profile they ended with, every reaction they produced during the run, and the full colony roster. When I ask about the storm, the memory system retrieves the traces most relevant to that query, weighted by her personality and mood at the time.
-
-**[SHOW: assistant reply streaming. Response references specific crew members by name, mentions the dose calculator by name, describes what she felt during the storm]**
-
-**VO:** The reply is grounded in her actual memory. She names the people she worked with, references the dose calculator, and describes the storm through the lens of her traits. No confabulation.
+**VO:** Turns two through four. Every time a department reuses a forged tool instead of writing a new one, a REUSE badge fires. Reuse is nearly free. Forging costs a judge call. Aria accepts first-pass tools and extracts ten reuses from three forges. Dietrich holds tools to a higher evidence bar, reforges three times, reuses seven. The Engineer rebuilds. The Visionary extracts more from what she has.
 
 ---
 
-## Close (2:40 - 2:50)
+## Drilldown (1:40 - 2:05)
 
-**[SHOT: cost StatsBar at the bottom showing total run cost across every director call, department analysis, judge review, and agent reaction]**
+**[RETURN TO NORMAL SPEED. Click a featured colonist tile on the Viz tab. The 420-pixel drilldown panel slides in from the right.]**
 
-**VO:** Every LLM call is accounted for. Paracosm is open source. AgentOS is open source. The Mars Genesis scenario ships as a default. Install, run, watch one hundred agents decide, remember, and build tools they need.
+**VO:** Click any colonist and the drilldown opens. A HEXACO radar with the colony mean overlaid. Mood trajectory across every turn, annotated with the crisis that shifted it. A family tree with clickable spouse and children thumbnails. The reactions she produced on every turn. A chat handoff that preselects her in the Chat tab.
 
-**[FINAL SHOT: paracosm.agentos.sh URL, npm install command, GitHub link]**
+---
 
-**VO:** Paracosm. Built on AgentOS.
+## Deaths Have Causes (2:05 - 2:25)
+
+**[CUT: Stats bar DEATHS pill on both sides. Hover reveals the breakdown chip reading, for example, "8 deaths, 3 radiation, 2 accident, 1 despair, 5 age." The two leaders show different distributions.]**
+
+**VO:** Mortality is attributed. The kernel simulates six causes: natural, radiation, starvation, despair, fatal fracture, accident. Aria's crew dies to accidents and radiation exposure. Dietrich's crew dies to despair and age. Same seed, different deaths.
+
+---
+
+## Verdict (2:25 - 2:40)
+
+**[CUT: VerdictCard renders. Headline, key divergence bullet, per-leader score bars, a short excerpt calling out the cause differences between the two colonies.]**
+
+**VO:** At the end, the verdict LLM reads both final states and the per-leader cause breakdown. It picks a winner, writes a headline, names the turn where the runs diverged, and cites the specific causes each colony paid for.
+
+---
+
+## Chat and Close (2:40 - 2:55)
+
+**[CUT: ChatPanel opens pre-selected on a surviving colonist. User types, "what do you remember about the storm." Reply streams, names crew by name, references the forged tool. Cost StatsBar visible at the bottom with total run spend.]**
+
+**VO:** Every survivor is chat-ready. Ask about the storm. Her reply draws from the memories she actually encoded, weighted by her personality at the time. Every LLM call on screen is accounted for. Paracosm is open source. Built on AgentOS.
+
+**[FINAL SHOT: paracosm.agentos.sh URL, npm install command, GitHub link.]**
 
 ---
 
@@ -109,40 +83,43 @@ Timestamps below assume a normal-speed opening and closing with the middle turns
 
 ### Speed Ramps
 
-Mark the raw recording with these anchor points and speed-ramp between them:
+Mark the raw recording at these anchors and ramp between them:
 
-| Anchor | Source timecode (example) | Action |
+| Anchor | Source timecode (approx.) | Action |
 |--------|--------------------------|--------|
-| Simulation start | 0:00 | Normal speed through Turn 0 promotions |
-| After Turn 1 forge + outcome | ~2:00 | Ramp to 3x |
-| Turn 4 complete | ~5:30 | Ramp back to 1x |
-| Chat panel open | ~6:00 | Normal speed to end |
+| Simulation start | 0:00 | Normal speed through Turn 0 and Turn 1 forge |
+| After Turn 1 commander decision | ~1:30 raw | Ramp to 3x |
+| After Turn 4 outcome | ~5:30 raw | Ramp back to 1x |
+| Drilldown panel opens | normal speed | Drilldown, deaths chip, verdict, chat |
 
 ### Captions
 
 Caption every on-screen element the narration references:
 
-- HEXACO bars (name each trait as it is mentioned)
-- Department promotion cards (candidate name and score)
-- forge_tool verdict pill ("PASS conf 0.87" or "FAIL reason")
-- Toolbox tab tool names and usage counters
-- Memory graph node labels when the graph overlay is visible
-- Chat message timestamps and the colonist's name in the header
+- HEXACO bars with trait names visible as each pole is mentioned.
+- Forge badge pills with leader colour and tool name ("FORGED mars_landing_site_selector, Aria").
+- Reuse badge pills when a later turn reuses a prior forge ("REUSE mars_landing_site_selector, agriculture").
+- Stats bar deltas (+N tools, +M reuses, +K deaths) per turn.
+- DEATHS pill cause breakdown chip on hover.
+- Drilldown panel section headers (HEXACO, Mood, Family, Reactions, Chat).
+- VerdictCard headline and key divergence text.
+- Chat message timestamps and the colonist's name in the header.
 
 ### On-Screen Overlays
 
-- Lower-third with colonist name, department, and HEXACO vector whenever a colonist is named.
-- Callout boxes pointing at specific UI elements when the narration names them.
-- Persistent small badge top-right showing the seed value across the entire run, so viewers see the seed does not change.
+- Persistent seed badge top-right across the whole run so the seed is visibly unchanged.
+- Lower-third with leader name, archetype, and HEXACO vector when the commander is first named.
+- Callout arrows on the forge badge, the REUSE badge, the DEATHS cause chip, and the drilldown section transitions.
+- A small "demo mode, 6 turns, 30 colonists, 3 departments" chip bottom-left matching the server's demo caps.
 
 ### Where to Add Your Own Voice
 
-The narration is written to be spoken in your own voice. Use it verbatim where it reads smoothly, paraphrase where your cadence differs. Places where your own voice lands best:
+The narration reads fine verbatim at 140 wpm. Places where a personal voice lands best:
 
-1. **0:00 - 0:08**: Open the hook in your own words. Punchier is better here.
-2. **1:15 - 1:20**: As the speed ramp starts, break in with a one-liner like "while this runs, here is what the memory pipeline is doing every single turn." Signposts the time compression.
-3. **2:40 - 2:50**: Closing line in your own words. End on the shortest sentence you are comfortable with.
+1. **0:00 - 0:08**: The cold open. Punchier in your own words is better than the scripted version.
+2. **1:10 - 1:15**: As the speed ramp starts, cut in with a signpost like "while this runs, here is what the reuse economy is doing every turn."
+3. **2:40 - 2:55**: Closing in your own words. End on the shortest sentence you are comfortable with.
 
 ### Captioning Timestamps
 
-When the recording is finished, note the exact frame timecodes for each beat and send them back. Per-line caption cues styled for YouTube, social clips, and the embedded player on agentos.sh will be generated against those timings.
+Once the recording is cut, note the exact frame timecodes for each beat and generate per-line caption cues for YouTube, social clips, and the embedded player on agentos.sh against those timings.
