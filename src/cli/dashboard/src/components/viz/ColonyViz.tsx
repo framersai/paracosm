@@ -100,8 +100,20 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
     return () => window.removeEventListener('keydown', onKey);
   }, [handleStepBack, handleStepForward, handlePlayPause]);
 
-  const snapA = snapsA[currentTurn];
-  const snapB = snapsB[currentTurn];
+  // Per-side snapshot resolution with lag tolerance. Two leaders run in
+  // parallel via Promise.all, but one side can lag by 10-30 seconds
+  // mid-turn (LLM calls are not perfectly synchronized). When the
+  // playhead auto-advances to max(snapsA.length, snapsB.length) - 1,
+  // the lagging side's `snaps[currentTurn]` is undefined and the grid
+  // renders the empty "No snapshot yet" state even though that leader
+  // has plenty of earlier snapshots to show. Fall back to the most
+  // recent snapshot that side has so both columns always render real
+  // colony data. The lag indicator below the header (turn N, lagging)
+  // tells the viewer when the two sides are not at the same playhead.
+  const snapA = snapsA[currentTurn] ?? snapsA[snapsA.length - 1];
+  const snapB = snapsB[currentTurn] ?? snapsB[snapsB.length - 1];
+  const snapATurn = snapA?.turn ?? 0;
+  const snapBTurn = snapB?.turn ?? 0;
 
   const divergenceData = useMemo(() => computeDivergence(snapA, snapB), [snapA, snapB]);
   const divergedIds = showDivergence ? divergenceData : null;
@@ -186,6 +198,7 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
           selectedId={selectedId}
           divergedIds={divergedIds?.aliveOnlyA}
           onSelect={setSelectedId}
+          lagTurns={snapATurn < snapBTurn ? snapBTurn - snapATurn : 0}
         />
         <ColonyPanel
           snapshot={snapB}
@@ -195,6 +208,7 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
           selectedId={selectedId}
           divergedIds={divergedIds?.aliveOnlyB}
           onSelect={setSelectedId}
+          lagTurns={snapBTurn < snapATurn ? snapATurn - snapBTurn : 0}
         />
       </div>
       <Legend />

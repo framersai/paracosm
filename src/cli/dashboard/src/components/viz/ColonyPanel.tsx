@@ -14,6 +14,14 @@ interface ColonyPanelProps {
   selectedId: string | null;
   divergedIds: Set<string> | undefined;
   onSelect: (agentId: string) => void;
+  /**
+   * Non-zero when this side's latest snapshot is older than the other
+   * leader's (e.g. the other side finished turn 5 but this side is
+   * still processing turn 4). Rendered as a subtle "T4 · lagging" hint
+   * in the header so viewers understand why the two grids may show
+   * different turn numbers momentarily.
+   */
+  lagTurns?: number;
 }
 
 /**
@@ -22,7 +30,7 @@ interface ColonyPanelProps {
  * snapshots render identically across turn scrubs.
  */
 export function ColonyPanel(props: ColonyPanelProps) {
-  const { snapshot, leaderName, leaderArchetype, mode, selectedId, divergedIds, onSelect } = props;
+  const { snapshot, leaderName, leaderArchetype, mode, selectedId, divergedIds, onSelect, lagTurns = 0 } = props;
 
   const layout = useMemo(
     () => (snapshot ? computeLayout(snapshot, mode) : null),
@@ -44,8 +52,15 @@ export function ColonyPanel(props: ColonyPanelProps) {
           <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-1)' }}>{leaderName}</div>
           <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>{leaderArchetype}</div>
         </div>
-        <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
-          Pop {snapshot.population} {'\u00b7'} Morale {Math.round(snapshot.morale * 100)}%
+        <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--mono)', display: 'flex', alignItems: 'baseline', gap: 6 }}>
+          <span>T{snapshot.turn}</span>
+          <span>Pop {snapshot.population}</span>
+          <span>Morale {Math.round(snapshot.morale * 100)}%</span>
+          {lagTurns > 0 && (
+            <span style={{ color: 'var(--amber)', fontStyle: 'italic' }} title={`This side is ${lagTurns} turn${lagTurns === 1 ? '' : 's'} behind; showing most recent snapshot`}>
+              lagging {lagTurns}
+            </span>
+          )}
         </div>
       </div>
       {layout.featured.length > 0 && (
