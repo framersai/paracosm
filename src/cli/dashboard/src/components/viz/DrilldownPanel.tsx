@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CellSnapshot, TurnSnapshot } from './viz-types.js';
 import { HexacoRadar } from './HexacoRadar.js';
 import { MoodChart } from './MoodChart.js';
@@ -62,8 +62,18 @@ export function DrilldownPanel(props: DrilldownPanelProps) {
   const { selectedId, snapshots, byId, hexacoById, colonyMean, onClose, onSelect, onJumpToTurn, onOpenChat } = props;
   const closeRef = useRef<HTMLButtonElement>(null);
 
+  // Mobile sheet height state (vh units). Starts at full; user can drag
+  // the top handle down to reduce to ~25vh so the scrub timeline is
+  // visible behind the sheet, then drag back up to restore.
+  const FULL_VH = 75;
+  const REDUCED_VH = 25;
+  const [sheetHeight, setSheetHeight] = useState<number>(FULL_VH);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef<{ y: number; startHeight: number } | null>(null);
+
   useEffect(() => {
     if (selectedId && closeRef.current) closeRef.current.focus();
+    if (selectedId) setSheetHeight(FULL_VH);
   }, [selectedId]);
 
   useEffect(() => {
@@ -74,6 +84,29 @@ export function DrilldownPanel(props: DrilldownPanelProps) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [selectedId, onClose]);
+
+  const onHandleTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    dragStartRef.current = { y: t.clientY, startHeight: sheetHeight };
+    setIsDragging(true);
+  };
+  const onHandleTouchMove = (e: React.TouchEvent) => {
+    if (!dragStartRef.current) return;
+    const t = e.touches[0];
+    const dyPx = t.clientY - dragStartRef.current.y;
+    const dyVh = (dyPx / window.innerHeight) * 100;
+    const next = Math.max(15, Math.min(92, dragStartRef.current.startHeight - dyVh));
+    setSheetHeight(next);
+  };
+  const onHandleTouchEnd = () => {
+    if (!dragStartRef.current) return;
+    // Snap to the nearer of the two rest points so release always lands
+    // somewhere predictable rather than at an arbitrary pixel.
+    const midpoint = (FULL_VH + REDUCED_VH) / 2;
+    setSheetHeight(sheetHeight >= midpoint ? FULL_VH : REDUCED_VH);
+    setIsDragging(false);
+    dragStartRef.current = null;
+  };
 
   const center = useMemo(
     () => (selectedId ? pickProfile(snapshots, selectedId) : null),
@@ -104,10 +137,11 @@ export function DrilldownPanel(props: DrilldownPanelProps) {
   const panelStyle: React.CSSProperties = isMobile
     ? {
         position: 'fixed', bottom: 0, left: 0, right: 0,
-        height: '75vh', background: 'var(--bg-panel)',
+        height: `${sheetHeight}vh`, background: 'var(--bg-panel)',
         borderTop: '1px solid var(--border)', zIndex: 1000,
-        overflowY: 'auto', padding: 16,
+        overflowY: 'auto', padding: '0 16px 16px',
         boxShadow: '0 -4px 16px rgba(0,0,0,0.3)',
+        transition: isDragging ? 'none' : 'height 220ms cubic-bezier(0.2, 0.9, 0.3, 1)',
       }
     : {
         position: 'fixed', top: 56, right: 0, bottom: 0,
@@ -119,6 +153,26 @@ export function DrilldownPanel(props: DrilldownPanelProps) {
 
   return (
     <aside aria-label={`Details for ${center.name}`} style={panelStyle}>
+      {isMobile && (
+        <div
+          role="button"
+          aria-label={sheetHeight >= (FULL_VH + REDUCED_VH) / 2 ? 'Drag down to reduce panel' : 'Drag up to expand panel'}
+          onTouchStart={onHandleTouchStart}
+          onTouchMove={onHandleTouchMove}
+          onTouchEnd={onHandleTouchEnd}
+          onClick={() => setSheetHeight(h => (h >= (FULL_VH + REDUCED_VH) / 2 ? REDUCED_VH : FULL_VH))}
+          style={{
+            position: 'sticky', top: 0,
+            display: 'flex', justifyContent: 'center', alignItems: 'center',
+            padding: '10px 0 6px', marginLeft: -16, marginRight: -16,
+            background: 'var(--bg-panel)',
+            touchAction: 'none', cursor: 'ns-resize', zIndex: 3,
+          }}
+        >
+          <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--text-4)' }} />
+        </div>
+      )}
+      <div style={{ paddingTop: isMobile ? 4 : 0 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
         <div>
           <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-1)' }}>{center.name}</div>
@@ -201,6 +255,7 @@ export function DrilldownPanel(props: DrilldownPanelProps) {
       >
         Open chat with {center.name}
       </button>
+      </div>
     </aside>
   );
 }
