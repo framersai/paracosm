@@ -130,17 +130,30 @@ function createEmergentEngine(
   const llmCb = async (model: string, prompt: string) => {
     try {
       const r = await generateText({ provider, model: model || judgeModel, prompt });
-      // Forward usage to the run-wide tracker. Judge calls were previously
-      // silently unaccounted, producing cost totals that looked like $0.25
-      // while the real bill was $5-8 per run on Anthropic defaults.
       onUsage?.(r);
       return r.text;
     } catch (err) {
-      // The AgentOS EmergentJudge has its own try/catch around this
-      // callback and will record a rejected verdict on throw, which is
-      // correct behavior. Re-throw so its existing error path runs; the
-      // orchestrator's forge-wrapper catches propagation through
-      // reportProviderError on the dept-level try/catch below.
+      onProviderError?.(err);
+      throw err;
+    }
+  };
+  // Structured callback with cacheable system block. Judge's stable
+  // rubric (~500 tokens) lands in the system slot with cacheBreakpoint:
+  // true, so on Anthropic the second judge call onward reads cached
+  // tokens at 10% of input rate. OpenAI auto-caches prompts >= 1024
+  // tokens so the same savings apply once the rubric lives in a stable
+  // prefix position. Typical run saves ~25% of judge spend.
+  const llmCbWithSystem = async (model: string, system: string, user: string) => {
+    try {
+      const r = await generateText({
+        provider,
+        model: model || judgeModel,
+        system: [{ text: system, cacheBreakpoint: true }],
+        prompt: user,
+      });
+      onUsage?.(r);
+      return r.text;
+    } catch (err) {
       onProviderError?.(err);
       throw err;
     }
@@ -163,7 +176,21 @@ function createEmergentEngine(
     maxSessionTools: SESSION_TOOL_LIMIT,
     maxAgentTools: AGENT_TOOL_LIMIT,
   });
-  const judge = new EmergentJudge({ judgeModel, promotionModel: judgeModel, generateText: llmCb });
+  // EmergentJudgeConfig accepts an optional `generateTextWithSystem`
+  // callback for prompt caching. The installed @framers/agentos may
+  // predate that field (monorepo adds it in the same pass but npm
+  // publish is a separate step); the any-cast lets the cached path
+  // activate today and TS tightens automatically once the new version
+  // lands in node_modules. Runtime behavior is identical either way:
+  // the judge checks for the optional callback and falls back to the
+  // legacy one when it's absent.
+  const judgeConfig = {
+    judgeModel,
+    promotionModel: judgeModel,
+    generateText: llmCb,
+    generateTextWithSystem: llmCbWithSystem,
+  } as unknown as ConstructorParameters<typeof EmergentJudge>[0];
+  const judge = new EmergentJudge(judgeConfig);
   const executor = async (name: string, args: unknown, ctx: any) => {
     const t = toolMap.get(name);
     return t ? t.execute(args as any, ctx) : { success: false, error: `Tool "${name}" not found` };
