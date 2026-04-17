@@ -141,10 +141,20 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
       <div className="flex items-center gap-3 flex-1 justify-center" style={{ minWidth: 0 }}>
         {gameState.turn > 0 && (
           <div className="topbar-meta flex items-center gap-2" style={{ fontSize: '11px', fontFamily: 'var(--mono)', color: 'var(--text-2)' }}>
-            <span>T<strong style={{ color: 'var(--text-1)' }}>{gameState.turn}</strong>/{gameState.maxTurns}</span>
-            <span>Y<strong style={{ color: 'var(--text-1)' }}>{gameState.year}</strong></span>
-            <span>S<strong style={{ color: 'var(--text-1)' }}>{gameState.seed}</strong></span>
-            <div className="w-20 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--border)' }} role="progressbar" aria-valuenow={gameState.turn} aria-valuemin={0} aria-valuemax={gameState.maxTurns} aria-label="Simulation progress">
+            <span title={`Turn ${gameState.turn} of ${gameState.maxTurns}`}>
+              <span style={{ color: 'var(--text-3)' }}>Turn </span>
+              <strong style={{ color: 'var(--text-1)' }}>{gameState.turn}</strong>
+              <span style={{ color: 'var(--text-3)' }}>/{gameState.maxTurns}</span>
+            </span>
+            <span title={`Year ${gameState.year}`}>
+              <span style={{ color: 'var(--text-3)' }}>Yr </span>
+              <strong style={{ color: 'var(--text-1)' }}>{gameState.year}</strong>
+            </span>
+            <span title={`Seed ${gameState.seed} — same seed produces the same deterministic kernel outcomes`}>
+              <span style={{ color: 'var(--text-3)' }}>Seed </span>
+              <strong style={{ color: 'var(--text-1)' }}>{gameState.seed}</strong>
+            </span>
+            <div className="w-20 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--border)' }} role="progressbar" aria-valuenow={gameState.turn} aria-valuemin={0} aria-valuemax={gameState.maxTurns} aria-label={`Simulation progress, turn ${gameState.turn} of ${gameState.maxTurns}`}>
               <div className="h-full rounded-full transition-all" style={{ width: `${Math.round((gameState.turn / gameState.maxTurns) * 100)}%`, background: 'linear-gradient(90deg, var(--side-a), var(--side-b))' }} />
             </div>
           </div>

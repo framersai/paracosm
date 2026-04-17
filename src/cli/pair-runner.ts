@@ -140,30 +140,49 @@ export async function runPairSimulations(
       const { text: verdictText } = await generateText({
         provider: simConfig.provider || 'openai',
         model: verdictModel,
-        prompt: `You are judging a colony simulation. Two AI commanders with different HEXACO personality profiles led identical colonies through ${turns} turns from the same starting conditions and deterministic seed. Compare their outcomes — including how each leader's tool-forging behavior affected outcomes — and declare a winner.
+        prompt: `You are judging a colony simulation. Two AI commanders with opposing HEXACO personality profiles led identical colonies through ${turns} turns from the same starting conditions and deterministic seed. Your job is to write a verdict that explains WHY the runs diverged the way they did, not just WHO won.
 
 ${formatLeader('LEADER A', a, colA)}
 
 ${formatLeader('LEADER B', b, colB)}
 
-Tool forging is a tradeoff: each forged tool costs power and analyst attention, failed forges damage morale, but successful tools provide quantitative grounding for decisions. A leader who built fewer but reused tools may show better discipline; a leader who forged many novel tools may show emergent capability advantage. Factor this into the innovation score AND the overall verdict.
+TRADEOFFS TO WEIGH
+Tool forging is a cost / capability tradeoff: every forged tool spent a judge LLM call and ate analyst attention; failed forges hurt morale and produced no reusable capability; successful tools let later decisions reason about concrete numbers. A leader who built few tools and reused them many times has a disciplined, cost-efficient signature. A leader who forged many novel tools has an exploratory signature with broader capability surface. Both are valid strategies and your scoring should reflect that trade, not punish either extreme.
 
-Mortality is a second tradeoff. The "Mortality" line above names how each colonist died — natural causes, radiation cancer, starvation, despair, fatal fracture, or accident. A leader who lost 5 to starvation chose differently on resource allocation than a leader who lost 5 to radiation cancer; a leader with despair deaths was presiding over a colony in psychological freefall. Reference the specific causes in keyDivergence and summary when they shape the story; do not paper over cause differences by comparing raw death totals alone.
+Mortality is a cause-specific signal, not a number. The "Mortality" line above names HOW each colonist died. A leader who lost 5 to starvation made different resource-allocation decisions than a leader who lost 5 to radiation cancer; a leader with despair deaths presided over a colony in psychological freefall. Reference the specific causes when they shape the story.
 
-Respond with JSON:
+REASON STEP BY STEP BEFORE WRITING THE JSON
+
+Use this exact structure. Do NOT skip the reasoning block. The JSON comes last.
+
+<thinking>
+1. Population trajectory — how did each colony's population evolve, and which tradeoffs produced that shape?
+2. Morale + psychological state — which leader's colony held together emotionally, and what does that say about HEXACO + decision style?
+3. Resource efficiency — food, power, infrastructure — which side ran leaner, which hit crises?
+4. Innovation signature — tools forged vs reused, breadth vs depth. What does each leader's toolbox say about their cognition?
+5. Mortality story — which causes dominated each side, and what does THAT say about the leader's priorities?
+6. The single most impactful divergence — resource decision, crisis response, tool strategy, or emergent behavior. Name it precisely.
+7. Weighing the tradeoffs, who won and why.
+</thinking>
+
+<verdict>
 {
   "winner": "A" or "B" or "tie",
-  "winnerName": "name of winning leader",
-  "headline": "one-line verdict (max 80 chars)",
-  "summary": "2-3 sentence analysis of how personality + tool-use shaped the divergence",
-  "keyDivergence": "the single most impactful difference (resource, decision, or emergent capability)",
+  "winnerName": "name of the winning leader, or 'Tie' for a tie",
+  "headline": "one-line verdict grounded in the key divergence (max 80 chars)",
+  "summary": "2-3 sentences naming the personality + tool-use + mortality pattern that drove the divergence",
+  "keyDivergence": "the single most impactful difference between the two runs — resource, decision, emergent capability, or mortality pattern",
   "scores": { "a": { "survival": 0-10, "prosperity": 0-10, "morale": 0-10, "innovation": 0-10 }, "b": { "survival": 0-10, "prosperity": 0-10, "morale": 0-10, "innovation": 0-10 } }
-}`,
+}
+</verdict>`,
       });
 
-      // Parse verdict
+      // Parse verdict. Model may emit a <thinking>...</thinking> block
+      // before the JSON; strip that first so the greedy {..} match doesn't
+      // swallow any literal braces inside the reasoning prose.
       try {
-        const jsonMatch = verdictText.match(/\{[\s\S]*\}/);
+        const stripped = verdictText.replace(/<thinking>[\s\S]*?<\/thinking>/, '');
+        const jsonMatch = stripped.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           const verdict = JSON.parse(jsonMatch[0]);
           broadcast('verdict', {

@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GameState, LeaderInfo } from '../../hooks/useGameState.js';
 import { useScenarioContext } from '../../App';
+import { useToast } from '../shared/Toast';
 import type { AutomatonMode } from './automaton/shared.js';
 
 const AUTOMATON_MODE_KEY = 'paracosm:vizAutomatonMode';
 const AUTOMATON_COLLAPSED_KEY = 'paracosm:vizAutomatonCollapsed';
+const AUTOMATON_NUDGE_KEY = 'paracosm:automatonNudgeSeen';
 
 function readStoredMode(): AutomatonMode {
   try {
@@ -71,6 +73,19 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
       return next;
     });
   }, []);
+
+  // First-run nudge: single toast explaining the automaton the first
+  // time the user lands on the viz tab with a completed (or in-flight)
+  // run. Dismisses itself and persists so it never fires again.
+  const { toast } = useToast();
+  useEffect(() => {
+    if (maxTurn === 0) return;
+    try {
+      if (localStorage.getItem(AUTOMATON_NUDGE_KEY) === '1') return;
+      localStorage.setItem(AUTOMATON_NUDGE_KEY, '1');
+    } catch { return; }
+    toast('info', 'Automaton view', 'Press 1 / 2 / 3 to switch modes (mood · forge · ecology), A to collapse the band.');
+  }, [maxTurn, toast]);
   const timerRef = useRef<number>(0);
   const prevMaxTurnRef = useRef(0);
 

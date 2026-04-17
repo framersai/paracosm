@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { TurnSnapshot } from '../viz-types.js';
 import { AutomatonCanvas, type ForgeAttemptInput, type ReuseCallInput } from './AutomatonCanvas.js';
 import type { AutomatonMode } from './shared.js';
@@ -39,6 +39,9 @@ export function AutomatonBand(props: AutomatonBandProps) {
   const [isMobile, setIsMobile] = useState<boolean>(() =>
     typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches,
   );
+  const [reducedMotion, setReducedMotion] = useState<boolean>(() =>
+    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+  );
 
   useEffect(() => {
     const mql = window.matchMedia('(max-width: 768px)');
@@ -47,13 +50,45 @@ export function AutomatonBand(props: AutomatonBandProps) {
     return () => mql.removeEventListener('change', handler);
   }, []);
 
+  useEffect(() => {
+    const mql = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const handler = (e: MediaQueryListEvent) => setReducedMotion(e.matches);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
+
+  // Reduced-motion users get a static labelled strip instead of the
+  // animated canvas. The data is still there, just rendered as text
+  // so no particles / interpolation / rAF fires.
+  const reducedSummary = useMemo(() => {
+    if (!snapshot) return null;
+    const alive = snapshot.cells.filter(c => c.alive).length;
+    const moodCounts: Record<string, number> = {};
+    for (const c of snapshot.cells) {
+      if (!c.alive) continue;
+      moodCounts[c.mood] = (moodCounts[c.mood] ?? 0) + 1;
+    }
+    const topMood = Object.entries(moodCounts).sort((a, b) => b[1] - a[1])[0];
+    const reuseTotal = (reuseCalls ?? []).length;
+    const forgedTotal = (forgeAttempts ?? []).filter(a => a.approved).length;
+    if (mode === 'mood') {
+      return `${alive} alive · ${topMood ? `${Math.round((topMood[1] / alive) * 100)}% ${topMood[0]}` : 'no mood data'}`;
+    }
+    if (mode === 'forge') {
+      return `${forgedTotal} tool${forgedTotal === 1 ? '' : 's'} forged · ${reuseTotal} reuse${reuseTotal === 1 ? '' : 's'}`;
+    }
+    return `${snapshot.population} pop · ${Math.round(snapshot.morale * 100)}% morale · ${snapshot.foodReserve.toFixed(1)}mo food`;
+  }, [snapshot, mode, forgeAttempts, reuseCalls]);
+
   const expandedHeight = isMobile
     ? MOBILE_BAND_HEIGHT
     : mode === 'ecology'
     ? ECOLOGY_BAND_HEIGHT
     : DEFAULT_BAND_HEIGHT;
 
-  const bandHeight = collapsed ? COLLAPSED_BAND_HEIGHT : expandedHeight;
+  // Reduced-motion users default collapsed with a static summary.
+  const effectiveCollapsed = collapsed || reducedMotion;
+  const bandHeight = effectiveCollapsed ? (reducedMotion ? 40 : COLLAPSED_BAND_HEIGHT) : expandedHeight;
 
   return (
     <div
@@ -70,19 +105,56 @@ export function AutomatonBand(props: AutomatonBandProps) {
         transition: 'height 220ms cubic-bezier(0.2, 0.9, 0.3, 1)',
       }}
     >
-      {collapsed ? (
-        <button
-          type="button"
-          onClick={onCollapseToggle}
-          aria-expanded="false"
-          aria-label="Expand automaton"
-          style={{
-            position: 'absolute', inset: 0, width: '100%', height: '100%',
-            background: `linear-gradient(90deg, ${sideColor}33, transparent 40%, ${sideColor}33 80%)`,
-            border: 'none', cursor: 'pointer', padding: 0,
-            animation: 'automaton-pulse 3.5s ease-in-out infinite',
-          }}
-        />
+      {effectiveCollapsed ? (
+        reducedMotion ? (
+          <div
+            role="status"
+            aria-label={`Automaton (reduced motion): ${reducedSummary ?? 'no data'}`}
+            style={{
+              position: 'absolute', inset: 0, width: '100%', height: '100%',
+              padding: '6px 12px',
+              display: 'flex', alignItems: 'center', gap: 12,
+              background: 'var(--bg-panel)',
+              fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--text-3)',
+              letterSpacing: '0.08em',
+            }}
+          >
+            <span style={{ color: sideColor, fontWeight: 800, textTransform: 'uppercase' }}>
+              {mode}
+            </span>
+            <span style={{ color: 'var(--text-2)' }}>
+              {reducedSummary}
+            </span>
+            <button
+              type="button"
+              onClick={onCollapseToggle}
+              aria-label="Force expand automaton despite reduced motion"
+              style={{
+                marginLeft: 'auto',
+                border: '1px solid var(--border)',
+                borderRadius: 3,
+                background: 'var(--bg-card)', color: 'var(--text-3)',
+                cursor: 'pointer', fontSize: 10,
+                padding: '2px 8px', fontFamily: 'var(--mono)',
+              }}
+            >
+              Force animate
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={onCollapseToggle}
+            aria-expanded="false"
+            aria-label="Expand automaton"
+            style={{
+              position: 'absolute', inset: 0, width: '100%', height: '100%',
+              background: `linear-gradient(90deg, ${sideColor}33, transparent 40%, ${sideColor}33 80%)`,
+              border: 'none', cursor: 'pointer', padding: 0,
+              animation: 'automaton-pulse 3.5s ease-in-out infinite',
+            }}
+          />
+        )
       ) : (
         <>
           <AutomatonCanvas

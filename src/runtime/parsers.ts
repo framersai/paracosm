@@ -111,7 +111,13 @@ export function parseDeptReport(text: string, dept: Department): DepartmentRepor
  * form decision + rationale when no JSON body is recoverable.
  */
 export function parseCmdDecision(text: string, depts: Department[]): CommanderDecision {
-  const jsonStr = extractJson(text);
+  // Strip any <thinking>...</thinking> reasoning block before looking for
+  // the JSON. The commander prompt now asks the model to reason step by
+  // step before emitting the decision JSON, so braces inside the
+  // reasoning prose (e.g. "effect id: {resource_shift}") would otherwise
+  // confuse extractJson's greedy brace match.
+  const stripped = text.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '');
+  const jsonStr = extractJson(stripped);
   if (jsonStr) {
     try {
       const raw = JSON.parse(jsonStr);

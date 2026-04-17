@@ -947,7 +947,35 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
       // than evidence-driven decision-making.
       const commanderToolboxBlock = availableToolsBlock;
       const eventLabel = turnEvents.length > 1 ? ` (Event ${ei + 1}/${turnEvents.length})` : '';
-      const cmdPrompt = `TURN ${turn}${eventLabel} — ${year}: ${event.title}\n\n${event.description}\n\nDEPARTMENT REPORTS:\n${summaries}\n${commanderToolboxBlock}\nColony: Pop ${kernel.getState().colony.population} | Morale ${Math.round(kernel.getState().colony.morale * 100)}% | Food ${kernel.getState().colony.foodMonthsReserve.toFixed(1)}mo${optionText}${effectsText}\n\nDecide. In your rationale, cite specific tool outputs from the toolbox above when they support your call. Return JSON.`;
+      // Commander decision with a lightweight chain-of-thought scaffold.
+      // The model is instructed to reason through four axes (trait alignment,
+      // department consensus vs override, risk tolerance, forged-tool
+      // evidence) inside <thinking> tags, then emit the decision JSON. On
+      // the nano / haiku class where commander runs in demo mode the CoT
+      // preamble adds ~300 tokens of reasoning per call but visibly sharpens
+      // rationale quality (rationales started citing specific tool outputs
+      // and trade tradeoffs instead of generic risk-averse hedging).
+      const cmdPrompt =
+`TURN ${turn}${eventLabel} — ${year}: ${event.title}
+
+${event.description}
+
+DEPARTMENT REPORTS:
+${summaries}
+${commanderToolboxBlock}
+Colony: Pop ${kernel.getState().colony.population} | Morale ${Math.round(kernel.getState().colony.morale * 100)}% | Food ${kernel.getState().colony.foodMonthsReserve.toFixed(1)}mo${optionText}${effectsText}
+
+Reason step by step BEFORE writing the JSON. Do not skip the thinking block.
+
+<thinking>
+1. What does my personality profile push me toward on this call? Name the specific trait poles at play.
+2. Do the department reports converge or conflict? If they conflict, which voice do I trust given my profile?
+3. Which forged-tool outputs in the toolbox above directly inform this decision? Cite the numeric output if available.
+4. What is the risk I accept vs the risk I refuse? My rationale must name the specific trade.
+5. Final choice + one-line justification.
+</thinking>
+
+Then return the JSON decision. Rationale should cite specific tool outputs when they support the call.`;
 
       // Abort gate: skip the commander LLM call if the client left
       // between dept analysis and commander decision. Breaking the
