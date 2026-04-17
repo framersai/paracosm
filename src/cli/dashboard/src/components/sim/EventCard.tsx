@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ProcessedEvent, Side } from '../../hooks/useGameState';
 import { useScenarioContext } from '../../App';
 import { useToolContext } from '../../hooks/useToolRegistry';
@@ -667,6 +667,11 @@ function ToolDetailModal({ entry, fallbackName, onClose }: {
   fallbackName: string;
   onClose: () => void;
 }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
   return (
     <div
       role="dialog"
