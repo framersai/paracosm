@@ -2,7 +2,6 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { ITool } from '@framers/agentos';
-import { ForgeToolMetaTool, generateText, extractJson } from '@framers/agentos';
 import {
   webSearchTool,
   createEmergentEngine,
@@ -10,6 +9,14 @@ import {
   wrapForgeTool,
   type CapturedForge,
 } from './emergent-setup.js';
+import {
+  humanizeToolName,
+  parseDeptReport,
+  parseCmdDecision,
+  emptyReport,
+  emptyDecision,
+  decisionToPolicy,
+} from './parsers.js';
 import type { Department, TurnOutcome } from '../engine/core/state.js';
 import { SeededRng } from '../engine/core/rng.js';
 import { classifyOutcome, classifyOutcomeById } from '../engine/core/progression.js';
@@ -42,128 +49,6 @@ export type { LeaderConfig };
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 
-// ---------------------------------------------------------------------------
-// Parsing
-// ---------------------------------------------------------------------------
-
-function humanizeToolName(name: string): string {
-  return name.replace(/_v\d+$/, '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-}
-
-
-function cleanSummary(raw: string): string {
-  let s = raw
-    .replace(/^#{1,4}\s+/gm, '')
-    .replace(/\*\*/g, '')
-    .replace(/^[-*]\s+/gm, '')
-    .replace(/^\d+\.\s+/gm, '')
-    .replace(/^(Decision|Recommendation|Summary|Analysis|Conclusion|I recommend|My analysis|Based on|After careful|Given the|Looking at|The data|In conclusion|Therefore|Overall|To summarize|As a result|In summary|Considering|Upon review|Having analyzed)\s*:?\s*/gim, '')
-    .replace(/^(choose|select|go with|opt for|approve|we should|I suggest|I propose)\s+/i, '')
-    .replace(/^Option [A-C][.:,]\s*/i, '')
-    .replace(/\n+/g, ' ')
-    .replace(/\s{2,}/g, ' ')
-    .trim();
-
-  if (s.startsWith('{') || s.startsWith('[')) return '';
-
-  const sentences = s.match(/[^.!?]+[.!?]/g) || [];
-  const result = sentences.slice(0, 2).join(' ').trim();
-  return result || s.slice(0, 150);
-}
-
-function buildReadableSummary(raw: any, dept: Department): string {
-  const summaryText = raw.summary || raw.decision || raw.recommendation || '';
-  const cleaned = cleanSummary(summaryText);
-  if (cleaned && cleaned.length >= 20) return cleaned;
-
-  const recs = (raw.recommendedActions || []).slice(0, 2).join('. ');
-  if (recs) return cleanSummary(recs);
-
-  const risks = (raw.risks || []).map((r: any) => r.description).slice(0, 2).join('. ');
-  if (risks) return cleanSummary(risks);
-
-  return `${dept.charAt(0).toUpperCase() + dept.slice(1)} department analysis complete.`;
-}
-
-function parseDeptReport(text: string, dept: Department): DepartmentReport {
-  const jsonStr = extractJson(text);
-  if (jsonStr) {
-    try {
-      const raw = JSON.parse(jsonStr);
-      if (raw.department || raw.summary || raw.risks || raw.recommendedActions) {
-        const report = { ...emptyReport(dept), ...raw, department: dept };
-        report.summary = buildReadableSummary(raw, dept);
-        if (typeof report.confidence !== 'number' || report.confidence < 0.1) report.confidence = 0.8;
-        return report;
-      }
-    } catch { /* try next block */ }
-  }
-
-  const cites: DepartmentReport['citations'] = [];
-  let m; const re = /\[([^\]]+)\]\(([^)]+)\)/g;
-  while ((m = re.exec(text))) if (m[2].startsWith('http')) cites.push({ text: m[1], url: m[2], context: m[1] });
-  return { ...emptyReport(dept), summary: cleanSummary(text), citations: cites };
-}
-
-function parseCmdDecision(text: string, depts: Department[]): CommanderDecision {
-  const jsonStr = extractJson(text);
-  if (jsonStr) {
-    try {
-      const raw = JSON.parse(jsonStr);
-      if (raw.decision || raw.selectedOptionId) {
-        return { ...emptyDecision(depts), ...raw };
-      }
-    } catch { /* fall through */ }
-  }
-  return { ...emptyDecision(depts), decision: text.slice(0, 500), rationale: text };
-}
-
-function emptyReport(d: Department): DepartmentReport {
-  return { department: d, summary: '', citations: [], risks: [], opportunities: [], recommendedActions: [], proposedPatches: {}, forgedToolsUsed: [], featuredAgentUpdates: [], confidence: 0.7, openQuestions: [], recommendedEffects: [] };
-}
-function emptyDecision(d: Department[]): CommanderDecision {
-  return { decision: '', rationale: '', departmentsConsulted: d, selectedPolicies: [], rejectedPolicies: [], expectedTradeoffs: [], watchMetricsNextTurn: [] };
-}
-
-function decisionToPolicy(decision: CommanderDecision, reports: DepartmentReport[], turn: number, year: number): PolicyEffect {
-  const patches: PolicyEffect['patches'] = {};
-
-  // Apply legacy proposedPatches (backward compat)
-  for (const r of reports) {
-    if (r.proposedPatches.colony) patches.colony = { ...patches.colony, ...r.proposedPatches.colony };
-    if (r.proposedPatches.politics) patches.politics = { ...patches.politics, ...r.proposedPatches.politics };
-    if (r.proposedPatches.agentUpdates) patches.agentUpdates = [...(patches.agentUpdates || []), ...r.proposedPatches.agentUpdates];
-  }
-
-  // Apply typed effects selected by commander
-  if (decision.selectedEffectIds?.length) {
-    const allEffects = reports.flatMap(r => r.recommendedEffects || []);
-    for (const effectId of decision.selectedEffectIds) {
-      const effect = allEffects.find(e => e.id === effectId);
-      if (!effect) continue;
-      if (effect.colonyDelta) {
-        patches.colony = patches.colony || {};
-        for (const [key, delta] of Object.entries(effect.colonyDelta)) {
-          const current = (patches.colony as any)[key] ?? 0;
-          (patches.colony as any)[key] = current + (delta as number);
-        }
-      }
-      if (effect.politicsDelta) {
-        patches.politics = patches.politics || {};
-        for (const [key, delta] of Object.entries(effect.politicsDelta)) {
-          const current = (patches.politics as any)[key] ?? 0;
-          (patches.politics as any)[key] = current + (delta as number);
-        }
-      }
-    }
-  }
-
-  return {
-    description: decision.decision,
-    patches,
-    events: [{ turn, year, type: 'decision', description: decision.decision.slice(0, 200), data: { policies: decision.selectedPolicies } }],
-  };
-}
 
 // ---------------------------------------------------------------------------
 // Main
