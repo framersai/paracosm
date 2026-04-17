@@ -8,13 +8,12 @@ interface Shortcut {
 
 const SHORTCUTS: Shortcut[] = [
   { keys: ['?'], description: 'Open this shortcuts overlay', scope: 'Global' },
-  { keys: ['Esc'], description: 'Close overlays / detail panels', scope: 'Global' },
+  { keys: ['Esc'], description: 'Close overlays / drilldown panel', scope: 'Global' },
   { keys: ['←'], description: 'Previous turn', scope: 'Visualization' },
   { keys: ['→'], description: 'Next turn', scope: 'Visualization' },
   { keys: ['Space'], description: 'Play / pause playback', scope: 'Visualization' },
-  { keys: ['M'], description: 'Cycle color mode (department · mood · age · generation)', scope: 'Visualization' },
-  { keys: ['L'], description: 'Toggle layout (department blocks ↔ family clusters)', scope: 'Visualization' },
-  { keys: ['D'], description: 'Toggle divergence overlay', scope: 'Visualization' },
+  { keys: ['M'], description: 'Cycle cluster mode (families · departments · mood · age)', scope: 'Visualization' },
+  { keys: ['D'], description: 'Toggle divergence tint overlay', scope: 'Visualization' },
   { keys: ['Enter'], description: 'Send chat message', scope: 'Chat' },
 ];
 
