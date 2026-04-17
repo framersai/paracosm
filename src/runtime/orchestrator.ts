@@ -3,7 +3,13 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { ITool } from '@framers/agentos';
 import { ForgeToolMetaTool, generateText, extractJson } from '@framers/agentos';
-import { webSearchTool, createEmergentEngine, wrapForgeTool, type CapturedForge } from './emergent-setup.js';
+import {
+  webSearchTool,
+  createEmergentEngine,
+  createCallForgedTool,
+  wrapForgeTool,
+  type CapturedForge,
+} from './emergent-setup.js';
 import type { Department, TurnOutcome } from '../engine/core/state.js';
 import { SeededRng } from '../engine/core/rng.js';
 import { classifyOutcome, classifyOutcomeById } from '../engine/core/progression.js';
@@ -480,6 +486,11 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
 
   const toolMap = new Map<string, ITool>();
   toolMap.set('web_search', webSearchTool);
+  // Shared map of approved forged-tool executables. Populated by the
+  // engine's onToolForged callback; read by the call_forged_tool
+  // meta-tool so depts can execute prior-turn forges on new inputs
+  // without paying for another judge review.
+  const forgedExecutables = new Map<string, ITool>();
   const { engine, forgeTool } = createEmergentEngine(
     toolMap,
     provider,
@@ -494,7 +505,9 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     // or 429-with-insufficient-quota from the judge fires the same abort
     // path as failures from any other LLM call site.
     (err) => reportProviderError(err, 'judge'),
+    forgedExecutables,
   );
+  const callForgedTool = createCallForgedTool(forgedExecutables);
   const toolRegs: Record<string, string[]> = {};
 
   /**
@@ -684,7 +697,14 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     const cfg = sc.departments.find(c => c.id === dept);
     if (!cfg) continue;
     const wrapped = wrapForgeTool(forgeTool, `${sid}-${dept}`, sid, dept, captureForge(dept));
-    const tools: ITool[] = opts.liveSearch ? [webSearchTool, wrapped] : [wrapped];
+    // call_forged_tool lets this dept execute any tool another dept
+    // (or this one) forged in a prior turn. Reuse costs ~zero vs a
+    // fresh forge, so including it in the tools array on turn 1 is
+    // safe — the forgedExecutables map is empty until something is
+    // approved, at which point the meta-tool starts dispatching.
+    const tools: ITool[] = opts.liveSearch
+      ? [webSearchTool, wrapped, callForgedTool]
+      : [wrapped, callForgedTool];
     // Universal forge_tool prompt injected for EVERY scenario (Mars,
     // Lunar, custom compiled, etc.). Previously only the hardcoded
     // DEPARTMENT_CONFIGS in departments.ts told the LLM about forging,
@@ -1010,7 +1030,7 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
           const head = `- ${t.name} (${t.dept}): ${t.title}`;
           return t.output ? `${head}\n  last output: ${t.output}` : head;
         }).join('\n');
-        return `\n\nALREADY-FORGED TOOLS IN THIS SESSION:\n${lines}\n\nHARD RULE: If a tool above already covers your analysis, DO NOT call forge_tool. Cite it in "forgedToolsUsed" with the exact name and reference the last output in your summary. Re-forging by the same name costs −0.06 outcome bonus and −0.015 morale. Only forge a NEW tool when no existing one applies. Reuses are +0.02 outcome bonus each.\n`;
+        return `\n\nALREADY-FORGED TOOLS IN THIS SESSION:\n${lines}\n\nHARD RULE — how to reuse:\n- Preferred: call the tool for real with fresh inputs via call_forged_tool({"name":"<tool_name>","args":{...}}). This produces a new output using the approved, judge-reviewed code. Then cite the tool in "forgedToolsUsed" with the new output.\n- If the analysis is essentially unchanged from last invocation, cite the tool name in "forgedToolsUsed" and reference the last output from the list above in your summary — no tool call needed.\n- Do NOT call forge_tool with a name from this list. Re-forging costs −0.06 outcome bonus and −0.015 morale. Only forge a NEW tool when NO existing one applies. Each reuse (via call_forged_tool or citation) is +0.02 outcome bonus.\n`;
       })();
 
       const deptPromises = depts.map(async (dept) => {
