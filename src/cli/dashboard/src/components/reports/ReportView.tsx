@@ -179,14 +179,24 @@ export function ReportView({ state, verdict }: ReportViewProps) {
   }
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  // Tail-to-bottom: auto-scroll on new turns only when the user is
+  // already near the bottom. Releases as soon as they scroll up to
+  // read an earlier turn.
+  const pinnedRef = useRef(true);
+  const onScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    pinnedRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+  };
   useEffect(() => {
+    if (!pinnedRef.current) return;
     if (scrollRef.current && turns.length > 0) {
       scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
     }
   }, [turns.length]);
 
   return (
-    <div ref={scrollRef} className="reports-content" role="region" aria-label="Turn-by-turn report" style={{ flex: 1, overflowY: 'auto', padding: '24px 32px', background: 'var(--bg-deep)' }}>
+    <div ref={scrollRef} onScroll={onScroll} className="reports-content" role="region" aria-label="Turn-by-turn report" style={{ flex: 1, overflowY: 'auto', padding: '24px 32px', background: 'var(--bg-deep)' }}>
       <h2 style={{ fontSize: '22px', color: 'var(--amber)', fontFamily: 'var(--mono)', marginBottom: '16px' }}>
         Turn-by-Turn Report
       </h2>

@@ -129,6 +129,15 @@ export function ChatPanel({ state }: ChatPanelProps) {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const messagesRef = useRef<HTMLDivElement>(null);
+  // Pin-to-bottom for the chat message stream. Release the pin if
+  // the user scrolls up to re-read an earlier message so the next
+  // reply does not yank them back down.
+  const chatPinnedRef = useRef(true);
+  const onMessagesScroll = () => {
+    const el = messagesRef.current;
+    if (!el) return;
+    chatPinnedRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+  };
 
   // Consume a preselected colonist from the URL hash. The VIZ tab
   // drilldown writes `#chat=<Name>` before switching to this tab, so
@@ -168,6 +177,7 @@ export function ChatPanel({ state }: ChatPanelProps) {
   const selected = agents.find(c => c.name === selectedId);
 
   useEffect(() => {
+    if (!chatPinnedRef.current) return;
     if (messagesRef.current) messagesRef.current.scrollTo({ top: messagesRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, sending]);
 
@@ -358,7 +368,7 @@ export function ChatPanel({ state }: ChatPanelProps) {
           </div>
         )}
 
-        <div ref={messagesRef} style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <div ref={messagesRef} onScroll={onMessagesScroll} style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {!selectedId && (
             <div style={{ color: 'var(--text-3)', textAlign: 'center', padding: '30px 20px' }}>
               <div style={{ fontSize: '14px', marginBottom: '10px' }}>

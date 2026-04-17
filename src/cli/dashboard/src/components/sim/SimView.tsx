@@ -24,11 +24,20 @@ interface SimViewProps {
 
 function SideColumn({ side, sideState, state }: { side: Side; sideState: SideState; state: GameState }) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  // Pin-to-bottom state. Starts pinned; releases when the user
+  // scrolls up more than 40px so they can read an older event
+  // without being yanked back to the live edge.
+  const pinnedRef = useRef(true);
+  const onScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    pinnedRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+  };
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-    }
+    if (!pinnedRef.current) return;
+    const el = scrollRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
   }, [sideState.events.length]);
 
   const isWaiting = !sideState.leader && !state.isRunning;
@@ -42,7 +51,7 @@ function SideColumn({ side, sideState, state }: { side: Side; sideState: SideSta
     >
       <CrisisHeader side={side} crisis={sideState.crisis} />
 
-      <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '4px 8px', display: 'flex', flexDirection: 'column', gap: '1px' }}>
+      <div ref={scrollRef} onScroll={onScroll} style={{ flex: 1, overflowY: 'auto', padding: '4px 8px', display: 'flex', flexDirection: 'column', gap: '1px' }}>
         {!isWaiting && sideState.events.length === 0 && state.isRunning && (
           <div style={{ color: 'var(--text-3)', fontSize: '12px', padding: '16px 12px' }} role="status">
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>

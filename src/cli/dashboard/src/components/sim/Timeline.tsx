@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import type { GameState, Side } from '../../hooks/useGameState';
 import { Tooltip } from '../shared/Tooltip';
 
@@ -118,9 +119,23 @@ function TurnTooltipContent({ t, sideColor }: { t: TurnEntry; sideColor: string 
 
 function SideTimeline({ turns, side }: { turns: TurnEntry[]; side: Side }) {
   const sideColor = side === 'a' ? 'var(--vis)' : 'var(--eng)';
+  // Same tail-to-bottom pattern as the Sim column and Event Log:
+  // auto-scroll when pinned, release on user scroll-up.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const pinnedRef = useRef(true);
+  const onScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    pinnedRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+  };
+  useEffect(() => {
+    if (!pinnedRef.current) return;
+    const el = scrollRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+  }, [turns.length]);
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0 }}>
+    <div ref={scrollRef} onScroll={onScroll} style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0 }}>
       {turns.map(t => (
         <Tooltip key={t.turn} dot content={<TurnTooltipContent t={t} sideColor={sideColor} />}>
           <div style={{
