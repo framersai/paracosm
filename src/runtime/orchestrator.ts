@@ -1,6 +1,4 @@
-import { writeFileSync, mkdirSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { writeRunOutput } from './output-writer.js';
 import type { ITool } from '@framers/agentos';
 import {
   webSearchTool,
@@ -36,8 +34,7 @@ import { getResearchFromBundle } from './research/scenario-research.js';
 import { initResearchMemory, recallResearch, closeResearchMemory } from './research/research-memory.js';
 import { buildDepartmentContext, getDepartmentsForTurn } from './departments.js';
 import { EventDirector, type DirectorEvent, type DirectorContext, type DirectorEventBatch } from './director.js';
-import { generateAgentReactions } from './agent-reactions.js';
-import { recordReactionMemory, consolidateMemory, updateRelationshipsFromReactions } from './agent-memory.js';
+import { runReactionStep } from './reaction-step.js';
 import type { ScenarioPackage } from '../engine/types.js';
 import type { LlmProvider, SimulationModelConfig } from '../engine/types.js';
 import {
@@ -53,8 +50,6 @@ import { EffectRegistry } from '../engine/effect-registry.js';
 import { marsScenario } from '../engine/mars/index.js';
 import type { LeaderConfig } from '../engine/types.js';
 export type { LeaderConfig };
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
 
 
 
@@ -1018,125 +1013,27 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
     for (const p of drifted.slice(0, 5)) { const h = p.hexaco; driftData[p.core.id] = { name: p.core.name, hexaco: { O: +h.openness.toFixed(2), C: +h.conscientiousness.toFixed(2), E: +h.extraversion.toFixed(2), A: +h.agreeableness.toFixed(2) } }; }
     emit('drift', { turn, year, agents: driftData });
 
-    // Agent reactions (once per turn, reacting to ALL events)
-    const reactionCtx = {
-      crisisTitle: turnEventTitles.join(' / '),
-      crisisCategory: turnEvents.map(e => e.category).join(', '),
-      outcome: lastOutcome,
-      decision: turnEventTitles.join('. '),
-      year, turn, colonyMorale: kernel.getState().colony.morale,
-      colonyPopulation: kernel.getState().colony.population,
-    };
-
-    // Progressive reactions: turn 1 always runs the full colony so
-    // baseline personalities and memories get established. Turns 2+ pick
-    // only agents who materially experienced this turn's events
-    // (featured + promoted heads + anyone in a relevantDepartments for
-    // the turn), capped at ~30. This cuts ~70% of reaction calls after
-    // turn 1 with minor memory-sparsity tradeoff (non-reactors still
-    // accumulate crisis/decision/outcome entries via the orchestrator's
-    // per-event logging; only their shortTerm personal reaction memory
-    // thins out).
-    const progressiveReactions = opts.execution?.progressiveReactions ?? DEFAULT_EXECUTION.progressiveReactions;
-    const reactionBatchSize = opts.execution?.reactionBatchSize ?? DEFAULT_EXECUTION.reactionBatchSize;
-    const allAlive = kernel.getState().agents.filter(a => a.health.alive);
-    const eligibleAgents = (() => {
-      if (!progressiveReactions || turn === 1) return allAlive;
-      const relevantDepts = new Set<string>();
-      for (const ev of turnEvents) {
-        for (const d of ev.relevantDepartments || []) relevantDepts.add(String(d));
-      }
-      const picked = new Map<string, typeof allAlive[number]>();
-      const add = (a: typeof allAlive[number]) => { if (!picked.has(a.core.id)) picked.set(a.core.id, a); };
-      // Featured agents (5-8 typically): always react. These are the
-      // colonists users see in the bulletin and care about narratively.
-      for (const a of allAlive) if (a.narrative.featured) add(a);
-      // Promoted department heads (5): always react. They shape next
-      // turn's analysis so their psych state matters.
-      for (const a of allAlive) if (a.promotion) add(a);
-      // Department-affected agents: up to 6 per relevant dept, prioritized
-      // by absolute deviation from neutral psych (more dramatic reactors
-      // first). Keeps the bulletin textured with voices actually in the
-      // firing line of the event.
-      for (const dept of relevantDepts) {
-        const candidates = allAlive
-          .filter(a => a.core.department === dept && !picked.has(a.core.id))
-          .sort((a, b) => Math.abs(b.health.psychScore - 0.5) - Math.abs(a.health.psychScore - 0.5))
-          .slice(0, 6);
-        for (const a of candidates) add(a);
-      }
-      // Hard cap so a scenario with many relevant departments can't
-      // blow past budget by accident.
-      return Array.from(picked.values()).slice(0, 30);
-    })();
-    if (progressiveReactions && turn > 1) {
-      console.log(`  [agents] Progressive: ${eligibleAgents.length}/${allAlive.length} react this turn`);
-    }
-
-    try {
-      reactions = await generateAgentReactions(
-        eligibleAgents, reactionCtx,
-        {
-          provider,
-          model: modelConfig.agentReactions || 'gpt-4o-mini',
-          maxConcurrent: 25,
-          reactionContextHook: sc.hooks.reactionContextHook,
-          batchSize: reactionBatchSize,
-          // Fold reaction usage into run-wide cost tracking. With ~100 agents
-          // per turn, these calls were a large untracked line item on the
-          // real API bill. Tagged 'reactions' so the StatsBar breakdown
-          // separates reaction spend from dept/commander/director.
-          onUsage: (result) => trackUsage(result, 'reactions'),
-          // Classify the first reaction-batch error so an 80-agent wall of
-          // 429s produces one `provider_error` banner, not 80 toasts.
-          onProviderError: (err) => reportProviderError(err, 'reactions'),
-        },
-      );
-      if (reactions.length) {
-        const agentMap = new Map(kernel.getState().agents.map(c => [c.core.id, c]));
-        emit('agent_reactions', {
-          turn, year,
-          reactions: reactions.slice(0, 8).map(r => {
-            const agent = agentMap.get(r.agentId);
-            const mem = agent?.memory;
-            return {
-              name: r.name, age: r.age, department: r.department, role: r.role,
-              specialization: r.specialization, marsborn: r.marsborn,
-              quote: r.quote, mood: r.mood, intensity: r.intensity,
-              hexaco: r.hexaco, psychScore: r.psychScore, boneDensity: r.boneDensity, radiation: r.radiation,
-              agentId: r.agentId,
-              memory: mem ? {
-                recentMemories: mem.shortTerm.slice(-3).map(m => ({ year: m.year, content: m.content, valence: m.valence })),
-                beliefs: mem.longTerm.slice(-3),
-                stances: Object.entries(mem.stances).filter(([, v]) => Math.abs(v) > 0.2).map(([k, v]) => ({ topic: k, value: v })),
-                relationships: Object.entries(mem.relationships).filter(([, v]) => Math.abs(v) > 0.2).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1])).slice(0, 3).map(([id, v]) => ({ name: agentMap.get(id)?.core.name || id, sentiment: v })),
-              } : null,
-            };
-          }),
-          totalReactions: reactions.length,
-        });
-        for (const r of reactions) { const c = agentMap.get(r.agentId); if (c) recordReactionMemory(c, r, turnEventTitles.join(' / '), lastEventCategory, lastOutcome, turn, year); }
-        updateRelationshipsFromReactions(kernel.getState().agents, reactions);
-        for (const c of kernel.getState().agents) { if (c.health.alive) consolidateMemory(c); }
-
-        const moodCounts: Record<string, number> = {};
-        for (const r of reactions) moodCounts[r.mood] = (moodCounts[r.mood] || 0) + 1;
-        const moodParts = Object.entries(moodCounts).sort((a, b) => b[1] - a[1]).map(([m, c]) => `${Math.round(c / reactions.length * 100)}% ${m}`);
-        lastTurnMoodSummary = `${reactions.length} colonists: ${moodParts.join(', ')}`;
-
-        const bulletinRng = new SeededRng(seed).turnSeed(turn + 3000);
-        const bulletinPosts = reactions.slice(0, 4).map(r => ({
-          name: r.name, department: r.department, role: r.role, marsborn: r.marsborn, age: r.age,
-          post: r.quote.length > 140 ? r.quote.slice(0, 137) + '...' : r.quote,
-          mood: r.mood, intensity: r.intensity,
-          likes: Math.floor(r.intensity * 20 + bulletinRng.next() * 10),
-          replies: Math.floor(r.intensity * 5 + bulletinRng.next() * 3),
-        }));
-        emit('bulletin', { turn, year, posts: bulletinPosts });
-      }
-    } catch (err) {
-      console.log(`  [agents] Reaction generation failed: ${err}`);
-    }
+    // Agent reactions (once per turn, reacting to ALL events). Runs the
+    // full roster on turn 1; turn 2+ uses progressive reactions to pick
+    // only agents materially affected by this turn's events (featured +
+    // promoted heads + dept-relevant, capped at 30). See reaction-step.ts.
+    const reactionResult = await runReactionStep({
+      kernel,
+      scenario: sc,
+      turn, year, seed,
+      turnEvents,
+      turnEventTitles,
+      lastEventCategory,
+      lastOutcome,
+      provider,
+      modelConfig,
+      execution: opts.execution,
+      trackUsage,
+      reportProviderError,
+      emit,
+    });
+    reactions = reactionResult.reactions;
+    if (reactionResult.moodSummary) lastTurnMoodSummary = reactionResult.moodSummary;
 
     // Accumulate reactions for the run-wide log (also surfaced via SSE).
     if (reactions.length) {
@@ -1350,20 +1247,12 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
     totalToolsForged: forgedToolbox.length,
   };
 
-  const outDir = resolve(__dirname, '..', '..', 'output');
-  mkdirSync(outDir, { recursive: true });
-  const ts = new Date().toISOString().replace(/[:.]/g, '-');
-  const tag = leader.archetype.toLowerCase().replace(/\s+/g, '-');
-  const path = resolve(outDir, `v3-${tag}-${ts}.json`);
-  writeFileSync(path, JSON.stringify(output, null, 2));
-
-  console.log(`\n${'═'.repeat(60)}`);
-  console.log(`  COMPLETE — ${leader.name}`);
-  console.log(`  Output: ${path}`);
-  console.log(`  Turns: ${artifacts.length} | Citations: ${output.totalCitations} | Tools: ${output.totalToolsForged}`);
-  console.log(`  Final: Pop ${final.colony.population} | Morale ${Math.round(final.colony.morale * 100)}%`);
-  console.log(`  Registries: ${JSON.stringify(toolRegs)}`);
-  console.log(`${'═'.repeat(60)}\n`);
+  writeRunOutput(output, {
+    leaderName: leader.name,
+    leaderArchetype: leader.archetype,
+    turns: artifacts.length,
+    toolRegs,
+  });
 
   engine.cleanupSession(sid);
   await closeResearchMemory();
