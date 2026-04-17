@@ -35,7 +35,7 @@ function fmtSuffix(id: string): string {
   return '';
 }
 
-/** Short labels that fit the dense stats bar */
+/** Short labels that fit the dense stats bar (desktop + tablet). */
 const SHORT_LABELS: Record<string, string> = {
   population: 'POP',
   morale: 'MORALE',
@@ -45,6 +45,23 @@ const SHORT_LABELS: Record<string, string> = {
   scienceOutput: 'SCIENCE',
   hullIntegrity: 'HULL',
   oxygenReserveHours: 'O2',
+};
+
+/**
+ * Single-character icon labels for phone width (<480px). Fallback to
+ * the first letter of the short label when a metric isn't in this
+ * table, which keeps the row readable for any scenario that adds
+ * custom metrics without registering an icon.
+ */
+const ICON_LABELS: Record<string, string> = {
+  population: 'P',
+  morale: 'M',
+  foodMonthsReserve: 'F',
+  powerKw: 'W',
+  infrastructureModules: 'I',
+  scienceOutput: 'S',
+  hullIntegrity: 'H',
+  oxygenReserveHours: 'O₂',
 };
 
 function delta(curr: number, prev: number | undefined): string {
@@ -119,7 +136,9 @@ export function StatsBar({
         </span>
       )}
 
-      {/* Colony metrics with per-leader comparison */}
+      {/* Colony metrics with per-leader comparison. Labels have a full
+          word (.pill-label-full) and a single-char icon (.pill-label-short)
+          swapped at phone width via tokens.css media queries. */}
       {metrics.map(metric => {
         const valA = colonyA?.[metric.id] ?? 0;
         const valB = colonyB?.[metric.id] ?? 0;
@@ -129,9 +148,13 @@ export function StatsBar({
         const fB = fmtVal(valB, metric.format);
         const suffix = fmtSuffix(metric.id);
         const label = SHORT_LABELS[metric.id] || metric.id.replace(/([A-Z])/g, ' $1').trim().toUpperCase();
+        const icon = ICON_LABELS[metric.id] || label.charAt(0);
         return (
           <span key={metric.id} style={pillWrap}>
-            <span style={labelStyle}>{label}</span>
+            <span style={labelStyle} title={label}>
+              <span className="pill-label-full">{label}</span>
+              <span className="pill-label-short">{icon}</span>
+            </span>
             <span style={{ ...valueStyle, color: 'var(--vis)' }}>{fA}{suffix}</span>
             {dA && <span style={{ ...deltaStyle, color: dA.startsWith('+') ? 'var(--green)' : 'var(--rust)' }}>{dA}</span>}
             <span style={sepStyle}>vs</span>
@@ -143,7 +166,10 @@ export function StatsBar({
 
       {/* Deaths */}
       <span style={pillWrap}>
-        <span style={labelStyle}>DEATHS</span>
+        <span style={labelStyle} title="Deaths">
+          <span className="pill-label-full">DEATHS</span>
+          <span className="pill-label-short">†</span>
+        </span>
         <span style={{ ...valueStyle, color: deathsA > 0 ? 'var(--rust)' : 'var(--text-1)' }}>{deathsA}</span>
         <span style={sepStyle}>vs</span>
         <span style={{ ...valueStyle, color: deathsB > 0 ? 'var(--rust)' : 'var(--text-1)' }}>{deathsB}</span>
@@ -151,7 +177,10 @@ export function StatsBar({
 
       {/* Tools */}
       <span style={pillWrap}>
-        <span style={labelStyle}>TOOLS</span>
+        <span style={labelStyle} title="Tools forged">
+          <span className="pill-label-full">TOOLS</span>
+          <span className="pill-label-short">T</span>
+        </span>
         <span style={{ ...valueStyle, color: 'var(--text-1)' }}>{toolsA}</span>
         <span style={sepStyle}>/</span>
         <span style={{ ...valueStyle, color: 'var(--text-1)' }}>{toolsB}</span>
@@ -159,7 +188,10 @@ export function StatsBar({
 
       {/* Citations */}
       <span style={pillWrap}>
-        <span style={labelStyle}>CITES</span>
+        <span style={labelStyle} title="Citations">
+          <span className="pill-label-full">CITES</span>
+          <span className="pill-label-short">C</span>
+        </span>
         <span style={{ ...valueStyle, color: 'var(--text-1)' }}>{citationsA}</span>
         <span style={sepStyle}>/</span>
         <span style={{ ...valueStyle, color: 'var(--text-1)' }}>{citationsB}</span>
@@ -173,7 +205,10 @@ export function StatsBar({
           style={pillWrap}
           title="Forged-tool reuse count per leader. Reuses amortize forge cost across multiple events."
         >
-          <span style={labelStyle}>REUSE</span>
+          <span style={labelStyle} title="Reuse count">
+            <span className="pill-label-full">REUSE</span>
+            <span className="pill-label-short">R</span>
+          </span>
           <span style={{ ...valueStyle, color: reuseA > 0 ? 'var(--green)' : 'var(--text-1)' }}>{reuseA}</span>
           <span style={sepStyle}>/</span>
           <span style={{ ...valueStyle, color: reuseB > 0 ? 'var(--green)' : 'var(--text-1)' }}>{reuseB}</span>
