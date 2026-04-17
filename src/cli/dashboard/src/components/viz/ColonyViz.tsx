@@ -160,7 +160,7 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
 
   if (maxTurn === 0) {
     return (
-      <div style={{
+      <div className="viz-content" style={{
         flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
         color: 'var(--text-3)', fontSize: 13,
       }}>
@@ -177,7 +177,7 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
     : '';
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+    <div className="viz-content" style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
       <TurnBanner state={state} currentTurn={currentTurn} />
       <ClusterToggleRow mode={mode} onChange={setMode} />
       {diffLine && (

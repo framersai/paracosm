@@ -53,10 +53,10 @@ export const TOUR_STEPS: TourStep[] = [
     description: 'How far the two colonies have diverged at the current turn. Shows the two decision texts and outcomes side by side, humanized (no "Safe Success" jargon). Same seed, different histories because HEXACO shaped every LLM call.',
   },
   {
-    target: '.leaders-row',
+    target: '.viz-content',
     tab: 'viz',
     title: 'Viz Tab — Colony Structure',
-    description: 'Tiered tiles: large featured colonists at the top, family pods in the middle, department bands at the bottom, ghost outlines for the deceased. The grid grows pods and thins with attrition as you scrub turns. Click any tile to open the drilldown panel.',
+    description: 'Once a simulation runs, this area renders tiered tiles: featured colonists at the top, family pods in the middle, department bands at the bottom, ghost outlines for the deceased. The grid grows and thins with attrition as you scrub turns. Click any tile to open the drilldown panel with HEXACO, mood, family, memories, and chat handoff.',
   },
   {
     target: '[aria-label="Cluster mode"]',
