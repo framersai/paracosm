@@ -207,9 +207,23 @@ export function ChatPanel({ state }: ChatPanelProps) {
     const newHistory = [...currentHistory, { role: 'user', content: msg }];
     setHistoryFor(targetId, () => newHistory);
     try {
+      // Forward any locally-saved BYO API keys so chat routes to the
+      // user's own provider account instead of the host's. Matches the
+      // contract on /setup and /compile. localStorage is written by
+      // the Settings panel on every key edit.
+      const storedKeys = (() => {
+        try { return JSON.parse(localStorage.getItem('paracosm:keyOverrides') || '{}') as Record<string, string>; }
+        catch { return {} as Record<string, string>; }
+      })();
       const res = await fetch('/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agentId: targetId, message: msg, history: newHistory }),
+        body: JSON.stringify({
+          agentId: targetId,
+          message: msg,
+          history: newHistory,
+          ...(storedKeys.openai ? { apiKey: storedKeys.openai } : {}),
+          ...(storedKeys.anthropic ? { anthropicKey: storedKeys.anthropic } : {}),
+        }),
       });
       const data = await res.json();
       if (data.reply) {

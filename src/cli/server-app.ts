@@ -1,5 +1,5 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, writeFileSync, renameSync, readdirSync, statSync, unlinkSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { normalizeSimulationConfig, applyDemoCaps, type NormalizedSimulationConfig } from './sim-config.js';
@@ -71,17 +71,85 @@ class IpRateLimiter {
   private maxCompilePerDay: number;
   private maxChatPerHour: number;
   private cleanupTimer: ReturnType<typeof setInterval>;
+  /**
+   * When set, rate-limit state is loaded on construct and flushed on
+   * every mutation so pm2 restarts don't reset user quotas. Persistence
+   * uses a plain JSON file: small payload (ip -> {count,resetAt} × 3
+   * buckets), atomic write via tmp+rename, ignored on read errors so a
+   * corrupt file self-heals at next mutation.
+   */
+  private persistencePath: string | null = null;
+  private persistTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     maxPerDay: number = 3,
     maxCompilePerDay: number = 5,
     maxChatPerHour: number = 200,
+    persistencePath: string | null = null,
   ) {
     this.maxPerDay = maxPerDay;
     this.maxCompilePerDay = maxCompilePerDay;
     this.maxChatPerHour = maxChatPerHour;
+    this.persistencePath = persistencePath;
     // Purge expired entries every hour.
     this.cleanupTimer = setInterval(() => this.cleanup(), 60 * 60 * 1000);
+    this.load();
+  }
+
+  /** Load persisted state from disk. Silently tolerates missing/corrupt files. */
+  private load(): void {
+    if (!this.persistencePath) return;
+    try {
+      if (!existsSync(this.persistencePath)) return;
+      const raw = readFileSync(this.persistencePath, 'utf-8');
+      const data = JSON.parse(raw) as {
+        sim?: Record<string, RateLimitEntry>;
+        compile?: Record<string, RateLimitEntry>;
+        chat?: Record<string, RateLimitEntry>;
+      };
+      const now = Date.now();
+      const hydrate = (store: Map<string, RateLimitEntry>, src: Record<string, RateLimitEntry> | undefined) => {
+        if (!src) return;
+        for (const [ip, entry] of Object.entries(src)) {
+          // Skip already-expired entries: they'd be deleted on first
+          // access anyway, and loading them wastes memory.
+          if (entry?.resetAt && entry.resetAt > now) store.set(ip, entry);
+        }
+      };
+      hydrate(this.simStore, data.sim);
+      hydrate(this.compileStore, data.compile);
+      hydrate(this.chatStore, data.chat);
+    } catch {
+      // Missing file, permission denied, corrupt JSON — start fresh.
+      // The next mutation will rewrite a clean file.
+    }
+  }
+
+  /** Debounced flush to disk. Writes atomically via tmp+rename. */
+  private persist(): void {
+    if (!this.persistencePath) return;
+    if (this.persistTimer) return; // already scheduled
+    this.persistTimer = setTimeout(() => {
+      this.persistTimer = null;
+      if (!this.persistencePath) return;
+      try {
+        const dump = (s: Map<string, RateLimitEntry>): Record<string, RateLimitEntry> => {
+          const out: Record<string, RateLimitEntry> = {};
+          for (const [ip, e] of s) out[ip] = e;
+          return out;
+        };
+        const payload = JSON.stringify({
+          sim: dump(this.simStore),
+          compile: dump(this.compileStore),
+          chat: dump(this.chatStore),
+        });
+        const tmp = `${this.persistencePath}.tmp`;
+        writeFileSync(tmp, payload, 'utf-8');
+        renameSync(tmp, this.persistencePath);
+      } catch {
+        // Disk full, permission denied — log would be noisy, swallow.
+      }
+    }, 500); // 500ms debounce covers bursts from compile+setup+chat in parallel
   }
 
   /** Extract client IP, respecting reverse proxy headers (nginx, Cloudflare, etc.) */
@@ -120,13 +188,19 @@ class IpRateLimiter {
   ): { allowed: boolean; remaining: number; resetAt: number; limit: number } {
     const now = Date.now();
     let entry = store.get(ip);
+    let mutated = false;
     if (!entry || now >= entry.resetAt) {
       entry = { count: 0, resetAt: this.nextReset(kind) };
       store.set(ip, entry);
+      mutated = true;
     }
     const allowed = entry.count < limit;
-    if (allowed && mutate) entry.count++;
+    if (allowed && mutate) {
+      entry.count++;
+      mutated = true;
+    }
     const remaining = Math.max(0, limit - entry.count);
+    if (mutated) this.persist();
     return { allowed, remaining, resetAt: entry.resetAt, limit };
   }
 
@@ -138,7 +212,10 @@ class IpRateLimiter {
   /** Record a simulation start. Prefer `check` + `record` for legacy callers. */
   record(ip: string): void {
     const entry = this.simStore.get(ip);
-    if (entry) entry.count++;
+    if (entry) {
+      entry.count++;
+      this.persist();
+    }
   }
 
   /**
@@ -181,11 +258,16 @@ class IpRateLimiter {
 
   private cleanup(): void {
     const now = Date.now();
+    let mutated = false;
     for (const store of [this.simStore, this.compileStore, this.chatStore]) {
       for (const [ip, entry] of store) {
-        if (now >= entry.resetAt) store.delete(ip);
+        if (now >= entry.resetAt) {
+          store.delete(ip);
+          mutated = true;
+        }
       }
     }
+    if (mutated) this.persist();
   }
 
   destroy(): void { clearInterval(this.cleanupTimer); }
@@ -233,7 +315,48 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
   const maxSims = options.maxSimsPerDay ?? parseInt(env.RATE_LIMIT || '1', 10);
   const adminWrite = (env.ADMIN_WRITE || 'false').toLowerCase() === 'true';
   const scenarioDir = options.scenarioDir ?? resolve(__dirname, '..', '..', 'scenarios');
-  const rateLimiter = maxSims > 0 ? new IpRateLimiter(maxSims) : null;
+  // Rate-limit state survives pm2 restarts via a JSON file alongside
+  // the repo. Without this, a restart gives every blocked IP a full
+  // fresh quota. APP_DIR is the install location on the Linode
+  // (/opt/paracosm); dev runs default to `.` so the cache file lands
+  // next to the project root.
+  const rateLimitStatePath = resolve(env.APP_DIR || '.', '.rate-limit.json');
+  const rateLimiter = maxSims > 0
+    ? new IpRateLimiter(maxSims, 5, 200, rateLimitStatePath)
+    : null;
+
+  // Output retention: sweep simulation output JSON older than
+  // OUTPUT_RETENTION_DAYS on boot. /opt/paracosm/output/ otherwise
+  // grows unbounded (~300KB per run × N daily runs = GB over months).
+  // Default 30 days. Set to 0 to disable the sweep. Non-fatal on any
+  // filesystem error — missing dir is fine, permission denied is
+  // logged once and skipped.
+  (() => {
+    const retentionDays = parseInt(env.OUTPUT_RETENTION_DAYS || '30', 10);
+    if (retentionDays <= 0) return;
+    const outputDir = resolve(env.APP_DIR || resolve(__dirname, '..', '..'), 'output');
+    if (!existsSync(outputDir)) return;
+    const cutoffMs = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
+    let removed = 0;
+    try {
+      for (const name of readdirSync(outputDir)) {
+        if (!name.endsWith('.json')) continue;
+        const full = resolve(outputDir, name);
+        try {
+          const stat = statSync(full);
+          if (stat.mtimeMs < cutoffMs) {
+            unlinkSync(full);
+            removed++;
+          }
+        } catch { /* skip unreadable entry */ }
+      }
+      if (removed > 0) {
+        console.log(`  [retention] Pruned ${removed} sim output files older than ${retentionDays} days from ${outputDir}`);
+      }
+    } catch (err) {
+      console.log(`  [retention] Sweep failed: ${err}`);
+    }
+  })();
   let simConfig: NormalizedSimulationConfig | null = null;
   let simRunning = false;
   let activeScenario: ScenarioPackage = marsScenario;
@@ -588,19 +711,33 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
     // Post-simulation colonist chat
     if (req.url === '/chat' && req.method === 'POST') {
       try {
-        const { agentId, message } = JSON.parse(await readBody(req));
+        const { agentId, message, apiKey, anthropicKey } = JSON.parse(await readBody(req));
         if (!agentId || !message) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'agentId and message required' }));
           return;
         }
 
-        // Rate-limit chat per IP per hour. Chat runs against the host's
-        // key (there is no user-supplied-key path for /chat today), so
-        // an abusive script could burn the host's haiku budget without
-        // this cap. 200/hour leaves plenty of headroom for real users
-        // exploring colonist conversations.
-        if (rateLimiter) {
+        // Apply user-supplied keys to env for this request so the
+        // downstream chat agent routes to the user's account when a
+        // BYO key is present. Mirrors /setup + /compile behavior.
+        // Placeholder masks like 'sk-...' are rejected so a displayed
+        // masked string can never replace a real key.
+        const chatUserKey = !!(apiKey || anthropicKey);
+        if (apiKey && typeof apiKey === 'string' && !apiKey.includes('...')) {
+          env.OPENAI_API_KEY = apiKey;
+        }
+        if (anthropicKey && typeof anthropicKey === 'string' && !anthropicKey.includes('...')) {
+          env.ANTHROPIC_API_KEY = anthropicKey;
+        }
+
+        // Rate-limit chat per IP per hour. Runs against the host's
+        // key unless a session key was provided in the request body,
+        // in which case the caller is paying and the cap is bypassed
+        // (same contract as /setup and /compile). 200/hour leaves
+        // plenty of headroom for real host-billed users exploring
+        // colonist conversations.
+        if (rateLimiter && !chatUserKey) {
           const ip = IpRateLimiter.getIp(req);
           const { allowed, remaining, resetAt, limit } = rateLimiter.consumeChat(ip);
           if (!allowed) {

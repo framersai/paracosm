@@ -7,6 +7,7 @@ import { CitationPills } from '../shared/CitationPills';
 import { ReferencesSection } from '../shared/ReferencesSection';
 import { ToolboxSection } from '../shared/ToolboxSection';
 import { VerdictCard } from '../sim/VerdictCard';
+import { CostBreakdownModal } from '../layout/CostBreakdownModal';
 
 /**
  * Tiny hook for booleans persisted to localStorage. Used here to remember
@@ -79,6 +80,9 @@ export function ReportView({ state, verdict }: ReportViewProps) {
   // (turn-by-turn events) is the focus when the tab opens.
   const [refsOpen, setRefsOpen] = usePersistedToggle('paracosm-reports-refs-open', false);
   const [toolsOpen, setToolsOpen] = usePersistedToggle('paracosm-reports-tools-open', false);
+  // Cost breakdown moved off the dense StatsBar; Reports is the right
+  // home for the full modal since users land here to dig into the run.
+  const [costOpen, setCostOpen] = useState(false);
   const turns = useMemo(() => {
     const map: Record<number, { a: TurnData; b: TurnData }> = {};
 
@@ -188,6 +192,51 @@ export function ReportView({ state, verdict }: ReportViewProps) {
       </h2>
 
       {verdict && <VerdictCard verdict={verdict} />}
+
+      {/* Cost breakdown trigger. Moved out of the StatsBar header when
+          the row got too dense; Reports is the right home since users
+          land here to dig into the run. Hidden on cached runs that
+          never reported any LLM calls. */}
+      {state.cost && state.cost.llmCalls > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16,
+          padding: '10px 14px', borderRadius: 8,
+          background: 'var(--bg-panel)', border: '1px solid var(--border)',
+          fontFamily: 'var(--mono)', fontSize: 13,
+        }}>
+          <span style={{ color: 'var(--text-3)', letterSpacing: '0.5px', fontWeight: 700, textTransform: 'uppercase' }}>
+            Run cost
+          </span>
+          <span style={{ color: 'var(--green)', fontWeight: 800, fontSize: 15 }}>
+            ${state.cost.totalCostUSD < 0.01 ? state.cost.totalCostUSD.toFixed(4) : state.cost.totalCostUSD.toFixed(2)}
+          </span>
+          <span style={{ color: 'var(--text-3)' }}>
+            · {state.cost.llmCalls} LLM calls · {(state.cost.totalTokens / 1000).toFixed(1)}k tokens
+          </span>
+          <button
+            type="button"
+            onClick={() => setCostOpen(true)}
+            style={{
+              marginLeft: 'auto', fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700,
+              padding: '4px 10px', borderRadius: 4,
+              background: 'var(--bg-card)', color: 'var(--amber)',
+              border: '1px solid var(--amber-dim)', cursor: 'pointer',
+            }}
+          >
+            Per-stage breakdown ›
+          </button>
+        </div>
+      )}
+      {costOpen && state.cost && state.cost.llmCalls > 0 && (
+        <CostBreakdownModal
+          combined={state.cost}
+          leaderA={state.costA}
+          leaderB={state.costB}
+          leaderAName={state.a.leader?.name}
+          leaderBName={state.b.leader?.name}
+          onClose={() => setCostOpen(false)}
+        />
+      )}
 
       {/* Inline pills inside dept blocks point here; the full references
           section anchors them via #cite-N for deep linking. */}

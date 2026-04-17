@@ -339,9 +339,29 @@ export function SettingsPanel() {
         <legend style={{ fontSize: '14px', fontFamily: 'var(--mono)', color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.5px', padding: '0 8px' }}>
           Simulation
         </legend>
+        {/* Demo-mode cap hint: rendered inline with the Simulation
+            fieldset so users see what values the server will force
+            before they hit Launch. Mirrors applyDemoCaps on the
+            backend. Disappears once a session LLM key is entered. */}
+        {hostedDemo && !hasSessionLlmKey && (
+          <div style={{
+            marginBottom: 12, padding: '8px 10px', borderRadius: 4,
+            background: 'rgba(232,180,74,.08)', border: '1px solid var(--amber-dim)',
+            fontSize: 11, color: 'var(--text-2)', lineHeight: 1.5,
+          }}>
+            <strong style={{ color: 'var(--amber)' }}>Demo caps will apply:</strong>{' '}
+            turns clamped to 3, population to 30, active departments to 3.
+            Values you enter below are honored up to those ceilings. Add a
+            session API key above to lift the caps.
+          </div>
+        )}
         <div className="responsive-grid-4" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', gap: '12px' }}>
           <div>
-            <label htmlFor="turns-input" style={labelStyle}>Turns</label>
+            <label htmlFor="turns-input" style={labelStyle}>
+              Turns{hostedDemo && !hasSessionLlmKey && turns > 3 && (
+                <span style={{ color: 'var(--amber)', fontSize: 9, fontWeight: 400, marginLeft: 4 }}>→ 3</span>
+              )}
+            </label>
             <input id="turns-input" type="number" value={turns} onChange={e => setTurns(parseInt(e.target.value) || 12)} min={1} max={20} style={inputStyle} />
           </div>
           <div>
@@ -357,7 +377,11 @@ export function SettingsPanel() {
             <input id="year-input" type="number" value={startYear} onChange={e => setStartYear(parseInt(e.target.value) || 2035)} style={inputStyle} />
           </div>
           <div>
-            <label htmlFor="pop-input" style={labelStyle}>Population</label>
+            <label htmlFor="pop-input" style={labelStyle}>
+              Population{hostedDemo && !hasSessionLlmKey && population > 30 && (
+                <span style={{ color: 'var(--amber)', fontSize: 9, fontWeight: 400, marginLeft: 4 }}>→ 30</span>
+              )}
+            </label>
             <input id="pop-input" type="number" value={population} onChange={e => setPopulation(parseInt(e.target.value) || 100)} style={inputStyle} />
           </div>
         </div>

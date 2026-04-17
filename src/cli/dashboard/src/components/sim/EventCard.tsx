@@ -4,7 +4,6 @@ import { useScenarioContext } from '../../App';
 import { useToolContext } from '../../hooks/useToolRegistry';
 import { Badge } from '../shared/Badge';
 import { Tooltip } from '../shared/Tooltip';
-import { ForgeVerdictTooltip } from '../shared/ToolboxSection';
 import { CitationPills } from '../shared/CitationPills';
 
 interface EventCardProps {
@@ -147,41 +146,22 @@ export function EventCard({ event, side }: EventCardProps) {
             <span style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
               {name} ({mode})
             </span>
-            {/* PASS/FAIL pill carries its own tooltip explaining the
-                judge's verdict and the concrete repercussions on the
-                run (morale/power/outcome cost when FAIL). Stops click
-                propagation so hovering the pill does not trigger the
-                card's inspect-modal open. */}
-            <span
-              onClick={e => e.stopPropagation()}
-              style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center' }}
-            >
-              <Tooltip content={
-                <ForgeVerdictTooltip entry={{
-                  // Adapt the local forge event shape to the shared
-                  // ToolEntry tooltip payload. Fields the tooltip does
-                  // not use are left as minimal defaults.
-                  n: 0, name, description, mode,
-                  firstForgedTurn: 0, firstForgedDepartment: dept,
-                  departments: new Set([dept]), sides: new Set(),
-                  reuseCount: 0, reforgeCount: 0, rejectedReforges: 0,
-                  confidence: approved ? confidence : 0,
-                  approved,
-                  errorReason: approved ? undefined : (errorReason || undefined),
-                  inputFields, outputFields,
-                  history: [],
-                } as any} />
-              }>
-                <span style={{
-                  fontSize: 9, fontWeight: 800, fontFamily: 'var(--mono)',
-                  padding: '1px 6px', borderRadius: 3,
-                  color: approved ? 'var(--green)' : 'var(--rust)',
-                  background: approved ? 'rgba(106,173,72,0.12)' : 'rgba(224,101,48,0.1)',
-                  border: `1px solid ${approved ? 'rgba(106,173,72,0.3)' : 'rgba(224,101,48,0.2)'}`,
-                }}>
-                  {approved ? `PASS ${confidence.toFixed(2)}` : 'FAIL'}
-                </span>
-              </Tooltip>
+            {/* Static PASS/FAIL pill. Full judge reasoning lives in the
+                ToolDetailModal opened by the inspect button below and in
+                the Forged Toolbox section at the bottom of the sim,
+                both of which now render the inline expandable
+                "Why it passed / Why it failed" block. Keeping the pill
+                non-interactive avoids the hover-popover UX issues on
+                touch + keeps visual rhythm consistent with the toolbox. */}
+            <span style={{
+              marginLeft: 'auto',
+              fontSize: 9, fontWeight: 800, fontFamily: 'var(--mono)',
+              padding: '1px 6px', borderRadius: 3,
+              color: approved ? 'var(--green)' : 'var(--rust)',
+              background: approved ? 'rgba(106,173,72,0.12)' : 'rgba(224,101,48,0.1)',
+              border: `1px solid ${approved ? 'rgba(106,173,72,0.3)' : 'rgba(224,101,48,0.2)'}`,
+            }}>
+              {approved ? `PASS ${confidence.toFixed(2)}` : 'FAIL'}
             </span>
           </div>
           {(inputFields.length > 0 || outputFields.length > 0) && (
@@ -386,34 +366,17 @@ export function EventCard({ event, side }: EventCardProps) {
                       {t.name} {t.mode ? `(${t.mode})` : ''}
                     </span>
                   </div>
-                  <Tooltip content={
-                    <ForgeVerdictTooltip entry={{
-                      n: 0,
-                      name: String(t.name || ''),
-                      description: String(t.description || t.name || ''),
-                      mode: String(t.mode || 'sandbox'),
-                      firstForgedTurn: 0, firstForgedDepartment: '',
-                      departments: new Set(), sides: new Set(),
-                      reuseCount: 0, reforgeCount: 0, rejectedReforges: 0,
-                      confidence: approved ? (typeof t.confidence === 'number' ? t.confidence : 0.85) : 0,
-                      approved,
-                      errorReason: approved ? undefined : (typeof t.errorReason === 'string' ? t.errorReason : undefined),
-                      inputFields: [], outputFields: [],
-                      history: [],
-                    } as any} />
-                  }>
-                    <span style={{
-                      padding: '2px 6px', borderRadius: '3px', fontSize: '9px', fontWeight: 800,
-                      fontFamily: 'var(--mono)', whiteSpace: 'nowrap', flexShrink: 0,
-                      background: approved ? 'rgba(106,173,72,.15)' : 'rgba(224,101,48,.1)',
-                      color: approved ? 'var(--green)' : 'var(--rust)',
-                      border: `1px solid ${approved ? 'rgba(106,173,72,.3)' : 'rgba(224,101,48,.2)'}`,
-                    }}>
-                      {approved
-                        ? `PASS ${(typeof t.confidence === 'number' ? t.confidence : 0.85).toFixed(2)}`
-                        : 'FAIL'}
-                    </span>
-                  </Tooltip>
+                  <span style={{
+                    padding: '2px 6px', borderRadius: '3px', fontSize: '9px', fontWeight: 800,
+                    fontFamily: 'var(--mono)', whiteSpace: 'nowrap', flexShrink: 0,
+                    background: approved ? 'rgba(106,173,72,.15)' : 'rgba(224,101,48,.1)',
+                    color: approved ? 'var(--green)' : 'var(--rust)',
+                    border: `1px solid ${approved ? 'rgba(106,173,72,.3)' : 'rgba(224,101,48,.2)'}`,
+                  }}>
+                    {approved
+                      ? `PASS ${(typeof t.confidence === 'number' ? t.confidence : 0.85).toFixed(2)}`
+                      : 'FAIL'}
+                  </span>
                   {/* Open the same ToolDetailModal that forge_attempt cards
                       use, so dept_done summary tools are clickable too. */}
                   <button

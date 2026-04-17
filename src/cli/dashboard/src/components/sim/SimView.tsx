@@ -197,6 +197,38 @@ export function SimView({ state, sseStatus, onRun, verdict, launching: launching
         toolRegistry={toolRegistry}
       />
 
+      {/* Slim sim-progress bar. Visible while the run is active and
+          hides on completion. Percentage derives from state.turn vs
+          state.maxTurns, which the SSE sim_start event populates. Text
+          shows turn / max so users can gauge how much is left without
+          counting cards. */}
+      {state.isRunning && !state.isComplete && state.maxTurns > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '4px 12px', background: 'var(--bg-deep)',
+          borderBottom: '1px solid var(--border)',
+          fontFamily: 'var(--mono)', fontSize: 10,
+        }}>
+          <span style={{ color: 'var(--text-3)', letterSpacing: '0.5px', fontWeight: 700, textTransform: 'uppercase' }}>
+            Turn {Math.max(1, state.turn)} / {state.maxTurns}
+          </span>
+          <div style={{
+            flex: 1, height: 4, borderRadius: 2,
+            background: 'var(--border)', overflow: 'hidden',
+          }}>
+            <div style={{
+              width: `${Math.min(100, Math.max(0, (state.turn / state.maxTurns) * 100))}%`,
+              height: '100%',
+              background: 'linear-gradient(90deg, var(--vis), var(--eng))',
+              transition: 'width 400ms ease-out',
+            }} />
+          </div>
+          <span style={{ color: 'var(--text-3)' }}>
+            {Math.round((state.turn / state.maxTurns) * 100)}%
+          </span>
+        </div>
+      )}
+
       {showIntro && state.a.events.length > 0 && <IntroBar onDismiss={dismissIntro} />}
 
       <DivergenceRail state={state} />
