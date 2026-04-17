@@ -18,7 +18,6 @@ export function Legend() {
         borderTop: '1px solid var(--border)',
         borderBottom: '1px solid var(--border)',
         fontSize: 10, fontFamily: 'var(--mono)', color: 'var(--text-3)',
-        overflowX: 'auto',
       }}
     >
       <span>Dept:</span>

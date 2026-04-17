@@ -478,11 +478,15 @@
     /* DivergenceRail stacks */
     .diverge-sides { flex-direction: column !important; }
 
-    /* Stats bar scrolls */
-    .stats-bar { overflow-x: auto !important; justify-content: flex-start !important; -webkit-overflow-scrolling: touch; }
+    /* Stats bar wraps instead of scrolling so all metrics stay visible
+       on narrow widths. Horizontal scroll inside chrome-level bars
+       hides information the user cannot see is there. */
+    .stats-bar { flex-wrap: wrap !important; justify-content: flex-start !important; }
 
-    /* TabBar scrolls */
-    .tab-bar { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+    /* TabBar wraps rather than scrolling for the same reason. Tabs
+       stay full-height and tappable; they just fold onto a second
+       row when the row runs out of space. */
+    .tab-bar { flex-wrap: wrap !important; }
     .tab-bar button { flex-shrink: 0 !important; min-width: 60px !important; }
   }
 

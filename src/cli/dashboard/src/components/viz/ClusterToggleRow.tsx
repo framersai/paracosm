@@ -24,11 +24,10 @@ export function ClusterToggleRow({ mode, onChange }: ClusterToggleRowProps) {
       role="tablist"
       aria-label="Cluster mode"
       style={{
-        display: 'flex', gap: 4,
+        display: 'flex', gap: 4, flexWrap: 'wrap',
         padding: '4px 12px',
         background: 'var(--bg-panel)',
         borderBottom: '1px solid var(--border)',
-        overflowX: 'auto',
       }}
     >
       {MODES.map(m => {

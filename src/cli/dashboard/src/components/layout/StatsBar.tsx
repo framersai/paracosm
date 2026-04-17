@@ -120,10 +120,12 @@ export function StatsBar({
   // breakdown still lives on the reports / log pages.
   return (
     <div className="stats-bar" role="region" aria-label="Colony statistics" style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'nowrap',
+      // Wrap instead of scroll: on narrow widths the stats fold into a
+      // second row rather than hiding off-screen. Horizontal scrolling
+      // inside a chrome-level component hides information the user
+      // cannot see is there. Let the bar grow taller if it needs to.
+      display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap',
       padding: '3px 8px', gap: '8px',
-      overflowX: 'auto', overflowY: 'hidden',
-      WebkitOverflowScrolling: 'touch',
       background: 'var(--bg-panel)', borderBottom: '1px solid var(--border)',
       fontFamily: 'var(--mono)',
     }}>
@@ -164,42 +166,36 @@ export function StatsBar({
         );
       })}
 
-      {/* Deaths */}
+      {/* Deaths — leader-coloured A/B so the eye follows the same
+          colour mapping as the colony metrics (vis for A, eng for B).
+          Rust-on-red was a separate severity signal that conflicted
+          with the leader-attribution language the rest of the bar
+          speaks. */}
       <span style={pillWrap}>
         <span style={labelStyle} title="Deaths">
           <span className="pill-label-full">DEATHS</span>
           <span className="pill-label-short">†</span>
         </span>
-        <span style={{ ...valueStyle, color: deathsA > 0 ? 'var(--rust)' : 'var(--text-1)' }}>{deathsA}</span>
+        <span style={{ ...valueStyle, color: 'var(--vis)' }}>{deathsA}</span>
         <span style={sepStyle}>vs</span>
-        <span style={{ ...valueStyle, color: deathsB > 0 ? 'var(--rust)' : 'var(--text-1)' }}>{deathsB}</span>
+        <span style={{ ...valueStyle, color: 'var(--eng)' }}>{deathsB}</span>
       </span>
 
-      {/* Tools */}
+      {/* Tools + Reuse cluster together. The two numbers speak to the
+          same emergent-capability story: how many unique tools a side
+          forged (TOOLS) and how many times those tools got reused
+          across events without re-forging (REUSE). Keeping CITES
+          between them obscured the relationship. */}
       <span style={pillWrap}>
         <span style={labelStyle} title="Tools forged">
           <span className="pill-label-full">TOOLS</span>
           <span className="pill-label-short">T</span>
         </span>
-        <span style={{ ...valueStyle, color: 'var(--text-1)' }}>{toolsA}</span>
+        <span style={{ ...valueStyle, color: 'var(--vis)' }}>{toolsA}</span>
         <span style={sepStyle}>/</span>
-        <span style={{ ...valueStyle, color: 'var(--text-1)' }}>{toolsB}</span>
+        <span style={{ ...valueStyle, color: 'var(--eng)' }}>{toolsB}</span>
       </span>
 
-      {/* Citations */}
-      <span style={pillWrap}>
-        <span style={labelStyle} title="Citations">
-          <span className="pill-label-full">CITES</span>
-          <span className="pill-label-short">C</span>
-        </span>
-        <span style={{ ...valueStyle, color: 'var(--text-1)' }}>{citationsA}</span>
-        <span style={sepStyle}>/</span>
-        <span style={{ ...valueStyle, color: 'var(--text-1)' }}>{citationsB}</span>
-      </span>
-
-      {/* Forged-tool reuse per leader. Reuses amortize judge cost across
-          multiple events, so this is the strongest positive signal that
-          emergent tools paid off on a given side. */}
       {toolRegistry && toolRegistry.list.length > 0 && (
         <span
           style={pillWrap}
@@ -209,11 +205,23 @@ export function StatsBar({
             <span className="pill-label-full">REUSE</span>
             <span className="pill-label-short">R</span>
           </span>
-          <span style={{ ...valueStyle, color: reuseA > 0 ? 'var(--green)' : 'var(--text-1)' }}>{reuseA}</span>
+          <span style={{ ...valueStyle, color: 'var(--vis)' }}>{reuseA}</span>
           <span style={sepStyle}>/</span>
-          <span style={{ ...valueStyle, color: reuseB > 0 ? 'var(--green)' : 'var(--text-1)' }}>{reuseB}</span>
+          <span style={{ ...valueStyle, color: 'var(--eng)' }}>{reuseB}</span>
         </span>
       )}
+
+      {/* Citations — moved after the tools cluster since it is a
+          research-signal metric, not a capability-signal one. */}
+      <span style={pillWrap}>
+        <span style={labelStyle} title="Citations">
+          <span className="pill-label-full">CITES</span>
+          <span className="pill-label-short">C</span>
+        </span>
+        <span style={{ ...valueStyle, color: 'var(--vis)' }}>{citationsA}</span>
+        <span style={sepStyle}>/</span>
+        <span style={{ ...valueStyle, color: 'var(--eng)' }}>{citationsB}</span>
+      </span>
     </div>
   );
 }
