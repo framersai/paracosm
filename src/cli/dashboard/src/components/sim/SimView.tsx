@@ -9,7 +9,6 @@ import { CrisisHeader } from './CrisisHeader';
 import { EventCard } from './EventCard';
 import { DivergenceRail } from './DivergenceRail';
 import { Timeline } from './Timeline';
-import { VerdictCard } from './VerdictCard';
 import { SimFooterBar } from './SimFooterBar';
 
 interface SimViewProps {
@@ -352,8 +351,10 @@ export function SimView({ state, sseStatus, onRun, verdict, launching: launching
         <SideColumn side="b" sideState={state.b} state={state} />
       </div>
 
-      {/* Verdict card after simulation completes */}
-      {verdict && <VerdictCard verdict={verdict} />}
+      {/* Verdict surfaces as a global top banner (App.tsx) and inline
+          on the Reports tab. Removing the per-column rendering here
+          keeps the Sim layout focused on event streams after a run
+          completes. */}
 
       {/* Re-run-with-seed+1: single-click rerun of the last-launched
           config, bumped by one deterministic tick so the outcome shifts

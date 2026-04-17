@@ -194,6 +194,7 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
           snapshot={snapA}
           leaderName={leaderA?.name ?? 'Leader A'}
           leaderArchetype={leaderA?.archetype ?? ''}
+          sideColor="var(--vis)"
           mode={mode}
           selectedId={selectedId}
           divergedIds={divergedIds?.aliveOnlyA}
@@ -204,6 +205,7 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
           snapshot={snapB}
           leaderName={leaderB?.name ?? 'Leader B'}
           leaderArchetype={leaderB?.archetype ?? ''}
+          sideColor="var(--eng)"
           mode={mode}
           selectedId={selectedId}
           divergedIds={divergedIds?.aliveOnlyB}

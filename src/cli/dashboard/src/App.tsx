@@ -11,6 +11,7 @@ import { TabBar } from './components/layout/TabBar';
 import { ProviderErrorBanner } from './components/layout/ProviderErrorBanner';
 // Toolbar merged into TopBar
 import { SimView } from './components/sim/SimView';
+import { VerdictDetails } from './components/sim/VerdictCard';
 import { SettingsPanel } from './components/settings/SettingsPanel';
 import { ReportView } from './components/reports/ReportView';
 import { ChatPanel } from './components/chat/ChatPanel';
@@ -84,6 +85,12 @@ function AppContent() {
   const { scenario } = useScenario();
   const sse = useSSE();
   const [tourActive, setTourActive] = useState(false);
+
+  // Global verdict banner. Closable by the user; dismissal is keyed
+  // to the verdict's headline so a fresh run with a new verdict
+  // re-shows the banner even after the previous one was dismissed.
+  const [verdictDismissedKey, setVerdictDismissedKey] = useState<string | null>(null);
+  const [verdictModalOpen, setVerdictModalOpen] = useState(false);
 
   // Dynamic page title
   useEffect(() => {
@@ -393,6 +400,75 @@ function AppContent() {
           ) : null}
           <TopBar scenario={scenario} sse={sse} gameState={gameState} onSave={handleSave} onLoad={handleLoad} onClear={handleClear} onRun={handleRun} onTour={handleTourStart} onCopy={handleCopySummary} />
           <TabBar active={activeTab} onTabChange={setActiveTab} scenario={scenario} />
+          {/* Global verdict banner. Visible on every tab as soon as the
+              verdict LLM returns, closable per-verdict (a new run's
+              headline re-shows the banner even after dismissal). Click
+              the middle strip to open the full breakdown modal. */}
+          {(() => {
+            const vraw = sse.verdict as Record<string, unknown> | null;
+            if (!vraw || !vraw.winner) return null;
+            const headline = String(vraw.headline || '');
+            const winnerKey = `${vraw.winner}|${headline}`;
+            if (verdictDismissedKey === winnerKey) return null;
+            const winner = vraw.winner as 'A' | 'B' | 'tie';
+            const winColor = winner === 'A' ? 'var(--vis)' : winner === 'B' ? 'var(--eng)' : 'var(--amber)';
+            const winnerLabel = winner === 'tie' ? 'Tie' : `${String(vraw.winnerName || 'Winner')} wins`;
+            return (
+              <div
+                role="region"
+                aria-label="Simulation verdict"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 12,
+                  padding: '6px 16px',
+                  background: `linear-gradient(90deg, ${winColor}22, transparent 55%)`,
+                  borderTop: `2px solid ${winColor}`,
+                  borderBottom: '1px solid var(--border)',
+                  fontFamily: 'var(--sans)',
+                }}
+              >
+                <span style={{ fontSize: 9, fontFamily: 'var(--mono)', fontWeight: 800, letterSpacing: '0.12em', color: 'var(--text-3)', textTransform: 'uppercase' }}>
+                  Verdict
+                </span>
+                <span style={{ fontSize: 13, fontWeight: 800, color: winColor, whiteSpace: 'nowrap' }}>
+                  {winnerLabel}
+                </span>
+                <button
+                  onClick={() => setVerdictModalOpen(true)}
+                  style={{
+                    flex: 1, minWidth: 0, textAlign: 'left',
+                    background: 'transparent', border: 'none', padding: 0,
+                    fontSize: 12, color: 'var(--text-2)', cursor: 'pointer',
+                    overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+                  }}
+                >
+                  {headline}
+                </button>
+                <button
+                  onClick={() => setVerdictModalOpen(true)}
+                  style={{
+                    fontSize: 10, fontFamily: 'var(--mono)', fontWeight: 700,
+                    color: 'var(--amber)', letterSpacing: '0.06em',
+                    padding: '3px 10px', borderRadius: 3,
+                    border: '1px solid var(--amber)',
+                    background: 'rgba(232,180,74,0.06)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  VIEW FULL →
+                </button>
+                <button
+                  onClick={() => setVerdictDismissedKey(winnerKey)}
+                  aria-label="Dismiss verdict banner"
+                  style={{
+                    background: 'none', border: 'none', color: 'var(--text-3)',
+                    cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: 4,
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+            );
+          })()}
 
           <main id="main-content" className="flex-1 overflow-hidden" role="main" aria-label={`${activeTab} view`} style={{ background: 'var(--bg-deep)', display: 'flex', flexDirection: 'column' }}>
             {activeTab === 'sim' && <SimView state={gameState} sseStatus={sse.status} onRun={handleRun} verdict={sse.verdict} launching={launching} />}
@@ -476,6 +552,50 @@ function AppContent() {
               connectionStatus: sse.status,
             }}
           />
+          {/* Full-verdict modal triggered from the global top banner. */}
+          {verdictModalOpen && sse.verdict && (
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Simulation verdict full breakdown"
+              onClick={() => setVerdictModalOpen(false)}
+              style={{
+                position: 'fixed', inset: 0, zIndex: 100000,
+                background: 'rgba(10,8,6,0.78)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                padding: 20,
+              }}
+            >
+              <div
+                onClick={e => e.stopPropagation()}
+                style={{
+                  background: 'linear-gradient(180deg, var(--bg-panel) 0%, var(--bg-deep) 100%)',
+                  border: '1px solid var(--border)',
+                  borderTop: `3px solid ${(sse.verdict as Record<string, unknown>).winner === 'A' ? 'var(--vis)' : (sse.verdict as Record<string, unknown>).winner === 'B' ? 'var(--eng)' : 'var(--amber)'}`,
+                  borderRadius: 10,
+                  padding: '20px 24px',
+                  maxWidth: 640, width: '100%', maxHeight: '85vh', overflowY: 'auto',
+                  boxShadow: '0 12px 60px rgba(0,0,0,0.6)',
+                  fontFamily: 'var(--sans)', color: 'var(--text-1)',
+                  position: 'relative',
+                }}
+              >
+                <button
+                  onClick={() => setVerdictModalOpen(false)}
+                  aria-label="Close verdict"
+                  style={{
+                    position: 'absolute', top: 8, right: 12,
+                    background: 'none', border: 'none', color: 'var(--text-3)',
+                    cursor: 'pointer', fontSize: 20, lineHeight: 1, padding: 4,
+                    zIndex: 1,
+                  }}
+                >
+                  ×
+                </button>
+                <VerdictDetails v={sse.verdict as any} />
+              </div>
+            </div>
+          )}
           {tourActive && (
             <GuidedTour
               onTabChange={(tab) => setActiveTab(tab)}
