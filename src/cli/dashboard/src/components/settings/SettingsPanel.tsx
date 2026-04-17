@@ -135,15 +135,38 @@ export function SettingsPanel() {
 
   // API key state: env flags tell us what's configured server-side; overrides are user-entered values
   const [envKeys, setEnvKeys] = useState<Record<string, boolean>>({});
-  const [keyOverrides, setKeyOverrides] = useState<Record<string, string>>({
-    openai: '', anthropic: '', serper: '', firecrawl: '', tavily: '', cohere: '',
+  const [hostedDemo, setHostedDemo] = useState(false);
+  // Keys persist in localStorage so users don't have to re-enter them on every
+  // page reload. Written on change, read on mount. The key itself never
+  // leaves the browser except as part of a /setup or /compile request body;
+  // it is never rendered back into the input and is submitted with
+  // autoComplete=off.
+  const [keyOverrides, setKeyOverrides] = useState<Record<string, string>>(() => {
+    try {
+      const stored = localStorage.getItem('paracosm:keyOverrides');
+      if (stored) {
+        const parsed = JSON.parse(stored) as Record<string, string>;
+        return {
+          openai: parsed.openai || '', anthropic: parsed.anthropic || '',
+          serper: parsed.serper || '', firecrawl: parsed.firecrawl || '',
+          tavily: parsed.tavily || '', cohere: parsed.cohere || '',
+        };
+      }
+    } catch { /* localStorage unavailable or JSON malformed — fall through */ }
+    return { openai: '', anthropic: '', serper: '', firecrawl: '', tavily: '', cohere: '' };
   });
+  useEffect(() => {
+    try {
+      localStorage.setItem('paracosm:keyOverrides', JSON.stringify(keyOverrides));
+    } catch { /* quota or privacy mode — silent */ }
+  }, [keyOverrides]);
 
   // Per-tier model choices for BYO-key users. Initialised from defaults for
   // the currently selected provider; reset whenever the provider changes so
   // the UI never shows claude-* values while provider='openai' (or vice
-  // versa). Hidden entirely when no user API key is supplied — the server
-  // forces DEMO_MODELS in that case so user-picked values would be ignored.
+  // versa). Hidden entirely when the server is in hosted-demo mode and no
+  // user override has been entered — the server forces DEMO_MODELS on that
+  // path so user-picked values would be ignored.
   const [tierModels, setTierModels] = useState<Record<ModelTier, string>>(
     DEFAULT_TIER_MODELS[provider as 'openai' | 'anthropic'] ?? DEFAULT_TIER_MODELS.openai,
   );
@@ -152,11 +175,19 @@ export function SettingsPanel() {
     if (DEFAULT_TIER_MODELS[p]) setTierModels(DEFAULT_TIER_MODELS[p]);
   }, [provider]);
 
-  // BYO-key mode: user supplied a session-level LLM key, so the run bills
-  // against them and the tier picker is honored. Env-only keys do NOT count
-  // — on the hosted demo those ARE the host keys, which is the path the
-  // server clamps via applyDemoCaps.
-  const hasUserLlmKey = !!keyOverrides.openai || !!keyOverrides.anthropic;
+  // Show the per-tier model picker when ANY LLM key is available AND the
+  // server is not operating as a hosted demo. On local dev the .env keys
+  // belong to the user, so env presence is enough. On the hosted Linode
+  // the server sets PARACOSM_HOSTED_DEMO=true and env keys belong to the
+  // host — picker then requires an explicit session override from the user.
+  const hasSessionLlmKey = !!keyOverrides.openai || !!keyOverrides.anthropic;
+  const hasEnvLlmKey = !!envKeys.openai || !!envKeys.anthropic;
+  const canPickModels = hasSessionLlmKey || (!hostedDemo && hasEnvLlmKey);
+  // `hasUserLlmKey` controls whether launch() attaches `config.models`.
+  // The server only honors tier picks when the request includes a session
+  // key OR when hosted-demo mode is off (local dev trusts env keys as the
+  // user's own). Same contract as applyDemoCaps on the server side.
+  const hasUserLlmKey = hasSessionLlmKey || (!hostedDemo && hasEnvLlmKey);
 
   const refreshScenarioCatalog = useCallback(() => {
     fetch('/scenarios')
@@ -170,10 +201,13 @@ export function SettingsPanel() {
 
   useEffect(() => {
     refreshScenarioCatalog();
-    // Fetch which API keys are configured from .env
+    // Fetch which API keys are configured from .env + hosted-demo flag
     fetch('/admin-config')
       .then(r => r.json())
-      .then(data => { if (data.keys) setEnvKeys(data.keys); })
+      .then(data => {
+        if (data.keys) setEnvKeys(data.keys);
+        if (typeof data.hostedDemo === 'boolean') setHostedDemo(data.hostedDemo);
+      })
       .catch(() => {});
     return subscribeScenarioUpdates(window, refreshScenarioCatalog);
   }, [refreshScenarioCatalog]);
@@ -406,11 +440,12 @@ export function SettingsPanel() {
         </div>
       </fieldset>
 
-      {/* Per-tier model picker. Renders only when the user has supplied
-          their own LLM key in this session, matching the server-side
-          contract: demo runs (host-billed) always use DEMO_MODELS and
-          will ignore anything posted here. */}
-      {hasUserLlmKey && (provider === 'openai' || provider === 'anthropic') && (
+      {/* Per-tier model picker. Visible when the caller is paying for
+          the run — either a session override is set, or env keys are
+          configured and the server is not in hosted-demo mode (local
+          dev). Matches the server-side contract: in hosted-demo mode,
+          applyDemoCaps overwrites whatever models the client posts. */}
+      {canPickModels && (provider === 'openai' || provider === 'anthropic') && (
         <fieldset style={{
           background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: '8px',
           padding: '16px', marginBottom: '16px', boxShadow: 'var(--card-shadow)',
@@ -448,14 +483,15 @@ export function SettingsPanel() {
         </fieldset>
       )}
 
-      {!hasUserLlmKey && (
+      {!canPickModels && (
         <div style={{
           background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: '8px',
           padding: '12px 16px', marginBottom: '16px', fontSize: '12px', color: 'var(--text-2)',
         }}>
-          <strong style={{ color: 'var(--amber)' }}>Demo mode.</strong> No session API key detected.
-          Runs are capped to 3 turns, 30 colonists, 3 departments, and forced to the cheapest model class.
-          Add an OpenAI or Anthropic key above to unlock full scope and per-tier model selection.
+          <strong style={{ color: 'var(--amber)' }}>Demo mode.</strong>{' '}
+          {hostedDemo
+            ? 'Runs against the host API keys are capped to 3 turns, 30 colonists, 3 departments, and the cheapest model class. Add your own OpenAI or Anthropic key above to unlock full scope and per-tier model selection.'
+            : 'No API key configured. Add an OpenAI or Anthropic key above or set one in .env to enable simulations and the per-tier model picker.'}
         </div>
       )}
 
