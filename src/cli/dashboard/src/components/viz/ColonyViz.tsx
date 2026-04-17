@@ -1,54 +1,51 @@
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import type { GameState } from '../../hooks/useGameState';
-import { useVizSnapshots } from './useVizSnapshots';
-import { ColonyCanvas, type ColonyCanvasHandle } from './ColonyCanvas';
-import { VizControls } from './VizControls';
-import type { VizMode } from './viz-types';
-import { computeDivergence } from './viz-types';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { GameState } from '../../hooks/useGameState.js';
+import { useVizSnapshots } from './useVizSnapshots.js';
+import { ColonyPanel } from './ColonyPanel.js';
+import { TurnBanner } from './TurnBanner.js';
+import { ClusterToggleRow } from './ClusterToggleRow.js';
+import { Legend } from './Legend.js';
+import { DrilldownPanel } from './DrilldownPanel.js';
+import { VizControls } from './VizControls.js';
+import {
+  computeDivergence,
+  type ClusterMode,
+  type CellSnapshot,
+  type TurnSnapshot,
+} from './viz-types.js';
+
+interface HexacoShape { O: number; C: number; E: number; A: number; Em: number; HH: number }
 
 interface ColonyVizProps {
   state: GameState;
+  onNavigateToChat?: (colonistName: string) => void;
 }
 
-export function ColonyViz({ state }: ColonyVizProps) {
+const CLUSTER_MODES: ClusterMode[] = ['families', 'departments', 'mood', 'age'];
+
+/**
+ * VIZ tab composition root. Owns playhead state, cluster mode,
+ * selected colonist, divergence tint toggle. Delegates everything
+ * visual to ColonyPanel, DrilldownPanel, TurnBanner, Legend.
+ */
+export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
   const { a: snapsA, b: snapsB } = useVizSnapshots(state);
   const maxTurn = Math.max(snapsA.length, snapsB.length);
   const [currentTurn, setCurrentTurn] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
-  const [mode, setMode] = useState<VizMode>('department');
-  const [layout, setLayout] = useState<'department' | 'family'>('department');
-  // Divergence overlay defaults ON because the two leaders share a seed
-  // for the kernel, so their rosters look almost identical until decisions
-  // compound. Without the overlay, viewers think the columns are duplicates.
+  const [mode, setMode] = useState<ClusterMode>('families');
   const [showDivergence, setShowDivergence] = useState(true);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const timerRef = useRef<number>(0);
-
-  const canvasARef = useRef<ColonyCanvasHandle>(null);
-  const canvasBRef = useRef<ColonyCanvasHandle>(null);
-
-  // Auto-advance to latest turn ONLY when new snapshots arrive (maxTurn
-  // grows), not on play/pause toggles. The previous implementation fired
-  // on every `playing` flip, so pausing mid-playback snapped the playhead
-  // back to maxTurn-1 — which made the pause button feel broken ("icon
-  // toggled but nothing happened"; really: playhead jumped instantly).
-  //
-  // Track the previously observed maxTurn in a ref so the effect can
-  // distinguish "new turn snapshot arrived from SSE" (legitimate
-  // auto-advance) from "user toggled playback" (do nothing).
   const prevMaxTurnRef = useRef(0);
+
   useEffect(() => {
     const prev = prevMaxTurnRef.current;
     prevMaxTurnRef.current = maxTurn;
-    // Only jump the playhead when maxTurn actually INCREASED. This is
-    // the "live streaming new turns in" path. Pausing and resuming does
-    // not grow maxTurn, so the playhead stays wherever the user left it.
-    if (maxTurn > prev && !playing) {
-      setCurrentTurn(maxTurn - 1);
-    }
+    if (maxTurn > prev && !playing) setCurrentTurn(maxTurn - 1);
   }, [maxTurn, playing]);
 
-  // Playback timer
   useEffect(() => {
     if (!playing) return;
     const interval = 2000 / speed;
@@ -65,16 +62,9 @@ export function ColonyViz({ state }: ColonyVizProps) {
   }, [playing, speed, maxTurn]);
 
   const handlePlayPause = useCallback(() => {
-    // Defensive no-op when there is at most one snapshot: the play
-    // button is disabled in that case but the space-bar shortcut bypasses
-    // the disabled attribute, and flipping `playing` with nothing to
-    // advance just toggles the icon without visible effect (which is
-    // exactly the user-reported "play does nothing" behavior).
     if (maxTurn <= 1) return;
     setPlaying(p => {
-      if (!p && currentTurn >= maxTurn - 1) {
-        setCurrentTurn(0);
-      }
+      if (!p && currentTurn >= maxTurn - 1) setCurrentTurn(0);
       return !p;
     });
   }, [currentTurn, maxTurn]);
@@ -94,7 +84,6 @@ export function ColonyViz({ state }: ColonyVizProps) {
     setCurrentTurn(turn);
   }, []);
 
-  // Keyboard shortcuts: arrows to scrub, space to play/pause, M cycles mode, L toggles layout
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
@@ -103,13 +92,9 @@ export function ColonyViz({ state }: ColonyVizProps) {
       else if (e.key === 'ArrowRight') { e.preventDefault(); handleStepForward(); }
       else if (e.key === ' ' || e.key === 'Spacebar') { e.preventDefault(); handlePlayPause(); }
       else if (e.key === 'm' || e.key === 'M') {
-        const order: VizMode[] = ['department', 'mood', 'age', 'generation'];
-        setMode(curr => order[(order.indexOf(curr) + 1) % order.length]);
-      } else if (e.key === 'l' || e.key === 'L') {
-        setLayout(l => l === 'department' ? 'family' : 'department');
-      } else if (e.key === 'd' || e.key === 'D') {
-        setShowDivergence(d => !d);
+        setMode(curr => CLUSTER_MODES[(CLUSTER_MODES.indexOf(curr) + 1) % CLUSTER_MODES.length]);
       }
+      else if (e.key === 'd' || e.key === 'D') setShowDivergence(d => !d);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -117,136 +102,123 @@ export function ColonyViz({ state }: ColonyVizProps) {
 
   const snapA = snapsA[currentTurn];
   const snapB = snapsB[currentTurn];
-  const year = snapA?.year || snapB?.year || 0;
 
-  // Divergence is always computed so the summary banner can quantify it,
-  // but only passed down to the canvases as an overlay when the toggle is on.
   const divergenceData = useMemo(() => computeDivergence(snapA, snapB), [snapA, snapB]);
-  const divergence = showDivergence ? divergenceData : null;
+  const divergedIds = showDivergence ? divergenceData : null;
 
-  const leaderA = state.a.leader;
-  const leaderB = state.b.leader;
+  const allSnapshotsForSelected = useMemo(
+    () => (selectedId ? snapsA.concat(snapsB) : []),
+    [selectedId, snapsA, snapsB],
+  );
 
-  const handleExportPng = useCallback(() => {
-    const tag = `paracosm-T${currentTurn + 1}-Y${year}`;
-    canvasARef.current?.exportPng(`${tag}-${(leaderA?.name || 'A').replace(/\s+/g, '-')}.png`);
-    canvasBRef.current?.exportPng(`${tag}-${(leaderB?.name || 'B').replace(/\s+/g, '-')}.png`);
-  }, [currentTurn, year, leaderA?.name, leaderB?.name]);
+  const byId = useMemo(() => {
+    const m = new Map<string, CellSnapshot>();
+    const pool: TurnSnapshot[] = snapsA.concat(snapsB);
+    for (const s of pool) for (const c of s.cells) m.set(c.agentId, c);
+    return m;
+  }, [snapsA, snapsB]);
+
+  /**
+   * HEXACO lookup is built from agent_reactions events, which carry a
+   * full trait vector per colonist per turn. CellSnapshot does not
+   * include hexaco, so we scan events on each side and capture the
+   * latest HEXACO seen for each name/agentId.
+   */
+  const hexacoById = useMemo(() => {
+    const m = new Map<string, HexacoShape>();
+    for (const side of ['a', 'b'] as const) {
+      for (const evt of state[side].events) {
+        if (evt.type !== 'agent_reactions') continue;
+        const reactions = (evt.data?.reactions as Array<Record<string, unknown>>) || [];
+        for (const r of reactions) {
+          const h = r.hexaco as HexacoShape | undefined;
+          if (!h) continue;
+          const id = (r.agentId as string) || (r.name as string);
+          if (id) m.set(id, h);
+        }
+      }
+    }
+    return m;
+  }, [state]);
+
+  const handleOpenChat = useCallback((name: string) => {
+    onNavigateToChat?.(name);
+    setSelectedId(null);
+  }, [onNavigateToChat]);
 
   if (maxTurn === 0) {
-    const hasActivity = state.isRunning || state.a.leader || state.b.leader || state.a.events.length > 0 || state.b.events.length > 0;
-    const isWaiting = hasActivity && !state.isComplete;
     return (
       <div style={{
-        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        flex: 1, color: 'var(--text-3)', fontSize: 13, gap: 8,
+        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: 'var(--text-3)', fontSize: 13,
       }}>
-        {isWaiting ? (
-          <>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--rust)', letterSpacing: '.08em', textTransform: 'uppercase' }}>
-              Simulation Running
-            </div>
-            <div>Waiting for first turn to complete...</div>
-            <div style={{ width: 24, height: 24, border: '2px solid var(--border)', borderTop: '2px solid var(--rust)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-          </>
-        ) : (
-          'Run a simulation to see the colony visualization.'
-        )}
+        Run a simulation to see the colony visualization.
       </div>
     );
   }
 
-  // Quantified divergence: how many alive-only cells in each timeline at
-  // this turn. Even small numbers tell the viewer that what looks like an
-  // identical column is actually diverging from the other leader's run.
-  // Count is always shown; the visual overlay toggles independently.
-  const divCountA = divergenceData.aliveOnlyA.size;
-  const divCountB = divergenceData.aliveOnlyB.size;
-  const totalDivergence = divCountA + divCountB;
+  const leaderA = state.a.leader;
+  const leaderB = state.b.leader;
+
+  const diffLine = snapA && snapB
+    ? `A vs B: ${snapB.population - snapA.population >= 0 ? '+' : ''}${snapB.population - snapA.population} pop, ${Math.round((snapB.morale - snapA.morale) * 100)}% morale, ${snapB.foodReserve - snapA.foodReserve > 0 ? '+' : ''}${(snapB.foodReserve - snapA.foodReserve).toFixed(1)}mo food`
+    : '';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
-      {/* Divergence summary banner — explains the (often subtle) difference
-          between the two columns at the current turn. Same seed → same
-          starting roster, so divergence builds slowly from decisions. */}
-      <div
-        role="status"
-        aria-label="Cross-leader divergence"
-        style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      <TurnBanner state={state} currentTurn={currentTurn} />
+      <ClusterToggleRow mode={mode} onChange={setMode} />
+      {diffLine && (
+        <div style={{
           padding: '4px 12px', fontSize: 10, fontFamily: 'var(--mono)',
-          color: 'var(--text-3)', borderBottom: '1px solid var(--border)',
-          background: 'var(--bg-panel)', flexWrap: 'wrap', gap: 8,
-        }}
-      >
-        <span>
-          T{currentTurn + 1} divergence:{' '}
-          {totalDivergence === 0 ? (
-            <span style={{ color: 'var(--text-3)' }}>
-              both timelines identical so far &mdash; same seed, decisions haven&apos;t compounded yet
-            </span>
-          ) : (
-            <>
-              <span style={{ color: 'var(--vis)', fontWeight: 800 }}>{divCountA} A-only</span>
-              <span style={{ color: 'var(--text-3)' }}> · </span>
-              <span style={{ color: 'var(--eng)', fontWeight: 800 }}>{divCountB} B-only</span>
-              <span style={{ color: 'var(--text-3)' }}> alive cells</span>
-            </>
-          )}
-        </span>
-        <span style={{ color: 'var(--text-3)', fontStyle: 'italic' }}>
-          {showDivergence ? 'rust dashed border = diverged' : 'press D to show divergence overlay'}
-        </span>
-      </div>
-
-      {/*
-       * Mobile: stack the two canvases vertically via .leaders-row so a
-       * phone user sees full-width panels instead of two ~150px squished
-       * canvases with illegible cells. The class fires the existing
-       * responsive rule in tokens.css at <=768px.
-       */}
-      <div className="leaders-row" style={{ display: 'flex', gap: 8, flex: 1, padding: '8px 8px 0', overflow: 'hidden' }}>
-        <ColonyCanvas
-          ref={canvasARef}
-          snapshots={snapsA}
-          currentTurn={currentTurn}
-          leaderName={leaderA?.name || 'Leader A'}
-          leaderArchetype={leaderA?.archetype || ''}
+          color: 'var(--text-3)', background: 'var(--bg-panel)',
+          borderBottom: '1px solid var(--border)',
+        }}>
+          {diffLine}
+        </div>
+      )}
+      <div className="leaders-row" style={{ display: 'flex', flex: 1, minHeight: 0, gap: 4, overflow: 'hidden' }}>
+        <ColonyPanel
+          snapshot={snapA}
+          leaderName={leaderA?.name ?? 'Leader A'}
+          leaderArchetype={leaderA?.archetype ?? ''}
           mode={mode}
-          layout={layout}
-          divergedIds={divergence?.aliveOnlyA}
+          selectedId={selectedId}
+          divergedIds={divergedIds?.aliveOnlyA}
+          onSelect={setSelectedId}
         />
-        <ColonyCanvas
-          ref={canvasBRef}
-          snapshots={snapsB}
-          currentTurn={currentTurn}
-          leaderName={leaderB?.name || 'Leader B'}
-          leaderArchetype={leaderB?.archetype || ''}
+        <ColonyPanel
+          snapshot={snapB}
+          leaderName={leaderB?.name ?? 'Leader B'}
+          leaderArchetype={leaderB?.archetype ?? ''}
           mode={mode}
-          layout={layout}
-          divergedIds={divergence?.aliveOnlyB}
+          selectedId={selectedId}
+          divergedIds={divergedIds?.aliveOnlyB}
+          onSelect={setSelectedId}
         />
       </div>
-
+      <Legend />
       <VizControls
         currentTurn={currentTurn}
         maxTurn={maxTurn}
-        year={year}
+        year={snapA?.year ?? snapB?.year ?? 0}
         playing={playing}
         speed={speed}
-        mode={mode}
-        layout={layout}
-        showDivergence={showDivergence}
         onTurnChange={handleTurnChange}
         onPlayPause={handlePlayPause}
         onStepBack={handleStepBack}
         onStepForward={handleStepForward}
         onSpeedChange={setSpeed}
-        onModeChange={setMode}
-        onLayoutChange={setLayout}
-        onDivergenceToggle={() => setShowDivergence(d => !d)}
-        onExportPng={handleExportPng}
+      />
+      <DrilldownPanel
+        selectedId={selectedId}
+        snapshots={allSnapshotsForSelected}
+        byId={byId}
+        hexacoById={hexacoById}
+        onClose={() => setSelectedId(null)}
+        onSelect={setSelectedId}
+        onJumpToTurn={(turn: number) => setCurrentTurn(Math.max(0, Math.min(maxTurn - 1, turn - 1)))}
+        onOpenChat={handleOpenChat}
       />
     </div>
   );
