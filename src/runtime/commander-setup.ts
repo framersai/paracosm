@@ -26,17 +26,49 @@ import type { ScenarioPackage, LeaderConfig } from '../engine/types.js';
 import type { CallUsage } from './cost-tracker.js';
 import { buildPromotionPrompt } from './runtime-helpers.js';
 
-/** Build a short "Your decision style" line from the leader's HEXACO profile. */
+/**
+ * Build a "Your decision style" block from the leader's HEXACO profile.
+ *
+ * Covers all six HEXACO axes at both poles with concrete behavioural
+ * cues that translate cleanly into decision-making: what option to
+ * pick, how to frame rationale, how much risk to accept, how to
+ * communicate outcomes. Each cue names a SPECIFIC downstream effect
+ * (e.g. "the unknown is opportunity, not threat") rather than a trait
+ * label, so the LLM cannot just parrot the trait name back. The
+ * Honesty-Humility, Extraversion, and Agreeableness poles that were
+ * previously missing produce the sharpest additional divergence
+ * between Visionary + Engineer archetypes beyond openness alone.
+ *
+ * Thresholds (0.7 / 0.3) match the kernel's personality-drift bounds
+ * so cues only fire when the trait is meaningfully expressed.
+ */
 export function buildPersonalityCue(h: HexacoProfile): string {
   const cues: string[] = [];
-  if (h.openness > 0.7) cues.push('You favor novel, untested approaches over proven ones');
-  if (h.openness < 0.3) cues.push('You favor proven protocols over experiments');
-  if (h.conscientiousness > 0.7) cues.push('You demand evidence and contingency plans before committing');
-  if (h.conscientiousness < 0.3) cues.push('You move fast and accept ambiguity');
-  if (h.emotionality > 0.7) cues.push('You weigh human cost heavily — even small mortality risks deter you');
-  if (h.emotionality < 0.3) cues.push('You will accept casualties for strategic gain');
-  if (h.agreeableness < 0.4) cues.push('You override department consensus when you see a better path');
-  if (h.honestyHumility < 0.4) cues.push('You leverage information asymmetries when useful');
+
+  // Openness: novelty vs proven protocols
+  if (h.openness > 0.7) cues.push('You favor novel, untested approaches over proven ones; the unknown is an opportunity, not a threat');
+  if (h.openness < 0.3) cues.push('You trust proven protocols and incremental improvement; experiments need an extraordinary justification');
+
+  // Conscientiousness: discipline vs improvisation
+  if (h.conscientiousness > 0.7) cues.push('You demand evidence and contingency plans before committing; you would rather be slow and right than fast and wrong');
+  if (h.conscientiousness < 0.3) cues.push('You move fast and accept ambiguity; waiting for full evidence is itself a risk');
+
+  // Extraversion: visible command vs quiet technical leadership
+  if (h.extraversion > 0.7) cues.push('You lead from the front: public announcements, rallying speeches, visible command presence; your rationale frames collective purpose');
+  if (h.extraversion < 0.3) cues.push('You work through technical channels: brief memos, quiet protocols, minimal public drama; your rationale reads as an engineering log');
+
+  // Agreeableness: consensus vs decisiveness
+  if (h.agreeableness > 0.7) cues.push('You seek consensus across departments and with Earth-command before committing; you treat disagreement as a signal to gather more input');
+  if (h.agreeableness < 0.3) cues.push('You override department consensus when you see a better path; you accept friction as the cost of clarity');
+
+  // Emotionality: human-cost weighting
+  if (h.emotionality > 0.7) cues.push('You weigh human cost heavily — even small mortality risks deter you, and morale is a first-class metric that constrains the option space');
+  if (h.emotionality < 0.3) cues.push('You accept casualties for strategic gain; morale is downstream of results, not a primary constraint');
+
+  // Honesty-Humility: transparency vs information asymmetry
+  if (h.honestyHumility > 0.7) cues.push('You report failures transparently, accept blame, and refuse to spin bad outcomes; credibility is the only currency that compounds');
+  if (h.honestyHumility < 0.3) cues.push('You leverage information asymmetries when useful; public framing is part of strategy, not a post-hoc wrap');
+
   return cues.length ? `Your decision style: ${cues.join('. ')}.` : '';
 }
 

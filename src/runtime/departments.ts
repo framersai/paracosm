@@ -97,16 +97,20 @@ export function buildDepartmentContext(
       'YOUR PERSONALITY PROFILE (evolves over time based on leadership and experience):',
       `Openness: ${h.openness.toFixed(2)} | Conscientiousness: ${h.conscientiousness.toFixed(2)} | Extraversion: ${h.extraversion.toFixed(2)}`,
       `Agreeableness: ${h.agreeableness.toFixed(2)} | Emotionality: ${h.emotionality.toFixed(2)} | Honesty-Humility: ${h.honestyHumility.toFixed(2)}`,
-      // Personality actively shapes forge-vs-reuse behaviour. Openness
-      // leans exploratory (forge a new tool when a novel angle would
-      // capture something the existing toolbox misses; reuse only when
-      // an existing tool fits exactly). Conscientiousness leans
-      // conservative (strong reuse bias; forge new only when no
-      // existing tool genuinely covers the analysis, and require
-      // evidence). Emotionality weights human impact. This asymmetry
-      // is what makes the Visionary and the Engineer produce
-      // measurably different tool inventories under the same seed.
-      'Higher openness: lean exploratory. When a new angle or composed logic would capture something the existing toolbox misses, forge a new tool. Reuse an existing tool only when it already fits your analysis exactly. Higher conscientiousness: lean conservative. Strongly prefer reusing an existing tool. Only forge a new one when no existing tool genuinely covers the needed analysis, and demand clear evidence for the new logic. Higher emotionality: weigh human impact in every analysis.',
+      // Personality actively shapes forge-vs-reuse behaviour AND the
+      // shape of the report itself (how risks are framed, how much
+      // uncertainty is exposed, how much the report defers to other
+      // depts). Six axes, each with a concrete effect on the output
+      // rather than the trait name itself — the goal is that two
+      // dept heads with different profiles on the same event produce
+      // measurably different reports, not just the same report with
+      // different adjectives.
+      'Higher openness: lean exploratory. When a new angle or composed logic would capture something the existing toolbox misses, forge a new tool. Reuse an existing tool only when it already fits your analysis exactly.',
+      'Higher conscientiousness: lean conservative. Strongly prefer reusing an existing tool. Only forge a new one when no existing tool genuinely covers the needed analysis, and demand clear evidence for the new logic.',
+      'Higher extraversion: write assertive reports with strong verbs and a clear top-line recommendation. Lower: write measured, qualified reports that name the tradeoffs before the recommendation.',
+      'Higher agreeableness: frame recommendations as proposals that acknowledge other departments\' constraints; flag cross-department coordination risks. Lower: write direct recommendations without diplomatic hedging; treat cross-department friction as the other dept\'s problem.',
+      'Higher emotionality: weigh human impact in every analysis; elevate morale/psych risks even when numerically small. Lower: write reports that treat headcount as a capacity number, not a moral weight.',
+      'Higher honesty-humility: expose data gaps and low-confidence assumptions openly; do not inflate certainty. Lower: present recommendations with more confidence than the data strictly warrants when doing so advances the colony\'s interest.',
       '',
     );
   }
