@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { TurnSnapshot } from '../viz-types.js';
-import { AutomatonCanvas } from './AutomatonCanvas.js';
+import { AutomatonCanvas, type ForgeAttemptInput, type ReuseCallInput } from './AutomatonCanvas.js';
 import type { AutomatonMode } from './shared.js';
 import {
   COLLAPSED_BAND_HEIGHT,
@@ -22,6 +22,9 @@ interface AutomatonBandProps {
   onCollapseToggle: () => void;
   eventCategories?: string[];
   eventIntensity?: number;
+  forgeAttempts?: ForgeAttemptInput[];
+  reuseCalls?: ReuseCallInput[];
+  scenarioDepartments?: string[];
   onSelectAgent?: (agentId: string) => void;
 }
 
@@ -32,7 +35,7 @@ interface AutomatonBandProps {
  * shared parent.
  */
 export function AutomatonBand(props: AutomatonBandProps) {
-  const { snapshot, hexacoById, side, sideColor, mode, collapsed, onModeChange, onCollapseToggle, eventCategories, eventIntensity, onSelectAgent } = props;
+  const { snapshot, hexacoById, side, sideColor, mode, collapsed, onModeChange, onCollapseToggle, eventCategories, eventIntensity, forgeAttempts, reuseCalls, scenarioDepartments, onSelectAgent } = props;
   const [isMobile, setIsMobile] = useState<boolean>(() =>
     typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches,
   );
@@ -91,6 +94,9 @@ export function AutomatonBand(props: AutomatonBandProps) {
             height={bandHeight}
             eventCategories={eventCategories}
             eventIntensity={eventIntensity}
+            forgeAttempts={forgeAttempts}
+            reuseCalls={reuseCalls}
+            scenarioDepartments={scenarioDepartments}
             onSelectAgent={onSelectAgent}
           />
           <ModePill

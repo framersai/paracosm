@@ -2,8 +2,25 @@ import { useEffect, useRef, useState } from 'react';
 import type { TurnSnapshot } from '../viz-types.js';
 import { useAutomatonState } from './useAutomatonState.js';
 import { drawMood, ensureLayout, hitTestMood, tickMood, type MoodCell } from './modes/mood.js';
+import { drawForge, refreshDeptCenters, syncOrbitCenters, tickForge } from './modes/forge.js';
+import { drawEcology, ensureEcologyLayout, hitTestEcology, tickEcology, type HexCell } from './modes/ecology.js';
 import type { AutomatonMode } from './shared.js';
 import { scaleCanvasForDpr } from './shared.js';
+
+export interface ForgeAttemptInput {
+  turn: number;
+  eventIndex: number;
+  department: string;
+  name: string;
+  approved: boolean;
+  confidence?: number;
+}
+export interface ReuseCallInput {
+  turn: number;
+  originDept: string;
+  callingDept: string;
+  name: string;
+}
 
 interface HexacoShape { O: number; C: number; E: number; A: number; Em: number; HH: number }
 
@@ -17,6 +34,12 @@ interface AutomatonCanvasProps {
   /** Map of current event categories + intensity for this turn. */
   eventCategories?: string[];
   eventIntensity?: number;
+  /** Cumulative forge attempts for this side (both approved + rejected). */
+  forgeAttempts?: ForgeAttemptInput[];
+  /** Cumulative reuse calls (one entry per reuse invocation). */
+  reuseCalls?: ReuseCallInput[];
+  /** Scenario department list used by the ecology hex layout. */
+  scenarioDepartments?: string[];
   onSelectAgent?: (agentId: string) => void;
 }
 
@@ -27,11 +50,12 @@ interface AutomatonCanvasProps {
  * scaled for device pixel ratio.
  */
 export function AutomatonCanvas(props: AutomatonCanvasProps) {
-  const { snapshot, hexacoById, side, sideColor, mode, height, eventCategories, eventIntensity, onSelectAgent } = props;
+  const { snapshot, hexacoById, side, sideColor, mode, height, eventCategories, eventIntensity, forgeAttempts, reuseCalls, scenarioDepartments, onSelectAgent } = props;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const stateRef = useAutomatonState();
   const [hovered, setHovered] = useState<MoodCell | null>(null);
+  const [hoveredHex, setHoveredHex] = useState<HexCell | null>(null);
   const [size, setSize] = useState<{ w: number; h: number }>({ w: 0, h: height });
 
   // Resize observer keeps logical width synced with the container.
@@ -83,7 +107,32 @@ export function AutomatonCanvas(props: AutomatonCanvasProps) {
       eventCategories,
       eventIntensity,
     });
-  }, [snapshot, hexacoById, side, size.w, size.h, eventCategories, eventIntensity, stateRef]);
+    // Forge state consumes cumulative attempt + reuse arrays. Idempotent
+    // via seenForgeKeys inside tickForge, so re-running with the same
+    // arrays is safe across re-renders.
+    refreshDeptCenters(stateRef.current.forge, stateRef.current.mood);
+    syncOrbitCenters(stateRef.current.forge);
+    tickForge(stateRef.current.forge, stateRef.current.mood, {
+      forgeAttempts: forgeAttempts ?? [],
+      reuseCalls: reuseCalls ?? [],
+      nowMs,
+      snapshotTurn: snapshot.turn,
+    });
+    // Ecology layout + tick. Depts default to whatever the snapshot's
+    // cells expose if the caller didn't pass an explicit scenario list.
+    const depts = scenarioDepartments ?? Array.from(new Set(snapshot.cells.map(c => c.department).filter(Boolean)));
+    ensureEcologyLayout(stateRef.current.ecology, snapshot, size.w, size.h, depts);
+    const forgedDepts = new Set<string>(
+      (forgeAttempts ?? [])
+        .filter(a => a.approved && a.turn === snapshot.turn)
+        .map(a => a.department),
+    );
+    tickEcology(stateRef.current.ecology, {
+      snapshot,
+      forgedDepartmentsThisTurn: forgedDepts,
+      nowMs,
+    });
+  }, [snapshot, hexacoById, side, size.w, size.h, eventCategories, eventIntensity, forgeAttempts, reuseCalls, scenarioDepartments, stateRef]);
 
   // rAF loop with IntersectionObserver + visibility pause.
   useEffect(() => {
@@ -130,6 +179,24 @@ export function AutomatonCanvas(props: AutomatonCanvasProps) {
           hoveredId: hovered?.agentId ?? null,
           deltaMs: Math.min(100, delta),
         });
+        if (mode !== 'ecology') {
+          drawForge(state.forge, {
+            ctx,
+            nowMs,
+            intensity: mode === 'forge' ? 1 : 0.3,
+            deltaMs: Math.min(100, delta),
+          });
+        } else if (snapshot) {
+          drawEcology(state.ecology, {
+            ctx,
+            nowMs,
+            intensity: 1,
+            width: size.w,
+            height: size.h,
+            currentTurn: snapshot.turn,
+            hoveredCell: hoveredHex,
+          });
+        }
         const t1 = performance.now();
         if (t1 - t0 > 16) {
           state.slowFrameStreak += 1;
@@ -160,13 +227,21 @@ export function AutomatonCanvas(props: AutomatonCanvasProps) {
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    const hit = hitTestMood(stateRef.current.mood, x, y);
-    setHovered(hit);
+    if (mode === 'ecology') {
+      const hex = hitTestEcology(stateRef.current.ecology, x, y);
+      setHoveredHex(hex);
+      setHovered(null);
+    } else {
+      const hit = hitTestMood(stateRef.current.mood, x, y);
+      setHovered(hit);
+      setHoveredHex(null);
+    }
   };
-  const onMouseLeave = () => setHovered(null);
+  const onMouseLeave = () => { setHovered(null); setHoveredHex(null); };
   const onClick = () => {
-    if (!hovered || !onSelectAgent) return;
-    onSelectAgent(hovered.agentId);
+    if (hovered && onSelectAgent) {
+      onSelectAgent(hovered.agentId);
+    }
   };
 
   const ariaLabel = snapshot
@@ -184,7 +259,7 @@ export function AutomatonCanvas(props: AutomatonCanvasProps) {
         onClick={onClick}
         style={{ width: '100%', height: '100%', display: 'block', cursor: hovered ? 'pointer' : 'default' }}
       />
-      {hovered && (
+      {hovered && mode !== 'ecology' && (
         <div
           style={{
             position: 'absolute',
@@ -205,6 +280,30 @@ export function AutomatonCanvas(props: AutomatonCanvasProps) {
           <div style={{ color: sideColor, fontWeight: 700 }}>{hovered.name}</div>
           <div style={{ color: 'var(--text-3)' }}>
             {hovered.department}
+          </div>
+        </div>
+      )}
+      {hoveredHex && mode === 'ecology' && (
+        <div
+          style={{
+            position: 'absolute',
+            left: Math.min(size.w - 160, hoveredHex.x + 10),
+            top: Math.max(0, hoveredHex.y - 32),
+            padding: '4px 8px',
+            background: 'var(--bg-panel)',
+            border: '1px solid var(--border)',
+            borderRadius: 4,
+            fontFamily: 'var(--mono)',
+            fontSize: 10,
+            color: 'var(--text-2)',
+            pointerEvents: 'none',
+            whiteSpace: 'nowrap',
+            zIndex: 5,
+          }}
+        >
+          <div style={{ color: sideColor, fontWeight: 700, textTransform: 'uppercase' }}>{hoveredHex.sector}</div>
+          <div style={{ color: 'var(--text-3)' }}>
+            health {(hoveredHex.health * 100).toFixed(0)}%{hoveredHex.dots > 0 ? ` · ${hoveredHex.dots} pop` : ''}
           </div>
         </div>
       )}

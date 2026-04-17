@@ -174,6 +174,75 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
    * include hexaco, so we scan events on each side and capture the
    * latest HEXACO seen for each name/agentId.
    */
+  /**
+   * Per-side forge attempt + reuse ledger. Derived from the raw event
+   * stream so the forge automaton mode sees every birth, rejection,
+   * and cross-dept reuse call as particles / tracers / orbits.
+   * Idempotent via the forge state's seenForgeKeys set, so this can
+   * rebuild on each render without duplicate particles.
+   */
+  const forgeFeeds = useMemo(() => {
+    type Attempt = { turn: number; eventIndex: number; department: string; name: string; approved: boolean; confidence?: number };
+    type Reuse = { turn: number; originDept: string; callingDept: string; name: string };
+    const feed: Record<'a' | 'b', { attempts: Attempt[]; reuses: Reuse[] }> = {
+      a: { attempts: [], reuses: [] },
+      b: { attempts: [], reuses: [] },
+    };
+    for (const side of ['a', 'b'] as const) {
+      const firstByName = new Map<string, string>();
+      for (const evt of state[side].events) {
+        if (evt.type === 'forge_attempt') {
+          const d = evt.data || {};
+          feed[side].attempts.push({
+            turn: Number(d.turn ?? 0),
+            eventIndex: Number(d.eventIndex ?? 0),
+            department: String(d.department || ''),
+            name: String(d.name || ''),
+            approved: d.approved === true || d.approved === 'true',
+            confidence: typeof d.confidence === 'number' ? d.confidence : undefined,
+          });
+          if (d.name && d.department && d.approved === true && !firstByName.has(String(d.name))) {
+            firstByName.set(String(d.name), String(d.department));
+          }
+          continue;
+        }
+        if (evt.type !== 'dept_done') continue;
+        const d = evt.data || {};
+        const dept = String(d.department || '');
+        const tools = Array.isArray(d.forgedTools) ? d.forgedTools : [];
+        for (const t of tools) {
+          const tt = t as Record<string, unknown>;
+          const name = String(tt.name || '');
+          if (!name || name === 'unnamed') continue;
+          const firstDept = typeof tt.firstForgedDepartment === 'string'
+            ? String(tt.firstForgedDepartment)
+            : firstByName.get(name);
+          const firstTurn = typeof tt.firstForgedTurn === 'number'
+            ? (tt.firstForgedTurn as number)
+            : undefined;
+          const thisTurn = Number(evt.turn ?? d.turn ?? 0);
+          if (firstDept && firstTurn !== undefined && firstTurn < thisTurn) {
+            feed[side].reuses.push({
+              turn: thisTurn,
+              originDept: firstDept,
+              callingDept: dept,
+              name,
+            });
+          } else if (firstDept && firstDept !== dept) {
+            // Cross-dept mention on same turn counts as reuse too.
+            feed[side].reuses.push({
+              turn: thisTurn,
+              originDept: firstDept,
+              callingDept: dept,
+              name,
+            });
+          }
+        }
+      }
+    }
+    return feed;
+  }, [state]);
+
   const hexacoById = useMemo(() => {
     const m = new Map<string, HexacoShape>();
     for (const side of ['a', 'b'] as const) {
@@ -258,6 +327,9 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
           automatonCollapsed={automatonCollapsed}
           onAutomatonModeChange={setAutomatonMode}
           onAutomatonCollapseToggle={toggleAutomatonCollapsed}
+          forgeAttempts={forgeFeeds.a.attempts}
+          reuseCalls={forgeFeeds.a.reuses}
+          scenarioDepartments={scenario.departments.map(d => d.id)}
         />
         <ColonyPanel
           snapshot={snapB}
@@ -277,6 +349,9 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
           automatonCollapsed={automatonCollapsed}
           onAutomatonModeChange={setAutomatonMode}
           onAutomatonCollapseToggle={toggleAutomatonCollapsed}
+          forgeAttempts={forgeFeeds.b.attempts}
+          reuseCalls={forgeFeeds.b.reuses}
+          scenarioDepartments={scenario.departments.map(d => d.id)}
         />
       </div>
       <Legend />
