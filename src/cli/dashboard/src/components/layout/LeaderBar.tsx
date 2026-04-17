@@ -8,6 +8,13 @@ interface LeaderBarProps {
   leader: LeaderInfo | null;
   popHistory: number[];
   moraleHistory: number[];
+  /**
+   * When the sim has produced a verdict, indicate how this side
+   * placed so the header can carry a victory / second / tie chip
+   * next to the archetype tag. Undefined while the run is still
+   * in flight or before verdict generation finished.
+   */
+  verdictPlacement?: 'winner' | 'second' | 'tie' | null;
 }
 
 /** Render HEXACO bar: "O ████░ .95" */
@@ -18,7 +25,7 @@ function traitStr(label: string, val: number): string {
   return `${label} ${bar} ${num}`;
 }
 
-export function LeaderBar({ side, leader, popHistory, moraleHistory }: LeaderBarProps) {
+export function LeaderBar({ side, leader, popHistory, moraleHistory, verdictPlacement }: LeaderBarProps) {
   const sideColor = side === 'a' ? 'var(--vis)' : 'var(--eng)';
   const sideBg = side === 'a' ? 'rgba(232,180,74,.12)' : 'rgba(76,168,168,.12)';
   const sideBorder = side === 'a' ? 'var(--amber-dim)' : 'var(--teal-dim)';
@@ -53,6 +60,28 @@ export function LeaderBar({ side, leader, popHistory, moraleHistory }: LeaderBar
             border: `1px solid ${sideBorder}`, flexShrink: 0, letterSpacing: '0.5px',
           }}>
             {archetype.toUpperCase().replace(/^THE\s+/i, '')}
+          </span>
+        )}
+        {verdictPlacement && (
+          <span
+            title={verdictPlacement === 'winner' ? 'Verdict: this leader won' : verdictPlacement === 'tie' ? 'Verdict: tie' : 'Verdict: runner-up'}
+            style={{
+              fontSize: '9px', padding: '2px 8px', borderRadius: '3px', fontWeight: 800,
+              fontFamily: 'var(--mono)', letterSpacing: '0.5px', flexShrink: 0,
+              color: verdictPlacement === 'winner' ? 'var(--green)' : verdictPlacement === 'tie' ? 'var(--amber)' : 'var(--text-3)',
+              background: verdictPlacement === 'winner'
+                ? 'rgba(106,173,72,0.14)'
+                : verdictPlacement === 'tie'
+                ? 'rgba(232,180,74,0.12)'
+                : 'var(--bg-card)',
+              border: `1px solid ${
+                verdictPlacement === 'winner' ? 'rgba(106,173,72,0.4)'
+                  : verdictPlacement === 'tie' ? 'var(--amber-dim)'
+                  : 'var(--border)'
+              }`,
+            }}
+          >
+            {verdictPlacement === 'winner' ? '★ WINNER' : verdictPlacement === 'tie' ? '= TIE' : '2ND'}
           </span>
         )}
         <Tooltip dot content={

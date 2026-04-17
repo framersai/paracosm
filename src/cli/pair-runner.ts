@@ -127,13 +127,16 @@ export async function runPairSimulations(
       };
 
       const { generateText } = await import('@framers/agentos');
-      // Previously omitted `model`, so the call defaulted to the
-      // provider's flagship (gpt-5.4 / claude-sonnet). Verdict is a
-      // structured comparison the cheap tier handles fine, and it fires
-      // on every completed run; flagging it to the commander tier keeps
-      // the demo cost envelope predictable.
-      const verdictModel = simConfig.models?.commander
-        ?? (simConfig.provider === 'anthropic' ? 'claude-haiku-4-5-20251001' : 'gpt-5.4-nano');
+      // Verdict runs once per completed sim and is the single most
+      // user-facing synthesis call in the pipeline: it reads both
+      // final states, the per-leader cause-of-death breakdown, the
+      // forged toolbox, and writes the headline + summary that the
+      // user sees first when the run finishes. Cheap-tier output on
+      // this call was noticeably flatter than flagship output, so
+      // pay the ~$0.02-0.05 per run for the better read.
+      const verdictModel = simConfig.provider === 'anthropic'
+        ? 'claude-sonnet-4-6'
+        : 'gpt-5.4';
       const { text: verdictText } = await generateText({
         provider: simConfig.provider || 'openai',
         model: verdictModel,

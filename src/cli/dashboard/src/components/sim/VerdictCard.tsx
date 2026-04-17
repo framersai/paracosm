@@ -113,6 +113,127 @@ function buildMarkdownExport(v: VerdictData): string {
 }
 
 /**
+ * Full verdict body shared by the Sim modal and the Reports inline
+ * panel. Accepts the parsed VerdictData and renders the winner
+ * headline, summary, key divergence, score bars, and final stats.
+ * Caller supplies any wrapping chrome (modal vs inline card).
+ */
+export function VerdictDetails({ v, onExport, copied }: { v: VerdictData; onExport?: () => void; copied?: boolean }) {
+  const winColor = v.winner === 'A' ? 'var(--vis)' : v.winner === 'B' ? 'var(--eng)' : 'var(--amber)';
+  return (
+    <>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: '10px', fontFamily: 'var(--mono)', fontWeight: 800, letterSpacing: '2px', color: 'var(--text-3)', marginBottom: '6px' }}>
+            SIMULATION VERDICT
+          </div>
+          <div style={{ fontSize: '20px', fontFamily: 'var(--mono)', fontWeight: 800, color: winColor, marginBottom: '4px' }}>
+            {v.winner === 'tie' ? 'TIE' : `${v.winnerName} WINS`}
+          </div>
+          <div style={{ fontSize: '14px', color: 'var(--text-1)', fontWeight: 600 }}>
+            {v.headline}
+          </div>
+        </div>
+        {onExport && (
+          <div style={{ marginLeft: 12, flexShrink: 0 }}>
+            <button
+              onClick={onExport}
+              aria-label="Copy verdict as markdown"
+              style={{
+                fontSize: 10, fontFamily: 'var(--mono)', fontWeight: 700,
+                padding: '4px 10px', borderRadius: 4,
+                border: '1px solid var(--border)',
+                background: copied ? 'rgba(106,173,72,0.18)' : 'var(--bg-card)',
+                color: copied ? 'var(--green)' : 'var(--text-2)',
+                cursor: 'pointer', letterSpacing: '0.05em',
+              }}
+            >
+              {copied ? 'COPIED ✓' : 'EXPORT MD'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div style={{ fontSize: '13px', color: 'var(--text-2)', lineHeight: 1.7, marginBottom: '16px' }}>
+        {v.summary}
+      </div>
+
+      <div style={{
+        background: 'var(--bg-deep)', border: '1px solid var(--border)', borderRadius: '6px',
+        padding: '10px 14px', marginBottom: '16px', fontSize: '12px',
+      }}>
+        <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, color: 'var(--amber)', fontSize: '10px', letterSpacing: '1px' }}>KEY DIVERGENCE</span>
+        <div style={{ color: 'var(--text-2)', marginTop: '4px', lineHeight: 1.6 }}>{v.keyDivergence}</div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '16px', marginBottom: '16px' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '12px', fontFamily: 'var(--mono)', fontWeight: 800, color: 'var(--vis)' }}>{v.leaderA?.name || 'Leader A'}</div>
+          <div style={{ fontSize: '10px', color: 'var(--text-3)' }}>{v.leaderA?.archetype}</div>
+        </div>
+        <div style={{ fontSize: '10px', fontFamily: 'var(--mono)', color: 'var(--text-3)', alignSelf: 'center' }}>vs</div>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '12px', fontFamily: 'var(--mono)', fontWeight: 800, color: 'var(--eng)' }}>{v.leaderB?.name || 'Leader B'}</div>
+          <div style={{ fontSize: '10px', color: 'var(--text-3)' }}>{v.leaderB?.archetype}</div>
+        </div>
+      </div>
+
+      <div style={{ maxWidth: '440px', margin: '0 auto 16px' }}>
+        <ScoreBar label="Survival" a={v.scores.a?.survival ?? 0} b={v.scores.b?.survival ?? 0} />
+        <ScoreBar label="Prosperity" a={v.scores.a?.prosperity ?? 0} b={v.scores.b?.prosperity ?? 0} />
+        <ScoreBar label="Morale" a={v.scores.a?.morale ?? 0} b={v.scores.b?.morale ?? 0} />
+        <ScoreBar label="Innovation" a={v.scores.a?.innovation ?? 0} b={v.scores.b?.innovation ?? 0} />
+      </div>
+
+      {v.finalStats && (
+        <div style={{ maxWidth: '400px', margin: '0 auto', borderTop: '1px solid var(--border)', paddingTop: '12px' }}>
+          <div style={{ fontSize: '10px', fontFamily: 'var(--mono)', fontWeight: 700, letterSpacing: '1px', color: 'var(--text-3)', marginBottom: '8px', textAlign: 'center' }}>FINAL COLONY STATS</div>
+          <StatRow label="Population" a={v.finalStats.a?.population ?? 0} b={v.finalStats.b?.population ?? 0} />
+          <StatRow label="Morale" a={v.finalStats.a?.morale ?? 0} b={v.finalStats.b?.morale ?? 0} format="percent" />
+          <StatRow label="Food (mo)" a={v.finalStats.a?.food ?? 0} b={v.finalStats.b?.food ?? 0} format="decimal" />
+          <StatRow label="Power (kW)" a={v.finalStats.a?.power ?? 0} b={v.finalStats.b?.power ?? 0} format="decimal" />
+          <StatRow label="Modules" a={v.finalStats.a?.modules ?? 0} b={v.finalStats.b?.modules ?? 0} format="decimal" />
+          <StatRow label="Science" a={v.finalStats.a?.science ?? 0} b={v.finalStats.b?.science ?? 0} />
+          <StatRow label="Tools Forged" a={v.finalStats.a?.tools ?? 0} b={v.finalStats.b?.tools ?? 0} />
+        </div>
+      )}
+    </>
+  );
+}
+
+/**
+ * Inline full-width verdict panel for the Reports tab. Renders every
+ * field VerdictDetails surfaces without the click-to-open step the
+ * Sim modal requires, and adds a winner ribbon above the header.
+ */
+export function VerdictPanel({ verdict: raw }: VerdictCardProps) {
+  const v = raw as unknown as VerdictData;
+  const [copied, setCopied] = useState(false);
+  const handleExport = useCallback(() => {
+    const md = buildMarkdownExport(v);
+    navigator.clipboard.writeText(md).then(
+      () => { setCopied(true); setTimeout(() => setCopied(false), 1800); },
+      () => { /* clipboard denied — silent */ },
+    );
+  }, [v]);
+  if (!v.winner || !v.scores) return null;
+  const winColor = v.winner === 'A' ? 'var(--vis)' : v.winner === 'B' ? 'var(--eng)' : 'var(--amber)';
+  return (
+    <div style={{
+      background: 'linear-gradient(180deg, var(--bg-panel) 0%, var(--bg-deep) 100%)',
+      border: '1px solid var(--border)',
+      borderTop: `3px solid ${winColor}`,
+      borderRadius: 10,
+      padding: '20px 24px',
+      marginBottom: 20,
+      boxShadow: 'var(--card-shadow)',
+    }}>
+      <VerdictDetails v={v} onExport={handleExport} copied={copied} />
+    </div>
+  );
+}
+
+/**
  * Verdict surface. Renders as a compact banner pinned at the top of the
  * sim area when a verdict is available — never takes over the layout.
  * The full verdict (scores, stats, summary) opens in a modal on demand,
@@ -210,89 +331,21 @@ export function VerdictCard({ verdict: raw }: VerdictCardProps) {
               fontFamily: 'var(--sans)', color: 'var(--text-1)',
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '10px', fontFamily: 'var(--mono)', fontWeight: 800, letterSpacing: '2px', color: 'var(--text-3)', marginBottom: '6px' }}>
-                  SIMULATION VERDICT
-                </div>
-                <div style={{ fontSize: '20px', fontFamily: 'var(--mono)', fontWeight: 800, color: winColor, marginBottom: '4px' }}>
-                  {v.winner === 'tie' ? 'TIE' : `${v.winnerName} WINS`}
-                </div>
-                <div style={{ fontSize: '14px', color: 'var(--text-1)', fontWeight: 600 }}>
-                  {v.headline}
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: 6, marginLeft: 12, flexShrink: 0 }}>
-                <button
-                  onClick={handleExport}
-                  aria-label="Copy verdict as markdown"
-                  style={{
-                    fontSize: 10, fontFamily: 'var(--mono)', fontWeight: 700,
-                    padding: '4px 10px', borderRadius: 4,
-                    border: '1px solid var(--border)',
-                    background: copied ? 'rgba(106,173,72,0.18)' : 'var(--bg-card)',
-                    color: copied ? 'var(--green)' : 'var(--text-2)',
-                    cursor: 'pointer', letterSpacing: '0.05em',
-                  }}
-                >
-                  {copied ? 'COPIED ✓' : 'EXPORT MD'}
-                </button>
-                <button
-                  onClick={() => setOpen(false)}
-                  aria-label="Close verdict"
-                  style={{
-                    background: 'none', border: 'none', color: 'var(--text-3)',
-                    cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: 4,
-                  }}
-                >
-                  ×
-                </button>
-              </div>
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => setOpen(false)}
+                aria-label="Close verdict"
+                style={{
+                  position: 'absolute', top: -4, right: -4,
+                  background: 'none', border: 'none', color: 'var(--text-3)',
+                  cursor: 'pointer', fontSize: 20, lineHeight: 1, padding: 4,
+                  zIndex: 1,
+                }}
+              >
+                ×
+              </button>
+              <VerdictDetails v={v} onExport={handleExport} copied={copied} />
             </div>
-
-            <div style={{ fontSize: '13px', color: 'var(--text-2)', lineHeight: 1.7, marginBottom: '16px' }}>
-              {v.summary}
-            </div>
-
-            <div style={{
-              background: 'var(--bg-deep)', border: '1px solid var(--border)', borderRadius: '6px',
-              padding: '10px 14px', marginBottom: '16px', fontSize: '12px',
-            }}>
-              <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, color: 'var(--amber)', fontSize: '10px', letterSpacing: '1px' }}>KEY DIVERGENCE</span>
-              <div style={{ color: 'var(--text-2)', marginTop: '4px', lineHeight: 1.6 }}>{v.keyDivergence}</div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '16px', marginBottom: '16px' }}>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '12px', fontFamily: 'var(--mono)', fontWeight: 800, color: 'var(--vis)' }}>{v.leaderA?.name || 'Leader A'}</div>
-                <div style={{ fontSize: '10px', color: 'var(--text-3)' }}>{v.leaderA?.archetype}</div>
-              </div>
-              <div style={{ fontSize: '10px', fontFamily: 'var(--mono)', color: 'var(--text-3)', alignSelf: 'center' }}>vs</div>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '12px', fontFamily: 'var(--mono)', fontWeight: 800, color: 'var(--eng)' }}>{v.leaderB?.name || 'Leader B'}</div>
-                <div style={{ fontSize: '10px', color: 'var(--text-3)' }}>{v.leaderB?.archetype}</div>
-              </div>
-            </div>
-
-            <div style={{ maxWidth: '440px', margin: '0 auto 16px' }}>
-              <ScoreBar label="Survival" a={v.scores.a?.survival ?? 0} b={v.scores.b?.survival ?? 0} />
-              <ScoreBar label="Prosperity" a={v.scores.a?.prosperity ?? 0} b={v.scores.b?.prosperity ?? 0} />
-              <ScoreBar label="Morale" a={v.scores.a?.morale ?? 0} b={v.scores.b?.morale ?? 0} />
-              <ScoreBar label="Innovation" a={v.scores.a?.innovation ?? 0} b={v.scores.b?.innovation ?? 0} />
-            </div>
-
-            {v.finalStats && (
-              <div style={{ maxWidth: '400px', margin: '0 auto', borderTop: '1px solid var(--border)', paddingTop: '12px' }}>
-                <div style={{ fontSize: '10px', fontFamily: 'var(--mono)', fontWeight: 700, letterSpacing: '1px', color: 'var(--text-3)', marginBottom: '8px', textAlign: 'center' }}>FINAL COLONY STATS</div>
-                <StatRow label="Population" a={v.finalStats.a?.population ?? 0} b={v.finalStats.b?.population ?? 0} />
-                <StatRow label="Morale" a={v.finalStats.a?.morale ?? 0} b={v.finalStats.b?.morale ?? 0} format="percent" />
-                <StatRow label="Food (mo)" a={v.finalStats.a?.food ?? 0} b={v.finalStats.b?.food ?? 0} format="decimal" />
-                <StatRow label="Power (kW)" a={v.finalStats.a?.power ?? 0} b={v.finalStats.b?.power ?? 0} format="decimal" />
-                <StatRow label="Modules" a={v.finalStats.a?.modules ?? 0} b={v.finalStats.b?.modules ?? 0} format="decimal" />
-                <StatRow label="Science" a={v.finalStats.a?.science ?? 0} b={v.finalStats.b?.science ?? 0} />
-                <StatRow label="Tools Forged" a={v.finalStats.a?.tools ?? 0} b={v.finalStats.b?.tools ?? 0} />
-              </div>
-            )}
           </div>
         </div>
       )}

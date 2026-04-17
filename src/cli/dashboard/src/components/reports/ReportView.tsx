@@ -6,7 +6,7 @@ import { Badge } from '../shared/Badge';
 import { CitationPills } from '../shared/CitationPills';
 import { ReferencesSection } from '../shared/ReferencesSection';
 import { ToolboxSection } from '../shared/ToolboxSection';
-import { VerdictCard } from '../sim/VerdictCard';
+import { VerdictCard, VerdictPanel } from '../sim/VerdictCard';
 import { CostBreakdownModal } from '../layout/CostBreakdownModal';
 
 /**
@@ -207,7 +207,7 @@ export function ReportView({ state, verdict }: ReportViewProps) {
         Turn-by-Turn Report
       </h2>
 
-      {verdict && <VerdictCard verdict={verdict} />}
+      {verdict && <VerdictPanel verdict={verdict} />}
 
       {/* Cost breakdown trigger. Moved out of the StatsBar header when
           the row got too dense; Reports is the right home since users

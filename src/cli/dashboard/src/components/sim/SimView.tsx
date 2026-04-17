@@ -176,11 +176,23 @@ export function SimView({ state, sseStatus, onRun, verdict, launching: launching
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Shared leaders row */}
-      <div className="leaders-row" style={{ display: 'flex', gap: '1px', background: 'var(--border)' }}>
-        <LeaderBar side="a" leader={state.a.leader || presetLeaderA} popHistory={state.a.popHistory} moraleHistory={state.a.moraleHistory} />
-        <LeaderBar side="b" leader={state.b.leader || presetLeaderB} popHistory={state.b.popHistory} moraleHistory={state.b.moraleHistory} />
-      </div>
+      {/* Shared leaders row. Winner/tie/second chip on each card
+          surfaces the verdict even before the user scrolls down to
+          the banner card. Only rendered when the verdict LLM has
+          produced a final winner call. */}
+      {(() => {
+        const w = verdict && typeof verdict === 'object' ? (verdict as Record<string, unknown>).winner : null;
+        const placementA: 'winner' | 'second' | 'tie' | null =
+          w === 'A' ? 'winner' : w === 'B' ? 'second' : w === 'tie' ? 'tie' : null;
+        const placementB: 'winner' | 'second' | 'tie' | null =
+          w === 'B' ? 'winner' : w === 'A' ? 'second' : w === 'tie' ? 'tie' : null;
+        return (
+          <div className="leaders-row" style={{ display: 'flex', gap: '1px', background: 'var(--border)' }}>
+            <LeaderBar side="a" leader={state.a.leader || presetLeaderA} popHistory={state.a.popHistory} moraleHistory={state.a.moraleHistory} verdictPlacement={placementA} />
+            <LeaderBar side="b" leader={state.b.leader || presetLeaderB} popHistory={state.b.popHistory} moraleHistory={state.b.moraleHistory} verdictPlacement={placementB} />
+          </div>
+        );
+      })()}
 
       {/* Shared stats row */}
       <StatsBar
