@@ -18,6 +18,7 @@ import {
   decisionToPolicy,
 } from './parsers.js';
 import { buildPriceForSite, getDefaultPricing, type CostSite } from './pricing.js';
+import { buildAvailableToolsBlock, type ForgedLedger } from './tool-ledger.js';
 import type { Department, TurnOutcome } from '../engine/core/state.js';
 import { SeededRng } from '../engine/core/rng.js';
 import { classifyOutcome, classifyOutcomeById } from '../engine/core/progression.js';
@@ -378,31 +379,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
    * Both surface in the UI; only the latter is "real" reuse, but tracking
    * both makes failure / re-forge attempts auditable.
    */
-  interface ToolUseRecord {
-    turn: number;
-    year: number;
-    eventIndex: number;
-    eventTitle: string;
-    department: string;
-    /** What the tool produced this invocation (string-truncated to 400). */
-    output: string | null;
-    /** True when the LLM re-invoked forge_tool (vs cited an existing tool). */
-    isReforge: boolean;
-    /** Set when isReforge=true and the judge rejected the new attempt. */
-    rejected: boolean;
-    /** Judge confidence on this invocation (only meaningful for forge calls). */
-    confidence?: number;
-  }
-  const forgedLedger = new Map<string, {
-    firstForgedTurn: number;
-    firstForgedDepartment: string;
-    firstForgedEventIndex: number;
-    firstForgedEventTitle: string;
-    inputSchema?: unknown;
-    outputSchema?: unknown;
-    /** Append-only history of every invocation across the run. */
-    history: ToolUseRecord[];
-  }>();
+  const forgedLedger: ForgedLedger = new Map();
 
   // Commander does NOT use systemBlocks caching because AgentOS's
   // `systemBlocks` path replaces the assembled system prompt entirely,
@@ -863,29 +840,7 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
       // was no other way to surface a number than to re-run forge_tool.
       // Now we also include the last approved output so the LLM can
       // cite both the name and the value without re-forging.
-      const availableToolsBlock = (() => {
-        type Entry = { name: string; dept: string; title: string; output: string | null };
-        const approved: Entry[] = [];
-        for (const [name, ledger] of forgedLedger.entries()) {
-          const lastApproved = [...ledger.history].reverse().find(h => !h.rejected);
-          if (!lastApproved) continue;
-          approved.push({
-            name,
-            dept: ledger.firstForgedDepartment,
-            title: ledger.firstForgedEventTitle || name,
-            // Truncate aggressively so the block stays under a few hundred
-            // tokens even with 20 tools. 180 chars covers a compact JSON
-            // like {"score":42,"warnings":[]} which is what the LLM cites.
-            output: lastApproved.output ? lastApproved.output.slice(0, 180) : null,
-          });
-        }
-        if (approved.length === 0) return '';
-        const lines = approved.slice(-20).reverse().map(t => {
-          const head = `- ${t.name} (${t.dept}): ${t.title}`;
-          return t.output ? `${head}\n  last output: ${t.output}` : head;
-        }).join('\n');
-        return `\n\nALREADY-FORGED TOOLS IN THIS SESSION:\n${lines}\n\nHARD RULE — how to reuse:\n- Preferred: call the tool for real with fresh inputs via call_forged_tool({"name":"<tool_name>","args":{...}}). This produces a new output using the approved, judge-reviewed code. Then cite the tool in "forgedToolsUsed" with the new output.\n- If the analysis is essentially unchanged from last invocation, cite the tool name in "forgedToolsUsed" and reference the last output from the list above in your summary — no tool call needed.\n- Do NOT call forge_tool with a name from this list. Re-forging costs −0.06 outcome bonus and −0.015 morale. Only forge a NEW tool when NO existing one applies. Each reuse (via call_forged_tool or citation) is +0.02 outcome bonus.\n`;
-      })();
+      const availableToolsBlock = buildAvailableToolsBlock(forgedLedger);
 
       const deptPromises = depts.map(async (dept) => {
         const sess = deptSess.get(dept);
