@@ -130,6 +130,12 @@ export function ChatPanel({ state }: ChatPanelProps) {
   const [sending, setSending] = useState(false);
   const messagesRef = useRef<HTMLDivElement>(null);
 
+  // Consume a preselected colonist from the URL hash. The VIZ tab
+  // drilldown writes `#chat=<Name>` before switching to this tab, so
+  // opening chat from there lands directly on the right agent.
+  // Listens to hashchange so repeated handoffs (user goes back and
+  // picks a different colonist) re-select without a hard reload.
+
   const messages = selectedId ? (threads.get(selectedId) ?? []) : [];
   const history = selectedId ? (historyByAgent.get(selectedId) ?? []) : [];
 
@@ -164,6 +170,20 @@ export function ChatPanel({ state }: ChatPanelProps) {
   useEffect(() => {
     if (messagesRef.current) messagesRef.current.scrollTo({ top: messagesRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, sending]);
+
+  useEffect(() => {
+    const readHash = () => {
+      const match = window.location.hash.match(/^#chat=([^&]+)/);
+      if (!match) return;
+      const name = decodeURIComponent(match[1]);
+      if (name && agents.some(a => a.name === name)) {
+        setSelectedId(name);
+      }
+    };
+    readHash();
+    window.addEventListener('hashchange', readHash);
+    return () => window.removeEventListener('hashchange', readHash);
+  }, [agents]);
 
   const selectAgent = (name: string) => {
     setSelectedId(name);

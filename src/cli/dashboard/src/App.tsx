@@ -189,6 +189,15 @@ function AppContent() {
     setActiveTab('sim');
   }, [setActiveTab]);
 
+  // Chat handoff from the VIZ drilldown. Sets the URL hash so
+  // ChatPanel can read it on mount or on hashchange, then switches
+  // tabs. Hash survives the tab switch so preselection works even
+  // though ChatPanel re-renders when the chat tab becomes active.
+  const navigateToChat = useCallback((colonistName: string) => {
+    window.location.hash = `chat=${encodeURIComponent(colonistName)}`;
+    setActiveTab('chat');
+  }, [setActiveTab]);
+
   const handleTourEnd = useCallback(() => {
     setTourActive(false);
     setActiveTab('sim');
@@ -324,7 +333,7 @@ function AppContent() {
           <main id="main-content" className="flex-1 overflow-hidden" role="main" aria-label={`${activeTab} view`} style={{ background: 'var(--bg-deep)', display: 'flex', flexDirection: 'column' }}>
             {activeTab === 'sim' && <SimView state={gameState} sseStatus={sse.status} onRun={handleRun} verdict={sse.verdict} launching={launching} />}
 
-            {activeTab === 'viz' && <ColonyViz state={gameState} />}
+            {activeTab === 'viz' && <ColonyViz state={gameState} onNavigateToChat={navigateToChat} />}
 
             {activeTab === 'settings' && <SettingsPanel />}
 
