@@ -18,6 +18,11 @@ import {
   decisionToPolicy,
 } from './parsers.js';
 import { createCostTracker } from './cost-tracker.js';
+import {
+  buildPersonalityCue,
+  buildCommanderBootstrap,
+  runDepartmentPromotions,
+} from './commander-setup.js';
 import { buildAvailableToolsBlock, buildForgedToolbox, type ForgedLedger } from './tool-ledger.js';
 import { buildCitationCatalog } from './citations-catalog.js';
 import type { Department, TurnOutcome } from '../engine/core/state.js';
@@ -42,7 +47,7 @@ import {
   type StartingPolitics,
   type StartingResources,
 } from '../cli/sim-config.js';
-import { applyCustomEventToCrisis, buildPromotionPrompt, buildYearSchedule } from './runtime-helpers.js';
+import { applyCustomEventToCrisis, buildYearSchedule } from './runtime-helpers.js';
 import { classifyProviderError, shouldAbortRun, type ClassifiedProviderError } from './provider-errors.js';
 import { EffectRegistry } from '../engine/effect-registry.js';
 import { marsScenario } from '../engine/mars/index.js';
@@ -248,92 +253,35 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     maxSteps: opts.execution?.commanderMaxSteps ?? DEFAULT_EXECUTION.commanderMaxSteps,
   });
   const cmdSess = commander.session(`${sid}-cmd`);
-  // Bootstrap commander session. The HEXACO traits passed to agent() above
-  // already shape the LLM's voice; this kickoff message reinforces that
-  // decisions should be visibly personality-driven so two extreme leaders
-  // produce visibly different timelines, not centrist convergent choices.
-  const personalityCue = (() => {
-    const h = leader.hexaco;
-    const cues: string[] = [];
-    if (h.openness > 0.7) cues.push('You favor novel, untested approaches over proven ones');
-    if (h.openness < 0.3) cues.push('You favor proven protocols over experiments');
-    if (h.conscientiousness > 0.7) cues.push('You demand evidence and contingency plans before committing');
-    if (h.conscientiousness < 0.3) cues.push('You move fast and accept ambiguity');
-    if (h.emotionality > 0.7) cues.push('You weigh human cost heavily — even small mortality risks deter you');
-    if (h.emotionality < 0.3) cues.push('You will accept casualties for strategic gain');
-    if (h.agreeableness < 0.4) cues.push('You override department consensus when you see a better path');
-    if (h.honestyHumility < 0.4) cues.push('You leverage information asymmetries when useful');
-    return cues.length ? `Your decision style: ${cues.join('. ')}.` : '';
-  })();
-  // Bootstrap the commander. This is the FIRST LLM call in the run, so if
-  // the user's API key is invalid or credits are exhausted, this is where
-  // we find out. Report it through the classifier so the dashboard banner
-  // fires before we burn compute launching a sim that has no hope of
-  // producing valid output.
+
+  // Bootstrap the commander with a HEXACO-derived personality cue. This
+  // is the FIRST LLM call in the run, so if the user's key is invalid
+  // or credits are exhausted, the classifier fires here before we burn
+  // compute on a run that has no hope of producing valid output.
   try {
-    trackUsage(await cmdSess.send(
-      `You are the colony commander. You receive department reports and make strategic decisions. ` +
-      `${personalityCue} ` +
-      `Your personality MUST visibly shape your choices — do not converge on a centrist option just because ` +
-      `it sounds reasonable. If your traits push you toward the risky option, take it; if they push you toward ` +
-      `the safe option, take it. The simulation's value is in how different leaders produce different outcomes ` +
-      `from the same starting state. ` +
-      `When the crisis includes options with IDs, you MUST include selectedOptionId in your JSON response. ` +
-      `Return JSON with selectedOptionId, decision, rationale, selectedPolicies, rejectedPolicies, ` +
-      `expectedTradeoffs, watchMetricsNextTurn. Acknowledge.`
-    ), 'commander');
+    trackUsage(
+      await cmdSess.send(buildCommanderBootstrap(buildPersonalityCue(leader.hexaco))),
+      'commander',
+    );
   } catch (err) {
     reportProviderError(err, 'commander-bootstrap');
-    // If this is a terminal provider error, `isAborted()` is now true and
-    // the turn loop below will skip all LLM work. Continue into the turn
-    // loop anyway so the normal end-of-run cleanup path runs and the user
-    // gets a proper `complete` SSE event (with the `provider_error` event
-    // already sent above).
+    // If this is a terminal provider error, isAborted() is now true; the
+    // turn loop skips LLM work but continues so the end-of-run cleanup
+    // path runs and the user gets a proper `complete` SSE event.
   }
 
-  // Turn 0: Commander promotes department heads from agent roster
-  console.log('  [Turn 0] Commander evaluating roster for promotions...');
-  const promotionDepts: Department[] = sc.departments.map(d => d.id as Department);
-  const roleNames: Record<string, string> = Object.fromEntries(sc.departments.map(d => [d.id, d.role]));
-  const candidateSummaries = promotionDepts.map(dept => {
-    const candidates = kernel.getCandidates(dept, 5);
-    return `## ${dept.toUpperCase()} — Top 5 Candidates:\n${candidates.map(c => {
-      const age = startYear - c.core.birthYear;
-      const h = c.hexaco;
-      return `- ${c.core.name} (${c.core.id}), age ${age}, spec: ${c.career.specialization}, O:${h.openness.toFixed(2)} C:${h.conscientiousness.toFixed(2)} E:${h.extraversion.toFixed(2)} A:${h.agreeableness.toFixed(2)} Em:${h.emotionality.toFixed(2)} HH:${h.honestyHumility.toFixed(2)}`;
-    }).join('\n')}`;
-  }).join('\n\n');
-
-  const promoResult = await cmdSess.send(
-    buildPromotionPrompt(candidateSummaries)
-  );
-  // Promotion is a commander-session call, so it lands in the commander bucket.
-  trackUsage(promoResult, 'commander');
-
-  const promoMatch = promoResult.text.match(/\{[\s\S]*"promotions"[\s\S]*\}/);
-  if (promoMatch) {
-    try {
-      const pd = JSON.parse(promoMatch[0]);
-      for (const p of pd.promotions || []) {
-        try {
-          kernel.promoteAgent(p.agentId, p.department, p.role, leader.name);
-          console.log(`  ✦ ${p.agentId} → ${p.role}: ${p.reason?.slice(0, 80)}`);
-          emit('promotion', { agentId: p.agentId, department: p.department, role: p.role, reason: p.reason?.slice(0, 120) });
-        } catch (err) { console.log(`  ✦ Promotion failed: ${err}`); }
-      }
-    } catch (e) { console.warn('  [promotion] Failed to parse promotion JSON:', e); }
-  }
-  // Fallback: promote top candidate per dept if commander didn't produce valid JSON
-  for (const dept of promotionDepts) {
-    const hasLeader = kernel.getState().agents.some(c => c.promotion?.department === dept);
-    if (!hasLeader) {
-      const top = kernel.getCandidates(dept, 1)[0];
-      if (top) {
-        kernel.promoteAgent(top.core.id, dept, roleNames[dept] || `Head of ${dept}`, leader.name);
-        console.log(`  ✦ [fallback] ${top.core.name} → ${roleNames[dept]}`);
-      }
-    }
-  }
+  // Turn 0: commander promotes department heads from the kernel's
+  // candidate roster. Any dept the commander skips gets its top
+  // candidate promoted via fallback so turn 1 starts with a full cabinet.
+  await runDepartmentPromotions({
+    kernel,
+    scenario: sc,
+    leader,
+    startYear,
+    sendToCommander: (prompt) => cmdSess.send(prompt),
+    trackUsage,
+    emit,
+  });
 
   // Captured forge events keyed by department. Each `wrapForgeTool` push
   // here on every successful or failed forge; we drain the dept's bucket
