@@ -247,16 +247,25 @@ function AppContent() {
   // think nothing happened and click Run again.
   const [launching, setLaunching] = useState(false);
 
-  // Auto-clear launching once the first event arrives, the simulation
-  // is reported as running by the SSE backend, or it's already complete.
-  // Also clear on connection error so a stuck launch doesn't block UI.
+  // Auto-clear launching once the sim actually starts running, is
+  // complete, or the connection errored. Earlier this cleared on any
+  // SSE event arriving, but the server broadcasts a `status
+  // phase='starting'` event before anything else, and that event does
+  // NOT flip gameState.isRunning. With the old logic, launching cleared
+  // the moment that first status event landed, then SimView's empty-
+  // state condition (!launching && !isRunning) flashed "No simulation
+  // running" for the multiple seconds of Turn 0 dept promotions before
+  // the `parallel` status or first leader event arrived. Gating on
+  // gameState.isRunning instead closes that gap: the Launching spinner
+  // hands off directly to the Waiting-for-first-turn spinner inside
+  // SimView (`state.isRunning && !hasEvents`), with no empty-state
+  // flash in between.
   useEffect(() => {
     if (!launching) return;
-    const hasEvents = sse.events.length > 0;
-    if (hasEvents || sse.isComplete || sse.status === 'error') {
+    if (gameState.isRunning || sse.isComplete || sse.status === 'error') {
       setLaunching(false);
     }
-  }, [launching, sse.events.length, sse.isComplete, sse.status]);
+  }, [launching, gameState.isRunning, sse.isComplete, sse.status]);
 
   // Safety timeout: if /setup succeeded but no events arrived in 60s,
   // give up and show the empty state instead of spinning forever.
