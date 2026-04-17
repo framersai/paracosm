@@ -151,27 +151,112 @@ export function progressBetweenTurns(
     progressionHook({ agents: colonists, yearDelta, year, turn, startYear: state.metadata.startYear, rng: turnRng });
   }
 
-  // 2. Natural mortality
+  // 2. Mortality — multi-cause. Each cause independently rolls and
+  // attributes a specific reason of death, so the dashboard can break
+  // down "8 deaths: 3 starvation, 2 radiation cancer, 2 accidents,
+  // 1 suicide" instead of reporting a faceless total.
+  const killColonist = (c: Agent, cause: string, description: string) => {
+    if (!c.health.alive) return;
+    const age = year - c.core.birthYear;
+    c.health.alive = false;
+    c.health.deathYear = year;
+    c.health.deathCause = cause;
+    c.narrative.lifeEvents.push({ year, event: `Died at age ${age} (${cause})`, source: 'kernel' });
+    events.push({ turn, year, type: 'death', description: `${c.core.name}: ${description}`, agentId: c.core.id, cause });
+  };
+
   for (const c of colonists) {
     if (!c.health.alive) continue;
     const age = year - c.core.birthYear;
-    if (age < 60) continue;
 
-    let mortalityProb = 0;
-    if (age >= 60) mortalityProb = 0.01 * yearDelta;
-    if (age >= 70) mortalityProb = 0.03 * yearDelta;
-    if (age >= 80) mortalityProb = 0.08 * yearDelta;
-    if (age >= 90) mortalityProb = 0.20 * yearDelta;
+    // 2a. Natural mortality (age-dependent)
+    if (age >= 60) {
+      let mortalityProb = 0;
+      if (age >= 60) mortalityProb = 0.01 * yearDelta;
+      if (age >= 70) mortalityProb = 0.03 * yearDelta;
+      if (age >= 80) mortalityProb = 0.08 * yearDelta;
+      if (age >= 90) mortalityProb = 0.20 * yearDelta;
+      if (turnRng.chance(Math.min(mortalityProb, 0.5))) {
+        killColonist(c, age >= 80 ? 'natural causes' : 'age-related complications',
+          `died at age ${age} of ${age >= 80 ? 'natural causes' : 'age-related complications'}`);
+        continue;
+      }
+    }
 
-    if ((c.health.cumulativeRadiationMsv ?? 0) > 1000) mortalityProb += 0.02 * yearDelta;
-    if ((c.health.cumulativeRadiationMsv ?? 0) > 2000) mortalityProb += 0.05 * yearDelta;
+    // 2b. Radiation cancer — separate cause attribution so the
+    // dashboard can show cumulative radiation as a distinct mortality
+    // story from natural aging. Gated at adult ages so kids do not die
+    // of radiation exposure the kernel is still accumulating.
+    if (age >= 30 && (c.health.cumulativeRadiationMsv ?? 0) > 1000) {
+      const rad = c.health.cumulativeRadiationMsv ?? 0;
+      let radProb = 0;
+      if (rad > 1000) radProb = 0.02 * yearDelta;
+      if (rad > 2000) radProb = 0.05 * yearDelta;
+      if (rad > 3500) radProb = 0.10 * yearDelta;
+      if (turnRng.chance(Math.min(radProb, 0.3))) {
+        killColonist(c, 'radiation cancer',
+          `died at age ${age} of radiation-induced cancer (cumulative ${Math.round(rad)} mSv)`);
+        continue;
+      }
+    }
 
-    if (turnRng.chance(Math.min(mortalityProb, 0.5))) {
-      c.health.alive = false;
-      c.health.deathYear = year;
-      c.health.deathCause = age >= 80 ? 'natural causes' : 'age-related complications';
-      c.narrative.lifeEvents.push({ year, event: `Died at age ${age} (${c.health.deathCause})`, source: 'kernel' });
-      events.push({ turn, year, type: 'death', description: `${c.core.name} died at age ${age}`, agentId: c.core.id });
+    // 2c. Starvation — colony-wide food reserve below a month triggers
+    // per-colonist starvation risk. Every colonist is equally at risk;
+    // it is colony-scale, not individual.
+    if (colony.foodMonthsReserve < 1.0) {
+      const starveProb = (1.0 - colony.foodMonthsReserve) * 0.15 * yearDelta;
+      if (turnRng.chance(Math.min(starveProb, 0.3))) {
+        killColonist(c, 'starvation',
+          `died at age ${age} of starvation (colony food reserve ${colony.foodMonthsReserve.toFixed(1)} months)`);
+        continue;
+      }
+    }
+
+    // 2d. Despair — low psych score + high emotionality → suicide /
+    // slow decline risk. Covered as a real phenomenon in long-duration
+    // isolation studies (Antarctic, submarine crews, ISS).
+    if (age >= 18 && c.health.psychScore < 0.2) {
+      const despairProb = (0.2 - c.health.psychScore) * 0.25 * yearDelta * (0.5 + c.hexaco.emotionality);
+      if (turnRng.chance(Math.min(despairProb, 0.2))) {
+        killColonist(c, 'despair',
+          `died at age ${age} of prolonged psychological decline (psych ${c.health.psychScore.toFixed(2)})`);
+        continue;
+      }
+    }
+
+    // 2e. Bone-density fracture — Mars-specific. Below ~60% bone
+    // density fracture risk becomes meaningful; severe falls can
+    // cascade to fatal in a low-medical-capacity environment. Gated
+    // on age >= 40 since younger colonists have reserve to recover.
+    if (age >= 40 && typeof c.health.boneDensityPct === 'number' && c.health.boneDensityPct < 60) {
+      const fractureProb = (60 - c.health.boneDensityPct) * 0.003 * yearDelta;
+      if (turnRng.chance(Math.min(fractureProb, 0.15))) {
+        killColonist(c, 'fatal fracture',
+          `died at age ${age} of a fall-induced fracture (bone density ${c.health.boneDensityPct.toFixed(0)}%)`);
+        continue;
+      }
+    }
+
+    // 2f. Baseline accident risk — small but non-zero, reflecting
+    // mundane EVA / construction / life-support hazards that exist in
+    // any Mars habitat. Weighted by role: engineering + medical
+    // colonists are more often in hazardous positions than governance.
+    const roleAccidentWeight: Record<string, number> = {
+      engineering: 1.5,
+      medical: 1.2,
+      agriculture: 1.0,
+      science: 0.9,
+      psychology: 0.6,
+      governance: 0.5,
+    };
+    const accidentBase = 0.003 * yearDelta;
+    const accidentProb = accidentBase * (roleAccidentWeight[c.core.department ?? 'science'] ?? 1.0);
+    if (age >= 18 && turnRng.chance(accidentProb)) {
+      const descriptors = ['airlock failure', 'EVA accident', 'falling debris', 'pressure-suit tear', 'vehicle rollover'];
+      const descriptor = turnRng.pick(descriptors);
+      killColonist(c, `accident: ${descriptor}`,
+        `died at age ${age} in a ${descriptor}`);
+      continue;
     }
   }
 

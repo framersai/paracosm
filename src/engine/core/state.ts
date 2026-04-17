@@ -198,6 +198,11 @@ export interface TurnEvent {
   type: 'crisis' | 'decision' | 'birth' | 'death' | 'promotion' | 'relationship' | 'tool_forge' | 'system';
   description: string;
   agentId?: string;
+  /** For death events: the specific cause (natural causes, radiation
+   *  cancer, starvation, despair, fatal fracture, accident: X). Lets
+   *  downstream reporting break deaths down by cause instead of
+   *  reporting a faceless total. */
+  cause?: string;
   data?: Record<string, unknown>;
 }
 
