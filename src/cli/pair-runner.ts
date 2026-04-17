@@ -127,8 +127,16 @@ export async function runPairSimulations(
       };
 
       const { generateText } = await import('@framers/agentos');
+      // Previously omitted `model`, so the call defaulted to the
+      // provider's flagship (gpt-5.4 / claude-sonnet). Verdict is a
+      // structured comparison the cheap tier handles fine, and it fires
+      // on every completed run; flagging it to the commander tier keeps
+      // the demo cost envelope predictable.
+      const verdictModel = simConfig.models?.commander
+        ?? (simConfig.provider === 'anthropic' ? 'claude-haiku-4-5-20251001' : 'gpt-5.4-nano');
       const { text: verdictText } = await generateText({
         provider: simConfig.provider || 'openai',
+        model: verdictModel,
         prompt: `You are judging a colony simulation. Two AI commanders with different HEXACO personality profiles led identical colonies through ${turns} turns from the same starting conditions and deterministic seed. Compare their outcomes — including how each leader's tool-forging behavior affected outcomes — and declare a winner.
 
 ${formatLeader('LEADER A', a, colA)}

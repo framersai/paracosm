@@ -212,10 +212,14 @@ export const DEFAULT_EXECUTION: SimulationExecutionConfig = {
  */
 export const DEMO_MODELS: Record<LlmProvider, SimulationModelConfig> = {
   openai: {
-    // Mid-tier: forge code that actually uses declared inputs and
-    // stays consistent with its own schema.
-    departments: 'gpt-5.4-mini',
-    // Cheapest: structured picks + batches + reactions.
+    // Demo uses the cheapest class across the board. Nano fails the
+    // forge judge more often than mini, but the judge already runs on
+    // nano (rejects go through the same quality bar), reforges are
+    // capped at one attempt by the lowered departmentMaxSteps, and
+    // $0.86 of department spend per 2 turns on mini was the largest
+    // single line item in the sim. Users on their own keys still get
+    // the mid-tier default via the Settings UI.
+    departments: 'gpt-5.4-nano',
     commander: 'gpt-5.4-nano',
     director: 'gpt-5.4-nano',
     judge: 'gpt-5.4-nano',
@@ -270,8 +274,12 @@ export const DEMO_EXECUTION: SimulationExecutionConfig & {
   maxPopulation: number;
   maxActiveDepartments: number;
 } = {
-  commanderMaxSteps: 3,
-  departmentMaxSteps: 3,
+  commanderMaxSteps: 2,
+  // Each extra department step replays the full conversation to the
+  // model; at ~15-29K tokens per replay on mini that was the single
+  // biggest cost lever. Two steps covers the forge + one reaction to
+  // the judge verdict; a third step was almost always redundant.
+  departmentMaxSteps: 2,
   sandboxTimeoutMs: 10000,
   sandboxMemoryMB: 128,
   reactionBatchSize: 10,
