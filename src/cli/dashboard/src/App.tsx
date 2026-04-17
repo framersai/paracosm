@@ -90,10 +90,35 @@ function AppContent() {
     document.title = `${scenario.labels.name} \u2014 Paracosm`;
   }, [scenario.labels.name]);
 
+  // Event Log auto-scroll. Stays pinned to the bottom as new SSE
+  // events stream in so the user sees the latest frame without manual
+  // scrolling, but releases the pin the moment the user scrolls up
+  // (so they can read an older event without being yanked back down).
+  const logScrollRef = useRef<HTMLDivElement>(null);
+  const logPinnedRef = useRef(true);
+  const onLogScroll = useCallback(() => {
+    const el = logScrollRef.current;
+    if (!el) return;
+    // Anything within 40px of the bottom counts as pinned. Covers
+    // rounding slop and the details element expanding under the
+    // caret after a click.
+    logPinnedRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+  }, []);
+
   // When tour is active, use demo events; otherwise use live SSE events
   const effectiveEvents = tourActive ? DEMO_EVENTS : sse.events;
   const effectiveComplete = tourActive ? true : sse.isComplete;
   const gameState = useGameState(effectiveEvents, effectiveComplete);
+
+  // Whenever a new event lands and the user is still pinned to the
+  // bottom of the log, scroll it down. If the log tab is not mounted
+  // the ref is null and this is a no-op.
+  useEffect(() => {
+    if (!logPinnedRef.current) return;
+    const el = logScrollRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [effectiveEvents.length]);
   const citationRegistry = useCitationRegistry(gameState);
   const toolRegistry = useToolRegistry(gameState);
   const persistence = useGamePersistence(scenario.labels.shortName);
@@ -390,7 +415,15 @@ function AppContent() {
             </div>
 
             {activeTab === 'log' && (
-              <div className="flex-1 overflow-y-auto p-4 font-mono text-xs" role="log" aria-label="Event log" aria-live="polite" style={{ background: 'var(--bg-deep)', color: 'var(--text-3)' }}>
+              <div
+                ref={logScrollRef}
+                onScroll={onLogScroll}
+                className="flex-1 overflow-y-auto p-4 font-mono text-xs"
+                role="log"
+                aria-label="Event log"
+                aria-live="polite"
+                style={{ background: 'var(--bg-deep)', color: 'var(--text-3)' }}
+              >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                   <h2 style={{ color: 'var(--text-1)', fontSize: '14px', fontWeight: 700 }}>Event Log ({effectiveEvents.length} events)</h2>
                 </div>
