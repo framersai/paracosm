@@ -135,6 +135,10 @@
     --radius-md: 4px;
     --radius-lg: 6px;
     --radius-xl: 8px;
+
+    /* Select caret. Data URLs cannot read CSS variables, so each theme
+       gets its own encoded chevron matching the theme's text-2 tone. */
+    --select-caret-url: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' stroke='%23d8ccb0' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
   }
 
   /* === LIGHT MODE — warm sepia, aged parchment, WCAG AA compliant === */
@@ -214,6 +218,9 @@
     --color-success: var(--green);
     --color-warning: var(--amber);
     --color-error: var(--rust);
+
+    /* Darker caret for the cream background. */
+    --select-caret-url: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' stroke='%232e2418' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
   }
 
   /* === GLOBAL TYPOGRAPHY === */
@@ -593,6 +600,21 @@
   }
   input[type="range"].pc-range:focus-visible::-moz-range-thumb {
     box-shadow: 0 0 0 1px var(--pc-range-fill, var(--amber)), 0 0 0 4px rgba(232, 180, 74, 0.25);
+  }
+
+  /* === SELECT DROPDOWN ===
+     Native <select> renders without any affordance on some browsers, so
+     the element reads as a plain input. Add a chevron caret per theme. */
+  select.pc-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: var(--select-caret-url);
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 12px 8px;
+    padding-right: 30px;
+    cursor: pointer;
   }
 
   /* === REDUCED MOTION (a11y) === */

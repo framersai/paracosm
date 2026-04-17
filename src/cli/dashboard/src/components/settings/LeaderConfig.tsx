@@ -86,6 +86,7 @@ export function LeaderConfig({ label, sideColor, data, onChange }: LeaderConfigP
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '10px', marginBottom: '6px' }}>
         <label style={{ ...fieldLabel, marginBottom: 0 }}>Personality</label>
         <select
+          className="pc-select"
           onChange={e => {
             const p = PERSONALITY_PRESETS.find(p => p.id === e.target.value);
             if (p) onChange({ ...data, hexaco: { ...p.hexaco } });

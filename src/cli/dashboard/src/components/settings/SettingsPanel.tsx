@@ -311,6 +311,7 @@ export function SettingsPanel() {
           </label>
           <select
             id="scenario-select"
+            className="pc-select"
             value={activeId}
             onChange={e => switchScenario(e.target.value)}
             style={{
@@ -451,14 +452,14 @@ export function SettingsPanel() {
         <div className="responsive-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '12px' }}>
           <div>
             <label htmlFor="provider-select" style={labelStyle}>Provider</label>
-            <select id="provider-select" value={provider} onChange={e => setProvider(e.target.value)} style={inputStyle}>
+            <select id="provider-select" className="pc-select" value={provider} onChange={e => setProvider(e.target.value)} style={inputStyle}>
               <option value="openai">OpenAI</option>
               <option value="anthropic">Anthropic</option>
             </select>
           </div>
           <div>
             <label htmlFor="search-select" style={labelStyle}>Live Search</label>
-            <select id="search-select" value={String(liveSearch)} onChange={e => setLiveSearch(e.target.value === 'true')} style={inputStyle}>
+            <select id="search-select" className="pc-select" value={String(liveSearch)} onChange={e => setLiveSearch(e.target.value === 'true')} style={inputStyle}>
               <option value="false">Off</option>
               <option value="true">On (requires search API keys)</option>
             </select>
@@ -553,6 +554,7 @@ export function SettingsPanel() {
                 </label>
                 <select
                   id={`model-${tier}`}
+                  className="pc-select"
                   value={tierModels[tier]}
                   onChange={e => setTierModels(prev => ({ ...prev, [tier]: e.target.value }))}
                   style={inputStyle}
