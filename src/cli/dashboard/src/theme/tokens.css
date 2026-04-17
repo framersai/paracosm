@@ -478,10 +478,10 @@
     /* DivergenceRail stacks */
     .diverge-sides { flex-direction: column !important; }
 
-    /* Stats bar wraps instead of scrolling so all metrics stay visible
-       on narrow widths. Horizontal scroll inside chrome-level bars
-       hides information the user cannot see is there. */
-    .stats-bar { flex-wrap: wrap !important; justify-content: flex-start !important; }
+    /* Stats bar stays a single row at every width; scrolls horizontally
+       when pills do not fit. Wrapping onto two rows at common desktop
+       widths where the set almost fit produced a jarring layout. */
+    .stats-bar { overflow-x: auto !important; justify-content: flex-start !important; -webkit-overflow-scrolling: touch; }
 
     /* TabBar wraps rather than scrolling for the same reason. Tabs
        stay full-height and tappable; they just fold onto a second

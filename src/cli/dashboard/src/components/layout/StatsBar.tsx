@@ -120,12 +120,14 @@ export function StatsBar({
   // breakdown still lives on the reports / log pages.
   return (
     <div className="stats-bar" role="region" aria-label="Colony statistics" style={{
-      // Wrap instead of scroll: on narrow widths the stats fold into a
-      // second row rather than hiding off-screen. Horizontal scrolling
-      // inside a chrome-level component hides information the user
-      // cannot see is there. Let the bar grow taller if it needs to.
-      display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap',
+      // Single row always. When the pills overflow the viewport, the
+      // bar scrolls horizontally rather than folding onto a second
+      // row. Wrapping produced a visually jarring 2-row layout at
+      // common desktop widths where the full metric set almost fit.
+      display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'nowrap',
       padding: '3px 8px', gap: '8px',
+      overflowX: 'auto', overflowY: 'hidden',
+      WebkitOverflowScrolling: 'touch',
       background: 'var(--bg-panel)', borderBottom: '1px solid var(--border)',
       fontFamily: 'var(--mono)',
     }}>
