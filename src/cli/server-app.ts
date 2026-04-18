@@ -1058,6 +1058,29 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
     //
     // Query params:
     //   ?limit=N — only aggregate the last N runs from the ring
+    // Health endpoint — lightweight liveness + version check. Used by
+    // monitors + CI/CD smoke tests to confirm the server came up cleanly
+    // and which paracosm build is running. Cheap to hit: no LLM calls,
+    // no ring-buffer iteration, just the current counters.
+    if (req.url === '/health' && req.method === 'GET') {
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        // Cloudflare sits in front; make sure a stale health snapshot
+        // does not get cached at the edge and mislead monitors.
+        'Cache-Control': 'no-store, max-age=0',
+        ...corsHeaders,
+      });
+      res.end(
+        JSON.stringify({
+          status: 'ok',
+          version: PARACOSM_VERSION,
+          uptimeSeconds: Math.round(process.uptime()),
+          runCount: retryRing.length,
+        }),
+      );
+      return;
+    }
+
     if (req.url?.startsWith('/retry-stats') && req.method === 'GET') {
       const url = new URL(req.url, 'http://localhost');
       const limitRaw = url.searchParams.get('limit');
