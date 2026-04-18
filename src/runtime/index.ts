@@ -6,7 +6,7 @@
 
 export { runSimulation } from './orchestrator.js';
 export type { RunOptions, SimEvent, LeaderConfig } from './orchestrator.js';
-export { EventDirector, CrisisDirector } from './director.js';
+export { EventDirector } from './director.js';
 export type { DirectorEvent, DirectorCrisis, DirectorContext, EventCategory, CrisisCategory } from './director.js';
 export type { DepartmentReport, CommanderDecision, TurnArtifact, CrisisResearchPacket } from './contracts.js';
 export { buildDepartmentContext, getDepartmentsForTurn } from './departments.js';

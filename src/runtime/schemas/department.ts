@@ -38,8 +38,8 @@ export const ForgedToolUsageSchema = z.object({
 export const FeaturedAgentUpdateSchema = z.object({
   agentId: z.string().min(1),
   updates: z.object({
-    health: z.record(z.unknown()).optional(),
-    career: z.record(z.unknown()).optional(),
+    health: z.record(z.string(), z.unknown()).optional(),
+    career: z.record(z.string(), z.unknown()).optional(),
     narrative: z.object({ event: z.string() }).optional(),
   }),
 });
@@ -55,8 +55,8 @@ export const RecommendedEffectSchema = z.object({
     'risk_mitigation', 'governance_change', 'social_investment', 'research_bet',
   ]),
   description: z.string().default(''),
-  colonyDelta: z.record(z.number()).optional(),
-  politicsDelta: z.record(z.number()).optional(),
+  colonyDelta: z.record(z.string(), z.number()).optional(),
+  politicsDelta: z.record(z.string(), z.number()).optional(),
 });
 
 export const DepartmentReportSchema = z.object({
@@ -66,7 +66,7 @@ export const DepartmentReportSchema = z.object({
   risks: z.array(RiskSchema).default([]),
   opportunities: z.array(OpportunitySchema).default([]),
   recommendedActions: z.array(z.string()).default([]),
-  proposedPatches: z.record(z.unknown()).default({}),
+  proposedPatches: z.record(z.string(), z.unknown()).default({}),
   forgedToolsUsed: z.array(ForgedToolUsageSchema).default([]),
   featuredAgentUpdates: z.array(FeaturedAgentUpdateSchema).default([]),
   confidence: z.number().min(0).max(1).default(0.7),
