@@ -122,11 +122,47 @@ export function parseCmdDecision(text: string, depts: Department[]): CommanderDe
     try {
       const raw = JSON.parse(jsonStr);
       if (raw.decision || raw.selectedOptionId) {
-        return { ...emptyDecision(depts), ...raw };
+        // Coerce rationale / decision to strings — models occasionally
+        // return them as arrays, which the UI then rendered as
+        // "[object Object]" or concatenated-with-commas prose.
+        const out: CommanderDecision = { ...emptyDecision(depts), ...raw };
+        if (Array.isArray(out.decision)) out.decision = (out.decision as unknown[]).filter(s => typeof s === 'string').join(' ');
+        if (Array.isArray(out.rationale)) out.rationale = (out.rationale as unknown[]).filter(s => typeof s === 'string').join('\n\n');
+        if (typeof out.decision !== 'string') out.decision = String(out.decision ?? '');
+        if (typeof out.rationale !== 'string') out.rationale = String(out.rationale ?? '');
+        return out;
       }
-    } catch { /* fall through */ }
+    } catch { /* fall through to salvage path */ }
   }
-  return { ...emptyDecision(depts), decision: text.slice(0, 500), rationale: text };
+  // Salvage: parse failed (unescaped quote, truncation, bad escape).
+  // Pull the decision + rationale + option id out with targeted regex
+  // so we never leak raw JSON braces into the UI as the decision text.
+  const out = emptyDecision(depts);
+  const decisionField = stripped.match(/"decision"\s*:\s*"((?:\\.|[^"\\])*)"/);
+  const optionField = stripped.match(/"selectedOptionId"\s*:\s*"((?:\\.|[^"\\])*)"/);
+  const rationaleStringField = stripped.match(/"rationale"\s*:\s*"((?:\\.|[^"\\])*)"/);
+  const rationaleArrayField = stripped.match(/"rationale"\s*:\s*\[([\s\S]*?)\]/);
+  if (decisionField) out.decision = decisionField[1].replace(/\\"/g, '"').replace(/\\n/g, '\n');
+  if (optionField) (out as unknown as Record<string, unknown>).selectedOptionId = optionField[1];
+  if (rationaleStringField) {
+    out.rationale = rationaleStringField[1].replace(/\\"/g, '"').replace(/\\n/g, '\n');
+  } else if (rationaleArrayField) {
+    const strings = rationaleArrayField[1].match(/"((?:\\.|[^"\\])*)"/g) ?? [];
+    out.rationale = strings.map(s => s.slice(1, -1).replace(/\\"/g, '"').replace(/\\n/g, '\n')).join('\n\n');
+  }
+  // Last resort: if we still have nothing useful, strip JSON-looking
+  // chunks from the text so the UI shows prose, not braces.
+  if (!out.decision) {
+    const prose = text
+      .replace(/<thinking>[\s\S]*?<\/thinking>/gi, '')
+      .replace(/\{[\s\S]*\}/g, '')
+      .trim();
+    out.decision = prose.slice(0, 300) || 'Commander response could not be parsed cleanly; see Reports for the full text.';
+  }
+  if (!out.rationale) {
+    out.rationale = out.decision;
+  }
+  return out;
 }
 
 /** Empty DepartmentReport skeleton. Every field a typed array/object so spreads are safe. */
