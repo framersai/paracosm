@@ -305,18 +305,10 @@ function AppContent() {
   // flash in between.
   useEffect(() => {
     if (!launching) return;
-    // Any sign of life from the server clears the launching spinner:
-    // first turn kicked off (isRunning), run finished (isComplete),
-    // connection broke (status==='error'), or at least one event
-    // arrived (events.length > 0). The old gate was just isRunning,
-    // which missed the case where the user navigated away and came
-    // back mid-run — events were streaming in but launching stayed
-    // true until gameState caught up, firing the 30s stall toast
-    // spuriously.
-    if (gameState.isRunning || sse.isComplete || sse.status === 'error' || sse.events.length > 0) {
+    if (gameState.isRunning || sse.isComplete || sse.status === 'error') {
       setLaunching(false);
     }
-  }, [launching, gameState.isRunning, sse.isComplete, sse.status, sse.events.length]);
+  }, [launching, gameState.isRunning, sse.isComplete, sse.status]);
 
   // End-of-sim toast: fire exactly once when the run transitions to a
   // terminal state. Distinguishes Complete (all turns finished, verdict
