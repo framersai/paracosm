@@ -212,17 +212,15 @@ export const DEFAULT_EXECUTION: SimulationExecutionConfig = {
  */
 export const DEMO_MODELS: Record<LlmProvider, SimulationModelConfig> = {
   openai: {
-    // gpt-4o-mini for departments. Different model family than the
-    // gpt-5.4 line; historically reliable for structured JSON output
-    // at a tiny fraction of the cost. Combined with the tightened
-    // forge prompt and the pre-judge shape validator, this is the
-    // cheapest shot at passing forges. $0.60/M output is 25x cheaper
-    // than gpt-5.4 flagship, 7.5x cheaper than gpt-5.4-mini.
-    //
-    // Fallback plan if this tier regresses forge quality: bump to
-    // gpt-4o ($10/M output, still half of gpt-5.4) before considering
-    // flagship again.
-    departments: 'gpt-4o-mini',
+    // gpt-4o for departments. gpt-4o-mini kept copying the worked
+    // example verbatim for one forge and then emitting empty-property
+    // schemas for every other attempt, even with maxSteps:3 giving
+    // it room to retry. Stepping up to full gpt-4o ($10/M output —
+    // half of gpt-5.4 flagship, 16x gpt-4o-mini) for consistent
+    // structured-schema compliance on the forge path. Department
+    // volume is bounded by departmentMaxSteps:3 and the ~3 depts/turn
+    // demo cap, so per-run cost stays well under $1.
+    departments: 'gpt-4o',
     commander: 'gpt-5.4-nano',
     director: 'gpt-5.4-nano',
     judge: 'gpt-5.4-nano',
