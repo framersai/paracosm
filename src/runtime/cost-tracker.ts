@@ -68,10 +68,27 @@ export interface CostPayload {
 export interface CostTracker {
   /** Record token + cost usage from a single LLM call, tagged by site. */
   trackUsage(result: { usage?: CallUsage }, site?: CostSite): void;
+  /**
+   * Record that a schema-validated call finished — used for retry
+   * telemetry. `attempts` is the count returned by the wrapper (1 =
+   * first-try success, N = N-1 retries, maxRetries+1 = fallback).
+   * Builds a per-schema rollup exposed in `finalCost().schemaRetries`.
+   */
+  recordSchemaAttempt(schemaName: string, attempts: number, fellBack: boolean): void;
   /** Build the _cost payload attached to every SSE event. */
   buildCostPayload(): CostPayload;
-  /** Final-run snapshot for the output JSON. */
-  finalCost(): { totalTokens: number; totalCostUSD: number; llmCalls: number };
+  /**
+   * Final-run snapshot for the output JSON. Includes a per-schema
+   * retry rollup when any schema-validated call reported its attempt
+   * count; consumers use this to track LLM-reliability regressions
+   * across runs on different models.
+   */
+  finalCost(): {
+    totalTokens: number;
+    totalCostUSD: number;
+    llmCalls: number;
+    schemaRetries?: Record<string, { attempts: number; calls: number; fallbacks: number }>;
+  };
 }
 
 /**
@@ -94,6 +111,13 @@ export function createCostTracker(modelConfig: SimulationModelConfig): CostTrack
   let llmCalls = 0;
   let cacheReadTokens = 0;
   let cacheCreationTokens = 0;
+  /**
+   * Per-schema retry rollup. Populated by recordSchemaAttempt when
+   * sendAndValidate / generateValidatedObject return with an attempt
+   * count. Empty when no schema-validated call site fed results in
+   * (older call sites still using plain generateText bypass this).
+   */
+  const schemaRetries = new Map<string, { attempts: number; calls: number; fallbacks: number }>();
 
   const defaultPricing = getDefaultPricing(modelConfig);
   const priceForSite = buildPriceForSite(modelConfig);
@@ -174,11 +198,27 @@ export function createCostTracker(modelConfig: SimulationModelConfig): CostTrack
     };
   };
 
-  const finalCost: CostTracker['finalCost'] = () => ({
-    totalTokens,
-    totalCostUSD: Math.round(totalCostUSD * 10000) / 10000,
-    llmCalls,
-  });
+  const recordSchemaAttempt: CostTracker['recordSchemaAttempt'] = (schemaName, attempts, fellBack) => {
+    if (!schemaName) return;
+    const existing = schemaRetries.get(schemaName) ?? { attempts: 0, calls: 0, fallbacks: 0 };
+    schemaRetries.set(schemaName, {
+      attempts: existing.attempts + attempts,
+      calls: existing.calls + 1,
+      fallbacks: existing.fallbacks + (fellBack ? 1 : 0),
+    });
+  };
 
-  return { trackUsage, buildCostPayload, finalCost };
+  const finalCost: CostTracker['finalCost'] = () => {
+    const out: ReturnType<CostTracker['finalCost']> = {
+      totalTokens,
+      totalCostUSD: Math.round(totalCostUSD * 10000) / 10000,
+      llmCalls,
+    };
+    if (schemaRetries.size > 0) {
+      out.schemaRetries = Object.fromEntries(schemaRetries.entries());
+    }
+    return out;
+  };
+
+  return { trackUsage, recordSchemaAttempt, buildCostPayload, finalCost };
 }

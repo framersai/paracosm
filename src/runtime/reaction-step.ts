@@ -65,6 +65,8 @@ export interface RunReactionStepArgs {
   execution?: Partial<SimulationExecutionConfig>;
   trackUsage: (result: { usage?: CallUsage }, site?: 'reactions') => void;
   reportProviderError: (err: unknown, site: string) => void;
+  /** Record schema retry attempts for the reactions batch. */
+  recordSchemaAttempt?: (schemaName: string, attempts: number, fellBack: boolean) => void;
   emit: (type: SimEvent['type'], data?: Record<string, unknown>) => void;
 }
 
@@ -90,7 +92,7 @@ export async function runReactionStep(args: RunReactionStepArgs): Promise<Reacti
     kernel, scenario, turn, year, seed,
     turnEvents, turnEventTitles, lastEventCategory, lastOutcome,
     provider, modelConfig, execution,
-    trackUsage, reportProviderError, emit,
+    trackUsage, reportProviderError, recordSchemaAttempt, emit,
   } = args;
 
   const reactionCtx: ReactionContext = {
@@ -156,6 +158,7 @@ export async function runReactionStep(args: RunReactionStepArgs): Promise<Reacti
         batchSize: reactionBatchSize,
         onUsage: (result) => trackUsage(result, 'reactions'),
         onProviderError: (err) => reportProviderError(err, 'reactions'),
+        onSchemaAttempt: (attempts, fellBack) => recordSchemaAttempt?.('ReactionBatch', attempts, fellBack),
       },
     );
   } catch (err) {

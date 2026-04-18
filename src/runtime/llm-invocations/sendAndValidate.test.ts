@@ -117,3 +117,29 @@ test('sendAndValidate fires onUsage for every attempt', async () => {
   });
   assert.equal(usages.length, 2);
 });
+
+test('sendAndValidate returns attempts=1 on first-try success', async () => {
+  const session = makeMockSession(['{"value":"ok"}']);
+  const result = await sendAndValidate({
+    session, prompt: 'test', schema: TestSchema,
+  });
+  assert.equal(result.attempts, 1);
+});
+
+test('sendAndValidate returns attempts=2 after one retry', async () => {
+  const session = makeMockSession(['garbage', '{"value":"fixed"}']);
+  const result = await sendAndValidate({
+    session, prompt: 'test', schema: TestSchema,
+  });
+  assert.equal(result.attempts, 2);
+});
+
+test('sendAndValidate returns attempts=3 on fallback after exhausted retries', async () => {
+  const session = makeMockSession(['garbage', 'garbage', 'garbage']);
+  const result = await sendAndValidate({
+    session, prompt: 'test', schema: TestSchema,
+    maxRetries: 2,
+    fallback: { value: 'default' },
+  });
+  assert.equal(result.attempts, 3);
+});

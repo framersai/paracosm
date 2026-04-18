@@ -269,6 +269,11 @@ export class EventDirector {
      * quietly substitutes canned events.
      */
     onProviderError?: (err: unknown) => void,
+    /**
+     * Called with the attempts count + fallback flag so the orchestrator
+     * can feed per-schema retry telemetry into its cost tracker.
+     */
+    onSchemaAttempt?: (attempts: number, fellBack: boolean) => void,
   ): Promise<DirectorEventBatch> {
     const prompt = buildDirectorPrompt(ctx, maxEvents);
     const systemInstructions = (instructions || DEFAULT_DIRECTOR_INSTRUCTIONS)
@@ -280,7 +285,7 @@ export class EventDirector {
       // through cacheBreakpoint: true so Anthropic serves turns 2-6 from
       // its prefix cache at 0.1x cost. OpenAI auto-caches prompts >=1024
       // tokens.
-      const { object, fromFallback } = await generateValidatedObject({
+      const directorResult = await generateValidatedObject({
         provider,
         model,
         schema: DirectorEventBatchSchema,
@@ -290,6 +295,8 @@ export class EventDirector {
         onUsage,
         onProviderError,
       });
+      const { object, fromFallback } = directorResult;
+      onSchemaAttempt?.(directorResult.attempts, fromFallback);
       if (fromFallback) {
         console.log(`  [director] Schema fallback for ${ctx.leaderName}, using canned`);
       } else {

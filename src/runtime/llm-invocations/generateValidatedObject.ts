@@ -53,6 +53,14 @@ export interface ValidatedObjectResult<T> {
   fromFallback: boolean;
   rawText: string;
   usage?: { totalTokens?: number; promptTokens?: number; completionTokens?: number; costUSD?: number };
+  /**
+   * Attempts taken to produce a valid object. For one-shot calls this
+   * mirrors the underlying generateObject retry behavior — AgentOS does
+   * not currently surface its internal retry count, so success yields
+   * attempts=1 and exhausted-retries yields attempts=maxRetries+1
+   * (the cap). Used by the orchestrator for per-schema retry rollup.
+   */
+  attempts: number;
 }
 
 /**
@@ -87,6 +95,7 @@ export async function generateValidatedObject<T extends ZodType>(
       fromFallback: false,
       rawText: result.text,
       usage: result.usage,
+      attempts: 1,
     };
   } catch (err) {
     opts.onProviderError?.(err);
@@ -100,6 +109,7 @@ export async function generateValidatedObject<T extends ZodType>(
         object: opts.fallback,
         fromFallback: true,
         rawText: err.rawText,
+        attempts: (opts.maxRetries ?? 2) + 1,
       };
     }
     throw err;

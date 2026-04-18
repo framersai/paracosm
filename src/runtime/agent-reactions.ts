@@ -209,6 +209,12 @@ export async function generateAgentReactions(
      */
     onProviderError?: (err: unknown) => void;
     /**
+     * Fires once per batched call with attempts + fallback flag so the
+     * orchestrator can track schema retry rates on ReactionBatch. One
+     * call per batch (roughly N_agents / batchSize calls per turn).
+     */
+    onSchemaAttempt?: (attempts: number, fellBack: boolean) => void;
+    /**
      * Number of agents to pack into a single LLM call. Default 10.
      * Set to 1 to disable batching entirely (one call per agent, legacy
      * path). 10 is the sweet spot on haiku/mini: small enough that a
@@ -268,7 +274,7 @@ export async function generateAgentReactions(
           ...chunk.map((c, idx) => `--- ${idx + 1}/${chunk.length} ---\n${buildBatchAgentBlock(c, ctx, options.reactionContextHook)}`),
         ].join('\n\n');
 
-        const { object, fromFallback } = await generateValidatedObject({
+        const reactionsResult = await generateValidatedObject({
           provider,
           model,
           schema: ReactionBatchSchema,
@@ -278,6 +284,8 @@ export async function generateAgentReactions(
           onUsage: options.onUsage,
           fallback: { reactions: [] },
         });
+        const { object, fromFallback } = reactionsResult;
+        options.onSchemaAttempt?.(reactionsResult.attempts, fromFallback);
         if (fromFallback) {
           if (firstBatchError == null) firstBatchError = new Error('reactions schema fallback');
           return [] as AgentReaction[];
