@@ -39,6 +39,22 @@ export interface AbortReasonState {
   leader?: string;
 }
 
+/**
+ * One rollup bucket per schema name for validation fallbacks observed
+ * during a run. Non-terminal — the sim keeps running with the fallback
+ * skeleton — but worth surfacing in the topbar because repeated fallbacks
+ * on the same schema mean the model is fighting the output format and
+ * whatever data the bucket represents is degraded.
+ */
+export interface ValidationFallbackBucket {
+  schemaName: string;
+  count: number;
+  /** Most recent call-site tag (e.g. `dept:medical:turn3:event1`). */
+  lastSite?: string;
+  /** Most recent raw-text preview (first 300 chars of the bad response). */
+  lastPreview?: string;
+}
+
 interface SSEState {
   status: 'connecting' | 'connected' | 'error';
   events: SimEvent[];
@@ -57,6 +73,15 @@ interface SSEState {
   abortReason: AbortReasonState | null;
   /** Terminal provider error (quota / auth). `null` when the run is healthy. */
   providerError: ProviderErrorState | null;
+  /**
+   * Rollup of `validation_fallback` SSE events received during the current
+   * run. One bucket per schema name (DepartmentReport, CommanderDecision,
+   * etc.) with counts + most-recent preview. Empty array when no schema
+   * has fallen back. Rendered as a small amber indicator in the topbar
+   * (not a full banner — these are soft degradations, the sim keeps
+   * running).
+   */
+  validationFallbacks: ValidationFallbackBucket[];
   /**
    * True once the server has finished flushing its buffered-event replay
    * for the current connection. Events received before this flag flips
@@ -79,6 +104,7 @@ export function useSSE() {
     isAborted: false,
     abortReason: null,
     providerError: null,
+    validationFallbacks: [],
     replayDone: false,
   });
   const esRef = useRef<EventSource | null>(null);
@@ -108,6 +134,7 @@ export function useSSE() {
       // first LLM call will re-fire the `provider_error` event within
       // seconds, which is the right UX: let the user try.
       providerError: null,
+      validationFallbacks: [],
       // After a manual clear the buffer is empty, so the next events we
       // receive are live by definition.
       replayDone: true,
@@ -146,6 +173,9 @@ export function useSSE() {
           leader: firstAborted.leader,
         }
       : null;
+    // Rebuild validation_fallback rollup from loaded events so a reload
+    // after a run with fallbacks preserves the topbar indicator.
+    const restoredFallbacks = rollupValidationFallbacks(events);
     setState({
       status: 'connected',
       events,
@@ -156,11 +186,36 @@ export function useSSE() {
       isAborted: restoredAborted,
       abortReason: restoredAbortReason,
       providerError: restoredProviderError,
+      validationFallbacks: restoredFallbacks,
       // Loading events from a saved file is historical by definition, so
       // downstream toast gating should treat the replay as finished.
       replayDone: true,
     });
   }, []);
+
+/**
+ * Fold a list of SSE events into per-schema validation-fallback buckets.
+ * Pure helper so reload-from-file, live stream, and tests can share the
+ * same shape of rollup.
+ */
+function rollupValidationFallbacks(events: SimEvent[]): ValidationFallbackBucket[] {
+  const bySchema = new Map<string, ValidationFallbackBucket>();
+  for (const e of events) {
+    if (e.type !== 'validation_fallback' || !e.data) continue;
+    const d = e.data as Record<string, unknown>;
+    const schemaName = typeof d.schemaName === 'string' && d.schemaName.length > 0
+      ? d.schemaName
+      : 'unknown';
+    const existing = bySchema.get(schemaName);
+    bySchema.set(schemaName, {
+      schemaName,
+      count: (existing?.count ?? 0) + 1,
+      lastSite: typeof d.site === 'string' ? d.site : existing?.lastSite,
+      lastPreview: typeof d.rawTextPreview === 'string' ? d.rawTextPreview : existing?.lastPreview,
+    });
+  }
+  return [...bySchema.values()].sort((a, b) => b.count - a.count);
+}
 
   useEffect(() => {
     let cancelled = false;
@@ -283,6 +338,32 @@ export function useSSE() {
                 leader: data.leader,
               },
             }));
+            return;
+          }
+          // Intercept `validation_fallback` so the topbar indicator picks
+          // it up incrementally. The event still lands in `events` for
+          // audit + save/reload restoration.
+          if (data.type === 'validation_fallback' && data.data) {
+            const d = data.data as Record<string, unknown>;
+            const schemaName = typeof d.schemaName === 'string' && d.schemaName.length > 0
+              ? d.schemaName
+              : 'unknown';
+            setState(prev => {
+              const buckets = [...prev.validationFallbacks];
+              const idx = buckets.findIndex(b => b.schemaName === schemaName);
+              const updated: ValidationFallbackBucket = idx === -1
+                ? { schemaName, count: 1, lastSite: d.site as string | undefined, lastPreview: d.rawTextPreview as string | undefined }
+                : {
+                    ...buckets[idx],
+                    count: buckets[idx].count + 1,
+                    lastSite: (d.site as string | undefined) ?? buckets[idx].lastSite,
+                    lastPreview: (d.rawTextPreview as string | undefined) ?? buckets[idx].lastPreview,
+                  };
+              if (idx === -1) buckets.push(updated);
+              else buckets[idx] = updated;
+              buckets.sort((a, b) => b.count - a.count);
+              return { ...prev, events: [...prev.events, data], validationFallbacks: buckets };
+            });
             return;
           }
           // sim_aborted: orchestrator emits this when the run was
