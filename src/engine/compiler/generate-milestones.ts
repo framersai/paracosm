@@ -1,15 +1,19 @@
 /**
- * Generate milestone crises (turn 1 founding + final turn assessment) from scenario JSON via LLM.
+ * Generate milestone events (turn 1 founding + final turn legacy) from
+ * scenario JSON via Zod-validated LLM call.
+ *
+ * @module paracosm/engine/compiler/generate-milestones
  */
-
 import type { MilestoneEventDef } from '../types.js';
 import type { GenerateTextFn } from './types.js';
+import type { CompilerTelemetry } from './telemetry.js';
+import { MilestonesSchema } from './schemas/milestones.js';
+import { generateValidatedObject } from './llm-invocations/generateValidatedObject.js';
 
-function buildPrompt(scenarioJson: Record<string, any>): string {
+function buildSystemBlock(scenarioJson: Record<string, any>): string {
   const labels = scenarioJson.labels ?? {};
   const depts = (scenarioJson.departments ?? []).map((d: any) => d.id).join(', ');
-
-  return `You are generating milestone crises for a simulation engine.
+  return `You are generating milestone events for a simulation engine.
 
 SCENARIO: ${labels.name ?? 'Unknown'}
 SETTLEMENT TYPE: ${labels.settlementNoun ?? 'settlement'}
@@ -17,78 +21,45 @@ POPULATION NOUN: ${labels.populationNoun ?? 'members'}
 DEPARTMENTS: ${depts}
 DEFAULT TURNS: ${scenarioJson.setup?.defaultTurns ?? 12}
 
-Generate TWO milestone crises as a JSON array:
-
-1. FOUNDING CRISIS (turn 1): The ${labels.populationNoun} arrive at the ${labels.settlementNoun}. They must make their first major decision (site selection, initial strategy, resource allocation). Two options: safe/conservative vs risky/ambitious. Include domain-specific science and real-world references.
-
-2. LEGACY ASSESSMENT (final turn): The ${labels.settlementNoun} must submit a comprehensive status report. Asks the commander to evaluate population, infrastructure, self-sufficiency, science, culture, tools built, and legacy. Two options: honest assessment vs ambitious projection.
-
-Each milestone must have this exact JSON shape:
+Output shape:
 {
-  "title": "string",
-  "crisis": "string (detailed description with specific domain references)",
+  "founding": { Milestone },
+  "legacy":   { Milestone }
+}
+
+Milestone shape:
+{
+  "title": string,
+  "description": string,
+  "crisis": string (OPTIONAL extended narrative; omit unless the scenario genuinely calls for one),
   "options": [
-    { "id": "option_a", "label": "string", "description": "string", "isRisky": false },
-    { "id": "option_b", "label": "string", "description": "string", "isRisky": true }
+    { "id": "option_a" | "option_b" | "option_c", "label": string, "description": string, "isRisky": boolean }
   ],
-  "riskyOptionId": "option_b",
-  "riskSuccessProbability": 0.5-0.7,
-  "category": "string",
-  "researchKeywords": ["string"],
-  "relevantDepartments": ["string"],
-  "turnSummary": "string"
+  "riskyOptionId": string (MUST reference an option where isRisky=true),
+  "riskSuccessProbability": number in [0.3, 0.8],
+  "category": string,
+  "researchKeywords": string[],
+  "relevantDepartments": string[] (use the exact department IDs above),
+  "turnSummary": string
 }
 
-Return ONLY a JSON array of exactly 2 objects: [founding, legacy]. No markdown fences.`;
+Rules:
+1. "founding" is turn 1. The population_noun arrive at the settlement_noun and must make their first major decision.
+2. "legacy" is the final turn. The settlement submits a comprehensive status report.
+3. Each milestone needs exactly 2-3 options, one with isRisky=true.
+4. riskyOptionId MUST name an option whose isRisky is true.
+5. researchKeywords ground in real science and domain knowledge.
+6. relevantDepartments reference the scenario's department IDs, not invented labels.`;
 }
 
-export function parseMilestones(text: string): [MilestoneEventDef, MilestoneEventDef] | null {
-  let cleaned = text.trim();
-  cleaned = cleaned.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '').trim();
+const userPrompt = 'Generate the founding and legacy milestone events now. Return ONLY valid JSON matching the schema.';
 
-  try {
-    const arr = JSON.parse(cleaned);
-    if (!Array.isArray(arr) || arr.length < 2) return null;
-    const [founding, legacy] = arr;
-    if (!founding.title || !founding.options || !legacy.title || !legacy.options) return null;
-    return [founding, legacy];
-  } catch {
-    return null;
-  }
-}
-
-export async function generateMilestones(
-  scenarioJson: Record<string, any>,
-  generateText: GenerateTextFn,
-  maxRetries = 3,
-): Promise<{ hook: (turn: number, maxTurns: number) => MilestoneEventDef | null; source: string }> {
-  let lastError = '';
-
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    const retryHint = attempt > 0 ? `\n\nPrevious attempt failed: ${lastError}. Fix the issue and return valid JSON.` : '';
-    const text = await generateText(buildPrompt(scenarioJson) + retryHint);
-    const result = parseMilestones(text);
-
-    if (!result) {
-      lastError = 'Could not parse milestones JSON array';
-      continue;
-    }
-
-    const [founding, legacy] = result;
-
-    return {
-      hook: (turn: number, maxTurns: number) => {
-        if (turn === 1) return founding;
-        if (turn === maxTurns) return legacy;
-        return null;
-      },
-      source: JSON.stringify(result, null, 2),
-    };
-  }
-
-  // Fallback: generic milestones
+function fallbackMilestones(scenarioJson: Record<string, any>): {
+  founding: MilestoneEventDef;
+  legacy: MilestoneEventDef;
+} {
   const labels = scenarioJson.labels ?? {};
-  const fallbackFounding: MilestoneEventDef = {
+  const founding: MilestoneEventDef = {
     title: 'Founding',
     description: `The ${labels.populationNoun ?? 'members'} have arrived at the ${labels.settlementNoun ?? 'settlement'}. Choose your initial strategy.`,
     crisis: `The ${labels.populationNoun ?? 'members'} have arrived at the ${labels.settlementNoun ?? 'settlement'}. Choose your initial strategy.`,
@@ -103,8 +74,7 @@ export async function generateMilestones(
     relevantDepartments: (scenarioJson.departments ?? []).slice(0, 2).map((d: any) => d.id),
     turnSummary: `The ${labels.settlementNoun ?? 'settlement'} is founded. First decisions shape everything.`,
   };
-
-  const fallbackLegacy: MilestoneEventDef = {
+  const legacy: MilestoneEventDef = {
     title: 'Legacy Assessment',
     description: `Submit a comprehensive status report on the ${labels.settlementNoun ?? 'settlement'}.`,
     crisis: `Submit a comprehensive status report on the ${labels.settlementNoun ?? 'settlement'}.`,
@@ -119,14 +89,76 @@ export async function generateMilestones(
     relevantDepartments: (scenarioJson.departments ?? []).slice(0, 3).map((d: any) => d.id),
     turnSummary: 'Time for a comprehensive assessment.',
   };
+  return { founding, legacy };
+}
 
-  console.warn('[compiler] Milestone generation failed. Using fallback milestones.');
+/**
+ * Parse a cached milestones source back into the two milestones.
+ * Accepts both the v2 object shape `{ founding, legacy }` and the legacy
+ * v1 array shape `[founding, legacy]` so old cache entries don't break
+ * after the format migration.
+ */
+export function parseMilestones(text: string): [MilestoneEventDef, MilestoneEventDef] | null {
+  let cleaned = text.trim();
+  cleaned = cleaned.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '').trim();
+  try {
+    const parsed = JSON.parse(cleaned);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && parsed.founding && parsed.legacy) {
+      return [parsed.founding, parsed.legacy];
+    }
+    if (Array.isArray(parsed) && parsed.length >= 2 && parsed[0]?.title && parsed[1]?.title) {
+      return [parsed[0], parsed[1]];
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export interface GenerateMilestonesOptions {
+  provider: string;
+  model: string;
+  telemetry?: CompilerTelemetry;
+  onUsage?: (r: { usage?: unknown }) => void;
+}
+
+export async function generateMilestones(
+  scenarioJson: Record<string, any>,
+  _generateText: GenerateTextFn,
+  opts: GenerateMilestonesOptions,
+): Promise<{ hook: (turn: number, maxTurns: number) => MilestoneEventDef | null; source: string; attempts: number; fromFallback: boolean }> {
+  const fallback = fallbackMilestones(scenarioJson);
+  const result = await generateValidatedObject({
+    provider: opts.provider,
+    model: opts.model,
+    schema: MilestonesSchema,
+    schemaName: 'compile:milestones',
+    systemCacheable: buildSystemBlock(scenarioJson),
+    prompt: userPrompt,
+    fallback,
+    onUsage: opts.onUsage,
+    onValidationFallback: (details) => {
+      opts.telemetry?.recordFallback('milestones', {
+        rawText: details.rawText,
+        reason: (details.err instanceof Error ? details.err.message : String(details.err)).slice(0, 500),
+        attempts: 3,
+      });
+    },
+  });
+
+  if (!result.fromFallback) {
+    opts.telemetry?.recordAttempt('milestones', result.attempts, false);
+  }
+
+  const { founding, legacy } = result.object as { founding: MilestoneEventDef; legacy: MilestoneEventDef };
   return {
     hook: (turn, maxTurns) => {
-      if (turn === 1) return fallbackFounding;
-      if (turn === maxTurns) return fallbackLegacy;
+      if (turn === 1) return founding;
+      if (turn === maxTurns) return legacy;
       return null;
     },
-    source: JSON.stringify([fallbackFounding, fallbackLegacy], null, 2),
+    source: JSON.stringify({ founding, legacy }, null, 2),
+    attempts: result.attempts,
+    fromFallback: result.fromFallback,
   };
 }

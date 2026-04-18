@@ -17,10 +17,24 @@ interface CacheManifest {
 
 const DEFAULT_CACHE_DIR = '.paracosm/cache';
 
+/**
+ * Bump this to invalidate all cached hook sources globally after a
+ * prompt-format change. The hash folded into {@link hashScenario} so
+ * a bump forces every scenario to recompile its hooks on next use.
+ *
+ * Version history:
+ * - v1: initial format
+ * - v2 (2026-04-18): milestones prompt switched from [founding, legacy]
+ *   array shape to { founding, legacy } object shape for OpenAI
+ *   response_format:json_object compatibility.
+ */
+export const COMPILE_SCHEMA_VERSION = 2;
+
 /** SHA-256 hash of the scenario JSON, used for cache invalidation. */
 export function hashScenario(scenarioJson: Record<string, unknown>): string {
   return createHash('sha256')
     .update(JSON.stringify(scenarioJson, null, 0))
+    .update(`|v${COMPILE_SCHEMA_VERSION}`)
     .digest('hex')
     .slice(0, 16);
 }
