@@ -44,12 +44,21 @@ export interface HexCell {
   eventPulse: number;
 }
 
+/**
+ * How many past turns of each metric to keep for the in-tile sparkline.
+ * Short enough to render at low resolution; long enough to read a
+ * direction over a typical run.
+ */
+const METRIC_HISTORY_LIMIT = 12;
+
 export interface EcologyState {
   cells: HexCell[];
   layoutW: number;
   layoutH: number;
   lastTurn: number;
   prevValues: Map<string, number>;
+  /** Per-metric value trail, oldest → newest. Bounded by METRIC_HISTORY_LIMIT. */
+  history: Map<string, number[]>;
 }
 
 export function createEcologyState(): EcologyState {
@@ -59,6 +68,7 @@ export function createEcologyState(): EcologyState {
     layoutH: 0,
     lastTurn: -1,
     prevValues: new Map(),
+    history: new Map(),
   };
 }
 
@@ -214,6 +224,13 @@ export function tickEcology(state: EcologyState, input: EcologyTickInput): void 
   // Update prev values AFTER layout has captured them for delta.
   for (const cell of state.cells) {
     state.prevValues.set(cell.id, cell.value);
+    // Append the current value to the rolling metric trail. ensureEcologyLayout
+    // already refreshed cell.value for this turn, so this records the NEW
+    // reading before the next tick overwrites it.
+    const trail = state.history.get(cell.id) ?? [];
+    trail.push(cell.value);
+    if (trail.length > METRIC_HISTORY_LIMIT) trail.splice(0, trail.length - METRIC_HISTORY_LIMIT);
+    state.history.set(cell.id, trail);
   }
 
   // Event pulses: bump affected tiles briefly when a related event category fires.
@@ -297,6 +314,47 @@ export function drawEcology(state: EcologyState, opts: EcologyDrawOptions): void
     ctx.fillStyle = rgba(trendColor as [number, number, number], 0.85 * intensity);
     const deltaStr = Math.abs(cell.delta) < 0.01 ? '—' : `${cell.delta > 0 ? '+' : ''}${Math.abs(cell.delta) < 1 ? cell.delta.toFixed(2) : cell.delta.toFixed(0)}`;
     ctx.fillText(`${trendGlyph(cell.trend)} ${deltaStr}`, cell.x + cell.w - 8, cell.y + 8);
+
+    // Sparkline — last N turn values plotted along the bottom of the
+    // tile. Shows whether the current reading continues a trajectory
+    // vs an anomaly. Only drawn when there are at least 2 points.
+    const trail = state.history.get(cell.id);
+    if (trail && trail.length >= 2) {
+      const sparkPadX = 8;
+      const sparkPadBottom = 6;
+      const sparkH = Math.min(14, cell.h * 0.22);
+      const sparkW = cell.w - sparkPadX * 2;
+      const sparkX0 = cell.x + sparkPadX;
+      const sparkY1 = cell.y + cell.h - sparkPadBottom;
+      const sparkY0 = sparkY1 - sparkH;
+      let min = Infinity;
+      let max = -Infinity;
+      for (const v of trail) {
+        if (v < min) min = v;
+        if (v > max) max = v;
+      }
+      const span = max - min || 1;
+      ctx.strokeStyle = rgba(rgb, 0.7 * intensity);
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let i = 0; i < trail.length; i++) {
+        const x = sparkX0 + (sparkW * i) / (trail.length - 1);
+        const norm = (trail[i] - min) / span;
+        const y = sparkY1 - norm * sparkH;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      // Mark the current (latest) point so the eye can find it.
+      const lastIdx = trail.length - 1;
+      const lastX = sparkX0 + sparkW;
+      const lastNorm = (trail[lastIdx] - min) / span;
+      const lastY = sparkY1 - lastNorm * sparkH;
+      ctx.fillStyle = rgba(rgb, 0.95 * intensity);
+      ctx.beginPath();
+      ctx.arc(lastX, lastY, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     // Hover highlight.
     if (hoveredCell && hoveredCell.id === cell.id) {
