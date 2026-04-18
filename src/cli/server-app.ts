@@ -581,6 +581,20 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       if (id === 'mars-genesis') activeScenario = marsScenario;
       else if (id === 'lunar-outpost') activeScenario = lunarScenario;
       else if (customScenarioCatalog.has(id)) activeScenario = customScenarioCatalog.get(id)!.scenario;
+      else if (memoryScenarios.has(id)) {
+        // JSON was /scenario/store'd but it's a source-shape scenario
+        // (no hooks, no world, policies as plain booleans) so
+        // isRunnableScenarioPackage rejected it and it never entered
+        // customScenarioCatalog. Running it would silently fall back to
+        // Mars. Tell the user exactly why and point at /compile.
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          error: `Scenario "${id}" is stored but not runnable — it's a source JSON (missing hooks, world, or canonical policies shape). Click Compile in the Scenario Editor to generate hooks before switching to it.`,
+          storedButUnrunnable: true,
+          id,
+        }));
+        return;
+      }
       else {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: `Unknown scenario: ${id}. Use /compile or /scenario/store for custom scenarios.` }));
@@ -1153,13 +1167,28 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
           }
         }
 
+        // Broadcast the scenario about to run BEFORE kicking off the
+        // simulation. Closes the loop on "I uploaded Mercury JSON but
+        // the run looked like Mars" — the dashboard can render a
+        // prominent 'Running: Mars Genesis' banner so the user sees
+        // immediately which scenario is active vs what's in their
+        // editor.
+        broadcast('active_scenario', {
+          id: activeScenario.id,
+          name: activeScenario.labels?.name ?? activeScenario.id,
+          settlementNoun: activeScenario.labels?.settlementNoun,
+          populationNoun: activeScenario.labels?.populationNoun,
+          departments: activeScenario.departments?.length ?? 0,
+        });
+        console.log(`  Running scenario: "${activeScenario.labels?.name ?? activeScenario.id}" (${activeScenario.id})`);
+
         // Start the sim and restore env when it finishes — prevents the
         // caller's keys from leaking into any subsequent /setup from a
         // different user that doesn't pass their own keys.
         marsServer.startWithConfig(simConfig).finally(restoreEnv);
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ redirect: '/sim' }));
+        res.end(JSON.stringify({ redirect: '/sim', scenarioId: activeScenario.id, scenarioName: activeScenario.labels?.name }));
       } catch (error) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: String(error) }));
