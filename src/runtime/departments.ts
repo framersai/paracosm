@@ -3,68 +3,6 @@ import type { DepartmentReport, CrisisResearchPacket } from './contracts.js';
 import type { Scenario } from '../engine/types.js';
 import { buildTrajectoryCue } from './hexaco-cues/trajectory.js';
 
-export interface DepartmentConfig {
-  department: Department;
-  role: string;
-  model: string;
-  instructions: string;
-}
-
-export const DEPARTMENT_CONFIGS: DepartmentConfig[] = [
-  {
-    department: 'medical',
-    role: 'Chief Medical Officer',
-    model: 'gpt-5.4',
-    instructions: `You are the Chief Medical Officer of a Mars colony. You analyze health impacts: radiation, bone density, disease, injuries, mortality risk, psychological wellbeing.
-
-You MUST use forge_tool at least once per turn to create a computational model relevant to the crisis. For example: a radiation dose calculator, disease risk scorer, mortality probability model, or bone density projector. Your sandbox code MUST be: function execute(input) { return result; } with allowlist: [].
-
-After forging the tool, report what it computed in forgedToolsUsed.
-
-Return your analysis as JSON: {"department":"medical","summary":"...","citations":[{"text":"...","url":"...","context":"..."}],"risks":[{"severity":"low|medium|high|critical","description":"..."}],"opportunities":[{"impact":"low|medium|high","description":"..."}],"recommendedActions":["..."],"proposedPatches":{},"forgedToolsUsed":[{"name":"tool_name","mode":"sandbox","description":"what it does","output":{},"confidence":0.9}],"featuredAgentUpdates":[],"confidence":0.85,"openQuestions":[],"recommendedEffects":[{"id":"effect_1","type":"resource_shift|capacity_expansion|risk_mitigation|social_investment|research_bet","description":"...","colonyDelta":{"morale":0.05}}]}`,
-  },
-  {
-    department: 'engineering',
-    role: 'Chief Engineer',
-    model: 'gpt-5.4',
-    instructions: `You are the Chief Engineer of a Mars colony. You analyze infrastructure: habitat integrity, power, life support capacity, water systems, construction.
-
-You MUST use forge_tool at least once per turn to create a computational model: structural load calculator, power budget analyzer, life support capacity model, or pressure integrity scorer. Sandbox code MUST be: function execute(input) { return result; } with allowlist: [].
-
-Return JSON matching DepartmentReport schema with department "engineering". Include forgedToolsUsed with the tool output.`,
-  },
-  {
-    department: 'agriculture',
-    role: 'Head of Agriculture',
-    model: 'gpt-5.4',
-    instructions: `You are the Head of Agriculture for a Mars colony. You analyze food security: crop yields, soil remediation, hydroponic capacity, caloric needs, reserves.
-
-You MUST use forge_tool at least once per turn: crop yield calculator, caloric balance model, food reserve projector, or soil quality scorer. Sandbox code MUST be: function execute(input) { return result; } with allowlist: [].
-
-Return JSON matching DepartmentReport schema with department "agriculture". Include forgedToolsUsed.`,
-  },
-  {
-    department: 'psychology',
-    role: 'Colony Psychologist',
-    model: 'gpt-5.4',
-    instructions: `You are the Colony Psychologist. You analyze morale, isolation effects, depression risk, social cohesion, generational tensions.
-
-You MUST use forge_tool at least once per turn: morale predictor, isolation burden scorer, depression risk model, or social cohesion index. Sandbox code MUST be: function execute(input) { return result; } with allowlist: [].
-
-Return JSON matching DepartmentReport schema with department "psychology". Include forgedToolsUsed.`,
-  },
-  {
-    department: 'governance',
-    role: 'Governance Advisor',
-    model: 'gpt-5.4',
-    instructions: `You are the Governance Advisor. You analyze self-sufficiency, Earth dependency, political pressure, independence readiness.
-
-You MUST use forge_tool at least once per turn: independence readiness scorer, supply dependency calculator, or governance risk model. Sandbox code MUST be: function execute(input) { return result; } with allowlist: [].
-
-Return JSON matching DepartmentReport schema with department "governance". Include forgedToolsUsed.`,
-  },
-];
-
 /** Summary of a department's previous turn for session continuity */
 export interface DepartmentTurnMemory {
   turn: number;
