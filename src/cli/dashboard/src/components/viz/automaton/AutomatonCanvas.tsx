@@ -176,7 +176,9 @@ export function AutomatonCanvas(props: AutomatonCanvasProps) {
           nowMs,
           sideColor,
           intensity: mode === 'mood' ? 1 : mode === 'forge' ? 0.2 : 0.35,
-          hoveredIndex: hovered?.gridIndex ?? null,
+          hoveredIndex: hovered
+            ? state.mood.cells.findIndex(c => c.agentId === hovered.agentId)
+            : null,
           deltaMs: Math.min(100, delta),
         });
         if (mode !== 'ecology') {
@@ -276,10 +278,10 @@ export function AutomatonCanvas(props: AutomatonCanvasProps) {
           }}
         >
           <div style={{ color: sideColor, fontWeight: 700 }}>
-            {hovered.alive ? 'alive' : 'dead'} · gen {hovered.bornGen >= 0 ? hovered.bornGen : '—'}
+            {hovered.name} {hovered.alive ? '' : '· deceased'}
           </div>
           <div style={{ color: 'var(--text-3)' }}>
-            Conway cell ({hovered.q}, {hovered.r})
+            {hovered.department}{hovered.featured ? ' · featured' : ''}
           </div>
         </div>
       )}
@@ -301,9 +303,10 @@ export function AutomatonCanvas(props: AutomatonCanvasProps) {
             zIndex: 5,
           }}
         >
-          <div style={{ color: sideColor, fontWeight: 700, textTransform: 'uppercase' }}>{hoveredHex.sector}</div>
+          <div style={{ color: sideColor, fontWeight: 700, textTransform: 'uppercase' }}>{hoveredHex.label}</div>
           <div style={{ color: 'var(--text-3)' }}>
-            health {(hoveredHex.health * 100).toFixed(0)}%{hoveredHex.dots > 0 ? ` · ${hoveredHex.dots} pop` : ''}
+            {hoveredHex.display} · health {(hoveredHex.health * 100).toFixed(0)}%
+            {hoveredHex.trend !== 'flat' ? ` · ${hoveredHex.trend === 'up' ? '↑' : '↓'} ${Math.abs(hoveredHex.delta) < 1 ? hoveredHex.delta.toFixed(2) : hoveredHex.delta.toFixed(0)}` : ''}
           </div>
         </div>
       )}
