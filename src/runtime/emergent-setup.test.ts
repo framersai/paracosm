@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateForgeShape, inferSchemaFromTestCases } from './emergent-setup.js';
+import { validateForgeShape, inferSchemaFromTestCases, wrapForgeTool } from './emergent-setup.js';
+import type { ForgeToolMetaTool } from '@framers/agentos';
 
 /**
  * Targeted tests for the pre-judge forge shape validator. The
@@ -224,4 +225,98 @@ test('inferSchemaFromTestCases + validateForgeShape: LLM provides testCases with
     [],
     `should pass shape check after inference, got: ${afterErrors.join('; ')}`,
   );
+});
+
+// ---------------------------------------------------------------------------
+// wrapForgeTool — integration-level test for the Apr-17 forge inference fix
+// ---------------------------------------------------------------------------
+
+test('wrapForgeTool: LLM with concrete testCases but no schemas reaches the judge (forge fix regression test)', async () => {
+  // Mock the raw forge meta-tool so we can observe what args it receives.
+  // This is the boundary where the pre-judge shape validator fails —
+  // before the fix, the empty inputSchema.additionalProperties:true
+  // schema would fail validation and this mock would never be called.
+  let rawExecuteCalledWith: any = null;
+  const rawMock: Partial<ForgeToolMetaTool> = {
+    execute: async (args: any) => {
+      rawExecuteCalledWith = args;
+      return { success: true, output: { verdict: { approved: true, confidence: 0.9, reasoning: 'ok' } } };
+    },
+  };
+
+  const captured: any[] = [];
+  const wrapped = wrapForgeTool(
+    rawMock as ForgeToolMetaTool,
+    'agent-1',
+    'sess-1',
+    'engineering',
+    (record) => captured.push(record),
+  );
+
+  // This matches the exact failure mode from the demo screenshot:
+  // concrete test cases but empty inputSchema / outputSchema.
+  const llmArgs = {
+    name: 'landing_site_suitability_score',
+    description: 'Rates Mars landing sites 0-100.',
+    implementation: {
+      mode: 'sandbox',
+      code: 'function execute(input) { return { score: (input.ice || 0) * 100 }; }',
+      allowlist: [],
+    },
+    inputSchema: { type: 'object', additionalProperties: true },
+    outputSchema: { type: 'object', additionalProperties: true },
+    testCases: [
+      { input: { terrain: 'flat', ice: 0.8 }, expectedOutput: { score: 80 } },
+      { input: { terrain: 'rocky', ice: 0.2 }, expectedOutput: { score: 20 } },
+    ],
+  };
+
+  const result = await wrapped.execute(llmArgs, {});
+
+  // The forge should succeed because inferSchemaFromTestCases synthesized
+  // inputSchema.properties + outputSchema.properties from the testCases
+  // before validateForgeShape ran. Before the Apr-17 fix this would have
+  // returned { success: false, error: 'Shape check failed: inputSchema has
+  // no declared properties; ...' } and never called rawMock.execute.
+  assert.equal((result as any).success, true, `expected forge to reach judge; got: ${JSON.stringify(result)}`);
+  assert.ok(rawExecuteCalledWith !== null, 'raw forge tool should have been called');
+
+  // Capture should record the approved forge.
+  assert.equal(captured.length, 1);
+  assert.equal(captured[0].approved, true);
+  assert.equal(captured[0].name, 'landing_site_suitability_score');
+
+  // And the normalized args should have inferred schemas with real fields.
+  assert.ok(rawExecuteCalledWith.inputSchema.properties.terrain);
+  assert.ok(rawExecuteCalledWith.inputSchema.properties.ice);
+  assert.ok(rawExecuteCalledWith.outputSchema.properties.score);
+});
+
+test('wrapForgeTool: empty testCases + empty schemas still correctly rejected', async () => {
+  const rawMock: Partial<ForgeToolMetaTool> = {
+    execute: async () => ({ success: true }),
+  };
+  let rawCalled = false;
+  (rawMock as any).execute = async () => { rawCalled = true; return { success: true }; };
+
+  const captured: any[] = [];
+  const wrapped = wrapForgeTool(
+    rawMock as ForgeToolMetaTool,
+    'agent-1', 'sess-1', 'engineering',
+    (record) => captured.push(record),
+  );
+
+  // LLM emits truly empty forge — no inference possible.
+  const llmArgs = {
+    name: 'bad_tool',
+    implementation: { mode: 'sandbox', code: 'function execute(){ return {}; }', allowlist: [] },
+    // inputSchema/outputSchema absent, testCases absent
+  };
+
+  const result = await wrapped.execute(llmArgs, {});
+  assert.equal((result as any).success, false);
+  assert.equal(rawCalled, false, 'raw forge must not be called when shape check fails');
+  assert.equal(captured.length, 1);
+  assert.equal(captured[0].approved, false);
+  assert.match(String(captured[0].errorReason), /Shape check failed/);
 });
