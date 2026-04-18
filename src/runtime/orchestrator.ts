@@ -29,13 +29,13 @@ import { SeededRng } from '../engine/core/rng.js';
 import { classifyOutcome, classifyOutcomeById, driftCommanderHexaco } from '../engine/core/progression.js';
 import { buildTrajectoryCue } from './hexaco-cues/trajectory.js';
 import type { DepartmentReport, CommanderDecision, TurnArtifact } from './contracts.js';
-import { SimulationKernel, type PolicyEffect } from '../engine/core/kernel.js';
+import { SimulationKernel } from '../engine/core/kernel.js';
 import type { KeyPersonnel } from '../engine/core/agent-generator.js';
 import { getResearchPacket } from './research/research.js';
 import { getResearchFromBundle } from './research/scenario-research.js';
 import { initResearchMemory, recallResearch, closeResearchMemory } from './research/research-memory.js';
 import { buildDepartmentContext, getDepartmentsForTurn } from './departments.js';
-import { EventDirector, type DirectorEvent, type DirectorContext, type DirectorEventBatch } from './director.js';
+import { EventDirector, type DirectorEvent, type DirectorContext } from './director.js';
 import { runReactionStep } from './reaction-step.js';
 import type { ScenarioPackage } from '../engine/types.js';
 import type { LlmProvider, SimulationModelConfig } from '../engine/types.js';
@@ -1116,7 +1116,7 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
         /** Full stepwise CoT preserved from the schema's reasoning field.
          *  Dashboard renders this behind a "Show full analysis" expand;
          *  rationale is the default compressed view. */
-        reasoning: (decision as unknown as { reasoning?: string }).reasoning ?? '',
+        reasoning: decision.reasoning ?? '',
         selectedPolicies: decision.selectedPolicies,
         eventIndex: ei,
       });

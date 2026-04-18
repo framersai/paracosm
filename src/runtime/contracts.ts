@@ -62,6 +62,14 @@ export interface CommanderDecision {
   selectedEffectIds?: string[];
   decision: string;
   rationale: string;
+  /**
+   * Full stepwise reasoning populated by the commander's CoT prompt
+   * (numbered list: personality pole, dept consensus, forged-tool
+   * evidence, risk tradeoff, final choice). Empty string on pre-Zod
+   * runs or on schema fallback. Dashboard renders behind a
+   * "show full analysis" expand; `rationale` is the compressed view.
+   */
+  reasoning?: string;
   departmentsConsulted: Department[];
   selectedPolicies: string[];
   rejectedPolicies: Array<{ policy: string; reason: string }>;

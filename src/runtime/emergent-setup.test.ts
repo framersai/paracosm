@@ -237,16 +237,16 @@ test('wrapForgeTool: LLM with concrete testCases but no schemas reaches the judg
   // before the fix, the empty inputSchema.additionalProperties:true
   // schema would fail validation and this mock would never be called.
   let rawExecuteCalledWith: any = null;
-  const rawMock: Partial<ForgeToolMetaTool> = {
+  const rawMock = {
     execute: async (args: any) => {
       rawExecuteCalledWith = args;
-      return { success: true, output: { verdict: { approved: true, confidence: 0.9, reasoning: 'ok' } } };
+      return { success: true, output: { success: true, verdict: { approved: true, confidence: 0.9, reasoning: 'ok' } } };
     },
-  };
+  } as unknown as ForgeToolMetaTool;
 
   const captured: any[] = [];
   const wrapped = wrapForgeTool(
-    rawMock as ForgeToolMetaTool,
+    rawMock,
     'agent-1',
     'sess-1',
     'engineering',
@@ -271,7 +271,7 @@ test('wrapForgeTool: LLM with concrete testCases but no schemas reaches the judg
     ],
   };
 
-  const result = await wrapped.execute(llmArgs, {});
+  const result = await wrapped.execute(llmArgs, {} as any);
 
   // The forge should succeed because inferSchemaFromTestCases synthesized
   // inputSchema.properties + outputSchema.properties from the testCases
@@ -293,15 +293,14 @@ test('wrapForgeTool: LLM with concrete testCases but no schemas reaches the judg
 });
 
 test('wrapForgeTool: empty testCases + empty schemas still correctly rejected', async () => {
-  const rawMock: Partial<ForgeToolMetaTool> = {
-    execute: async () => ({ success: true }),
-  };
   let rawCalled = false;
-  (rawMock as any).execute = async () => { rawCalled = true; return { success: true }; };
+  const rawMock = {
+    execute: async () => { rawCalled = true; return { success: true } as any; },
+  } as unknown as ForgeToolMetaTool;
 
   const captured: any[] = [];
   const wrapped = wrapForgeTool(
-    rawMock as ForgeToolMetaTool,
+    rawMock,
     'agent-1', 'sess-1', 'engineering',
     (record) => captured.push(record),
   );
@@ -313,7 +312,7 @@ test('wrapForgeTool: empty testCases + empty schemas still correctly rejected', 
     // inputSchema/outputSchema absent, testCases absent
   };
 
-  const result = await wrapped.execute(llmArgs, {});
+  const result = await wrapped.execute(llmArgs, {} as any);
   assert.equal((result as any).success, false);
   assert.equal(rawCalled, false, 'raw forge must not be called when shape check fails');
   assert.equal(captured.length, 1);
