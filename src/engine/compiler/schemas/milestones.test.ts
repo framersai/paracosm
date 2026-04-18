@@ -4,7 +4,7 @@ import { MilestonesSchema, MilestoneEventSchema } from './milestones.js';
 
 const validFounding = {
   title: 'Arrival at Mars',
-  crisis: 'The colonists arrive at Mars and must choose their first strategy.',
+  description: 'The colonists arrive at Mars and must choose their first strategy.',
   options: [
     { id: 'option_a', label: 'Safe Base', description: 'Conservative settlement', isRisky: false },
     { id: 'option_b', label: 'Ambitious Expansion', description: 'Aggressive expansion', isRisky: true },
@@ -19,7 +19,7 @@ const validFounding = {
 
 const validLegacy = {
   title: 'Legacy Assessment',
-  crisis: 'Submit a comprehensive status report.',
+  description: 'Submit a comprehensive status report.',
   options: [
     { id: 'option_a', label: 'Honest', description: 'Factual report', isRisky: false },
     { id: 'option_b', label: 'Ambitious', description: 'Bold projection', isRisky: true },
