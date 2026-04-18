@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import type { CostBreakdown, CostSiteBreakdown } from '../../hooks/useGameState';
+import { useRetryStats } from '../../hooks/useRetryStats';
 
 /**
  * Modal that breaks down a run's LLM spend by pipeline stage.
@@ -52,6 +53,10 @@ export function CostBreakdownModal({ combined, leaderA, leaderB, leaderAName, le
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
+
+  // Fetch /retry-stats when the modal opens. Shows cross-run schema +
+  // forge reliability trends from the server's ring buffer.
+  const retryStats = useRetryStats(true);
 
   const breakdown = combined.breakdown ?? {};
   // Sort sites by cost descending. An empty breakdown falls back to an
@@ -272,6 +277,169 @@ export function CostBreakdownModal({ combined, leaderA, leaderB, leaderAName, le
             </div>
           </div>
         )}
+
+        {/* Forge reliability for the current run. Approval rate below
+            ~60% usually means the judge is rejecting legitimately (model
+            forging broken tools) OR the judge rubric has drifted too
+            strict. avgConfidence below 0.7 means approved tools are
+            marginal quality. */}
+        {combined.forgeStats && combined.forgeStats.attempts > 0 && (
+          <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+            <div style={{ fontSize: 10, color: 'var(--text-3)', letterSpacing: '.08em', fontFamily: 'var(--mono)', marginBottom: 8 }}>
+              FORGE RELIABILITY
+            </div>
+            {(() => {
+              const f = combined.forgeStats!;
+              const approvalRate = f.attempts > 0 ? f.approved / f.attempts : 0;
+              const avgConf = f.approved > 0 ? f.approvedConfidenceSum / f.approved : 0;
+              const rateColor = approvalRate < 0.5 ? 'var(--rust)' : approvalRate < 0.75 ? 'var(--amber)' : 'var(--green)';
+              const confColor = avgConf > 0 && avgConf < 0.6 ? 'var(--amber)' : 'var(--text-1)';
+              return (
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, fontFamily: 'var(--mono)' }}>
+                  <thead>
+                    <tr style={{ color: 'var(--text-3)', textAlign: 'left', fontSize: 10, letterSpacing: '.08em' }}>
+                      <th style={{ padding: '4px 0', fontWeight: 700, textAlign: 'right' }}>ATTEMPTS</th>
+                      <th style={{ padding: '4px 0', fontWeight: 700, textAlign: 'right' }}>APPROVED</th>
+                      <th style={{ padding: '4px 0', fontWeight: 700, textAlign: 'right' }}>REJECTED</th>
+                      <th style={{ padding: '4px 0', fontWeight: 700, textAlign: 'right' }}>APPROVAL RATE</th>
+                      <th style={{ padding: '4px 0', fontWeight: 700, textAlign: 'right' }}>AVG CONF</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr style={{ borderTop: '1px solid var(--border)' }}>
+                      <td style={{ padding: '6px 0', textAlign: 'right', color: 'var(--text-1)' }}>{f.attempts}</td>
+                      <td style={{ padding: '6px 0', textAlign: 'right', color: 'var(--green)', fontWeight: 700 }}>{f.approved}</td>
+                      <td style={{ padding: '6px 0', textAlign: 'right', color: f.rejected > 0 ? 'var(--rust)' : 'var(--text-3)' }}>{f.rejected}</td>
+                      <td style={{ padding: '6px 0', textAlign: 'right', color: rateColor, fontWeight: 700 }}>{(approvalRate * 100).toFixed(0)}%</td>
+                      <td style={{ padding: '6px 0', textAlign: 'right', color: confColor, fontWeight: 700 }}>{avgConf > 0 ? avgConf.toFixed(2) : '—'}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              );
+            })()}
+            <div style={{ marginTop: 6, fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--sans)' }}>
+              Rejections come from shape check OR judge verdict. Retry-with-feedback usually recovers; persistent low approval rate suggests the department model is weak at writing schema-compliant code.
+            </div>
+          </div>
+        )}
+
+        {/* Cross-run trend from /retry-stats. Populated once on modal
+            open. Separates compile:* schemas (compiler hook generation)
+            from runtime schemas so operators can see each class's
+            health distinctly. */}
+        {(() => {
+          const rs = retryStats.data;
+          if (retryStats.loading && !rs) {
+            return (
+              <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)', fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
+                RECENT RUNS — loading…
+              </div>
+            );
+          }
+          if (retryStats.error) {
+            return (
+              <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)', fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
+                RECENT RUNS — <span style={{ color: 'var(--rust)' }}>fetch failed ({retryStats.error})</span>
+              </div>
+            );
+          }
+          if (!rs || rs.runCount === 0) return null;
+
+          const runtimeSchemas = Object.entries(rs.schemas).filter(([k]) => !k.startsWith('compile:'));
+          const compileSchemas = Object.entries(rs.schemas)
+            .filter(([k]) => k.startsWith('compile:'))
+            .map(([k, v]) => [k.replace(/^compile:/, ''), v] as const);
+          const forges = rs.forges;
+
+          const schemaRow = ([name, b]: readonly [string, typeof rs.schemas[string]]) => {
+            const avgColor = b.avgAttempts > 1.5 ? 'var(--rust)' : b.avgAttempts > 1.1 ? 'var(--amber)' : 'var(--text-1)';
+            const fbColor = b.fallbackRate > 0.01 ? 'var(--rust)' : b.fallbackRate > 0 ? 'var(--amber)' : 'var(--text-3)';
+            return (
+              <tr key={name} style={{ borderTop: '1px solid var(--border)' }}>
+                <td style={{ padding: '6px 0', color: 'var(--text-1)' }}>{name}</td>
+                <td style={{ padding: '6px 0', textAlign: 'right', color: 'var(--text-2)' }}>{b.calls}</td>
+                <td style={{ padding: '6px 0', textAlign: 'right', color: avgColor, fontWeight: 700 }}>{b.avgAttempts.toFixed(2)}</td>
+                <td style={{ padding: '6px 0', textAlign: 'right', color: fbColor, fontWeight: b.fallbacks > 0 ? 700 : 400 }}>
+                  {(b.fallbackRate * 100).toFixed(2)}%
+                </td>
+              </tr>
+            );
+          };
+
+          return (
+            <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+              <div style={{ fontSize: 10, color: 'var(--text-3)', letterSpacing: '.08em', fontFamily: 'var(--mono)', marginBottom: 8 }}>
+                RECENT RUNS (last {rs.runCount})
+              </div>
+
+              {runtimeSchemas.length > 0 && (
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--mono)', marginBottom: 4 }}>RUNTIME SCHEMAS</div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, fontFamily: 'var(--mono)' }}>
+                    <thead>
+                      <tr style={{ color: 'var(--text-3)', textAlign: 'left', fontSize: 10, letterSpacing: '.08em' }}>
+                        <th style={{ padding: '4px 0', fontWeight: 700 }}>SCHEMA</th>
+                        <th style={{ padding: '4px 0', fontWeight: 700, textAlign: 'right' }}>CALLS</th>
+                        <th style={{ padding: '4px 0', fontWeight: 700, textAlign: 'right' }}>AVG ATT</th>
+                        <th style={{ padding: '4px 0', fontWeight: 700, textAlign: 'right' }}>FALLBACK %</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {runtimeSchemas.sort((a, b) => b[1].calls - a[1].calls).map(schemaRow)}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {compileSchemas.length > 0 && (
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--mono)', marginBottom: 4 }}>COMPILE HOOKS</div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, fontFamily: 'var(--mono)' }}>
+                    <thead>
+                      <tr style={{ color: 'var(--text-3)', textAlign: 'left', fontSize: 10, letterSpacing: '.08em' }}>
+                        <th style={{ padding: '4px 0', fontWeight: 700 }}>HOOK</th>
+                        <th style={{ padding: '4px 0', fontWeight: 700, textAlign: 'right' }}>CALLS</th>
+                        <th style={{ padding: '4px 0', fontWeight: 700, textAlign: 'right' }}>AVG ATT</th>
+                        <th style={{ padding: '4px 0', fontWeight: 700, textAlign: 'right' }}>FALLBACK %</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {compileSchemas.sort((a, b) => b[1].calls - a[1].calls).map(schemaRow)}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {forges && forges.runsPresent > 0 && (
+                <div>
+                  <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--mono)', marginBottom: 4 }}>FORGES</div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, fontFamily: 'var(--mono)' }}>
+                    <thead>
+                      <tr style={{ color: 'var(--text-3)', textAlign: 'left', fontSize: 10, letterSpacing: '.08em' }}>
+                        <th style={{ padding: '4px 0', fontWeight: 700, textAlign: 'right' }}>RUNS WITH FORGES</th>
+                        <th style={{ padding: '4px 0', fontWeight: 700, textAlign: 'right' }}>TOTAL ATTEMPTS</th>
+                        <th style={{ padding: '4px 0', fontWeight: 700, textAlign: 'right' }}>APPROVAL RATE</th>
+                        <th style={{ padding: '4px 0', fontWeight: 700, textAlign: 'right' }}>AVG CONF</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr style={{ borderTop: '1px solid var(--border)' }}>
+                        <td style={{ padding: '6px 0', textAlign: 'right', color: 'var(--text-1)' }}>{forges.runsPresent}</td>
+                        <td style={{ padding: '6px 0', textAlign: 'right', color: 'var(--text-1)' }}>{forges.totalAttempts}</td>
+                        <td style={{ padding: '6px 0', textAlign: 'right', color: forges.approvalRate < 0.5 ? 'var(--rust)' : forges.approvalRate < 0.75 ? 'var(--amber)' : 'var(--green)', fontWeight: 700 }}>
+                          {(forges.approvalRate * 100).toFixed(1)}%
+                        </td>
+                        <td style={{ padding: '6px 0', textAlign: 'right', color: 'var(--text-1)', fontWeight: 700 }}>
+                          {forges.avgApprovedConfidence > 0 ? forges.avgApprovedConfidence.toFixed(2) : '—'}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Per-leader totals when both sides have reported. Lets the user
             see if one leader's simulation is unusually expensive (e.g.

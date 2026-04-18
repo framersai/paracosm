@@ -144,6 +144,14 @@ export interface CostBreakdown {
    * skeleton.
    */
   schemaRetries?: Record<string, { attempts: number; calls: number; fallbacks: number }>;
+  /**
+   * Per-run forge reliability rollup. Populated on every SSE _cost
+   * payload once any forge attempt (approved or rejected) has been
+   * captured in the run. Dashboard divides approved / attempts for
+   * the live approval rate; divides approvedConfidenceSum / approved
+   * for the live avg judge confidence.
+   */
+  forgeStats?: { attempts: number; approved: number; rejected: number; approvedConfidenceSum: number };
 }
 
 export interface GameState {
@@ -209,6 +217,7 @@ export function useGameState(sseEvents: SimEvent[], isComplete: boolean): GameSt
         cacheSavingsUSD?: number;
         breakdown?: CostSiteBreakdown;
         schemaRetries?: Record<string, { attempts: number; calls: number; fallbacks: number }>;
+        forgeStats?: { attempts: number; approved: number; rejected: number; approvedConfidenceSum: number };
       } | undefined;
       if (evtCost && side) {
         const leaderBreakdown: CostBreakdown = {
@@ -220,6 +229,7 @@ export function useGameState(sseEvents: SimEvent[], isComplete: boolean): GameSt
           cacheSavingsUSD: evtCost.cacheSavingsUSD ?? 0,
           breakdown: evtCost.breakdown,
           schemaRetries: evtCost.schemaRetries,
+          forgeStats: evtCost.forgeStats,
         };
         if (side === 'a') state.costA = leaderBreakdown;
         else state.costB = leaderBreakdown;
@@ -263,6 +273,22 @@ export function useGameState(sseEvents: SimEvent[], isComplete: boolean): GameSt
           }
         }
 
+        // Merge per-leader forgeStats into a run-wide rollup for the
+        // cost modal's FORGE RELIABILITY section. Both leaders' forge
+        // activity adds to the total; the dashboard then divides
+        // approved/attempts for live approval rate.
+        const mergedForgeStats = (() => {
+          const a = state.costA.forgeStats;
+          const b = state.costB.forgeStats;
+          if (!a && !b) return undefined;
+          return {
+            attempts: (a?.attempts ?? 0) + (b?.attempts ?? 0),
+            approved: (a?.approved ?? 0) + (b?.approved ?? 0),
+            rejected: (a?.rejected ?? 0) + (b?.rejected ?? 0),
+            approvedConfidenceSum: (a?.approvedConfidenceSum ?? 0) + (b?.approvedConfidenceSum ?? 0),
+          };
+        })();
+
         state.cost = {
           totalTokens: state.costA.totalTokens + state.costB.totalTokens,
           totalCostUSD: Math.round((state.costA.totalCostUSD + state.costB.totalCostUSD) * 10000) / 10000,
@@ -272,6 +298,7 @@ export function useGameState(sseEvents: SimEvent[], isComplete: boolean): GameSt
           cacheSavingsUSD: Math.round(((state.costA.cacheSavingsUSD ?? 0) + (state.costB.cacheSavingsUSD ?? 0)) * 10000) / 10000,
           breakdown: Object.keys(mergedBreakdown).length > 0 ? mergedBreakdown : undefined,
           schemaRetries: Object.keys(mergedSchemaRetries).length > 0 ? mergedSchemaRetries : undefined,
+          forgeStats: mergedForgeStats,
         };
       }
 
