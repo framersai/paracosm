@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateForgeShape } from './emergent-setup.js';
+import { validateForgeShape, inferSchemaFromTestCases } from './emergent-setup.js';
 
 /**
  * Targeted tests for the pre-judge forge shape validator. The
@@ -118,4 +118,110 @@ test('validateForgeShape grammar: singular vs plural on empty-input count', () =
     ],
   });
   assert.ok(many.some(e => /^2 testCases use empty input/.test(e)), `plural: ${JSON.stringify(many)}`);
+});
+
+// ---------------------------------------------------------------------------
+// inferSchemaFromTestCases
+// ---------------------------------------------------------------------------
+
+test('inferSchemaFromTestCases synthesizes inputSchema properties from first case', () => {
+  const req: any = {
+    inputSchema: { type: 'object', additionalProperties: true },
+    outputSchema: { type: 'object', properties: { score: { type: 'number' } } },
+    testCases: [
+      { input: { dose: 1200, age: 42 }, expectedOutput: { score: 80 } },
+      { input: { dose: 0, age: 25 }, expectedOutput: { score: 0 } },
+    ],
+  };
+  inferSchemaFromTestCases(req);
+  assert.ok(req.inputSchema.properties.dose);
+  assert.equal(req.inputSchema.properties.dose.type, 'number');
+  assert.equal(req.inputSchema.properties.age.type, 'number');
+  assert.deepEqual(req.inputSchema.required.sort(), ['age', 'dose']);
+});
+
+test('inferSchemaFromTestCases synthesizes outputSchema properties from expectedOutput', () => {
+  const req: any = {
+    inputSchema: { type: 'object', properties: { x: { type: 'number' } } },
+    outputSchema: { type: 'object', additionalProperties: true },
+    testCases: [
+      { input: { x: 1 }, expectedOutput: { score: 80, tier: 'high' } },
+      { input: { x: 2 }, expectedOutput: { score: 0, tier: 'low' } },
+    ],
+  };
+  inferSchemaFromTestCases(req);
+  assert.equal(req.outputSchema.properties.score.type, 'number');
+  assert.equal(req.outputSchema.properties.tier.type, 'string');
+});
+
+test('inferSchemaFromTestCases does NOT overwrite existing properties', () => {
+  const req: any = {
+    inputSchema: {
+      type: 'object',
+      properties: { custom_field: { type: 'string', description: 'preset' } },
+    },
+    outputSchema: { type: 'object', properties: { score: { type: 'number' } } },
+    testCases: [
+      { input: { custom_field: 'a', extra: 1 }, expectedOutput: { score: 1 } },
+      { input: { custom_field: 'b', extra: 2 }, expectedOutput: { score: 2 } },
+    ],
+  };
+  inferSchemaFromTestCases(req);
+  // Existing inputSchema preserved verbatim
+  assert.equal(
+    (req.inputSchema.properties.custom_field as any).description,
+    'preset',
+    'should not overwrite existing properties',
+  );
+  // Did NOT add `extra` because inputSchema already had properties
+  assert.equal(req.inputSchema.properties.extra, undefined);
+});
+
+test('inferSchemaFromTestCases handles missing testCases gracefully', () => {
+  const req: any = {
+    inputSchema: { type: 'object' },
+    outputSchema: { type: 'object' },
+  };
+  inferSchemaFromTestCases(req);
+  // No crash; schemas untouched (no testCases to infer from)
+  assert.deepEqual(req.inputSchema, { type: 'object' });
+});
+
+test('inferSchemaFromTestCases infers union across multiple test cases', () => {
+  const req: any = {
+    inputSchema: { type: 'object' },
+    outputSchema: { type: 'object', properties: { score: { type: 'number' } } },
+    testCases: [
+      { input: { a: 1 }, expectedOutput: { score: 1 } },
+      { input: { b: 'hello' }, expectedOutput: { score: 2 } },
+      { input: { c: true }, expectedOutput: { score: 3 } },
+    ],
+  };
+  inferSchemaFromTestCases(req);
+  assert.equal(req.inputSchema.properties.a.type, 'number');
+  assert.equal(req.inputSchema.properties.b.type, 'string');
+  assert.equal(req.inputSchema.properties.c.type, 'boolean');
+});
+
+test('inferSchemaFromTestCases + validateForgeShape: LLM provides testCases without schemas should now PASS', () => {
+  const req: any = {
+    inputSchema: { type: 'object', additionalProperties: true },
+    outputSchema: { type: 'object', additionalProperties: true },
+    testCases: [
+      { input: { terrain: 'flat', ice: 0.8 }, expectedOutput: { score: 85 } },
+      { input: { terrain: 'rocky', ice: 0.2 }, expectedOutput: { score: 30 } },
+    ],
+  };
+  // Before inference: would fail shape check
+  const beforeErrors = validateForgeShape(req);
+  assert.ok(beforeErrors.length > 0, 'should fail shape check before inference');
+
+  // After inference
+  inferSchemaFromTestCases(req);
+  const afterErrors = validateForgeShape(req);
+  assert.deepEqual(
+    afterErrors,
+    [],
+    `should pass shape check after inference, got: ${afterErrors.join('; ')}`,
+  );
 });
