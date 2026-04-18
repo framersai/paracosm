@@ -64,7 +64,7 @@ export type SimEvent = {
     | 'turn_start' | 'event_start' | 'dept_start' | 'dept_done' | 'forge_attempt'
     | 'commander_deciding' | 'commander_decided' | 'outcome' | 'drift'
     | 'agent_reactions' | 'bulletin' | 'turn_done' | 'promotion'
-    | 'colony_snapshot' | 'provider_error' | 'sim_aborted';
+    | 'colony_snapshot' | 'provider_error' | 'validation_fallback' | 'sim_aborted';
   leader: string;
   turn?: number;
   year?: number;
@@ -169,6 +169,22 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
       });
     }
     return classified;
+  };
+
+  /**
+   * Emit a `validation_fallback` SSE event when a schema-validated LLM
+   * call exhausts retries and falls back to an empty skeleton. Separate
+   * from `provider_error` so the dashboard can distinguish model
+   * misbehavior on schema (soft degradation, one call) from quota / auth
+   * failures (terminal, aborts the run).
+   */
+  const reportValidationFallback = (site: string, details: { rawText: string; schemaName?: string; err: unknown }) => {
+    console.warn(`  [${site}] SCHEMA FALLBACK on ${details.schemaName ?? '<unknown>'}: ${(details.err as any)?.message ?? details.err}`);
+    emit('validation_fallback', {
+      site,
+      schemaName: details.schemaName,
+      rawTextPreview: details.rawText.slice(0, 300),
+    });
   };
 
   /** True when the run should stop launching new LLM work. */
@@ -569,7 +585,7 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
     try {
 
     // ── Event generation ──────────────────────────────────────────────
-    const maxEvents = sc.setup.maxEventsPerTurn ?? 3;
+    const maxEvents = sc.setup.maxEventsPerTurn ?? 2;
     let turnEvents: DirectorEvent[];
     let batchPacing = 'normal';
 
@@ -756,8 +772,10 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
             session: sess,
             prompt: ctx,
             schema: DepartmentReportSchema,
+            schemaName: 'DepartmentReport',
             onUsage: (usage) => trackUsage(usage as any, 'departments'),
             onProviderError: (err) => reportProviderError(err, `dept:${dept}:turn${turn}:event${ei + 1}`),
+            onValidationFallback: (details) => reportValidationFallback(`dept:${dept}:turn${turn}:event${ei + 1}`, details),
             fallback: { ...emptyReport(dept), summary: `${dept} report unavailable this turn.` } as any,
           });
           if (deptFallback) {
@@ -1072,8 +1090,10 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
         session: cmdSess,
         prompt: cmdPrompt,
         schema: CommanderDecisionSchema,
+        schemaName: 'CommanderDecision',
         onUsage: (usage) => trackUsage(usage as any, 'commander'),
         onProviderError: (err) => reportProviderError(err, `commander:turn${turn}:event${ei + 1}`),
+        onValidationFallback: (details) => reportValidationFallback(`commander:turn${turn}:event${ei + 1}`, details),
         fallback: { ...emptyDecision(depts), decision: 'Commander decision unavailable; defer to department consensus.' } as any,
       });
       if (decisionFallback) {

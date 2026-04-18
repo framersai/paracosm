@@ -28,9 +28,17 @@ export interface SendAndValidateOptions<T extends ZodType> {
   session: SessionLike;
   prompt: string;
   schema: T;
+  /** Human-readable schema name for fallback telemetry (e.g. 'CommanderDecision'). */
+  schemaName?: string;
   maxRetries?: number;
   onUsage?: (r: { usage?: any }) => void;
   onProviderError?: (err: unknown) => void;
+  /**
+   * Fires when schema validation exhausts retries and the wrapper falls
+   * back. Separate from `onProviderError` so callers can distinguish
+   * model misbehavior on schema from quota / auth failures.
+   */
+  onValidationFallback?: (details: { rawText: string; schemaName?: string; err: unknown }) => void;
   fallback?: z.infer<T>;
 }
 
@@ -107,6 +115,11 @@ export async function sendAndValidate<T extends ZodType>(
   );
   opts.onProviderError?.(err);
   if (opts.fallback !== undefined) {
+    opts.onValidationFallback?.({
+      rawText: lastText,
+      schemaName: opts.schemaName,
+      err,
+    });
     return { object: opts.fallback, fromFallback: true, rawText: lastText };
   }
   throw err;

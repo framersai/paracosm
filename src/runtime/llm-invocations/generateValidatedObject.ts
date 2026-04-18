@@ -29,6 +29,15 @@ export interface ValidatedObjectOptions<T extends ZodType> {
   maxRetries?: number;
   onUsage?: (r: { usage?: { totalTokens?: number; promptTokens?: number; completionTokens?: number; costUSD?: number } }) => void;
   onProviderError?: (err: unknown) => void;
+  /**
+   * Fires when schema validation exhausts retries and the wrapper falls
+   * back to the caller-provided default. Separate from `onProviderError`
+   * so callers can distinguish quota / auth failures from model
+   * misbehavior on schema. Orchestrator uses this to emit a
+   * `validation_fallback` SSE event so the dashboard can surface the
+   * fallback state instead of silently showing degraded data.
+   */
+  onValidationFallback?: (details: { rawText: string; schemaName?: string; err: unknown }) => void;
   fallback?: z.infer<T>;
   /**
    * Dependency-injection hook for tests. Production callers omit this
@@ -82,6 +91,11 @@ export async function generateValidatedObject<T extends ZodType>(
   } catch (err) {
     opts.onProviderError?.(err);
     if (err instanceof ObjectGenerationError && opts.fallback !== undefined) {
+      opts.onValidationFallback?.({
+        rawText: err.rawText,
+        schemaName: opts.schemaName,
+        err,
+      });
       return {
         object: opts.fallback,
         fromFallback: true,
