@@ -159,19 +159,19 @@ export async function compileScenario(
 
     switch (hookName) {
       case 'progression': {
-        const result = await generateProgressionHook(json, genText);
+        const result = await generateProgressionHook(json, genText, { telemetry: options.telemetry });
         hooks.progressionHook = result.hook;
         if (cache) writeCache(json, hookName, result.source, model, cacheDir);
         break;
       }
       case 'director': {
-        const result = await generateDirectorInstructions(json, genText);
+        const result = await generateDirectorInstructions(json, genText, { telemetry: options.telemetry });
         hooks.directorInstructions = result.hook;
         if (cache) writeCache(json, hookName, result.source, model, cacheDir);
         break;
       }
       case 'prompts': {
-        const result = await generateDepartmentPromptHook(json, genText);
+        const result = await generateDepartmentPromptHook(json, genText, { telemetry: options.telemetry });
         hooks.departmentPromptHook = result.hook;
         if (cache) writeCache(json, hookName, result.source, model, cacheDir);
         break;
@@ -187,19 +187,19 @@ export async function compileScenario(
         break;
       }
       case 'fingerprint': {
-        const result = await generateFingerprintHook(json, genText);
+        const result = await generateFingerprintHook(json, genText, { telemetry: options.telemetry });
         hooks.fingerprintHook = result.hook;
         if (cache) writeCache(json, hookName, result.source, model, cacheDir);
         break;
       }
       case 'politics': {
-        const result = await generatePoliticsHook(json, genText);
+        const result = await generatePoliticsHook(json, genText, { telemetry: options.telemetry });
         hooks.politicsHook = result.hook;
         if (cache) writeCache(json, hookName, result.source, model, cacheDir);
         break;
       }
       case 'reactions': {
-        const result = await generateReactionContextHook(json, genText);
+        const result = await generateReactionContextHook(json, genText, { telemetry: options.telemetry });
         hooks.reactionContextHook = result.hook;
         if (cache) writeCache(json, hookName, result.source, model, cacheDir);
         break;
