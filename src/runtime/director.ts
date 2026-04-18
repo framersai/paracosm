@@ -11,7 +11,7 @@
  * narrative anchoring. All other turns use emergent generation.
  */
 
-import type { Department, HexacoProfile, TurnOutcome } from '../engine/core/state.js';
+import type { Department, HexacoProfile, HexacoSnapshot, TurnOutcome } from '../engine/core/state.js';
 import type { CrisisOption } from './contracts.js';
 import type { LlmProvider } from '../engine/types.js';
 import { SCENARIOS } from './research/scenarios.js';
@@ -54,6 +54,8 @@ export interface DirectorContext {
   leaderName: string;
   leaderArchetype: string;
   leaderHexaco: HexacoProfile;
+  /** Commander's HEXACO per-turn history for trajectory cue generation. */
+  leaderHexacoHistory?: HexacoSnapshot[];
   /** Scenario state metrics (population, morale, resources, etc.) */
   state: Record<string, number>;
   /** Political/social state variables */
