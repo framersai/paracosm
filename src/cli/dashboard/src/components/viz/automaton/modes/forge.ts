@@ -25,13 +25,16 @@ import { rgba } from '../shared.js';
 
 type AttemptOutcome = 'approved' | 'rejected';
 
-interface ForgeNode {
+export interface ForgeNode {
   turn: number;
   department: string;
   name: string;
   outcome: AttemptOutcome;
   /** Chain index: 0 = first attempt, 1 = first re-forge, etc. */
   attemptIndex: number;
+  /** Judge confidence (approved) or 0 (rejected). Undefined when the
+   *  forge record did not carry a confidence value. */
+  confidence?: number;
   /** Cached layout position, populated in drawForge. */
   x: number;
   y: number;
@@ -106,6 +109,7 @@ export function tickForge(state: ForgeState, _mood: MoodState, input: ForgeTickI
       name: att.name || '(unnamed)',
       outcome: att.approved ? 'approved' : 'rejected',
       attemptIndex: prev,
+      confidence: typeof att.confidence === 'number' ? att.confidence : undefined,
       x: 0,
       y: 0,
     });
@@ -290,4 +294,22 @@ export function drawForge(state: ForgeState, opts: ForgeDrawOptions): void {
       ctx.setLineDash([]);
     }
   }
+}
+
+/**
+ * Hit test for a forge node at (x, y). Uses the node radius from the
+ * renderer (3.5px approved, 3.2px rejected) with a small slop for
+ * easier mouse targeting. Iterates in reverse so later-drawn nodes
+ * (typically later attempts) win overlap ties.
+ */
+export function hitTestForge(state: ForgeState, x: number, y: number): ForgeNode | null {
+  const slop = 2;
+  for (let i = state.nodes.length - 1; i >= 0; i--) {
+    const node = state.nodes[i];
+    const r = (node.outcome === 'approved' ? 3.5 : 3.2) + slop;
+    const dx = x - node.x;
+    const dy = y - node.y;
+    if (dx * dx + dy * dy <= r * r) return node;
+  }
+  return null;
 }

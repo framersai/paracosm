@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { TurnSnapshot } from '../viz-types.js';
 import { useAutomatonState } from './useAutomatonState.js';
 import { drawMood, ensureLayout, hitTestMood, tickMood, type MoodCell } from './modes/mood.js';
-import { drawForge, refreshDeptCenters, syncOrbitCenters, tickForge } from './modes/forge.js';
+import { drawForge, hitTestForge, refreshDeptCenters, syncOrbitCenters, tickForge, type ForgeNode } from './modes/forge.js';
 import { drawEcology, ensureEcologyLayout, hitTestEcology, tickEcology, type HexCell } from './modes/ecology.js';
 import type { AutomatonMode } from './shared.js';
 import { scaleCanvasForDpr } from './shared.js';
@@ -56,6 +56,7 @@ export function AutomatonCanvas(props: AutomatonCanvasProps) {
   const stateRef = useAutomatonState();
   const [hovered, setHovered] = useState<MoodCell | null>(null);
   const [hoveredHex, setHoveredHex] = useState<HexCell | null>(null);
+  const [hoveredForge, setHoveredForge] = useState<ForgeNode | null>(null);
   const [size, setSize] = useState<{ w: number; h: number }>({ w: 0, h: height });
 
   // Resize observer keeps logical width synced with the container.
@@ -233,16 +234,29 @@ export function AutomatonCanvas(props: AutomatonCanvasProps) {
       const hex = hitTestEcology(stateRef.current.ecology, x, y);
       setHoveredHex(hex);
       setHovered(null);
+      setHoveredForge(null);
+    } else if (mode === 'forge') {
+      const node = hitTestForge(stateRef.current.forge, x, y);
+      setHoveredForge(node);
+      setHovered(null);
+      setHoveredHex(null);
     } else {
       const hit = hitTestMood(stateRef.current.mood, x, y);
       setHovered(hit);
       setHoveredHex(null);
+      setHoveredForge(null);
     }
   };
-  const onMouseLeave = () => { setHovered(null); setHoveredHex(null); };
-  const onClick = () => { /* mood cells are abstract Conway cells, no per-cell drilldown */ };
-  // Surface so downstream calls that expect onSelectAgent don't tree-shake warn
-  void onSelectAgent;
+  const onMouseLeave = () => { setHovered(null); setHoveredHex(null); setHoveredForge(null); };
+  const onClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!onSelectAgent) return;
+    if (mode !== 'mood') return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const hit = hitTestMood(stateRef.current.mood, e.clientX - rect.left, e.clientY - rect.top);
+    if (hit?.alive) onSelectAgent(hit.agentId);
+  };
 
   const ariaLabel = snapshot
     ? `${mode === 'mood' ? 'Mood propagation' : mode === 'forge' ? 'Forge flow' : 'Ecology grid'} for leader ${side === 'a' ? 'A' : 'B'}, turn ${snapshot.turn}, ${Math.round(snapshot.morale * 100)}% morale`
@@ -257,9 +271,19 @@ export function AutomatonCanvas(props: AutomatonCanvasProps) {
         onMouseMove={onMouseMove}
         onMouseLeave={onMouseLeave}
         onClick={onClick}
-        style={{ width: '100%', height: '100%', display: 'block', cursor: (mode === 'ecology' && hoveredHex) ? 'pointer' : 'default' }}
+        style={{
+          width: '100%',
+          height: '100%',
+          display: 'block',
+          cursor:
+            (mode === 'ecology' && hoveredHex) ||
+            (mode === 'mood' && hovered && onSelectAgent) ||
+            (mode === 'forge' && hoveredForge)
+              ? 'pointer'
+              : 'default',
+        }}
       />
-      {hovered && mode !== 'ecology' && (
+      {hovered && mode === 'mood' && (
         <div
           style={{
             position: 'absolute',
@@ -282,6 +306,41 @@ export function AutomatonCanvas(props: AutomatonCanvasProps) {
           </div>
           <div style={{ color: 'var(--text-3)' }}>
             {hovered.department}{hovered.featured ? ' · featured' : ''}
+          </div>
+        </div>
+      )}
+      {hoveredForge && mode === 'forge' && (
+        <div
+          style={{
+            position: 'absolute',
+            left: Math.min(size.w - 180, hoveredForge.x + 10),
+            top: Math.max(0, hoveredForge.y - 36),
+            padding: '4px 8px',
+            background: 'var(--bg-panel)',
+            border: '1px solid var(--border)',
+            borderRadius: 4,
+            fontFamily: 'var(--mono)',
+            fontSize: 10,
+            color: 'var(--text-2)',
+            pointerEvents: 'none',
+            whiteSpace: 'nowrap',
+            zIndex: 5,
+          }}
+        >
+          <div style={{ color: sideColor, fontWeight: 700 }}>{hoveredForge.name}</div>
+          <div style={{ color: 'var(--text-3)' }}>
+            {hoveredForge.department.toUpperCase()} · T{hoveredForge.turn}
+            {hoveredForge.attemptIndex > 0 ? ` · retry #${hoveredForge.attemptIndex}` : ''}
+          </div>
+          <div
+            style={{
+              color: hoveredForge.outcome === 'approved' ? 'var(--green)' : 'var(--rust)',
+              fontWeight: 600,
+            }}
+          >
+            {hoveredForge.outcome === 'approved'
+              ? `approved · conf ${typeof hoveredForge.confidence === 'number' ? hoveredForge.confidence.toFixed(2) : '—'}`
+              : 'rejected'}
           </div>
         </div>
       )}
