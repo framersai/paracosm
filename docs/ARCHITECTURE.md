@@ -170,6 +170,26 @@ Each turn follows a fixed pipeline:
    └── All events streamed to dashboard in real time
 ```
 
+### LLM Reliability
+
+Every structured LLM call in paracosm routes through one of two schema-validated wrappers:
+
+- **[`generateValidatedObject`](../src/runtime/llm-invocations/generateValidatedObject.ts)** — one-shot calls over AgentOS `generateObject`. Used for director event batches, reaction batches, verdict.
+- **[`sendAndValidate`](../src/runtime/llm-invocations/sendAndValidate.ts)** — session-aware wrapper over AgentOS `session.send()`. Preserves conversation memory (commander remembers prior events, dept heads remember prior analyses) while adding Zod retry-with-feedback. Used for commander decisions, department reports, and promotions.
+
+Both wrappers return the fully-validated object matching a Zod schema in [`src/runtime/schemas/`](../src/runtime/schemas/). Validation failures trigger up to 2 retries with the Zod error appended to the retry prompt so the model self-corrects. If retries exhaust, the wrapper returns a caller-provided fallback skeleton and emits a `validation_fallback` SSE event so the dashboard can surface the degradation.
+
+| Call site | Schema | Wrapper |
+|-----------|--------|---------|
+| Director event batch | `DirectorEventBatchSchema` | `generateValidatedObject` |
+| Department report | `DepartmentReportSchema` | `sendAndValidate` |
+| Commander decision | `CommanderDecisionSchema` | `sendAndValidate` |
+| Promotions | `PromotionsSchema` | `sendAndValidate` |
+| Reactions batch | `ReactionBatchSchema` | `generateValidatedObject` |
+| Verdict | `VerdictSchema` | `generateValidatedObject` |
+
+The commander, verdict, and director all write their stepwise reasoning into a `reasoning` field on their schema. The field is preserved in the run artifact (previously reasoning lived in stripped-and-discarded `<thinking>` tags). Dashboard renders the compressed `rationale` by default and the full `reasoning` behind a "show full analysis" expand.
+
 ### Emergent Tool Forging
 
 Department agents forge computational tools at runtime using AgentOS's `EmergentCapabilityEngine`. When a department encounters a crisis it cannot analyze with existing tools, it writes JavaScript code to build a custom calculator.
@@ -177,13 +197,14 @@ Department agents forge computational tools at runtime using AgentOS's `Emergent
 **How it works:**
 
 1. The department agent calls `forge_tool` with a name, description, input/output schema, implementation code, and test cases.
-2. The `SandboxedToolForge` executes the code in an isolated V8 context with hard resource limits:
+2. A pre-judge validator (`validateForgeShape`) checks the request is well-formed. When the LLM emits concrete test cases but forgets to declare `inputSchema.properties` / `outputSchema.properties`, a companion helper `inferSchemaFromTestCases` synthesizes the missing properties from the test data so the forge doesn't get rejected on a formality the test cases already witnessed.
+3. The `SandboxedToolForge` executes the code in an isolated V8 context with hard resource limits:
    - Memory: 128 MB
    - Timeout: 10 seconds
    - Blocked APIs: `eval`, `require`, `process`, `fs.write*`
    - Allowed APIs (opt-in): `fetch` (domain-restricted), `fs.readFile` (path-restricted), `crypto` (hashing only)
-3. The `EmergentJudge` (LLM-as-judge) reviews the tool for safety, correctness, determinism, and schema compliance.
-4. If approved, the tool is registered at session scope and available for future turns.
+4. The `EmergentJudge` (LLM-as-judge) reviews the tool for safety, correctness, determinism, and schema compliance.
+5. If approved, the tool is registered at session scope and available for future turns via the `call_forged_tool` meta-tool (no re-forge required).
 
 **Example:** The Medical department faces a radiation crisis. It forges a `radiation_dose_calculator` that computes cumulative dose from exposure rate and duration. The tool passes judge review and is registered. On the next turn, the same department uses the calculator to project 10-year exposure trends.
 
@@ -205,9 +226,16 @@ Each commander and colonist has a HEXACO personality profile (Ashton & Lee, 2007
 | O | Openness | Creative, curious | Conventional, practical |
 
 In Paracosm, HEXACO influences:
-- **Commander decisions**: High openness favors experimental approaches. High conscientiousness favors protocol.
-- **Colonist reactions**: Personality shapes mood and quote style.
-- **Personality drift**: Traits shift slightly each turn based on experiences (Ebbinghaus decay toward baseline).
+
+- **Commander decisions**: conditional cues fire at the 0.7 / 0.3 poles, translating trait values into concrete behavioral implications (e.g., high openness → "the unknown is opportunity, not threat"; high conscientiousness → "you would rather be slow and right than fast and wrong").
+- **Colonist reactions**: per-agent reaction blocks include cue strings from `buildReactionCues` so reacting agents don't have to re-derive personality behavior from a vector each call. All six axes have both-pole cues.
+- **Personality drift**: all six traits drift turn-over-turn from experience. Three forces combine per trait:
+  - *Leader pull* — trait value converges toward the commander's (Van Iddekinge 2023)
+  - *Role pull* — department role activates specific traits (Tett & Burnett 2003)
+  - *Outcome pull* — every (trait, outcome) pair has a peer-reviewed sign (Silvia & Sanders 2010 for openness; Roberts et al. 2006 for conscientiousness; Smillie et al. 2012 for extraversion; Graziano et al. 2007 for agreeableness; Lee & Ashton 2004 for emotionality; Hilbig & Zettler 2009 for honesty-humility)
+  - Rate-capped at ±0.05/turn; bounds [0.05, 0.95]
+- **Commander drift**: the commander's HEXACO evolves alongside agents. `runSimulation` clones `leader.hexaco` at run start and applies outcome-pull after every turn's resolution. The final output carries both the drifted `hexaco`, the original `hexacoBaseline`, and a per-turn `hexacoHistory` for trajectory visualization. The caller's `LeaderConfig` is never mutated.
+- **Trajectory cues**: commander, director, and department-head prompts all receive a one-line cue describing drift since turn 0 ("Since you took command, your personality has drifted substantially toward higher openness and measurably away from higher conscientiousness. Notice how recent decisions have shaped your judgment."). Threshold 0.05 matches the per-turn rate cap.
 - **Chat memory retrieval**: AgentOS uses HEXACO to modulate which memories surface during character chat.
 
 ### Parallel Execution
@@ -313,8 +341,12 @@ Paracosm uses AgentOS for all agent orchestration, LLM calls, tool forging, and 
 
 | AgentOS API | Used For |
 |------------|----------|
-| `agent()` | Commander, department, Event Director, and chat colonist agents |
-| `generateText()` | LLM calls for crisis generation, verdict, and tool evaluation |
+| `agent()` + `session()` | Commander, department, and chat colonist agents (conversation memory) |
+| `generateObject()` | Zod-validated one-shot calls (director, reactions, verdict) via `generateValidatedObject` |
+| `session.send()` + Zod validation | Session-aware Zod-validated calls (commander, departments, promotions) via `sendAndValidate` |
+| `ObjectGenerationError` | Typed error surfaced on exhausted retries; wrappers fall back to empty skeleton + emit `validation_fallback` SSE |
+| `extractJson` | Multi-strategy JSON extraction (code fence, thinking-tag strip, greedy brace match) used by `sendAndValidate` |
+| `SystemContentBlock` w/ `cacheBreakpoint` | Stable system prefixes cached at 0.1× cost across turns (director instructions, dept system prompt, reaction batch system) |
 | `EmergentCapabilityEngine` | Runtime tool forging in sandboxed V8 |
 | `EmergentJudge` | LLM-as-judge safety review of forged tools |
 | `AgentMemory.sqlite()` | Colonist chat memory with episodic storage and RAG |
@@ -325,16 +357,19 @@ Paracosm uses AgentOS for all agent orchestration, LLM calls, tool forging, and 
 ```
 src/
   engine/           the npm package (exported)
-    core/           deterministic kernel (RNG, state, progression)
+    core/           deterministic kernel (RNG, state, progression, personality drift)
     compiler/       JSON → ScenarioPackage compiler
     mars/           Mars Genesis scenario
     lunar/          Lunar Outpost scenario
 
   runtime/          orchestration (not exported)
-    orchestrator    turn pipeline: director → kernel → departments → commander
-    director        emergent crisis generation from simulation state
-    departments     parallel department analysis agents
-    chat-agents     post-simulation colonist chat with AgentOS memory
+    orchestrator              turn pipeline: director → kernel → departments → commander
+    director                  emergent crisis generation from simulation state
+    departments               parallel department analysis agents
+    chat-agents               post-simulation colonist chat with AgentOS memory
+    schemas/                  Zod schemas for every structured LLM call
+    llm-invocations/          generateValidatedObject + sendAndValidate wrappers
+    hexaco-cues/              trajectory + reaction cue translation helpers
 
   cli/              server + dashboard (not exported)
     serve.ts        HTTP + SSE server
@@ -346,6 +381,14 @@ src/
 ## References
 
 - Ashton, M. C., & Lee, K. (2007). Empirical, theoretical, and practical advantages of the HEXACO model of personality structure. *Personality and Social Psychology Review*, 11(2), 150-166. [hexaco.org](https://hexaco.org/)
+- Lee, K., & Ashton, M. C. (2004). Psychometric properties of the HEXACO personality inventory. *Multivariate Behavioral Research*, 39(2), 329-358.
+- Roberts, B. W., Walton, K. E., & Viechtbauer, W. (2006). Patterns of mean-level change in personality traits across the life course. *Psychological Bulletin*, 132(1), 1-25.
+- Graziano, W. G., et al. (2007). Agreeableness, empathy, and helping: A person × situation perspective. *Journal of Personality and Social Psychology*, 93(4), 583-599.
+- Silvia, P. J., & Sanders, C. E. (2010). Why are smart people curious? Fluid intelligence, openness to experience, and interest. *Personality and Individual Differences*, 49(3), 242-245.
+- Smillie, L. D., et al. (2012). Extraversion and reward-processing: Consolidating evidence from an electroencephalographic index of reward-prediction-error. *European Journal of Personality*, 26(5), 508-521.
+- Hilbig, B. E., & Zettler, I. (2009). Pillars of cooperation: Honesty-Humility, social value orientations, and economic behavior. *Journal of Research in Personality*, 43(3), 516-519.
+- Tett, R. P., & Burnett, D. D. (2003). A personality trait-based interactionist model of job performance. *Journal of Applied Psychology*, 88(3), 500-517.
+- Van Iddekinge, C. H. (2023). Leader-follower personality similarity and work outcomes: A meta-analysis. *Journal of Management*.
 - AgentOS documentation: [docs.agentos.sh](https://docs.agentos.sh)
 - AgentOS Emergent Capabilities: [docs.agentos.sh/features/emergent-capabilities](https://docs.agentos.sh/docs/features/emergent-capabilities)
 - AgentOS Cognitive Memory: [docs.agentos.sh/features/cognitive-memory](https://docs.agentos.sh/docs/features/cognitive-memory)
