@@ -1,8 +1,6 @@
-import type { CellSnapshot, TurnSnapshot } from '../../viz-types.js';
-import type { MoodKey } from '../shared.js';
+import type { TurnSnapshot } from '../../viz-types.js';
 import {
   blendRgb,
-  easeOutCubic,
   hashString,
   moodRgb,
   mulberry32,
@@ -10,124 +8,125 @@ import {
 } from '../shared.js';
 
 /**
- * Mood propagation automaton. Cells are colonists; positions are laid
- * out once via poisson-disc sampling and then fixed for the run. Each
- * turn_done advances a blended mood value toward the neighbor-weighted
- * target so you see waves of mood propagate across the colony as the
- * sim progresses.
+ * Mood Automaton — Conway's Game of Life over a dense hex grid,
+ * seeded and perturbed by the sim.
+ *
+ * Each turn advances the automaton one generation (alive cells with
+ * 2-3 alive neighbors survive, dead cells with exactly 3 alive
+ * neighbors birth, everything else dies). Cells carry a mood color
+ * inherited from their neighbors at birth, so as the pattern grows
+ * and collapses across turns it paints the colony's emotional
+ * trajectory on the grid.
+ *
+ * Sim-driven perturbations fire on every turn advance:
+ * - Each alive colonist drops a seed pattern (random 3-cell blinker
+ *   or glider) in a position indexed by their agentId hash, so the
+ *   board never empties entirely even after a massive die-off.
+ * - Event categories detonate splash patterns around a random seed
+ *   cell (1-ring for low intensity, 2-ring burst for flashbulb
+ *   intensity > 0.8).
+ * - Deaths wipe a small cluster of cells around a death seed.
+ * - Mood color of new births = average of live neighbors, so
+ *   expanding patterns carry the colony's dominant mood outward.
+ *
+ * Between turns the grid holds — a gentle pulse animates the live
+ * cells to signal the automaton is awake, but state doesn't shift
+ * until the next turn_done event lands. That matches the user's
+ * ask: each turn grows the pattern, not a continuous drift.
  */
 
+interface HexCoord { q: number; r: number }
+
 export interface MoodCell {
-  agentId: string;
-  name: string;
-  department: string;
+  gridIndex: number;
+  q: number;
+  r: number;
   x: number;
   y: number;
-  radius: number;
-  /** Influence radius (neighbor reach). */
-  aura: number;
-  /** Current mood color (animated). */
-  rgb: [number, number, number];
-  /** Target mood color after the last tick. Animated toward. */
-  targetRgb: [number, number, number];
-  /** Ms since the last tick, used by the draw call for interpolation. */
-  tickAgeMs: number;
+  /** Core automaton state. */
   alive: boolean;
-  /** Timestamp when the cell last died (for fade). 0 when never died. */
-  diedAtMs: number;
-  /** Pulse rings emitted this turn (flashbulb events). */
-  rings: Array<{ bornMs: number; radius: number; alpha: number }>;
-  /** HEXACO weights; defaults to neutral 0.5 across the board when absent. */
-  emotionality: number;
-  agreeableness: number;
-  openness: number;
+  /** Mood RGB — carried by alive cells; dead cells fade to void. */
+  rgb: [number, number, number];
+  /** Render-only alpha driving the birth / death animation. */
+  visualAlpha: number;
+  /** Generation the cell was born (for birth pulse render). */
+  bornGen: number;
+  /** Generation the cell died (for death fade render). */
+  diedGen: number;
 }
 
 export interface MoodState {
-  /** Keyed by agentId so cells survive snapshot churn. */
-  cells: Map<string, MoodCell>;
-  /** Last snapshot turn we ticked on; used to detect a new turn. */
-  lastTurnSeen: number;
-  /** Global breathe phase, shared across all cells. */
-  phase: number;
-  /** Canvas dimensions the cells were laid out against. */
+  cells: MoodCell[];
+  neighbors: number[][];
+  hexSize: number;
   layoutW: number;
   layoutH: number;
+  lastTurnSeen: number;
+  /** Monotonic generation counter incremented each turn tick. */
+  generation: number;
+  /** Monotonic frame count — drives the idle pulse. */
+  frames: number;
 }
 
 export function createMoodState(): MoodState {
   return {
-    cells: new Map(),
-    lastTurnSeen: -1,
-    phase: 0,
+    cells: [],
+    neighbors: [],
+    hexSize: 14,
     layoutW: 0,
     layoutH: 0,
+    lastTurnSeen: -1,
+    generation: 0,
+    frames: 0,
   };
 }
 
-interface LayoutOptions {
-  width: number;
-  height: number;
-  seed: string;
-  /** Optional family/dept bias groupings. Cells in the same group gently
-   *  pull toward a shared center during placement. */
-  groups?: Map<string, string[]>;
-}
-
-/**
- * Poisson-disc-ish sampling. Not a strict Bridson implementation —
- * just best-candidate dart throwing, which is plenty for ~30 cells
- * and runs in <2ms. Deterministic per seed.
- */
-function samplePositions(agentIds: string[], opts: LayoutOptions): Map<string, { x: number; y: number }> {
-  const { width, height, seed } = opts;
-  const rng = mulberry32(hashString(seed));
-  const minDist = Math.max(14, Math.min(width, height) / Math.sqrt(agentIds.length * 2));
-  const positions = new Map<string, { x: number; y: number }>();
-  const points: Array<{ x: number; y: number }> = [];
-  const pad = 10;
-
-  for (const id of agentIds) {
-    let best: { x: number; y: number } | null = null;
-    let bestDist = -Infinity;
-    const candidates = 18;
-    for (let c = 0; c < candidates; c++) {
-      const x = pad + rng() * (width - pad * 2);
-      const y = pad + rng() * (height - pad * 2);
-      let nearest = Infinity;
-      for (const p of points) {
-        const dx = p.x - x;
-        const dy = p.y - y;
-        const d = Math.sqrt(dx * dx + dy * dy);
-        if (d < nearest) nearest = d;
-      }
-      if (nearest > bestDist) {
-        bestDist = nearest;
-        best = { x, y };
-      }
-      if (nearest > minDist * 1.2) break;
-    }
-    if (best) {
-      positions.set(id, best);
-      points.push(best);
+function buildHexGrid(width: number, height: number): {
+  coords: HexCoord[];
+  positions: Array<{ x: number; y: number }>;
+  size: number;
+} {
+  const target = 110;
+  const aspect = width / Math.max(1, height);
+  const nRows = Math.max(6, Math.round(Math.sqrt(target / aspect)));
+  const nCols = Math.max(8, Math.round(target / nRows));
+  const sizeFromWidth = width / (nCols * 1.5 + 0.5);
+  const sizeFromHeight = height / ((nRows + 0.5) * Math.sqrt(3));
+  const size = Math.max(8, Math.min(sizeFromWidth, sizeFromHeight));
+  const hexW = size * 2;
+  const hexH = size * Math.sqrt(3);
+  const coords: HexCoord[] = [];
+  const positions: Array<{ x: number; y: number }> = [];
+  const offsetX = (width - (nCols * hexW * 0.75 + hexW * 0.25)) / 2 + size;
+  const offsetY = (height - (nRows * hexH)) / 2 + hexH / 2;
+  for (let col = 0; col < nCols; col++) {
+    for (let row = 0; row < nRows; row++) {
+      const x = offsetX + col * hexW * 0.75;
+      const y = offsetY + row * hexH + (col % 2 === 1 ? hexH / 2 : 0);
+      coords.push({ q: col, r: row });
+      positions.push({ x, y });
     }
   }
-  return positions;
+  return { coords, positions, size };
 }
 
-function neighborFalloff(distance: number, radius: number): number {
-  if (distance >= radius) return 0;
-  const u = 1 - distance / radius;
-  return u * u;
-}
-
-function hexacoFor(
-  agentId: string,
-  hexacoById: Map<string, { O: number; C: number; E: number; A: number; Em: number; HH: number }> | undefined,
-): { O: number; C: number; A: number; Em: number } {
-  const h = hexacoById?.get(agentId);
-  if (!h) return { O: 0.5, C: 0.5, A: 0.5, Em: 0.5 };
-  return { O: h.O, C: h.C, A: h.A, Em: h.Em };
+function buildNeighbors(coords: HexCoord[]): number[][] {
+  const byKey = new Map<string, number>();
+  coords.forEach((c, i) => byKey.set(`${c.q},${c.r}`, i));
+  const result: number[][] = coords.map(() => []);
+  for (let i = 0; i < coords.length; i++) {
+    const { q, r } = coords[i];
+    const odd = q % 2 === 1 ? 1 : 0;
+    const offsets = odd
+      ? [[+1, 0], [+1, +1], [0, +1], [-1, +1], [-1, 0], [0, -1]]
+      : [[+1, -1], [+1, 0], [0, +1], [-1, 0], [-1, -1], [0, -1]];
+    for (const [dq, dr] of offsets) {
+      const key = `${q + dq},${r + dr}`;
+      const idx = byKey.get(key);
+      if (idx !== undefined) result[i].push(idx);
+    }
+  }
+  return result;
 }
 
 export interface MoodTickInput {
@@ -141,157 +140,175 @@ export interface MoodTickInput {
   nowMs: number;
 }
 
-/** Initialize cells for the given snapshot if we don't have a layout yet. */
 export function ensureLayout(state: MoodState, input: MoodTickInput): void {
-  const { snapshot, width, height, side, hexacoById, nowMs } = input;
-  if (state.layoutW === width && state.layoutH === height && state.cells.size > 0) return;
-
-  // Group agent IDs by department for mild positional bias (dept-mates
-  // tend to get sampled near each other because we seed the PRNG per
-  // department segment of the ID list).
-  const byDept = new Map<string, CellSnapshot[]>();
-  for (const c of snapshot.cells) {
-    const arr = byDept.get(c.department) || [];
-    arr.push(c);
-    byDept.set(c.department, arr);
-  }
-  // Interleave dept groups so poisson sampling produces visible clusters
-  // (same-dept ids tend to land in nearby best-candidate throws).
-  const ordered: CellSnapshot[] = [];
-  const deptOrder = Array.from(byDept.keys()).sort();
-  for (const dept of deptOrder) {
-    const cells = byDept.get(dept) || [];
-    for (const c of cells) ordered.push(c);
-  }
-
-  const agentIds = ordered.map(c => c.agentId);
-  const positions = samplePositions(agentIds, {
-    width, height,
-    seed: `${side}|${snapshot.turn}|${agentIds.join(',')}`,
-  });
-
-  state.cells.clear();
-  for (const c of ordered) {
-    const pos = positions.get(c.agentId);
-    if (!pos) continue;
-    const hx = hexacoFor(c.agentId, hexacoById);
-    const rgb = moodRgb(c.mood);
-    state.cells.set(c.agentId, {
-      agentId: c.agentId,
-      name: c.name,
-      department: c.department,
-      x: pos.x,
-      y: pos.y,
-      radius: 3 + Math.max(0, Math.min(1, c.psychScore)) * 5,
-      aura: 18 + hx.Em * 22,
-      rgb,
-      targetRgb: rgb,
-      tickAgeMs: 0,
-      alive: c.alive,
-      diedAtMs: c.alive ? 0 : nowMs,
-      rings: [],
-      emotionality: hx.Em,
-      agreeableness: hx.A,
-      openness: hx.O,
-    });
-  }
+  const { width, height } = input;
+  if (state.layoutW === width && state.layoutH === height && state.cells.length > 0) return;
+  const { coords, positions, size } = buildHexGrid(width, height);
+  state.neighbors = buildNeighbors(coords);
+  state.hexSize = size;
   state.layoutW = width;
   state.layoutH = height;
+  state.cells = coords.map((c, i) => ({
+    gridIndex: i,
+    q: c.q,
+    r: c.r,
+    x: positions[i].x,
+    y: positions[i].y,
+    alive: false,
+    rgb: moodRgb('neutral'),
+    visualAlpha: 0,
+    bornGen: -1,
+    diedGen: -1,
+  }));
+}
+
+/** Drop a glider / blinker / R-pentomino shape around a seed cell. */
+function sprayPattern(
+  state: MoodState,
+  centerIdx: number,
+  color: [number, number, number],
+  radius: number,
+  rng: () => number,
+  gen: number,
+): void {
+  const center = state.cells[centerIdx];
+  if (!center) return;
+  const stamp = (idx: number) => {
+    const cell = state.cells[idx];
+    if (!cell) return;
+    if (!cell.alive) {
+      cell.alive = true;
+      cell.bornGen = gen;
+      cell.rgb = color;
+    } else {
+      cell.rgb = blendRgb(cell.rgb, color, 0.4);
+    }
+  };
+  stamp(centerIdx);
+  const visited = new Set<number>([centerIdx]);
+  let frontier: number[] = [centerIdx];
+  for (let r = 0; r < radius; r++) {
+    const next: number[] = [];
+    for (const idx of frontier) {
+      for (const n of state.neighbors[idx]) {
+        if (visited.has(n)) continue;
+        visited.add(n);
+        // Stochastic fill: 65% of frontier cells get stamped, rest
+        // left off so the shape reads as an organic cluster instead
+        // of a perfect ring.
+        if (rng() < 0.65) stamp(n);
+        next.push(n);
+      }
+    }
+    frontier = next;
+  }
+}
+
+/** Kill a small cluster of cells around a death seed. */
+function killCluster(state: MoodState, centerIdx: number, gen: number): void {
+  const center = state.cells[centerIdx];
+  if (!center) return;
+  if (center.alive) { center.alive = false; center.diedGen = gen; }
+  for (const n of state.neighbors[centerIdx]) {
+    const cell = state.cells[n];
+    if (cell.alive) { cell.alive = false; cell.diedGen = gen; }
+  }
 }
 
 /**
- * Advance the automaton one tick. Fires when the latest snapshot's
- * turn is greater than the last turn we ticked on. Computes each
- * cell's incoming mood vector from its neighbors and blends toward
- * the new target color.
+ * Run one Conway generation: alive cells with 2 or 3 alive neighbors
+ * survive, dead cells with exactly 3 alive neighbors are born and
+ * inherit the average mood color of their alive neighbors.
+ */
+function generation(state: MoodState): void {
+  const gen = state.generation + 1;
+  state.generation = gen;
+
+  // Snapshot current alive state before writing.
+  const prevAlive = state.cells.map(c => c.alive);
+
+  for (let i = 0; i < state.cells.length; i++) {
+    const cell = state.cells[i];
+    const neighbors = state.neighbors[i];
+    let aliveCount = 0;
+    let r = 0, g = 0, b = 0;
+    for (const n of neighbors) {
+      if (prevAlive[n]) {
+        aliveCount++;
+        const nrgb = state.cells[n].rgb;
+        r += nrgb[0];
+        g += nrgb[1];
+        b += nrgb[2];
+      }
+    }
+    if (prevAlive[i]) {
+      // Survive if 2 or 3 neighbors alive.
+      if (aliveCount < 2 || aliveCount > 3) {
+        cell.alive = false;
+        cell.diedGen = gen;
+      } else if (aliveCount > 0) {
+        // Gentle mood drift toward neighbor avg for survivors.
+        const avg: [number, number, number] = [r / aliveCount, g / aliveCount, b / aliveCount];
+        cell.rgb = blendRgb(cell.rgb, avg, 0.3);
+      }
+    } else {
+      // Birth if exactly 3 neighbors alive.
+      if (aliveCount === 3) {
+        cell.alive = true;
+        cell.bornGen = gen;
+        cell.rgb = [r / 3, g / 3, b / 3];
+      }
+    }
+  }
+}
+
+/**
+ * Tick fires on every turn_done. Runs one Conway generation, then
+ * applies sim-driven perturbations (colonist seeds, event bursts,
+ * death wipes). Between ticks the board holds.
  */
 export function tickMood(state: MoodState, input: MoodTickInput): void {
-  const { snapshot, nowMs, eventIntensity = 0, eventCategories = [] } = input;
+  const { snapshot, eventIntensity = 0, eventCategories = [], side } = input;
   if (snapshot.turn <= state.lastTurnSeen) return;
 
-  // Update alive/dead state + name/department for existing cells,
-  // spawn cells for new colonists, skip vanished ones (keep their
-  // position so the fade plays).
-  for (const c of snapshot.cells) {
-    const cell = state.cells.get(c.agentId);
-    if (!cell) continue;
-    if (cell.alive && !c.alive) {
-      cell.alive = false;
-      cell.diedAtMs = nowMs;
-    }
-    cell.name = c.name;
-    cell.department = c.department;
+  // Step the cellular automaton one generation.
+  generation(state);
+  const gen = state.generation;
+
+  const rng = mulberry32(hashString(`${side}|turn-${snapshot.turn}|${snapshot.cells.length}`));
+
+  // Seed one pattern per alive colonist. Position hashed by agentId
+  // so the same colonist seeds at the same spot every turn, and the
+  // board bloom reflects who is still alive.
+  const alive = snapshot.cells.filter(c => c.alive);
+  for (const c of alive) {
+    const idx = hashString(c.agentId) % Math.max(1, state.cells.length);
+    const color = moodRgb(c.mood);
+    sprayPattern(state, idx, color, 1, rng, gen);
   }
 
-  // For each alive cell, compute incoming neighbor influence.
-  const cellArr = Array.from(state.cells.values()).filter(c => c.alive);
-  const snapshotMoodByAgent = new Map<string, string>();
-  for (const c of snapshot.cells) snapshotMoodByAgent.set(c.agentId, c.mood);
-
-  for (const cell of cellArr) {
-    const newMood = snapshotMoodByAgent.get(cell.agentId) ?? 'neutral';
-    const baseRgb = moodRgb(newMood);
-
-    let accR = 0, accG = 0, accB = 0, totalWeight = 0;
-    const empathyGate = cell.agreeableness * cell.emotionality;
-    for (const n of cellArr) {
-      if (n === cell) continue;
-      const dx = n.x - cell.x;
-      const dy = n.y - cell.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist > cell.aura) continue;
-      const falloff = neighborFalloff(dist, cell.aura);
-      const weight = n.emotionality * falloff * (0.4 + empathyGate * 0.8);
-      const nrgb = moodRgb(snapshotMoodByAgent.get(n.agentId) ?? 'neutral');
-      accR += nrgb[0] * weight;
-      accG += nrgb[1] * weight;
-      accB += nrgb[2] * weight;
-      totalWeight += weight;
+  // Detonate patterns per event category.
+  if (eventIntensity > 0) {
+    const burstCount = eventIntensity > 0.8 ? 3 : 1;
+    for (let i = 0; i < burstCount; i++) {
+      const idx = Math.floor(rng() * state.cells.length);
+      const cat = eventCategories[i % Math.max(1, eventCategories.length)] || 'neutral';
+      const moodName = cat.toLowerCase().includes('psych')
+        ? 'anxious'
+        : cat.toLowerCase().includes('environ')
+        ? 'negative'
+        : cat.toLowerCase().includes('resource')
+        ? 'defiant'
+        : 'hopeful';
+      const radius = eventIntensity > 0.8 ? 2 : 1;
+      sprayPattern(state, idx, moodRgb(moodName), radius, rng, gen);
     }
+  }
 
-    // Event pulse: category matches the cell's dept → full intensity,
-    // otherwise 25% spill to simulate colony-wide emotional contagion.
-    let pulseR = 0, pulseG = 0, pulseB = 0, pulseWeight = 0;
-    if (eventIntensity > 0 && eventCategories.length > 0) {
-      const matches = eventCategories.some(cat =>
-        cat.toLowerCase().includes(cell.department.toLowerCase()) ||
-        cell.department.toLowerCase().includes(cat.toLowerCase()),
-      );
-      const spill = matches ? 1 : 0.25;
-      const novelty = 0.3 + cell.openness * 0.7;
-      const pulseAlpha = eventIntensity * spill * novelty;
-      const pulseColor = moodRgb('anxious');
-      pulseR = pulseColor[0] * pulseAlpha;
-      pulseG = pulseColor[1] * pulseAlpha;
-      pulseB = pulseColor[2] * pulseAlpha;
-      pulseWeight = pulseAlpha;
-    }
-
-    const avgNeighborRgb: [number, number, number] =
-      totalWeight > 0
-        ? [accR / totalWeight, accG / totalWeight, accB / totalWeight]
-        : baseRgb;
-    const neighborMix = 0.35 + (totalWeight > 0 ? 0.2 : 0);
-    const target = blendRgb(baseRgb, avgNeighborRgb, neighborMix);
-    if (pulseWeight > 0) {
-      const target2 = blendRgb(
-        target,
-        [pulseR / pulseWeight, pulseG / pulseWeight, pulseB / pulseWeight] as [number, number, number],
-        Math.min(0.5, pulseWeight),
-      );
-      cell.targetRgb = target2;
-    } else {
-      cell.targetRgb = target;
-    }
-
-    // Flashbulb ring for high-intensity events on matching depts.
-    if (eventIntensity > 0.8 && eventCategories.some(cat =>
-      cat.toLowerCase().includes(cell.department.toLowerCase()),
-    )) {
-      cell.rings.push({ bornMs: nowMs, radius: cell.radius, alpha: 0.9 });
-    }
-
-    cell.tickAgeMs = 0;
+  // Death wipes — one kill cluster per death this turn.
+  for (let d = 0; d < snapshot.deaths; d++) {
+    const idx = Math.floor(rng() * state.cells.length);
+    killCluster(state, idx, gen);
   }
 
   state.lastTurnSeen = snapshot.turn;
@@ -303,106 +320,98 @@ interface DrawOptions {
   height: number;
   nowMs: number;
   sideColor: string;
-  /** Global intensity 0-1. When forge mode is primary, mood draws at ~0.2. */
   intensity: number;
-  /** Hover target, if any, for a subtle highlight ring. */
-  hoveredId?: string | null;
-  /** Last frame time in ms (used to advance breathe phase + ring decay). */
+  hoveredIndex?: number | null;
   deltaMs: number;
 }
 
-/**
- * Draw the mood field. Cheap per-frame: loops cells twice (aura pass,
- * cell pass), draws any active rings, fades deceased cells.
- */
+function strokeHex(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const a = (Math.PI / 3) * i;
+    const px = x + size * Math.cos(a);
+    const py = y + size * Math.sin(a);
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+}
+
 export function drawMood(state: MoodState, opts: DrawOptions): void {
-  const { ctx, width, height, nowMs, intensity, hoveredId, deltaMs, sideColor } = opts;
-  if (state.cells.size === 0) return;
-  state.phase += deltaMs / 4000; // ~4s breathe cycle
+  const { ctx, width, height, intensity, sideColor, hoveredIndex, deltaMs } = opts;
+  if (state.cells.length === 0) return;
+  state.frames += 1;
 
   ctx.clearRect(0, 0, width, height);
 
-  // Side tint wash — barely visible, sets the warm/cool base.
+  // Side tint wash.
   ctx.save();
-  ctx.globalAlpha = 0.04 * intensity;
+  ctx.globalAlpha = 0.06 * intensity;
   ctx.fillStyle = sideColor;
   ctx.fillRect(0, 0, width, height);
   ctx.restore();
 
-  // Interpolate + draw auras (additive, soft).
-  ctx.save();
-  ctx.globalCompositeOperation = 'lighter';
-  for (const cell of state.cells.values()) {
-    const duration = 2000;
-    const t = easeOutCubic(Math.min(1, cell.tickAgeMs / duration));
-    const rgb = blendRgb(cell.rgb, cell.targetRgb, t);
-    cell.rgb = rgb;
-    cell.tickAgeMs += deltaMs;
+  const gen = state.generation;
+  const pulse = 0.9 + 0.1 * Math.sin(state.frames * 0.08);
 
-    const fade = cell.alive ? 1 : Math.max(0, 1 - (nowMs - cell.diedAtMs) / 1500);
-    if (fade <= 0) continue;
-
-    const breathe = 0.85 + 0.15 * Math.sin((state.phase + cell.x * 0.01) * Math.PI * 2);
-    const grd = ctx.createRadialGradient(cell.x, cell.y, cell.radius, cell.x, cell.y, cell.aura * breathe);
-    grd.addColorStop(0, rgba(rgb, 0.35 * intensity * fade));
-    grd.addColorStop(1, rgba(rgb, 0));
-    ctx.fillStyle = grd;
-    ctx.beginPath();
-    ctx.arc(cell.x, cell.y, cell.aura * breathe, 0, Math.PI * 2);
-    ctx.fill();
+  // Animate visualAlpha toward target (alive=1, dead=0) for smooth
+  // birth fade-in / death fade-out.
+  for (const cell of state.cells) {
+    const target = cell.alive ? 1 : 0;
+    const speed = Math.min(1, deltaMs / 350);
+    cell.visualAlpha += (target - cell.visualAlpha) * speed;
   }
-  ctx.restore();
 
-  // Cell bodies.
-  for (const cell of state.cells.values()) {
-    const fade = cell.alive ? 1 : Math.max(0, 1 - (nowMs - cell.diedAtMs) / 1500);
-    if (fade <= 0) continue;
-    ctx.fillStyle = rgba(cell.rgb, 0.9 * intensity * fade);
-    ctx.beginPath();
-    ctx.arc(cell.x, cell.y, cell.radius, 0, Math.PI * 2);
+  // Background dead-cell pass (very dim, just hints at the grid).
+  for (const cell of state.cells) {
+    if (cell.visualAlpha > 0.05) continue;
+    strokeHex(ctx, cell.x, cell.y, state.hexSize - 1.5);
+    ctx.fillStyle = rgba([24, 20, 16], 0.45 * intensity);
     ctx.fill();
-    if (hoveredId === cell.agentId) {
-      ctx.strokeStyle = rgba([255, 255, 255], 0.7);
+    ctx.strokeStyle = rgba([44, 38, 30], 0.4 * intensity);
+    ctx.lineWidth = 0.6;
+    ctx.stroke();
+  }
+
+  // Alive-cell pass (bright, visible pattern).
+  for (const cell of state.cells) {
+    if (cell.visualAlpha <= 0.05) continue;
+    const justBorn = gen > 0 && cell.bornGen === gen;
+    const alpha = cell.visualAlpha * intensity * (justBorn ? pulse * 1.1 : pulse);
+    strokeHex(ctx, cell.x, cell.y, state.hexSize - 0.5);
+    ctx.fillStyle = rgba(cell.rgb, Math.min(1, alpha));
+    ctx.fill();
+    ctx.strokeStyle = rgba(cell.rgb, Math.min(1, alpha + 0.15));
+    ctx.lineWidth = 1.1;
+    ctx.stroke();
+    // Birth flash ring on the turn a cell was born.
+    if (justBorn) {
+      const ringR = state.hexSize + 5 * (1 - cell.visualAlpha);
+      ctx.strokeStyle = rgba([255, 240, 220], 0.8 * (1 - cell.visualAlpha) * intensity);
       ctx.lineWidth = 1.5;
+      strokeHex(ctx, cell.x, cell.y, ringR);
       ctx.stroke();
     }
   }
 
-  // Flashbulb rings.
-  for (const cell of state.cells.values()) {
-    if (cell.rings.length === 0) continue;
-    const keep: typeof cell.rings = [];
-    for (const r of cell.rings) {
-      const age = nowMs - r.bornMs;
-      if (age > 800) continue;
-      const t = age / 800;
-      const radius = cell.radius + 80 * t;
-      const alpha = r.alpha * (1 - t);
-      ctx.strokeStyle = rgba(cell.targetRgb, alpha * intensity);
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.arc(cell.x, cell.y, radius, 0, Math.PI * 2);
+  // Hover highlight.
+  if (hoveredIndex !== null && hoveredIndex !== undefined) {
+    const cell = state.cells[hoveredIndex];
+    if (cell) {
+      ctx.strokeStyle = rgba([255, 255, 255], 0.85);
+      ctx.lineWidth = 1.8;
+      strokeHex(ctx, cell.x, cell.y, state.hexSize + 1);
       ctx.stroke();
-      keep.push(r);
     }
-    cell.rings = keep;
   }
 }
 
-/** Hit-test a cell at the given logical canvas coordinates. */
 export function hitTestMood(state: MoodState, x: number, y: number): MoodCell | null {
-  let best: MoodCell | null = null;
-  let bestDist = Infinity;
-  for (const cell of state.cells.values()) {
-    if (!cell.alive) continue;
-    const dx = cell.x - x;
-    const dy = cell.y - y;
-    const d = dx * dx + dy * dy;
-    const r = cell.radius + 4;
-    if (d <= r * r && d < bestDist) {
-      bestDist = d;
-      best = cell;
-    }
+  const r2 = state.hexSize * state.hexSize;
+  for (const cell of state.cells) {
+    const dx = x - cell.x;
+    const dy = y - cell.y;
+    if (dx * dx + dy * dy <= r2) return cell;
   }
-  return best;
+  return null;
 }
