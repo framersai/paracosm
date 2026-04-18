@@ -247,16 +247,23 @@ function ModePill({ mode, maximized, onChange, onCollapse, onMaximizeToggle }: {
         title={maximized ? 'Restore' : 'Maximize — hide tile grid below'}
         style={{
           marginLeft: 6,
+          // Single-character unicode icons that are each exactly 1em
+          // wide: diagonal-arrows-out (⤢) for maximize, diagonal-arrows-in
+          // (⤡) for restore. Previously used two-character sequences
+          // (❬❭ / ❭❬) which overflowed the 18×18 box, visually stacking
+          // against the adjacent × button.
           width: 18, height: 18,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           border: '1px solid var(--border)', borderRadius: 3,
           background: maximized ? 'var(--amber)' : 'var(--bg-panel)',
           color: maximized ? 'var(--bg-deep)' : 'var(--text-3)',
-          cursor: 'pointer', fontSize: 10, lineHeight: 1,
+          cursor: 'pointer', fontSize: 12, lineHeight: 1,
           padding: 0,
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
         }}
       >
-        {maximized ? '❭❬' : '❬❭'}
+        {maximized ? '\u2922' : '\u2921'}
       </button>
       <button
         type="button"
