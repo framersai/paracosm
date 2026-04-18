@@ -228,6 +228,51 @@ export function CostBreakdownModal({ combined, leaderA, leaderB, leaderAName, le
           </table>
         )}
 
+        {/* Schema retry rollup. Each row is one Zod schema that the
+            validation wrappers hit at least once during the run. Attempts
+            per call > 1.0 means the model is fighting the output format
+            on that schema; fallbacks > 0 means the retry loop exhausted
+            and the turn ran with an empty skeleton. */}
+        {combined.schemaRetries && Object.keys(combined.schemaRetries).length > 0 && (
+          <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+            <div style={{ fontSize: 10, color: 'var(--text-3)', letterSpacing: '.08em', fontFamily: 'var(--mono)', marginBottom: 8 }}>
+              SCHEMA RELIABILITY
+            </div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, fontFamily: 'var(--mono)' }}>
+              <thead>
+                <tr style={{ color: 'var(--text-3)', textAlign: 'left', fontSize: 10, letterSpacing: '.08em' }}>
+                  <th style={{ padding: '4px 0', fontWeight: 700 }}>SCHEMA</th>
+                  <th style={{ padding: '4px 0', fontWeight: 700, textAlign: 'right' }}>CALLS</th>
+                  <th style={{ padding: '4px 0', fontWeight: 700, textAlign: 'right' }}>AVG ATTEMPTS</th>
+                  <th style={{ padding: '4px 0', fontWeight: 700, textAlign: 'right' }}>FALLBACKS</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(combined.schemaRetries)
+                  .sort((a, b) => b[1].calls - a[1].calls)
+                  .map(([schemaName, bucket]) => {
+                    const avg = bucket.calls > 0 ? bucket.attempts / bucket.calls : 0;
+                    const avgColor = avg > 1.5 ? 'var(--rust)' : avg > 1.1 ? 'var(--amber)' : 'var(--text-1)';
+                    const fbColor = bucket.fallbacks > 0 ? 'var(--rust)' : 'var(--text-3)';
+                    return (
+                      <tr key={schemaName} style={{ borderTop: '1px solid var(--border)' }}>
+                        <td style={{ padding: '6px 0', color: 'var(--text-1)' }}>{schemaName}</td>
+                        <td style={{ padding: '6px 0', textAlign: 'right', color: 'var(--text-2)' }}>{bucket.calls}</td>
+                        <td style={{ padding: '6px 0', textAlign: 'right', color: avgColor, fontWeight: 700 }}>{avg.toFixed(2)}</td>
+                        <td style={{ padding: '6px 0', textAlign: 'right', color: fbColor, fontWeight: bucket.fallbacks > 0 ? 700 : 400 }}>
+                          {bucket.fallbacks}
+                        </td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+            <div style={{ marginTop: 6, fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--sans)' }}>
+              1.00 = first-try success. Higher = model retrying on validation failures. Tune <code style={{ fontFamily: 'var(--mono)' }}>maxRetries</code> or tighten schema if a row stays above 1.3.
+            </div>
+          </div>
+        )}
+
         {/* Per-leader totals when both sides have reported. Lets the user
             see if one leader's simulation is unusually expensive (e.g.
             runaway tool-call loop on one side). */}

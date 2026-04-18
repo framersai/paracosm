@@ -134,6 +134,16 @@ export interface CostBreakdown {
   cacheSavingsUSD?: number;
   /** Per-site spend. Present when the server reports it (always in current version). */
   breakdown?: CostSiteBreakdown;
+  /**
+   * Per-schema retry rollup. One bucket per Zod schema name
+   * (DirectorEventBatch, DepartmentReport, CommanderDecision,
+   * ReactionBatch, Verdict, Promotions). `attempts / calls` gives
+   * the average attempts-to-validate on that schema, a leading
+   * indicator of model misbehavior on structured output. `fallbacks`
+   * is how many times the wrapper gave up and returned an empty
+   * skeleton.
+   */
+  schemaRetries?: Record<string, { attempts: number; calls: number; fallbacks: number }>;
 }
 
 export interface GameState {
@@ -198,6 +208,7 @@ export function useGameState(sseEvents: SimEvent[], isComplete: boolean): GameSt
         cacheCreationTokens?: number;
         cacheSavingsUSD?: number;
         breakdown?: CostSiteBreakdown;
+        schemaRetries?: Record<string, { attempts: number; calls: number; fallbacks: number }>;
       } | undefined;
       if (evtCost && side) {
         const leaderBreakdown: CostBreakdown = {
@@ -208,6 +219,7 @@ export function useGameState(sseEvents: SimEvent[], isComplete: boolean): GameSt
           cacheCreationTokens: evtCost.cacheCreationTokens ?? 0,
           cacheSavingsUSD: evtCost.cacheSavingsUSD ?? 0,
           breakdown: evtCost.breakdown,
+          schemaRetries: evtCost.schemaRetries,
         };
         if (side === 'a') state.costA = leaderBreakdown;
         else state.costB = leaderBreakdown;
@@ -235,6 +247,22 @@ export function useGameState(sseEvents: SimEvent[], isComplete: boolean): GameSt
           }
         }
 
+        // Merge schemaRetries buckets across leaders. Each leader's
+        // buckets are additive — sum attempts/calls/fallbacks for any
+        // schema name that appears on either side.
+        const mergedSchemaRetries: Record<string, { attempts: number; calls: number; fallbacks: number }> = {};
+        for (const src of [state.costA.schemaRetries, state.costB.schemaRetries]) {
+          if (!src) continue;
+          for (const [schemaName, bucket] of Object.entries(src)) {
+            const existing = mergedSchemaRetries[schemaName] ?? { attempts: 0, calls: 0, fallbacks: 0 };
+            mergedSchemaRetries[schemaName] = {
+              attempts: existing.attempts + bucket.attempts,
+              calls: existing.calls + bucket.calls,
+              fallbacks: existing.fallbacks + bucket.fallbacks,
+            };
+          }
+        }
+
         state.cost = {
           totalTokens: state.costA.totalTokens + state.costB.totalTokens,
           totalCostUSD: Math.round((state.costA.totalCostUSD + state.costB.totalCostUSD) * 10000) / 10000,
@@ -243,6 +271,7 @@ export function useGameState(sseEvents: SimEvent[], isComplete: boolean): GameSt
           cacheCreationTokens: (state.costA.cacheCreationTokens ?? 0) + (state.costB.cacheCreationTokens ?? 0),
           cacheSavingsUSD: Math.round(((state.costA.cacheSavingsUSD ?? 0) + (state.costB.cacheSavingsUSD ?? 0)) * 10000) / 10000,
           breakdown: Object.keys(mergedBreakdown).length > 0 ? mergedBreakdown : undefined,
+          schemaRetries: Object.keys(mergedSchemaRetries).length > 0 ? mergedSchemaRetries : undefined,
         };
       }
 
