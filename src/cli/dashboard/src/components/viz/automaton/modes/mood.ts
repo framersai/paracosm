@@ -1,132 +1,64 @@
-import type { TurnSnapshot } from '../../viz-types.js';
-import {
-  blendRgb,
-  hashString,
-  moodRgb,
-  mulberry32,
-  rgba,
-} from '../shared.js';
-
 /**
- * Mood Automaton — Conway's Game of Life over a dense hex grid,
- * seeded and perturbed by the sim.
+ * Mood — Colonist Cloud
  *
- * Each turn advances the automaton one generation (alive cells with
- * 2-3 alive neighbors survive, dead cells with exactly 3 alive
- * neighbors birth, everything else dies). Cells carry a mood color
- * inherited from their neighbors at birth, so as the pattern grows
- * and collapses across turns it paints the colony's emotional
- * trajectory on the grid.
+ * Replaces the prior Conway's Game of Life renderer. That design's
+ * rules killed stamped cells faster than the sim reseeded them, so the
+ * grid looked empty between turns even on a healthy colony. This
+ * version draws one dot per alive colonist, colored by mood and
+ * positioned in a per-department cluster. Visible signal at a glance:
+ * cloud density = population, color mix = mood distribution, cluster
+ * sizes = dept balance, ghost outlines = deaths from the last turn.
  *
- * Sim-driven perturbations fire on every turn advance:
- * - Each alive colonist drops a seed pattern (random 3-cell blinker
- *   or glider) in a position indexed by their agentId hash, so the
- *   board never empties entirely even after a massive die-off.
- * - Event categories detonate splash patterns around a random seed
- *   cell (1-ring for low intensity, 2-ring burst for flashbulb
- *   intensity > 0.8).
- * - Deaths wipe a small cluster of cells around a death seed.
- * - Mood color of new births = average of live neighbors, so
- *   expanding patterns carry the colony's dominant mood outward.
+ * Module contract unchanged: createMoodState / ensureLayout / tickMood
+ * / drawMood / hitTestMood. AutomatonCanvas.tsx consumes this module
+ * without modification.
  *
- * Between turns the grid holds — a gentle pulse animates the live
- * cells to signal the automaton is awake, but state doesn't shift
- * until the next turn_done event lands. That matches the user's
- * ask: each turn grows the pattern, not a continuous drift.
+ * @module paracosm/cli/dashboard/viz/automaton/modes/mood
  */
+import type { TurnSnapshot } from '../../viz-types.js';
+import { hashString, moodRgb, mulberry32, rgba } from '../shared.js';
 
-interface HexCoord { q: number; r: number }
-
+/** One dot's cached position + role for hit-test and render. */
 export interface MoodCell {
-  gridIndex: number;
-  q: number;
-  r: number;
+  agentId: string;
   x: number;
   y: number;
-  /** Core automaton state. */
-  alive: boolean;
-  /** Mood RGB — carried by alive cells; dead cells fade to void. */
+  /** Drawing radius in pixels. */
+  r: number;
+  /** Current mood color. Refreshed on every tick from the live snapshot. */
   rgb: [number, number, number];
-  /** Render-only alpha driving the birth / death animation. */
-  visualAlpha: number;
-  /** Generation the cell was born (for birth pulse render). */
+  /** Dept (needed so render can tint the cluster perimeter). */
+  department: string;
+  /** Featured colonists render slightly larger to stand out. */
+  featured: boolean;
+  /** Born this turn — birth flash animation. */
   bornGen: number;
-  /** Generation the cell died (for death fade render). */
+  /** Died this turn — fade-out ghost. -1 while alive. */
   diedGen: number;
+  alive: boolean;
+  name: string;
 }
 
 export interface MoodState {
   cells: MoodCell[];
-  neighbors: number[][];
-  hexSize: number;
+  layoutKey: string;
   layoutW: number;
   layoutH: number;
-  lastTurnSeen: number;
-  /** Monotonic generation counter incremented each turn tick. */
+  /** Monotonic counter bumped each tick — drives birth/death animations. */
   generation: number;
-  /** Monotonic frame count — drives the idle pulse. */
+  /** Frame counter used for the ambient pulse. */
   frames: number;
 }
 
 export function createMoodState(): MoodState {
   return {
     cells: [],
-    neighbors: [],
-    hexSize: 14,
+    layoutKey: '',
     layoutW: 0,
     layoutH: 0,
-    lastTurnSeen: -1,
     generation: 0,
     frames: 0,
   };
-}
-
-function buildHexGrid(width: number, height: number): {
-  coords: HexCoord[];
-  positions: Array<{ x: number; y: number }>;
-  size: number;
-} {
-  const target = 110;
-  const aspect = width / Math.max(1, height);
-  const nRows = Math.max(6, Math.round(Math.sqrt(target / aspect)));
-  const nCols = Math.max(8, Math.round(target / nRows));
-  const sizeFromWidth = width / (nCols * 1.5 + 0.5);
-  const sizeFromHeight = height / ((nRows + 0.5) * Math.sqrt(3));
-  const size = Math.max(8, Math.min(sizeFromWidth, sizeFromHeight));
-  const hexW = size * 2;
-  const hexH = size * Math.sqrt(3);
-  const coords: HexCoord[] = [];
-  const positions: Array<{ x: number; y: number }> = [];
-  const offsetX = (width - (nCols * hexW * 0.75 + hexW * 0.25)) / 2 + size;
-  const offsetY = (height - (nRows * hexH)) / 2 + hexH / 2;
-  for (let col = 0; col < nCols; col++) {
-    for (let row = 0; row < nRows; row++) {
-      const x = offsetX + col * hexW * 0.75;
-      const y = offsetY + row * hexH + (col % 2 === 1 ? hexH / 2 : 0);
-      coords.push({ q: col, r: row });
-      positions.push({ x, y });
-    }
-  }
-  return { coords, positions, size };
-}
-
-function buildNeighbors(coords: HexCoord[]): number[][] {
-  const byKey = new Map<string, number>();
-  coords.forEach((c, i) => byKey.set(`${c.q},${c.r}`, i));
-  const result: number[][] = coords.map(() => []);
-  for (let i = 0; i < coords.length; i++) {
-    const { q, r } = coords[i];
-    const odd = q % 2 === 1 ? 1 : 0;
-    const offsets = odd
-      ? [[+1, 0], [+1, +1], [0, +1], [-1, +1], [-1, 0], [0, -1]]
-      : [[+1, -1], [+1, 0], [0, +1], [-1, 0], [-1, -1], [0, -1]];
-    for (const [dq, dr] of offsets) {
-      const key = `${q + dq},${r + dr}`;
-      const idx = byKey.get(key);
-      if (idx !== undefined) result[i].push(idx);
-    }
-  }
-  return result;
 }
 
 export interface MoodTickInput {
@@ -140,178 +72,139 @@ export interface MoodTickInput {
   nowMs: number;
 }
 
+/**
+ * Compute per-department cluster centers using a deterministic ring.
+ * Same canvas size + same department set → identical geometry, so the
+ * two leader panels are visually comparable (different clouds over
+ * the same skeleton).
+ */
+function deptCenters(width: number, height: number, depts: string[]): Map<string, { cx: number; cy: number; radius: number }> {
+  const out = new Map<string, { cx: number; cy: number; radius: number }>();
+  if (depts.length === 0) return out;
+  const cx = width / 2;
+  const cy = height / 2;
+  const outerR = Math.min(width, height) * 0.38;
+  const clusterR = Math.min(width, height) * 0.18;
+  if (depts.length === 1) {
+    out.set(depts[0], { cx, cy, radius: clusterR * 1.3 });
+    return out;
+  }
+  for (let i = 0; i < depts.length; i++) {
+    const angle = (Math.PI * 2 * i) / depts.length - Math.PI / 2;
+    out.set(depts[i], {
+      cx: cx + Math.cos(angle) * outerR * 0.6,
+      cy: cy + Math.sin(angle) * outerR * 0.6,
+      radius: clusterR,
+    });
+  }
+  return out;
+}
+
+function deptRgb(dept: string): [number, number, number] {
+  const d = dept.toLowerCase();
+  if (d.includes('medical')) return [0x4e, 0xcd, 0xc4];
+  if (d.includes('engineer')) return [0xe8, 0xb4, 0x4a];
+  if (d.includes('agri')) return [0x6a, 0xad, 0x48];
+  if (d.includes('psych')) return [0x9b, 0x6b, 0x9e];
+  if (d.includes('govern')) return [0xe0, 0x65, 0x30];
+  if (d.includes('research') || d.includes('science')) return [0x95, 0x6b, 0xd8];
+  if (d.includes('ops') || d.includes('operations')) return [0xc8, 0x7a, 0x3a];
+  return [0xa8, 0x98, 0x78];
+}
+
+/**
+ * Build or refresh layout. Positions are hashed by agentId so they're
+ * stable across turns — a colonist doesn't jump around when a
+ * neighbor dies. Called every tick but short-circuits when the
+ * canvas dims and roster haven't changed.
+ */
 export function ensureLayout(state: MoodState, input: MoodTickInput): void {
-  const { width, height } = input;
-  if (state.layoutW === width && state.layoutH === height && state.cells.length > 0) return;
-  const { coords, positions, size } = buildHexGrid(width, height);
-  state.neighbors = buildNeighbors(coords);
-  state.hexSize = size;
-  state.layoutW = width;
-  state.layoutH = height;
-  state.cells = coords.map((c, i) => ({
-    gridIndex: i,
-    q: c.q,
-    r: c.r,
-    x: positions[i].x,
-    y: positions[i].y,
-    alive: false,
-    rgb: moodRgb('neutral'),
-    visualAlpha: 0,
-    bornGen: -1,
-    diedGen: -1,
-  }));
-}
+  const { snapshot, width, height } = input;
+  if (!snapshot) return;
+  const alive = snapshot.cells.filter(c => c.alive);
+  // Key includes canvas size + live roster (ids + dept assignment) so a
+  // promotion that reparents a colonist rebuilds the layout.
+  const rosterKey = alive.map(c => `${c.agentId}:${c.department}`).sort().join('|');
+  const layoutKey = `${width}x${height}|${rosterKey}`;
+  if (layoutKey === state.layoutKey) return;
 
-/** Drop a glider / blinker / R-pentomino shape around a seed cell. */
-function sprayPattern(
-  state: MoodState,
-  centerIdx: number,
-  color: [number, number, number],
-  radius: number,
-  rng: () => number,
-  gen: number,
-): void {
-  const center = state.cells[centerIdx];
-  if (!center) return;
-  const stamp = (idx: number) => {
-    const cell = state.cells[idx];
-    if (!cell) return;
-    if (!cell.alive) {
-      cell.alive = true;
-      cell.bornGen = gen;
-      cell.rgb = color;
-    } else {
-      cell.rgb = blendRgb(cell.rgb, color, 0.4);
-    }
-  };
-  stamp(centerIdx);
-  const visited = new Set<number>([centerIdx]);
-  let frontier: number[] = [centerIdx];
-  for (let r = 0; r < radius; r++) {
-    const next: number[] = [];
-    for (const idx of frontier) {
-      for (const n of state.neighbors[idx]) {
-        if (visited.has(n)) continue;
-        visited.add(n);
-        // Stochastic fill: 65% of frontier cells get stamped, rest
-        // left off so the shape reads as an organic cluster instead
-        // of a perfect ring.
-        if (rng() < 0.65) stamp(n);
-        next.push(n);
-      }
-    }
-    frontier = next;
-  }
-}
+  // Unique depts preserve scenario order where possible.
+  const deptSet = new Set<string>();
+  for (const c of alive) deptSet.add(c.department || 'unknown');
+  const depts = [...deptSet];
+  const centers = deptCenters(width, height, depts);
 
-/** Kill a small cluster of cells around a death seed. */
-function killCluster(state: MoodState, centerIdx: number, gen: number): void {
-  const center = state.cells[centerIdx];
-  if (!center) return;
-  if (center.alive) { center.alive = false; center.diedGen = gen; }
-  for (const n of state.neighbors[centerIdx]) {
-    const cell = state.cells[n];
-    if (cell.alive) { cell.alive = false; cell.diedGen = gen; }
-  }
-}
+  // Preserve existing cell positions + animation flags for agents that
+  // survived from the previous layout so birth/death transitions
+  // render correctly across layout rebuilds.
+  const prevByAgent = new Map<string, MoodCell>();
+  for (const cell of state.cells) prevByAgent.set(cell.agentId, cell);
 
-/**
- * Run one Conway generation: alive cells with 2 or 3 alive neighbors
- * survive, dead cells with exactly 3 alive neighbors are born and
- * inherit the average mood color of their alive neighbors.
- */
-function generation(state: MoodState): void {
-  const gen = state.generation + 1;
-  state.generation = gen;
-
-  // Snapshot current alive state before writing.
-  const prevAlive = state.cells.map(c => c.alive);
-
-  for (let i = 0; i < state.cells.length; i++) {
-    const cell = state.cells[i];
-    const neighbors = state.neighbors[i];
-    let aliveCount = 0;
-    let r = 0, g = 0, b = 0;
-    for (const n of neighbors) {
-      if (prevAlive[n]) {
-        aliveCount++;
-        const nrgb = state.cells[n].rgb;
-        r += nrgb[0];
-        g += nrgb[1];
-        b += nrgb[2];
-      }
-    }
-    if (prevAlive[i]) {
-      // Survive if 2 or 3 neighbors alive.
-      if (aliveCount < 2 || aliveCount > 3) {
-        cell.alive = false;
-        cell.diedGen = gen;
-      } else if (aliveCount > 0) {
-        // Gentle mood drift toward neighbor avg for survivors.
-        const avg: [number, number, number] = [r / aliveCount, g / aliveCount, b / aliveCount];
-        cell.rgb = blendRgb(cell.rgb, avg, 0.3);
-      }
-    } else {
-      // Birth if exactly 3 neighbors alive.
-      if (aliveCount === 3) {
-        cell.alive = true;
-        cell.bornGen = gen;
-        cell.rgb = [r / 3, g / 3, b / 3];
-      }
-    }
-  }
-}
-
-/**
- * Tick fires on every turn_done. Runs one Conway generation, then
- * applies sim-driven perturbations (colonist seeds, event bursts,
- * death wipes). Between ticks the board holds.
- */
-export function tickMood(state: MoodState, input: MoodTickInput): void {
-  const { snapshot, eventIntensity = 0, eventCategories = [], side } = input;
-  if (snapshot.turn <= state.lastTurnSeen) return;
-
-  // Step the cellular automaton one generation.
-  generation(state);
+  const currentIds = new Set<string>();
+  const newCells: MoodCell[] = [];
   const gen = state.generation;
 
-  const rng = mulberry32(hashString(`${side}|turn-${snapshot.turn}|${snapshot.cells.length}`));
-
-  // Seed one pattern per alive colonist. Position hashed by agentId
-  // so the same colonist seeds at the same spot every turn, and the
-  // board bloom reflects who is still alive.
-  const alive = snapshot.cells.filter(c => c.alive);
   for (const c of alive) {
-    const idx = hashString(c.agentId) % Math.max(1, state.cells.length);
-    const color = moodRgb(c.mood);
-    sprayPattern(state, idx, color, 1, rng, gen);
+    currentIds.add(c.agentId);
+    const center = centers.get(c.department || 'unknown') ?? { cx: width / 2, cy: height / 2, radius: 40 };
+    const rng = mulberry32(hashString(`${c.agentId}|${width}x${height}`));
+    const angle = rng() * Math.PI * 2;
+    // Sqrt pushes points toward the edge so clusters don't look too
+    // center-heavy. Featured colonists get a smaller radius so they
+    // cluster visually near the center.
+    const radialBase = c.featured ? 0.45 : 0.6 + rng() * 0.35;
+    const radial = Math.sqrt(radialBase) * center.radius;
+    const x = center.cx + Math.cos(angle) * radial;
+    const y = center.cy + Math.sin(angle) * radial;
+    const prev = prevByAgent.get(c.agentId);
+    const baseR = c.featured ? 6.5 : 4.5;
+    newCells.push({
+      agentId: c.agentId,
+      x,
+      y,
+      r: baseR,
+      rgb: moodRgb(c.mood),
+      department: c.department || 'unknown',
+      featured: c.featured,
+      bornGen: prev ? prev.bornGen : gen,
+      diedGen: -1,
+      alive: true,
+      name: c.name,
+    });
   }
 
-  // Detonate patterns per event category.
-  if (eventIntensity > 0) {
-    const burstCount = eventIntensity > 0.8 ? 3 : 1;
-    for (let i = 0; i < burstCount; i++) {
-      const idx = Math.floor(rng() * state.cells.length);
-      const cat = eventCategories[i % Math.max(1, eventCategories.length)] || 'neutral';
-      const moodName = cat.toLowerCase().includes('psych')
-        ? 'anxious'
-        : cat.toLowerCase().includes('environ')
-        ? 'negative'
-        : cat.toLowerCase().includes('resource')
-        ? 'defiant'
-        : 'hopeful';
-      const radius = eventIntensity > 0.8 ? 2 : 1;
-      sprayPattern(state, idx, moodRgb(moodName), radius, rng, gen);
+  // Keep recently-died agents for one generation as ghosts fading out.
+  for (const prev of state.cells) {
+    if (currentIds.has(prev.agentId)) continue;
+    if (prev.diedGen < 0) {
+      newCells.push({ ...prev, alive: false, diedGen: gen });
+    } else if (gen - prev.diedGen < 2) {
+      // Keep existing ghost for one more frame then drop.
+      newCells.push(prev);
     }
   }
 
-  // Death wipes — one kill cluster per death this turn.
-  for (let d = 0; d < snapshot.deaths; d++) {
-    const idx = Math.floor(rng() * state.cells.length);
-    killCluster(state, idx, gen);
-  }
+  state.cells = newCells;
+  state.layoutKey = layoutKey;
+  state.layoutW = width;
+  state.layoutH = height;
+}
 
-  state.lastTurnSeen = snapshot.turn;
+/**
+ * Tick advances the cloud on each new turn. Ensures layout is fresh
+ * so color + position match the latest snapshot.
+ */
+export function tickMood(state: MoodState, input: MoodTickInput): void {
+  state.generation += 1;
+  // Refresh mood colors on currently-alive cells from the latest
+  // snapshot so a mood shift at turn N recolors the dot.
+  const moodByAgent = new Map<string, string>();
+  for (const c of input.snapshot.cells) moodByAgent.set(c.agentId, c.mood);
+  for (const cell of state.cells) {
+    const m = moodByAgent.get(cell.agentId);
+    if (m && cell.alive) cell.rgb = moodRgb(m);
+  }
+  ensureLayout(state, input);
 }
 
 interface DrawOptions {
@@ -325,93 +218,114 @@ interface DrawOptions {
   deltaMs: number;
 }
 
-function strokeHex(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
-  ctx.beginPath();
-  for (let i = 0; i < 6; i++) {
-    const a = (Math.PI / 3) * i;
-    const px = x + size * Math.cos(a);
-    const py = y + size * Math.sin(a);
-    if (i === 0) ctx.moveTo(px, py);
-    else ctx.lineTo(px, py);
-  }
-  ctx.closePath();
-}
-
 export function drawMood(state: MoodState, opts: DrawOptions): void {
-  const { ctx, width, height, intensity, sideColor, hoveredIndex, deltaMs } = opts;
-  if (state.cells.length === 0) return;
+  const { ctx, width, height, intensity, sideColor, hoveredIndex } = opts;
   state.frames += 1;
-
   ctx.clearRect(0, 0, width, height);
 
-  // Side tint wash.
+  // Side-color wash — very subtle background tint so leader A vs B read apart.
   ctx.save();
-  ctx.globalAlpha = 0.06 * intensity;
+  ctx.globalAlpha = 0.04 * intensity;
   ctx.fillStyle = sideColor;
   ctx.fillRect(0, 0, width, height);
   ctx.restore();
 
+  if (state.cells.length === 0) {
+    // Empty state copy so an unpopulated colony doesn't look broken.
+    ctx.fillStyle = rgba([150, 140, 120], 0.4);
+    ctx.font = '11px ui-sans-serif, system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('no alive colonists yet', width / 2, height / 2);
+    return;
+  }
+
+  const pulse = 0.92 + 0.08 * Math.sin(state.frames * 0.05);
   const gen = state.generation;
-  const pulse = 0.9 + 0.1 * Math.sin(state.frames * 0.08);
 
-  // Animate visualAlpha toward target (alive=1, dead=0) for smooth
-  // birth fade-in / death fade-out.
+  // Render dead ghosts first so alive dots sit on top.
   for (const cell of state.cells) {
-    const target = cell.alive ? 1 : 0;
-    const speed = Math.min(1, deltaMs / 350);
-    cell.visualAlpha += (target - cell.visualAlpha) * speed;
-  }
-
-  // Background dead-cell pass (very dim, just hints at the grid).
-  for (const cell of state.cells) {
-    if (cell.visualAlpha > 0.05) continue;
-    strokeHex(ctx, cell.x, cell.y, state.hexSize - 1.5);
-    ctx.fillStyle = rgba([24, 20, 16], 0.45 * intensity);
-    ctx.fill();
-    ctx.strokeStyle = rgba([44, 38, 30], 0.4 * intensity);
-    ctx.lineWidth = 0.6;
+    if (cell.alive) continue;
+    const fade = 1 - Math.min(1, (gen - cell.diedGen) / 2);
+    if (fade <= 0) continue;
+    ctx.strokeStyle = rgba([200, 100, 80], 0.55 * fade * intensity);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(cell.x, cell.y, cell.r + 1, 0, Math.PI * 2);
     ctx.stroke();
   }
 
-  // Alive-cell pass (bright, visible pattern).
+  // Alive dots.
+  let idx = -1;
   for (const cell of state.cells) {
-    if (cell.visualAlpha <= 0.05) continue;
-    const justBorn = gen > 0 && cell.bornGen === gen;
-    const alpha = cell.visualAlpha * intensity * (justBorn ? pulse * 1.1 : pulse);
-    strokeHex(ctx, cell.x, cell.y, state.hexSize - 0.5);
-    ctx.fillStyle = rgba(cell.rgb, Math.min(1, alpha));
+    idx += 1;
+    if (!cell.alive) continue;
+    const justBorn = cell.bornGen === gen && gen > 0;
+    const r = cell.r * (justBorn ? 1.25 : 1);
+    const hovered = hoveredIndex === idx;
+    ctx.fillStyle = rgba(cell.rgb, 0.85 * intensity * pulse);
+    ctx.beginPath();
+    ctx.arc(cell.x, cell.y, r, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = rgba(cell.rgb, Math.min(1, alpha + 0.15));
-    ctx.lineWidth = 1.1;
-    ctx.stroke();
-    // Birth flash ring on the turn a cell was born.
+    if (cell.featured) {
+      ctx.strokeStyle = rgba([0xf0, 0xe6, 0xd2], 0.8 * intensity);
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(cell.x, cell.y, r + 1.2, 0, Math.PI * 2);
+      ctx.stroke();
+    }
     if (justBorn) {
-      const ringR = state.hexSize + 5 * (1 - cell.visualAlpha);
-      ctx.strokeStyle = rgba([255, 240, 220], 0.8 * (1 - cell.visualAlpha) * intensity);
-      ctx.lineWidth = 1.5;
-      strokeHex(ctx, cell.x, cell.y, ringR);
+      ctx.strokeStyle = rgba([255, 240, 220], 0.75 * intensity);
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.arc(cell.x, cell.y, r + 3, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    if (hovered) {
+      ctx.strokeStyle = rgba([255, 255, 255], 0.9);
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.arc(cell.x, cell.y, r + 2.4, 0, Math.PI * 2);
       ctx.stroke();
     }
   }
 
-  // Hover highlight.
-  if (hoveredIndex !== null && hoveredIndex !== undefined) {
-    const cell = state.cells[hoveredIndex];
-    if (cell) {
-      ctx.strokeStyle = rgba([255, 255, 255], 0.85);
-      ctx.lineWidth = 1.8;
-      strokeHex(ctx, cell.x, cell.y, state.hexSize + 1);
-      ctx.stroke();
+  // Dept cluster perimeters — very dim, just hints at the grouping so
+  // the cloud reads as clusters and not a swarm.
+  const deptAssignments = new Map<string, Array<{ x: number; y: number }>>();
+  for (const cell of state.cells) {
+    if (!cell.alive) continue;
+    const arr = deptAssignments.get(cell.department) ?? [];
+    arr.push({ x: cell.x, y: cell.y });
+    deptAssignments.set(cell.department, arr);
+  }
+  for (const [dept, pts] of deptAssignments.entries()) {
+    if (pts.length < 3) continue;
+    let cx = 0, cy = 0;
+    for (const p of pts) { cx += p.x; cy += p.y; }
+    cx /= pts.length; cy /= pts.length;
+    let maxR = 0;
+    for (const p of pts) {
+      const d = Math.hypot(p.x - cx, p.y - cy);
+      if (d > maxR) maxR = d;
     }
+    const rgb = deptRgb(dept);
+    ctx.strokeStyle = rgba(rgb, 0.18 * intensity);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(cx, cy, maxR + 6, 0, Math.PI * 2);
+    ctx.stroke();
   }
 }
 
 export function hitTestMood(state: MoodState, x: number, y: number): MoodCell | null {
-  const r2 = state.hexSize * state.hexSize;
-  for (const cell of state.cells) {
+  // Iterate in reverse so last-drawn (featured) cells win overlap ties.
+  for (let i = state.cells.length - 1; i >= 0; i--) {
+    const cell = state.cells[i];
+    if (!cell.alive) continue;
     const dx = x - cell.x;
     const dy = y - cell.y;
-    if (dx * dx + dy * dy <= r2) return cell;
+    const rr = (cell.r + 1) * (cell.r + 1);
+    if (dx * dx + dy * dy <= rr) return cell;
   }
   return null;
 }
