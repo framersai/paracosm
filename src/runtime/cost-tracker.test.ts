@@ -138,6 +138,39 @@ test('fallback pricing uses the site-assigned model rate, not commander-tier', (
   );
 });
 
+test('recordProviderError counts each kind independently and tracks total', () => {
+  const tracker = createCostTracker(modelConfig);
+  tracker.recordProviderError('quota');
+  tracker.recordProviderError('quota');
+  tracker.recordProviderError('rate_limit');
+  tracker.recordProviderError('network');
+  const cost = tracker.finalCost();
+  assert.ok(cost.providerErrors);
+  assert.equal(cost.providerErrors!.quota, 2);
+  assert.equal(cost.providerErrors!.rate_limit, 1);
+  assert.equal(cost.providerErrors!.network, 1);
+  assert.equal(cost.providerErrors!.auth, 0);
+  assert.equal(cost.providerErrors!.unknown, 0);
+  assert.equal(cost.providerErrors!.total, 4);
+});
+
+test('providerErrors absent from finalCost when no errors recorded', () => {
+  const tracker = createCostTracker(modelConfig);
+  const cost = tracker.finalCost();
+  assert.equal(cost.providerErrors, undefined);
+});
+
+test('providerErrors appears on buildCostPayload once any error is recorded', () => {
+  const tracker = createCostTracker(modelConfig);
+  const before = tracker.buildCostPayload();
+  assert.equal(before.providerErrors, undefined);
+  tracker.recordProviderError('unknown');
+  const after = tracker.buildCostPayload();
+  assert.ok(after.providerErrors);
+  assert.equal(after.providerErrors!.unknown, 1);
+  assert.equal(after.providerErrors!.total, 1);
+});
+
 test('cacheStats savings accumulate across sites (net positive when reads dominate)', () => {
   const tracker = createCostTracker(modelConfig);
   // Turn 1: cache write (net cost).

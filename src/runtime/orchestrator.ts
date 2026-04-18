@@ -157,6 +157,10 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
    */
   const reportProviderError = (err: unknown, site: string): ClassifiedProviderError => {
     const classified = classifyProviderError(err);
+    // Count every classified error, not just terminal ones, so
+    // rate-limit pressure and transient network errors show up in
+    // /retry-stats.providerErrors across runs.
+    costTracker.recordProviderError(classified.kind);
     if (shouldAbortRun(classified.kind) && !providerErrorEmitted) {
       providerErrorState = classified;
       providerErrorEmitted = true;

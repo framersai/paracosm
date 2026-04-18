@@ -86,6 +86,25 @@ export interface CacheStats {
   savingsUSD: number;
 }
 
+/**
+ * Per-run provider-error counters keyed by the classifier's kind.
+ *
+ * Every LLM call that throws routes through classifyProviderError; we
+ * increment the corresponding bucket here whether the run aborts
+ * (auth/quota) or keeps going (rate_limit/network/unknown). Aggregated
+ * across the ring buffer this becomes a cross-run signal of "is the
+ * host key dying today" or "are we being rate-limited hard."
+ */
+export interface ProviderErrorStats {
+  auth: number;
+  quota: number;
+  rate_limit: number;
+  network: number;
+  unknown: number;
+  /** Total = sum of the five buckets. Kept for dashboard rendering convenience. */
+  total: number;
+}
+
 /** Aggregate cost payload embedded on every SSE event's `_cost` field. */
 export interface CostPayload {
   totalTokens: number;
@@ -112,6 +131,11 @@ export interface CostPayload {
    * reported at least one cache read or write this run.
    */
   cacheStats?: CacheStats;
+  /**
+   * Per-run provider-error counter rollup. Only present when at
+   * least one LLM call threw (classified) during the run.
+   */
+  providerErrors?: ProviderErrorStats;
 }
 
 /** Cost tracker bundle returned by createCostTracker. */
@@ -133,6 +157,14 @@ export interface CostTracker {
    * would skew averages).
    */
   recordForgeAttempt(approved: boolean, confidence: number): void;
+  /**
+   * Record one classified provider error. `kind` matches the classifier's
+   * ProviderErrorKind (auth / quota / rate_limit / network / unknown).
+   * Counting non-terminal errors too (the run continues through rate
+   * limits + transient failures) lets operators see retry pressure
+   * across runs.
+   */
+  recordProviderError(kind: 'auth' | 'quota' | 'rate_limit' | 'network' | 'unknown'): void;
   /** Build the _cost payload attached to every SSE event. */
   buildCostPayload(): CostPayload;
   /**
@@ -148,6 +180,7 @@ export interface CostTracker {
     schemaRetries?: Record<string, { attempts: number; calls: number; fallbacks: number }>;
     forgeStats?: ForgeStats;
     cacheStats?: CacheStats;
+    providerErrors?: ProviderErrorStats;
   };
 }
 
@@ -187,6 +220,19 @@ export function createCostTracker(modelConfig: SimulationModelConfig): CostTrack
     approved: 0,
     rejected: 0,
     approvedConfidenceSum: 0,
+  };
+  /**
+   * Provider-error counters keyed by classifier kind. Incremented on
+   * every classified error, not just terminal ones, so rate-limit
+   * pressure and transient network errors accumulate too.
+   */
+  const providerErrors: ProviderErrorStats = {
+    auth: 0,
+    quota: 0,
+    rate_limit: 0,
+    network: 0,
+    unknown: 0,
+    total: 0,
   };
 
   const defaultPricing = getDefaultPricing(modelConfig);
@@ -284,6 +330,9 @@ export function createCostTracker(modelConfig: SimulationModelConfig): CostTrack
         savingsUSD: Math.round(runCacheSavingsUSD * 10000) / 10000,
       };
     }
+    if (providerErrors.total > 0) {
+      payload.providerErrors = { ...providerErrors };
+    }
     return payload;
   };
 
@@ -305,6 +354,11 @@ export function createCostTracker(modelConfig: SimulationModelConfig): CostTrack
     } else {
       forgeStats.rejected += 1;
     }
+  };
+
+  const recordProviderError: CostTracker['recordProviderError'] = (kind) => {
+    providerErrors[kind] += 1;
+    providerErrors.total += 1;
   };
 
   const finalCost: CostTracker['finalCost'] = () => {
@@ -341,8 +395,11 @@ export function createCostTracker(modelConfig: SimulationModelConfig): CostTrack
         savingsUSD: Math.round(savingsUSD * 10000) / 10000,
       };
     }
+    if (providerErrors.total > 0) {
+      out.providerErrors = { ...providerErrors };
+    }
     return out;
   };
 
-  return { trackUsage, recordSchemaAttempt, recordForgeAttempt, buildCostPayload, finalCost };
+  return { trackUsage, recordSchemaAttempt, recordForgeAttempt, recordProviderError, buildCostPayload, finalCost };
 }
