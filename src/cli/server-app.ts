@@ -13,6 +13,7 @@ import {
   loadDiskCustomScenarios,
 } from './custom-scenarios.js';
 import { IpRateLimiter } from './rate-limiter.js';
+import { aggregateSchemaRetries, type PerRunSchemaRetries } from './retry-stats.js';
 
 function projectScenarioForClient(sc: ScenarioPackage) {
   return {
@@ -189,6 +190,56 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
     }, 500);
   };
 
+  // ── Cross-run schema-retry ring buffer ─────────────────────────────
+  //
+  // Each completed simulation contributes its `cost.schemaRetries`
+  // payload to a rotating ring of the last N runs. The `/retry-stats`
+  // endpoint aggregates the ring so operators can answer "is 0.1.228 on
+  // Anthropic retrying too much on CommanderDecision?" without replaying
+  // individual runs. Persisted to disk so a restart doesn't wipe the
+  // telemetry. 100 entries ≈ 2-3 weeks of typical demo traffic.
+  const RETRY_RING_MAX = 100;
+  const retryRingPath = resolve(env.APP_DIR || '.', '.retry-stats.json');
+  const retryRing: PerRunSchemaRetries[] = (() => {
+    try {
+      if (existsSync(retryRingPath)) {
+        const raw = readFileSync(retryRingPath, 'utf-8');
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed.slice(-RETRY_RING_MAX);
+      }
+    } catch { /* start empty on corrupt file */ }
+    return [];
+  })();
+  const persistRetryRing = () => {
+    try { writeFileSync(retryRingPath, JSON.stringify(retryRing)); }
+    catch (err) { console.log(`  [retry-stats] persist failed: ${err}`); }
+  };
+  /**
+   * Scan the current event buffer back-to-front for the first event
+   * whose `_cost` payload carries a `schemaRetries` field. That event
+   * has the run's terminal per-schema rollup; earlier events have
+   * partial counts. Push to the ring and persist.
+   */
+  const captureRetrySnapshot = () => {
+    for (let i = eventBuffer.length - 1; i >= 0; i--) {
+      const msg = eventBuffer[i];
+      const dataLine = msg.split('\n').find(l => l.startsWith('data: '));
+      if (!dataLine) continue;
+      try {
+        const payload = JSON.parse(dataLine.slice(6));
+        const retries = payload?.data?._cost?.schemaRetries;
+        if (retries && typeof retries === 'object') {
+          retryRing.push(retries as PerRunSchemaRetries);
+          if (retryRing.length > RETRY_RING_MAX) {
+            retryRing.splice(0, retryRing.length - RETRY_RING_MAX);
+          }
+          persistRetryRing();
+          return;
+        }
+      } catch { /* skip malformed buffer entries */ }
+    }
+  };
+
   const broadcast: BroadcastFn = (event, data) => {
     const msg = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
     eventBuffer.push(msg);
@@ -199,6 +250,15 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       } catch {
         clients.delete(res);
       }
+    }
+    // On simulation completion, snapshot the run's schema-retry payload
+    // to the cross-run ring buffer so /retry-stats can aggregate across
+    // production runs. We pull schemaRetries from the MOST RECENT cost
+    // payload observed in the current event buffer; the orchestrator
+    // emits it on every SSE event, so the last event has the complete
+    // picture.
+    if (event === 'complete') {
+      captureRetrySnapshot();
     }
   };
 
@@ -837,6 +897,25 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       const status = rateLimiter.check(clientIp);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ip: clientIp, ...status, resetAtISO: new Date(status.resetAt).toISOString() }));
+      return;
+    }
+
+    // Cross-run schema-retry aggregate for production reliability
+    // telemetry. Reads the rotating ring of the last N completed runs
+    // and rolls up calls/attempts/fallbacks per Zod schema so operators
+    // can answer "is this model retrying too much on CommanderDecision?"
+    // without scraping individual run results.
+    //
+    // Query params:
+    //   ?limit=N — only aggregate the last N runs from the ring
+    if (req.url?.startsWith('/retry-stats') && req.method === 'GET') {
+      const url = new URL(req.url, 'http://localhost');
+      const limitRaw = url.searchParams.get('limit');
+      const limit = limitRaw ? Math.max(1, Math.min(RETRY_RING_MAX, parseInt(limitRaw, 10) || RETRY_RING_MAX)) : undefined;
+      const window = limit ? retryRing.slice(-limit) : retryRing;
+      const agg = aggregateSchemaRetries(window);
+      res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders });
+      res.end(JSON.stringify(agg));
       return;
     }
 
