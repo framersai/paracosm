@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { ScenarioPackage } from '../engine/types.js';
 
-export type CustomScenarioSource = 'memory' | 'disk' | 'compiled';
+export type CustomScenarioSource = 'memory' | 'disk' | 'compiled' | 'builtin';
 
 export interface CustomScenarioEntry {
   scenario: ScenarioPackage;
@@ -85,6 +85,7 @@ export function loadDiskCustomScenarios(scenarioDir: string): Map<string, Custom
 }
 
 export function describeCustomScenarioSource(source: CustomScenarioSource): string {
+  if (source === 'builtin') return 'Built-in scenario';
   if (source === 'disk') return 'Custom scenario (disk)';
   if (source === 'compiled') return 'Custom compiled scenario';
   return 'Custom scenario (memory)';
