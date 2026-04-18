@@ -14,6 +14,62 @@ const ROLE_ACTIVATIONS: Record<string, Partial<HexacoProfile>> = {
 export { ROLE_ACTIVATIONS };
 
 /**
+ * Per-trait outcome-pull magnitudes covering all six HEXACO axes.
+ *
+ * Values are small (≤ 0.03) so combined with leader-pull (0.02) and
+ * role-pull (0.01) the per-turn rate cap (±0.05) is still reachable but
+ * not routinely exceeded. Each entry is anchored in trait-activation
+ * research so the drift reads as plausible personality evolution rather
+ * than arbitrary numerical churn.
+ *
+ * Citations:
+ *   Openness ↔ exploration success — Silvia & Sanders 2010
+ *   Conscientiousness ↔ discipline under failure — Roberts et al. 2006
+ *   Extraversion reward sensitivity — Smillie et al. 2012
+ *   Agreeableness ↔ cooperation under abundance — Graziano et al. 2007
+ *   Emotionality activation under threat — Lee & Ashton 2004
+ *   Honesty-Humility ↔ strategic behavior — Hilbig & Zettler 2009
+ */
+function outcomePullForTrait(trait: keyof HexacoProfile, outcome: TurnOutcome): number {
+  switch (trait) {
+    case 'openness':
+      if (outcome === 'risky_success') return 0.03;
+      if (outcome === 'risky_failure') return -0.04;
+      if (outcome === 'conservative_failure') return 0.02;
+      return 0;
+    case 'conscientiousness':
+      if (outcome === 'risky_failure') return 0.03;
+      if (outcome === 'conservative_success') return 0.02;
+      return 0;
+    case 'extraversion':
+      // bold call paid off reinforces assertive command presence
+      if (outcome === 'risky_success') return 0.02;
+      // public embarrassment after bold call
+      if (outcome === 'risky_failure') return -0.02;
+      return 0;
+    case 'agreeableness':
+      // team coordination worked
+      if (outcome === 'conservative_success') return 0.02;
+      // interpersonal friction after loss
+      if (outcome === 'risky_failure') return -0.02;
+      return 0;
+    case 'emotionality':
+      // crisis heightens anxiety/empathy (Lee & Ashton 2004 Table 1)
+      if (outcome === 'risky_failure') return 0.03;
+      if (outcome === 'conservative_failure') return 0.02;
+      return 0;
+    case 'honestyHumility':
+      // survivors-write-history: bold wins erode transparent attribution
+      if (outcome === 'risky_success') return -0.02;
+      // measured honesty rewarded
+      if (outcome === 'conservative_success') return 0.02;
+      return 0;
+    default:
+      return 0;
+  }
+}
+
+/**
  * Apply personality drift to all promoted colonists. Deterministic from inputs.
  * Three forces: leader pull, role pull, outcome pull.
  */
@@ -42,17 +98,11 @@ export function applyPersonalityDrift(
         pull += (activation[trait]! - c.hexaco[trait]) * 0.01;
       }
 
-      // Outcome pull: success/failure reinforces or punishes traits
+      // Outcome pull: success/failure reinforces or punishes traits.
+      // Covers all six HEXACO axes; see outcomePullForTrait for the
+      // per-trait table and peer-reviewed citations.
       if (turnOutcome) {
-        if (trait === 'openness') {
-          if (turnOutcome === 'risky_success') pull += 0.03;
-          if (turnOutcome === 'risky_failure') pull -= 0.04;
-          if (turnOutcome === 'conservative_failure') pull += 0.02;
-        }
-        if (trait === 'conscientiousness') {
-          if (turnOutcome === 'risky_failure') pull += 0.03;
-          if (turnOutcome === 'conservative_success') pull += 0.02;
-        }
+        pull += outcomePullForTrait(trait, turnOutcome);
       }
 
       // Rate cap and bounds
@@ -62,6 +112,37 @@ export function applyPersonalityDrift(
 
     c.hexacoHistory.push({ turn, year, hexaco: { ...c.hexaco } });
   }
+}
+
+/**
+ * Apply outcome-pull drift to the commander's HEXACO profile.
+ *
+ * Unlike {@link applyPersonalityDrift} which runs on promoted agents,
+ * the commander has no leader to pull them (they ARE the leader) and no
+ * department role to activate. Only outcome-pull applies. Same rate cap
+ * (±0.05/turn) and bounds [0.05, 0.95] so commander drift and agent
+ * drift stay in the same numerical regime.
+ *
+ * Mutates `leaderHexaco` and `history` in place. Callers should push a
+ * baseline snapshot `{ turn: 0, year, hexaco: {...initial} }` onto
+ * `history` BEFORE the first call so downstream consumers of
+ * `history[0]` see the starting baseline, not the first drifted state.
+ */
+export function driftCommanderHexaco(
+  leaderHexaco: HexacoProfile,
+  outcome: TurnOutcome | null,
+  yearDelta: number,
+  turn: number,
+  year: number,
+  history: Array<{ turn: number; year: number; hexaco: HexacoProfile }>,
+): void {
+  for (const trait of HEXACO_TRAITS) {
+    let pull = 0;
+    if (outcome) pull += outcomePullForTrait(trait, outcome);
+    const delta = Math.max(-0.05, Math.min(0.05, pull)) * yearDelta;
+    leaderHexaco[trait] = Math.max(0.05, Math.min(0.95, leaderHexaco[trait] + delta));
+  }
+  history.push({ turn, year, hexaco: { ...leaderHexaco } });
 }
 
 /**
