@@ -46,6 +46,13 @@ export interface SendAndValidateResult<T> {
   object: T;
   fromFallback: boolean;
   rawText: string;
+  /**
+   * Total attempts it took to produce a valid result (or to exhaust
+   * retries when `fromFallback` is true). 1 = first-try success,
+   * 2 = one retry, etc. Allows the orchestrator to roll up per-schema
+   * retry rates into the run's cost/quality telemetry.
+   */
+  attempts: number;
 }
 
 const MAX_ZOD_ERRORS_IN_FEEDBACK = 5;
@@ -103,7 +110,7 @@ export async function sendAndValidate<T extends ZodType>(
 
     const validation = opts.schema.safeParse(parsed);
     if (validation.success) {
-      return { object: validation.data, fromFallback: false, rawText: r.text };
+      return { object: validation.data, fromFallback: false, rawText: r.text, attempts: attempt + 1 };
     }
     lastError = validation.error;
   }
@@ -120,7 +127,7 @@ export async function sendAndValidate<T extends ZodType>(
       schemaName: opts.schemaName,
       err,
     });
-    return { object: opts.fallback, fromFallback: true, rawText: lastText };
+    return { object: opts.fallback, fromFallback: true, rawText: lastText, attempts: maxRetries + 1 };
   }
   throw err;
 }

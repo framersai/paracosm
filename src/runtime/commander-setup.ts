@@ -113,6 +113,8 @@ export interface RunPromotionArgs {
   sendToCommander: (prompt: string) => Promise<{ text: string; usage?: CallUsage }>;
   /** Tagged cost-tracker entry point so the commander bucket gets charged. */
   trackUsage: (result: { usage?: CallUsage }, site?: 'commander') => void;
+  /** Record the promotion call's retry count in the schema-retry rollup. */
+  recordSchemaAttempt?: (schemaName: string, attempts: number, fellBack: boolean) => void;
   /** SSE emit used to publish each successful promotion. */
   emit: (type: 'promotion', data?: Record<string, unknown>) => void;
 }
@@ -126,7 +128,7 @@ export interface RunPromotionArgs {
  * fallback so no department enters turn 1 without a head.
  */
 export async function runDepartmentPromotions(args: RunPromotionArgs): Promise<void> {
-  const { kernel, scenario, leader, startYear, sendToCommander, trackUsage, emit } = args;
+  const { kernel, scenario, leader, startYear, sendToCommander, trackUsage, recordSchemaAttempt, emit } = args;
 
   console.log('  [Turn 0] Commander evaluating roster for promotions...');
   const promotionDepts: Department[] = scenario.departments.map(d => d.id as Department);
@@ -140,13 +142,16 @@ export async function runDepartmentPromotions(args: RunPromotionArgs): Promise<v
     }).join('\n')}`;
   }).join('\n\n');
 
-  const { object: promoDecision, fromFallback } = await sendAndValidate({
+  const promoResult = await sendAndValidate({
     session: { send: sendToCommander as (p: string) => Promise<{ text: string; usage?: any }> },
     prompt: buildPromotionPrompt(candidateSummaries),
     schema: PromotionsSchema,
+    schemaName: 'Promotions',
     onUsage: (r) => trackUsage({ usage: r.usage as CallUsage }, 'commander'),
     fallback: { promotions: [] },
   });
+  const { object: promoDecision, fromFallback } = promoResult;
+  recordSchemaAttempt?.('Promotions', promoResult.attempts, fromFallback);
   if (fromFallback) {
     console.log('  [promotion] schema fallback; commander promotions skipped (fallback pass below will fill)');
   }

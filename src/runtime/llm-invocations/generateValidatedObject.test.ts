@@ -83,3 +83,44 @@ test('generateValidatedObject calls onUsage on success', async () => {
   assert.equal(usageSeen.totalTokens, 15);
   assert.equal(usageSeen.costUSD, 0.001);
 });
+
+test('generateValidatedObject surfaces attempts count from generateObject', async () => {
+  // generateObject's retry loop is internal; we expose its retry count
+  // through the finishReason or via a wrapper — for now, the wrapper
+  // passes through attempts=1 on success since generateObject doesn't
+  // surface internal retry count today. This test documents the current
+  // contract: success → attempts=1, fallback → attempts=maxRetries+1.
+  const mockGenerateObject = async () => ({
+    object: { value: 'ok' },
+    text: '{}',
+    usage: { totalTokens: 10 },
+    finishReason: 'stop',
+    provider: 'mock',
+    model: 'mock-model',
+  });
+  const result = await generateValidatedObject({
+    provider: 'mock',
+    model: 'mock-model',
+    schema: TestSchema,
+    prompt: 'test',
+    _generateObjectImpl: mockGenerateObject as any,
+  });
+  assert.equal(result.attempts, 1);
+});
+
+test('generateValidatedObject returns attempts=maxRetries+1 on fallback', async () => {
+  const { ObjectGenerationError } = await import('@framers/agentos');
+  const mockGenerateObject = async () => {
+    throw new ObjectGenerationError('bad', 'raw', undefined as any);
+  };
+  const result = await generateValidatedObject({
+    provider: 'mock',
+    model: 'mock-model',
+    schema: TestSchema,
+    prompt: 'test',
+    maxRetries: 2,
+    fallback: { value: 'default' },
+    _generateObjectImpl: mockGenerateObject as any,
+  });
+  assert.equal(result.attempts, 3);
+});

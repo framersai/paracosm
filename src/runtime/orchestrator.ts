@@ -116,6 +116,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   // SSE emit so the dashboard breakdown modal sees live data.
   const costTracker = createCostTracker(modelConfig);
   const trackUsage = costTracker.trackUsage;
+  const recordSchemaAttempt = costTracker.recordSchemaAttempt;
 
   const emit = (type: SimEvent['type'], data?: Record<string, unknown>) => {
     opts.onEvent?.({
@@ -321,6 +322,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
       startYear,
       sendToCommander: (prompt) => cmdSess.send(prompt),
       trackUsage,
+      recordSchemaAttempt,
       emit,
     });
   }
@@ -644,6 +646,8 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
         // abort banner instead of silently running six turns of canned
         // fallback events.
         (err) => reportProviderError(err, 'director'),
+        // Feed per-schema retry telemetry.
+        (attempts, fellBack) => recordSchemaAttempt('DirectorEventBatch', attempts, fellBack),
       );
       turnEvents = batch.events;
       batchPacing = batch.pacing;
@@ -768,7 +772,7 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
         // it actually forged — captured forges below are authoritative.
         const forgeBucketStart = deptForgeBuckets.get(dept)?.length ?? 0;
         try {
-          const { object: parsedDeptReport, fromFallback: deptFallback } = await sendAndValidate({
+          const sendResult = await sendAndValidate({
             session: sess,
             prompt: ctx,
             schema: DepartmentReportSchema,
@@ -778,6 +782,8 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
             onValidationFallback: (details) => reportValidationFallback(`dept:${dept}:turn${turn}:event${ei + 1}`, details),
             fallback: { ...emptyReport(dept), summary: `${dept} report unavailable this turn.` } as any,
           });
+          const { object: parsedDeptReport, fromFallback: deptFallback } = sendResult;
+          recordSchemaAttempt('DepartmentReport', sendResult.attempts, deptFallback);
           if (deptFallback) {
             console.log(`    [${dept}] schema fallback; using empty report skeleton`);
           }
@@ -1086,7 +1092,7 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
         break;
       }
       emit('commander_deciding', { turn, year, eventIndex: ei });
-      const { object: decisionParsed, fromFallback: decisionFallback } = await sendAndValidate({
+      const cmdResult = await sendAndValidate({
         session: cmdSess,
         prompt: cmdPrompt,
         schema: CommanderDecisionSchema,
@@ -1096,6 +1102,8 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
         onValidationFallback: (details) => reportValidationFallback(`commander:turn${turn}:event${ei + 1}`, details),
         fallback: { ...emptyDecision(depts), decision: 'Commander decision unavailable; defer to department consensus.' } as any,
       });
+      const { object: decisionParsed, fromFallback: decisionFallback } = cmdResult;
+      recordSchemaAttempt('CommanderDecision', cmdResult.attempts, decisionFallback);
       if (decisionFallback) {
         console.log(`  [commander] schema fallback for turn ${turn} event ${ei + 1}`);
       }
@@ -1264,6 +1272,7 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
       execution: opts.execution,
       trackUsage,
       reportProviderError,
+      recordSchemaAttempt,
       emit,
     });
     reactions = reactionResult.reactions;
