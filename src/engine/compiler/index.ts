@@ -36,12 +36,25 @@ export type { CompileOptions, GenerateTextFn };
 export { ingestSeed, ingestFromUrl } from './seed-ingestion.js';
 export type { SeedIngestionOptions } from './seed-ingestion.js';
 
-/** Build a default generateText function using AgentOS. */
+/**
+ * Build a default generateText function using AgentOS. Accepts both the
+ * legacy string form (no cache) and the cache-aware `{ system, prompt }`
+ * form used by the schema/code/prose wrappers.
+ */
 async function buildDefaultGenerateText(provider: LlmProvider, model: string): Promise<GenerateTextFn> {
   const { generateText } = await import('@framers/agentos');
-  return async (prompt: string) => {
-    const result = await generateText({ provider, model, prompt });
-    return result.text;
+  return async (promptOrOptions) => {
+    if (typeof promptOrOptions === 'string') {
+      const r = await generateText({ provider, model, prompt: promptOrOptions });
+      return r.text;
+    }
+    const r = await generateText({
+      provider,
+      model,
+      system: promptOrOptions.system,
+      prompt: promptOrOptions.prompt,
+    });
+    return r.text;
   };
 }
 

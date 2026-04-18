@@ -3,9 +3,27 @@
  */
 
 import type { LlmProvider } from '../types.js';
+import type { CompilerTelemetry } from './telemetry.js';
 
-/** Function signature for LLM text generation calls. */
-export type GenerateTextFn = (prompt: string) => Promise<string>;
+/**
+ * Function signature for LLM text generation calls used by compile hooks.
+ *
+ * Supports two call shapes:
+ * - Legacy: pass a raw prompt string (no caching)
+ * - Cache-aware: pass `{ system, prompt }` to route the stable prefix
+ *   through cacheBreakpoint-tagged system blocks
+ *
+ * Wrappers in llm-invocations/ always use the cache-aware form; direct
+ * callers (CLI scripts, tests) can still use the string form.
+ */
+export type GenerateTextFn = (
+  promptOrOptions:
+    | string
+    | {
+        system?: Array<{ text: string; cacheBreakpoint?: boolean }>;
+        prompt: string;
+      },
+) => Promise<string>;
 
 /** Options for compileScenario(). */
 export interface CompileOptions {
@@ -29,4 +47,11 @@ export interface CompileOptions {
   webSearch?: boolean;
   /** Max web searches during seed ingestion. Default: 5. */
   maxSearches?: number;
+  /**
+   * Optional telemetry sink that collects per-hook attempt counts and
+   * any exhausted-retry fallbacks. Use when you want to surface compile
+   * reliability in a dashboard or snapshot into /retry-stats. See
+   * {@link CompilerTelemetry}.
+   */
+  telemetry?: CompilerTelemetry;
 }
