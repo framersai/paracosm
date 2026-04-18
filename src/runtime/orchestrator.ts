@@ -421,6 +421,23 @@ HARD RULES — if you violate any of these, a local validator rejects the forge 
 4. testCases MUST have at least 2 entries. Each testCase.input must be a non-empty object whose keys match your declared inputSchema fields. Tests with input:{} are rejected.
 5. Every testCase.expectedOutput must name at least one field from your outputSchema — empty expectedOutput defeats the judge's correctness check.
 
+⚠️ #1 FORGE REJECTION REASON IN PRODUCTION — READ THIS CAREFULLY:
+The judge rejects most failed forges for "violates declared output schema by returning additional properties not allowed by additionalProperties:false." This happens when your implementation's return statement includes extra "helpful" fields (intermediate calculations, debug info, recommendations) that aren't declared in outputSchema.properties.
+
+  BAD (auto-reject):
+    outputSchema.properties = { score, tier }, additionalProperties: false
+    return { score: 0.7, tier: "high", recommended_action: "evacuate" }  ← extra field ✗
+
+  GOOD:
+    outputSchema.properties = { score, tier }, additionalProperties: false
+    return { score: 0.7, tier: "high" }  ← only declared keys ✓
+
+  ALSO GOOD (when you want the extra field):
+    outputSchema.properties = { score, tier, recommended_action }, additionalProperties: false
+    return { score: 0.7, tier: "high", recommended_action: "evacuate" }  ← declare it, then return it
+
+Your implementation's return statement MUST contain EXACTLY the keys listed in outputSchema.properties — no more, no less. If you want to return intermediate or debug fields, DECLARE THEM in outputSchema.properties first. This is the single biggest cause of wasted forge attempts.
+
 Match the full worked example below exactly; do not emit placeholder/schema-skeleton forms.
 
 ROBUSTNESS RULES (the judge enforces these — failed forges hurt the colony):
@@ -469,7 +486,7 @@ GOOD FORGE EXAMPLE (follow this shape, adapt the domain). Every declared propert
     { "input": { "cumulative_dose_msv": 4000, "age_years": 65, "shielding_factor": 0 }, "expectedOutput": { "tier": "critical" } }
   ]
 }
-Every field declared in properties AND required AND returned by execute(). additionalProperties:false on both schemas. Three real test cases each with real inputs matching declared fields and a field-level assertion in expectedOutput. Match this density exactly or the judge will reject.
+Every field declared in properties AND required AND returned by execute() — and NOTHING ELSE returned by execute(). additionalProperties:false on both schemas means the return-statement key set equals the outputSchema.properties key set exactly. Three real test cases each with real inputs matching declared fields and a field-level assertion in expectedOutput. Match this density exactly or the judge will reject.
 
 IF YOUR FORGE IS REJECTED: the tool result will tell you the exact shape failure ("inputSchema has no declared properties", "outputSchema has no declared properties", "testCases use empty input", etc.). Immediately call forge_tool AGAIN with those specific fixes. Do not skip. Do not move to a different tool. Fix the named fields and resubmit — you get two retries before the department moves on.
 
