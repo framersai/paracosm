@@ -247,8 +247,14 @@ Each turn represents a configurable time period (default ~4 years). Every turn f
                          Relationships shift based on shared experiences.
 
 9. PERSONALITY DRIFT     HEXACO traits shift through leader pull, role activation,
-                         and outcome reinforcement.
+                         and outcome reinforcement. All six traits drift
+                         (openness, conscientiousness, extraversion,
+                         agreeableness, emotionality, honesty-humility)
+                         with peer-reviewed outcome-pull tables. The
+                         commander drifts alongside their agents.
 ```
+
+Every structured LLM call in this pipeline (director events, department reports, commander decisions, reactions, verdict, promotions) runs through Zod schema validation with automatic retry-with-feedback on validation failure. Schemas live in [`src/runtime/schemas/`](src/runtime/schemas/); two wrappers (`generateValidatedObject` one-shot, `sendAndValidate` session-aware) preserve conversation memory while adding validation discipline. See [ARCHITECTURE.md#llm-reliability](docs/ARCHITECTURE.md#llm-reliability).
 
 ### What Department Heads Do
 
@@ -267,18 +273,21 @@ The commander sees all department reports and makes a decision. Different comman
 ```
 src/
   engine/         the npm package
-    core/         deterministic kernel (RNG, state, progression)
+    core/         deterministic kernel (RNG, state, progression, personality drift)
     compiler/     JSON -> ScenarioPackage compiler
     mars/         Mars Genesis scenario
     lunar/        Lunar Outpost scenario
 
   runtime/        orchestration (not exported)
-    orchestrator  turn pipeline: director -> kernel -> departments -> commander
-    director      emergent event generation from simulation state
-    departments   parallel department analysis agents
-    agent-reactions  parallel agent reactions (100+ cheap LLM calls)
-    agent-memory     persistent memory, consolidation, stance drift
-    chat-agents      post-simulation conversational agents
+    orchestrator            turn pipeline: director -> kernel -> departments -> commander
+    director                emergent event generation from simulation state
+    departments             parallel department analysis agents
+    agent-reactions         batched agent reactions (10 agents per LLM call)
+    agent-memory            persistent memory, consolidation, stance drift
+    chat-agents             post-simulation conversational agents
+    schemas/                Zod schemas for every structured LLM call
+    llm-invocations/        generateValidatedObject + sendAndValidate wrappers
+    hexaco-cues/            trajectory + reaction cue translation helpers
 
   cli/            server + dashboard (not exported)
     serve.ts      HTTP + SSE server
