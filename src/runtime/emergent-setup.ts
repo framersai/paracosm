@@ -294,6 +294,48 @@ export interface CapturedForge {
 }
 
 /**
+ * Shape check run against a normalized forge request before it hits
+ * the judge. Catches the failure modes that cause almost all cheap-
+ * tier forge rejections (empty schemas + empty-input testCases) and
+ * returns a list of reasons. Empty array means the forge is well-
+ * formed enough to warrant the judge's attention.
+ *
+ * Exported for direct unit testing so the rule surface is pinned
+ * without having to mock the forge engine.
+ */
+export function validateForgeShape(req: {
+  inputSchema?: unknown;
+  outputSchema?: unknown;
+  testCases?: unknown;
+}): string[] {
+  const errors: string[] = [];
+  const inputSchema = req.inputSchema as { properties?: Record<string, unknown> } | null;
+  const outputSchema = req.outputSchema as { properties?: Record<string, unknown> } | null;
+  const inputProps = inputSchema && typeof inputSchema.properties === 'object' ? inputSchema.properties : null;
+  const outputProps = outputSchema && typeof outputSchema.properties === 'object' ? outputSchema.properties : null;
+  if (!inputProps || Object.keys(inputProps).length === 0) {
+    errors.push('inputSchema has no declared properties; add at least two typed fields');
+  }
+  if (!outputProps || Object.keys(outputProps).length === 0) {
+    errors.push('outputSchema has no declared properties; add at least one typed output field');
+  }
+  const tcArr = Array.isArray(req.testCases)
+    ? (req.testCases as Array<{ input?: unknown; expectedOutput?: unknown }>)
+    : [];
+  if (tcArr.length < 2) {
+    errors.push(`need at least 2 testCases, got ${tcArr.length}`);
+  }
+  const emptyInputs = tcArr.filter(tc => {
+    const inp = tc?.input;
+    return !inp || typeof inp !== 'object' || Object.keys(inp as Record<string, unknown>).length === 0;
+  }).length;
+  if (emptyInputs > 0) {
+    errors.push(`${emptyInputs} testCase${emptyInputs === 1 ? '' : 's'} use empty input; every test needs real field values`);
+  }
+  return errors;
+}
+
+/**
  * Wrap the raw forge_tool meta-tool so each department's forge attempts
  * get captured + logged + normalized before they reach the engine. LLMs
  * emit wild variety in forge_tool args (stringified JSON, wrong mode
@@ -390,32 +432,9 @@ export function wrapForgeTool(
       const toolName = String(fixed.name || 'unnamed');
       const toolDescription = String((fixed as any).description || toolName);
 
-      // Pre-judge validation. The judge is the expensive step (flagship
-      // LLM call per forge) and the most common rejection reason at the
-      // nano/mini tier is weak schemas + empty-input test cases. Catching
-      // those shapes here locally saves the judge round-trip AND surfaces
-      // the specific shape failure to the user in the toolbox panel with
-      // a clear reason instead of the judge's generic "correctness not
-      // evidenced" prose.
-      const inputSchema = fixed.inputSchema as any;
-      const outputSchema = fixed.outputSchema as any;
-      const inputProps = inputSchema && typeof inputSchema.properties === 'object' ? inputSchema.properties : null;
-      const outputProps = outputSchema && typeof outputSchema.properties === 'object' ? outputSchema.properties : null;
-      const shapeErrors: string[] = [];
-      if (!inputProps || Object.keys(inputProps).length === 0) {
-        shapeErrors.push('inputSchema has no declared properties; add at least two typed fields');
-      }
-      if (!outputProps || Object.keys(outputProps).length === 0) {
-        shapeErrors.push('outputSchema has no declared properties; add at least one typed output field');
-      }
-      const tcArr = fixed.testCases as Array<{ input: Record<string, unknown>; expectedOutput: unknown }>;
-      if (tcArr.length < 2) {
-        shapeErrors.push(`need at least 2 testCases, got ${tcArr.length}`);
-      }
-      const emptyInputs = tcArr.filter(tc => !tc.input || Object.keys(tc.input).length === 0).length;
-      if (emptyInputs > 0) {
-        shapeErrors.push(`${emptyInputs} testCase${emptyInputs === 1 ? '' : 's'} use empty input; every test needs real field values`);
-      }
+      // Pre-judge validation via the extracted helper so the rule
+      // surface stays testable without mocking the whole forge engine.
+      const shapeErrors = validateForgeShape(fixed);
       if (shapeErrors.length > 0) {
         const reason = `Shape check failed: ${shapeErrors.join('; ')}`;
         console.log(`    🔧 [${dept}] ✗ "${toolName}" — ${reason}`);
