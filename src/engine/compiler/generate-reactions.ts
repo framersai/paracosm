@@ -88,6 +88,8 @@ export async function generateReactionContextHook(
     smokeTest,
     fallback: buildFallback(scenarioJson),
     fallbackSource: '// Fallback reaction context',
+    // Reaction context hook is compact (~800 output tokens typical).
+    maxTokens: 2000,
     generateText,
     telemetry: options.telemetry,
   });

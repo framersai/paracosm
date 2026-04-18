@@ -79,6 +79,8 @@ export async function generateDirectorInstructions(
     prompt: userPrompt,
     validate: buildValidator(scenarioJson),
     fallback: buildFallback(scenarioJson),
+    // Director is prose instructions (~2000-3000 tokens typical).
+    maxTokens: 4000,
     generateText,
     telemetry: options.telemetry,
   });

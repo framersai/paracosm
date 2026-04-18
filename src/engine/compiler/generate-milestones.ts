@@ -131,6 +131,9 @@ export async function generateMilestones(
     prompt: userPrompt,
     schema: MilestonesSchema,
     fallback,
+    // Milestones emit an array of milestone definition objects; ~2500
+    // typical for a 6-milestone scenario. 4000 headroom for larger.
+    maxTokens: 4000,
     generateText,
     telemetry: options.telemetry,
   });

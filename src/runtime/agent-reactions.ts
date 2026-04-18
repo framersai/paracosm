@@ -281,6 +281,11 @@ export async function generateAgentReactions(
           schemaName: 'ReactionBatch',
           systemCacheable: systemPrompt,
           prompt: userPrompt,
+          // Batch of `batchSize` reactions (~200 tokens each incl.
+          // intensity + reasoning). Cap at 4500 to cover 10-agent batches
+          // with slack; scales down for smaller batches since the model
+          // stops at the natural JSON close.
+          maxTokens: 4500,
           onUsage: options.onUsage,
           fallback: { reactions: [] },
         });

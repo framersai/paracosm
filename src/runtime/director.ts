@@ -292,6 +292,11 @@ export class EventDirector {
         schemaName: 'DirectorEventBatch',
         systemCacheable: systemInstructions,
         prompt,
+        // Director emits a small event batch (~6 events × ~170 tokens
+        // including descriptions + categories ≈ 1000 tokens typical).
+        // 2500 caps runaway yap without risking truncation on the
+        // event array.
+        maxTokens: 2500,
         onUsage,
         onProviderError,
       });

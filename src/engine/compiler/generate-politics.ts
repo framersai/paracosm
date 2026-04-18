@@ -76,6 +76,8 @@ export async function generatePoliticsHook(
     smokeTest,
     fallback,
     fallbackSource: '// No-op: generation failed',
+    // Politics hook is short (~1000 output tokens typical).
+    maxTokens: 2000,
     generateText,
     telemetry: options.telemetry,
   });

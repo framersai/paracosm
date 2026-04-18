@@ -32,6 +32,12 @@ export interface ValidatedCodeOptions<Fn> {
   /** Fallback source text for cache-format parity. */
   fallbackSource: string;
   maxRetries?: number;
+  /**
+   * Completion-token ceiling for each LLM call. Cap tail spend when a
+   * model yaps past the expected output size. Unset → provider default
+   * (4-8k). Recommended: ~2× typical output tokens for the hook.
+   */
+  maxTokens?: number;
   generateText: GenerateTextFn;
   telemetry?: CompilerTelemetry;
 }
@@ -67,6 +73,7 @@ export async function generateValidatedCode<Fn>(
     const text = await opts.generateText({
       system: [{ text: opts.systemCacheable, cacheBreakpoint: true }],
       prompt,
+      maxTokens: opts.maxTokens,
     });
     lastRawText = text;
 

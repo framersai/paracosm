@@ -24,6 +24,8 @@ export interface ValidatedObjectOptions<T extends ZodType> {
   systemTail?: string;
   prompt: string;
   maxRetries?: number;
+  /** Completion-token ceiling — caps tail spend on model yap. */
+  maxTokens?: number;
   onUsage?: (r: { usage?: unknown }) => void;
   onProviderError?: (err: unknown) => void;
   /**
@@ -64,6 +66,7 @@ export async function generateValidatedObject<T extends ZodType>(
       system: systemBlocks.length ? systemBlocks : undefined,
       prompt: opts.prompt,
       maxRetries: opts.maxRetries,
+      maxTokens: opts.maxTokens,
     });
     opts.onUsage?.({ usage: (result as { usage?: unknown }).usage });
     return {

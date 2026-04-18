@@ -19,6 +19,8 @@ export interface ValidatedProseOptions {
   validate: ProseValidator;
   fallback: string;
   maxRetries?: number;
+  /** Completion-token ceiling per call — caps tail spend on model yap. */
+  maxTokens?: number;
   generateText: GenerateTextFn;
   telemetry?: CompilerTelemetry;
 }
@@ -53,6 +55,7 @@ export async function generateValidatedProse(
     const text = await opts.generateText({
       system: [{ text: opts.systemCacheable, cacheBreakpoint: true }],
       prompt,
+      maxTokens: opts.maxTokens,
     });
     lastRawText = text;
     const cleaned = text.trim().replace(/^```(?:text)?\n?/i, '').replace(/\n?```$/i, '').trim();

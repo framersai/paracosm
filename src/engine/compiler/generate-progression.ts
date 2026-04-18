@@ -96,6 +96,10 @@ export async function generateProgressionHook(
     smokeTest,
     fallback,
     fallbackSource: '// No-op: generation failed',
+    // Progression is an arrow function that mutates colony state — ~1500
+    // output tokens typical; 4000 caps runaway yap without risking
+    // mid-function truncation.
+    maxTokens: 4000,
     generateText,
     telemetry: options.telemetry,
   });

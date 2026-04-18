@@ -53,6 +53,7 @@ async function buildDefaultGenerateText(provider: LlmProvider, model: string): P
       model,
       system: promptOrOptions.system,
       prompt: promptOrOptions.prompt,
+      maxTokens: promptOrOptions.maxTokens,
     });
     return r.text;
   };

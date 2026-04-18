@@ -22,6 +22,14 @@ export type GenerateTextFn = (
     | {
         system?: Array<{ text: string; cacheBreakpoint?: boolean }>;
         prompt: string;
+        /**
+         * Upper bound on completion tokens for this call. Caps tail spend
+         * when a model misbehaves and yaps beyond the intended output
+         * size (provider defaults sit at 4-8k tokens). Use ~2× the
+         * typical response size so well-behaved calls finish naturally
+         * and only runaway generations hit the cap.
+         */
+        maxTokens?: number;
       },
 ) => Promise<string>;
 

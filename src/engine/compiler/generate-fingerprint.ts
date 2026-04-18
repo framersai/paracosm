@@ -93,6 +93,9 @@ export async function generateFingerprintHook(
     smokeTest,
     fallback,
     fallbackSource: '// Fallback fingerprint',
+    // Fingerprint is a small classifier function (~800 output tokens);
+    // 2000 is comfortable headroom.
+    maxTokens: 2000,
     generateText,
     telemetry: options.telemetry,
   });

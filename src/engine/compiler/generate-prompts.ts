@@ -89,6 +89,11 @@ export async function generateDepartmentPromptHook(
     smokeTest: buildSmokeTest(scenarioJson),
     fallback: buildFallback(scenarioJson),
     fallbackSource: '// Fallback department prompts',
+    // Department prompts contain one prompt template per declared dept,
+    // so the output grows with scenario size. 4000 covers typical
+    // scenarios (3-6 depts); pathologically large scenarios can be
+    // hand-tuned separately.
+    maxTokens: 4000,
     generateText,
     telemetry: options.telemetry,
   });
