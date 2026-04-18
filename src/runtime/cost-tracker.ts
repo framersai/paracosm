@@ -216,11 +216,16 @@ export function createCostTracker(modelConfig: SimulationModelConfig): CostTrack
     } else {
       const input = result.usage.promptTokens ?? 0;
       const output = result.usage.completionTokens ?? 0;
+      // Use the SITE'S assigned model rate, not the commander's, so a
+      // dept call on sonnet without provider-reported costUSD bills at
+      // sonnet rates instead of being under-counted at haiku rates
+      // (previously `defaultPricing` was commander-tier for every site).
+      const sitePricing = priceForSite(site);
       costThisCall =
-        (input * defaultPricing.input / 1_000_000)
-        + (output * defaultPricing.output / 1_000_000)
-        + (callCacheRead * defaultPricing.input * 0.10 / 1_000_000)
-        + (callCacheCreate * defaultPricing.input * 1.25 / 1_000_000);
+        (input * sitePricing.input / 1_000_000)
+        + (output * sitePricing.output / 1_000_000)
+        + (callCacheRead * sitePricing.input * 0.10 / 1_000_000)
+        + (callCacheCreate * sitePricing.input * 1.25 / 1_000_000);
     }
     totalTokens += tokensThisCall;
     totalCostUSD += costThisCall;

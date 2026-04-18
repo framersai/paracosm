@@ -119,6 +119,25 @@ test('finalCost omits cacheStats when no cache activity was reported', () => {
   assert.equal(cost.cacheStats, undefined);
 });
 
+test('fallback pricing uses the site-assigned model rate, not commander-tier', () => {
+  // Anthropic default config: commander=haiku, departments=sonnet.
+  // Before the 2026-04-18 fix, a dept call without provider-reported
+  // costUSD would bill at haiku rates (~$1/M input) instead of sonnet's
+  // ~$3/M. This test pins the site-aware fallback behavior.
+  const tracker = createCostTracker(modelConfig);  // sonnet depts, haiku everything else
+  tracker.trackUsage({
+    usage: { totalTokens: 1000, promptTokens: 800, completionTokens: 200 },
+  }, 'departments');
+  const deptFinal = tracker.finalCost();
+  // Sonnet: 800 * 3/M + 200 * 15/M = 0.0024 + 0.003 = 0.0054
+  // Haiku : 800 * 1/M + 200 * 5/M = 0.0008 + 0.001 = 0.0018
+  // After fix: cost should be closer to the sonnet value than the haiku one.
+  assert.ok(
+    deptFinal.totalCostUSD > 0.004,
+    `departments call should cost ~$0.0054 at sonnet, got ${deptFinal.totalCostUSD}`,
+  );
+});
+
 test('cacheStats savings accumulate across sites (net positive when reads dominate)', () => {
   const tracker = createCostTracker(modelConfig);
   // Turn 1: cache write (net cost).
