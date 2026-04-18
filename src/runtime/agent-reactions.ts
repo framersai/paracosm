@@ -19,6 +19,9 @@
 import { generateText, extractJson } from '@framers/agentos';
 import type { Agent, TurnOutcome } from '../engine/core/state.js';
 import { buildMemoryContext } from './agent-memory.js';
+import { generateValidatedObject } from './llm-invocations/generateValidatedObject.js';
+import { ReactionBatchSchema } from './schemas/reactions.js';
+import { buildReactionCues } from './hexaco-cues/translation.js';
 
 export interface AgentReaction {
   agentId: string;
@@ -79,13 +82,15 @@ Outcome: ${ctx.outcome}. Current morale: ${Math.round(ctx.colonyMorale * 100)}%.
 
 Keep reactions real. No heroic speeches. People under stress say blunt, honest things. Each person's reaction must sound distinctly like THAT person — their personality, health, and memories should color their voice. Do NOT start any reaction with "I can't believe".
 
-OUTPUT FORMAT — you will receive a numbered list of agents. Return a JSON array with one entry per agent, in the same order, matching the agentId EXACTLY as given:
-[
-  {"agentId":"<id>","quote":"1-2 sentences in first person","mood":"positive|negative|neutral|anxious|defiant|hopeful|resigned","intensity":0.0-1.0},
-  ...
-]
+OUTPUT FORMAT — you will receive a numbered list of agents. Return ONLY a JSON object matching this shape:
+{
+  "reactions": [
+    {"agentId":"<id>","quote":"1-2 sentences in first person","mood":"positive|negative|neutral|anxious|defiant|hopeful|resigned","intensity":0.0-1.0},
+    ...
+  ]
+}
 
-Return ONLY the JSON array. No prose, no markdown fences, no explanations before or after.`;
+One entry per agent, in the same order, matching each agentId EXACTLY as given. No prose, no markdown fences, no explanation before or after.`;
 }
 
 /**
@@ -111,12 +116,16 @@ function buildBatchAgentBlock(c: Agent, ctx: ReactionContext, reactionContextHoo
   const recentMem = (c.memory?.shortTerm ?? []).slice(-2).map(m => m.content.slice(0, 80)).join(' | ');
   const beliefs = (c.memory?.longTerm ?? []).slice(-2).join(' | ');
 
+  const cues = buildReactionCues(h);
   const lines = [
     `AGENT id=${c.core.id}`,
     `${c.core.name}, age ${age}, ${c.core.role} in ${c.core.department}. ${bornLine}`,
     `HEXACO O=${h.openness.toFixed(2)} C=${h.conscientiousness.toFixed(2)} E=${h.extraversion.toFixed(2)} A=${h.agreeableness.toFixed(2)} Em=${h.emotionality.toFixed(2)} HH=${h.honestyHumility.toFixed(2)}`,
-    `Health: bone ${(c.health.boneDensityPct ?? 0).toFixed(0)}% rad ${(c.health.cumulativeRadiationMsv ?? 0).toFixed(0)}mSv psych ${c.health.psychScore.toFixed(2)}${socialBits.length ? ` | ${socialBits.join(', ')}` : ''}`,
   ];
+  if (cues) lines.push(cues);
+  lines.push(
+    `Health: bone ${(c.health.boneDensityPct ?? 0).toFixed(0)}% rad ${(c.health.cumulativeRadiationMsv ?? 0).toFixed(0)}mSv psych ${c.health.psychScore.toFixed(2)}${socialBits.length ? ` | ${socialBits.join(', ')}` : ''}`,
+  );
   if (c.promotion) lines.push(`Promoted: ${c.promotion.role} by ${c.promotion.promotedBy}`);
   if (recentLine) lines.push(`History: ${recentLine}`);
   if (recentMem) lines.push(`Recent memory: ${recentMem}`);
@@ -125,39 +134,32 @@ function buildBatchAgentBlock(c: Agent, ctx: ReactionContext, reactionContextHoo
 }
 
 /**
- * Parse a JSON array of reactions returned by a batched call. Matches
- * each response entry back to the source agent by agentId. When the
- * model returns fewer entries than agents, or drops an agent, the
- * missing agents simply get no reaction (same graceful degradation as
- * the per-agent path).
- *
- * @internal Exported for tests; stability not guaranteed across releases.
+ * Shape of one validated entry from ReactionBatchSchema. Kept local so
+ * we don't leak Zod types through the reactions module's public surface.
  */
-export function parseBatchReactions(text: string, agents: Agent[], year: number): AgentReaction[] {
-  // Extract first JSON array from the text. Handles responses wrapped
-  // in stray prose or markdown fences even though we told it not to.
-  const arrayStart = text.indexOf('[');
-  const arrayEnd = text.lastIndexOf(']');
-  if (arrayStart === -1 || arrayEnd === -1 || arrayEnd <= arrayStart) return [];
+interface ReactionEntryPayload {
+  agentId: string;
+  quote: string;
+  mood: AgentReaction['mood'];
+  intensity: number;
+}
 
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(text.slice(arrayStart, arrayEnd + 1));
-  } catch {
-    return [];
-  }
-  if (!Array.isArray(parsed)) return [];
-
+/**
+ * Join schema-validated reaction entries with their source agents to
+ * produce fully-hydrated AgentReaction records. Missing agents or
+ * entries are simply skipped (graceful degradation when the LLM drops
+ * agents from the batch).
+ */
+function hydrateBatchReactions(
+  entries: ReactionEntryPayload[],
+  agents: Agent[],
+  year: number,
+): AgentReaction[] {
   const agentById = new Map(agents.map(a => [a.core.id, a]));
   const reactions: AgentReaction[] = [];
-  for (const raw of parsed) {
-    if (!raw || typeof raw !== 'object') continue;
-    const r = raw as Record<string, unknown>;
-    const id = typeof r.agentId === 'string' ? r.agentId : '';
-    const agent = agentById.get(id);
+  for (const entry of entries) {
+    const agent = agentById.get(entry.agentId);
     if (!agent) continue;
-    if (typeof r.quote !== 'string' || r.quote.length === 0) continue;
-
     reactions.push({
       agentId: agent.core.id,
       name: agent.core.name,
@@ -166,9 +168,9 @@ export function parseBatchReactions(text: string, agents: Agent[], year: number)
       role: agent.core.role,
       specialization: agent.career.specialization,
       marsborn: agent.core.marsborn,
-      quote: r.quote,
-      mood: (typeof r.mood === 'string' ? r.mood : 'neutral') as AgentReaction['mood'],
-      intensity: typeof r.intensity === 'number' ? r.intensity : 0.5,
+      quote: entry.quote,
+      mood: entry.mood,
+      intensity: entry.intensity,
       hexaco: {
         O: +agent.hexaco.openness.toFixed(2),
         C: +agent.hexaco.conscientiousness.toFixed(2),
@@ -338,19 +340,26 @@ export async function generateAgentReactions(
       const windowResults = await Promise.all(window.map(async (chunk) => {
         try {
           const userPrompt = [
-            `Generate one reaction per agent below, in order, returning a JSON array.`,
+            `Generate one reaction per agent below, in order, returning a JSON object with a "reactions" array.`,
             '',
             ...chunk.map((c, idx) => `--- ${idx + 1}/${chunk.length} ---\n${buildBatchAgentBlock(c, ctx, options.reactionContextHook)}`),
           ].join('\n\n');
 
-          const result = await generateText({
+          const { object, fromFallback } = await generateValidatedObject({
             provider,
             model,
-            system: [{ text: systemPrompt, cacheBreakpoint: true }],
+            schema: ReactionBatchSchema,
+            schemaName: 'ReactionBatch',
+            systemCacheable: systemPrompt,
             prompt: userPrompt,
+            onUsage: options.onUsage,
+            fallback: { reactions: [] },
           });
-          options.onUsage?.(result);
-          return parseBatchReactions(result.text, chunk, ctx.year);
+          if (fromFallback) {
+            if (firstBatchError == null) firstBatchError = new Error('reactions schema fallback');
+            return [] as AgentReaction[];
+          }
+          return hydrateBatchReactions(object.reactions as ReactionEntryPayload[], chunk, ctx.year);
         } catch (err) {
           if (firstBatchError == null) firstBatchError = err;
           return [] as AgentReaction[];
