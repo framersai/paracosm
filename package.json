@@ -58,7 +58,7 @@
   "dependencies": {
     "@framers/agentos": "^0.1.225",
     "@framers/sql-storage-adapter": "^0.6.2",
-    "zod": "^3.25.76"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",

@@ -15,6 +15,8 @@ import type { Department, HexacoProfile, TurnOutcome } from '../engine/core/stat
 import type { CrisisOption } from './contracts.js';
 import type { LlmProvider } from '../engine/types.js';
 import { SCENARIOS } from './research/scenarios.js';
+import { generateValidatedObject } from './llm-invocations/generateValidatedObject.js';
+import { DirectorEventBatchSchema } from './schemas/director.js';
 
 /** Event category. Scenario-defined, not a fixed union. */
 export type EventCategory = string;
@@ -120,16 +122,18 @@ option and the risky option DRAMATICALLY DIFFERENT in:
 
 If the description of option_a could plausibly be swapped with option_b
 without changing much, the options are too similar — rewrite them so
-they reflect genuinely opposed philosophies (cautious-protocol vs
-bold-experiment, conservation vs expansion, equity vs efficiency, etc.).
+they reflect genuinely opposed philosophies.
 
 The risky option should be neither obviously stupid nor obviously correct.
 Aim for ~40-65% success probability so high-openness leaders genuinely
 gamble while high-conscientiousness leaders genuinely have a defensible
 case for the safe path.
 
-Return ONLY valid JSON:
-{"events":[{"title":"...","description":"...","options":[{"id":"option_a","label":"...","description":"...","isRisky":false},{"id":"option_b","label":"...","description":"...","isRisky":true}],"riskyOptionId":"option_b","riskSuccessProbability":0.55,"category":"environmental","researchKeywords":["keyword"],"relevantDepartments":["dept_id"],"turnSummary":"One sentence"}],"pacing":"normal","reasoning":"Why this many events"}`;
+REASONING — populate the "reasoning" field of the response before the events array with a numbered list:
+  (1) What stress signal in the current state pattern is most important?
+  (2) What consequences of the last turn's outcome still matter now?
+  (3) Which categories are still available given the no-repeat rule?
+The events array must reference back to these points. Decide on the pacing (calm/normal/intense) AFTER this reasoning, not before.`;
 
 /** Build the prompt for the director given simulation context. */
 function buildDirectorPrompt(ctx: DirectorContext, maxEvents: number = 3): string {
@@ -198,81 +202,6 @@ CONSTRAINT: Do NOT use category "${lastCategory}" (used last turn). Pick a diffe
 Generate 1 to ${maxEvents} events for this turn. Each event should feel like a consequence of what happened before. If the world is stable, 1 event is fine. If pressure is mounting, generate more. Return JSON with an "events" array.`;
 }
 
-/** Parse director LLM response into DirectorCrisis. */
-function parseDirectorResponse(text: string): DirectorCrisis | null {
-  // Try to extract JSON
-  let depth = 0, start = -1;
-  for (let i = 0; i < text.length; i++) {
-    if (text[i] === '{') { if (depth === 0) start = i; depth++; }
-    if (text[i] === '}') { depth--; if (depth === 0 && start >= 0) {
-      try {
-        const raw = JSON.parse(text.slice(start, i + 1));
-        if (raw.title && (raw.description || raw.crisis) && raw.options) {
-          return {
-            title: raw.title,
-            description: raw.description || raw.crisis,
-            crisis: raw.crisis || raw.description,
-            options: (raw.options || []).map((o: any, idx: number) => ({
-              id: o.id || `option_${String.fromCharCode(97 + idx)}`,
-              label: o.label || `Option ${String.fromCharCode(65 + idx)}`,
-              description: o.description || '',
-              isRisky: o.isRisky === true,
-            })),
-            riskyOptionId: raw.riskyOptionId || raw.options?.find((o: any) => o.isRisky)?.id || 'option_b',
-            riskSuccessProbability: typeof raw.riskSuccessProbability === 'number' ? raw.riskSuccessProbability : 0.5,
-            category: raw.category || 'infrastructure',
-            researchKeywords: raw.researchKeywords || [],
-            relevantDepartments: raw.relevantDepartments || ['medical', 'engineering'],
-            turnSummary: raw.turnSummary || '',
-          };
-        }
-      } catch { /* try next block */ }
-      start = -1;
-    }}
-  }
-  return null;
-}
-
-/** Parse batch response: { events: [...], pacing, reasoning } or single event fallback. */
-function parseBatchResponse(text: string): DirectorEventBatch | null {
-  let depth = 0, start = -1;
-  for (let i = 0; i < text.length; i++) {
-    if (text[i] === '{') { if (depth === 0) start = i; depth++; }
-    if (text[i] === '}') { depth--; if (depth === 0 && start >= 0) {
-      try {
-        const raw = JSON.parse(text.slice(start, i + 1));
-
-        if (Array.isArray(raw.events) && raw.events.length > 0) {
-          const events: DirectorEvent[] = raw.events.map((e: any) => ({
-            title: e.title || 'Untitled Event',
-            description: e.description || e.crisis || '',
-            options: (e.options || []).map((o: any, idx: number) => ({
-              id: o.id || `option_${String.fromCharCode(97 + idx)}`,
-              label: o.label || `Option ${String.fromCharCode(65 + idx)}`,
-              description: o.description || '',
-              isRisky: o.isRisky === true,
-            })),
-            riskyOptionId: e.riskyOptionId || e.options?.find((o: any) => o.isRisky)?.id || 'option_b',
-            riskSuccessProbability: typeof e.riskSuccessProbability === 'number' ? e.riskSuccessProbability : 0.5,
-            category: e.category || 'infrastructure',
-            researchKeywords: e.researchKeywords || [],
-            relevantDepartments: e.relevantDepartments || ['medical', 'engineering'],
-            turnSummary: e.turnSummary || '',
-          }));
-          return { events, pacing: raw.pacing || 'normal', reasoning: raw.reasoning || '' };
-        }
-
-        if (raw.title && (raw.description || raw.crisis)) {
-          const single = parseDirectorResponse(text.slice(start, i + 1));
-          if (single) return { events: [single], pacing: 'normal', reasoning: 'single event' };
-        }
-      } catch { /* try next block */ }
-      start = -1;
-    }}
-  }
-  return null;
-}
-
 /** Fallback events if director fails. */
 const FALLBACK_EVENTS: DirectorEvent[] = [
   {
@@ -312,39 +241,9 @@ const FALLBACK_EVENTS: DirectorEvent[] = [
 
 export class EventDirector {
   /**
-   * Generate a turn event. Uses AgentOS generateText().
-   */
-  async generateEvent(ctx: DirectorContext, provider: LlmProvider = 'openai', model: string = 'gpt-5.4', instructions?: string): Promise<DirectorEvent> {
-    const prompt = buildDirectorPrompt(ctx);
-    const systemInstructions = instructions || DEFAULT_DIRECTOR_INSTRUCTIONS;
-
-    try {
-      const { generateText } = await import('@framers/agentos');
-      const result = await generateText({
-        provider,
-        model,
-        prompt: systemInstructions + '\n\n' + prompt,
-      });
-
-      const event = parseDirectorResponse(result.text);
-      if (event) {
-        console.log(`  [director] Generated: "${event.title}" (${event.category}) for ${ctx.leaderName}`);
-        return event;
-      }
-      console.log(`  [director] Failed to parse response for ${ctx.leaderName}, using fallback`);
-    } catch (err) {
-      console.log(`  [director] Error for ${ctx.leaderName}: ${err}`);
-    }
-
-    // Fallback
-    const fallback = FALLBACK_EVENTS[ctx.turn % FALLBACK_EVENTS.length];
-    console.log(`  [director] Using fallback: "${fallback.title}"`);
-    return { ...fallback };
-  }
-
-  /**
-   * Generate 1 to maxEvents events for a turn.
-   * Falls back to single-event generation if batch parsing fails.
+   * Generate 1 to maxEvents events for a turn via the schema-validated
+   * generateObject wrapper. Falls back to canned events when the LLM
+   * call or validation fails after maxRetries.
    *
    * @param onUsage Optional callback invoked with the director's LLM
    *        response so the orchestrator can account for director spend in
@@ -363,9 +262,7 @@ export class EventDirector {
      * Called with the raw caught error when the director's LLM call throws.
      * Lets the orchestrator classify the error (quota / auth / etc.) and
      * emit a `provider_error` SSE event before the existing fallback path
-     * quietly substitutes canned events. Without this, a user whose API
-     * credits run out would see the director keep producing the same three
-     * fallback events across every turn with no explanation.
+     * quietly substitutes canned events.
      */
     onProviderError?: (err: unknown) => void,
   ): Promise<DirectorEventBatch> {
@@ -374,55 +271,43 @@ export class EventDirector {
       .replace('{MAX_EVENTS}', String(maxEvents));
 
     try {
-      const { generateText } = await import('@framers/agentos');
       // Prompt caching: the director instructions (~1500-2000 tokens) are
-      // identical across all 6 turn calls in a run. Marking the system
-      // block as a cache breakpoint lets Anthropic serve turns 2-6 from
-      // its prefix cache at 0.1x cost. The per-turn context goes in the
-      // user prompt and is NOT cached. Providers without cache support
-      // (e.g. older OpenAI SDKs) ignore the breakpoint silently; for
-      // OpenAI, prompt caching is automatic for prompts >=1024 tokens
-      // and the block structure helps the hash align.
-      const result = await generateText({
+      // identical across all 6 turn calls in a run. systemCacheable goes
+      // through cacheBreakpoint: true so Anthropic serves turns 2-6 from
+      // its prefix cache at 0.1x cost. OpenAI auto-caches prompts >=1024
+      // tokens.
+      const { object, fromFallback } = await generateValidatedObject({
         provider,
         model,
-        system: [{ text: systemInstructions, cacheBreakpoint: true }],
+        schema: DirectorEventBatchSchema,
+        schemaName: 'DirectorEventBatch',
+        systemCacheable: systemInstructions,
         prompt,
+        onUsage,
+        onProviderError,
       });
-      onUsage?.(result);
-
-      const batch = parseBatchResponse(result.text);
-      if (batch && batch.events.length > 0) {
-        batch.events = batch.events.slice(0, maxEvents);
+      if (fromFallback) {
+        console.log(`  [director] Schema fallback for ${ctx.leaderName}, using canned`);
+      } else {
+        const batch: DirectorEventBatch = {
+          events: object.events.slice(0, maxEvents) as DirectorEvent[],
+          pacing: object.pacing,
+          reasoning: object.reasoning,
+        };
         console.log(`  [director] Generated ${batch.events.length} events (${batch.pacing}) for ${ctx.leaderName}: ${batch.events.map(e => `"${e.title}"`).join(', ')}`);
         return batch;
       }
-
-      const single = parseDirectorResponse(result.text);
-      if (single) {
-        console.log(`  [director] Generated 1 event (single format) for ${ctx.leaderName}: "${single.title}"`);
-        return { events: [single], pacing: 'normal', reasoning: 'parsed as single event' };
-      }
-
-      console.log(`  [director] Failed to parse batch for ${ctx.leaderName}, using fallback`);
     } catch (err) {
-      console.log(`  [director] Batch error for ${ctx.leaderName}: ${err}`);
-      // Surface the raw error so the orchestrator can classify it. We
-      // still fall through to the canned fallback so a single transient
-      // error does not break the turn, but a terminal quota/auth error
-      // will flip the run-scoped abort flag and subsequent turns will
-      // short-circuit.
-      onProviderError?.(err);
+      console.log(`  [director] Validated batch error for ${ctx.leaderName}: ${err}`);
+      // Already-classified error from generateValidatedObject fired
+      // onProviderError; fall through to canned fallback so the turn
+      // still runs, but a terminal quota/auth error has already
+      // tripped the abort flag in the orchestrator.
     }
 
     const fallback = FALLBACK_EVENTS[ctx.turn % FALLBACK_EVENTS.length];
     console.log(`  [director] Using fallback: "${fallback.title}"`);
     return { events: [{ ...fallback }], pacing: 'normal', reasoning: 'fallback' };
-  }
-
-  /** @deprecated Use generateEvent */
-  async generateCrisis(ctx: DirectorContext, provider: LlmProvider = 'openai', model: string = 'gpt-5.4', instructions?: string): Promise<DirectorEvent> {
-    return this.generateEvent(ctx, provider, model, instructions);
   }
 
   /**
@@ -472,6 +357,3 @@ export class EventDirector {
     return null; // Not a milestone turn
   }
 }
-
-/** @deprecated Use EventDirector */
-export const CrisisDirector = EventDirector;
