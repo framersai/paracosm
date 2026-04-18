@@ -389,6 +389,56 @@ export function wrapForgeTool(
       const mode = (fixed.implementation as any)?.mode || '?';
       const toolName = String(fixed.name || 'unnamed');
       const toolDescription = String((fixed as any).description || toolName);
+
+      // Pre-judge validation. The judge is the expensive step (flagship
+      // LLM call per forge) and the most common rejection reason at the
+      // nano/mini tier is weak schemas + empty-input test cases. Catching
+      // those shapes here locally saves the judge round-trip AND surfaces
+      // the specific shape failure to the user in the toolbox panel with
+      // a clear reason instead of the judge's generic "correctness not
+      // evidenced" prose.
+      const inputSchema = fixed.inputSchema as any;
+      const outputSchema = fixed.outputSchema as any;
+      const inputProps = inputSchema && typeof inputSchema.properties === 'object' ? inputSchema.properties : null;
+      const outputProps = outputSchema && typeof outputSchema.properties === 'object' ? outputSchema.properties : null;
+      const shapeErrors: string[] = [];
+      if (!inputProps || Object.keys(inputProps).length === 0) {
+        shapeErrors.push('inputSchema has no declared properties; add at least two typed fields');
+      }
+      if (!outputProps || Object.keys(outputProps).length === 0) {
+        shapeErrors.push('outputSchema has no declared properties; add at least one typed output field');
+      }
+      const tcArr = fixed.testCases as Array<{ input: Record<string, unknown>; expectedOutput: unknown }>;
+      if (tcArr.length < 2) {
+        shapeErrors.push(`need at least 2 testCases, got ${tcArr.length}`);
+      }
+      const emptyInputs = tcArr.filter(tc => !tc.input || Object.keys(tc.input).length === 0).length;
+      if (emptyInputs > 0) {
+        shapeErrors.push(`${emptyInputs} testCase${emptyInputs === 1 ? '' : 's'} use empty input; every test needs real field values`);
+      }
+      if (shapeErrors.length > 0) {
+        const reason = `Shape check failed: ${shapeErrors.join('; ')}`;
+        console.log(`    🔧 [${dept}] ✗ "${toolName}" — ${reason}`);
+        capture({
+          name: toolName,
+          description: toolDescription,
+          mode: String(mode),
+          inputSchema: fixed.inputSchema,
+          outputSchema: fixed.outputSchema,
+          approved: false,
+          confidence: 0,
+          output: null,
+          errorReason: reason.slice(0, 240),
+          department: dept,
+          timestamp: Date.now(),
+        });
+        return {
+          success: false,
+          error: reason,
+          output: { success: false, verdict: { approved: false, confidence: 0, reasoning: reason } },
+        } as any;
+      }
+
       console.log(`    🔧 [${dept}] Forging "${toolName}" (${mode})...`);
       const patched = { ...ctx, gmiId: agentId, sessionData: { ...(ctx?.sessionData ?? {}), sessionId } };
       try {

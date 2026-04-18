@@ -381,10 +381,10 @@ The implementation of forged tools runs in a sandboxed V8 isolate (10s timeout, 
 forge_tool args:
   name: snake_case identifier (e.g. radiation_dose_calculator)
   description: one-sentence purpose
-  inputSchema:  { "type": "object", "properties": { ... }, "required": [...] }
-  outputSchema: { "type": "object", "properties": { ... } }
+  inputSchema:  MUST declare every input field under "properties". additionalProperties MUST be false. "required" MUST list every key the function reads. An input schema of {"type":"object","additionalProperties":true} with no properties is AN AUTOMATIC JUDGE REJECTION.
+  outputSchema: MUST declare every output field under "properties" with a type per field. Schemas with no declared properties are rejected.
   implementation: { "mode": "sandbox", "code": "function execute(input) { return result; }", "allowlist": [] }
-  testCases: [ { "input": {...}, "expectedOutput": {...} } ]
+  testCases: MINIMUM 3 cases, each with a NON-EMPTY input object containing at least one declared-schema key AND an expectedOutput that names at least one output field. Tests with input:{} are rejected.
 
 ROBUSTNESS RULES (the judge enforces these — failed forges hurt the colony):
 1. Validate every numeric input. If a field is missing/null/undefined or NaN, default it to a safe value or return a conservative result. Never let the function throw or return NaN/Infinity.
@@ -397,6 +397,43 @@ ROBUSTNESS RULES (the judge enforces these — failed forges hurt the colony):
    - one with a missing/zero input (must NOT throw)
    - one with a boundary value (population=0, capacity=1, etc.)
 7. Bound your output to a defined range (e.g., score 0..100, multiplier 0.1..10) so downstream code stays predictable.
+
+GOOD FORGE EXAMPLE (follow this shape, adapt the domain):
+{
+  "name": "radiation_dose_risk_score",
+  "description": "Scores cumulative Mars radiation exposure risk on 0..100.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "cumulative_dose_msv": { "type": "number", "description": "mSv lifetime" },
+      "age_years": { "type": "number" },
+      "shielding_factor": { "type": "number", "description": "0..1 reduction" }
+    },
+    "required": ["cumulative_dose_msv", "age_years"],
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "risk_score": { "type": "number", "description": "0..100, higher is worse" },
+      "tier": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
+      "warnings": { "type": "array", "items": { "type": "string" } }
+    },
+    "required": ["risk_score", "tier"],
+    "additionalProperties": false
+  },
+  "implementation": {
+    "mode": "sandbox",
+    "code": "function execute(input){try{const d=Number.isFinite(+input.cumulative_dose_msv)?+input.cumulative_dose_msv:0;const a=Number.isFinite(+input.age_years)?+input.age_years:30;const s=Number.isFinite(+input.shielding_factor)?Math.max(0,Math.min(1,+input.shielding_factor)):0;const eff=d*(1-s);let score=Math.max(0,Math.min(100,eff/30*(1+Math.max(0,(60-a))/100)));const tier=score>=80?'critical':score>=50?'high':score>=20?'medium':'low';const w=[];if(d<=0)w.push('no dose recorded');return{risk_score:Math.round(score),tier,warnings:w};}catch(e){return{risk_score:0,tier:'low',warnings:['calc error']};}}",
+    "allowlist": []
+  },
+  "testCases": [
+    { "input": { "cumulative_dose_msv": 1200, "age_years": 42, "shielding_factor": 0.3 }, "expectedOutput": { "tier": "high" } },
+    { "input": { "cumulative_dose_msv": 0, "age_years": 30 }, "expectedOutput": { "risk_score": 0, "tier": "low" } },
+    { "input": { "cumulative_dose_msv": 4000, "age_years": 65, "shielding_factor": 0 }, "expectedOutput": { "tier": "critical" } }
+  ]
+}
+Every field declared in properties, additionalProperties:false on both schemas, three real test cases each with real inputs and a field-level assertion in expectedOutput. Match this density or the judge will reject.
 
 REPORT FORMAT:
 Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
