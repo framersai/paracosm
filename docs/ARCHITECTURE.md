@@ -304,6 +304,27 @@ Agents are created lazily on first chat message (~2-3s init) and pooled (max 10,
 | `GET` | `/results` | Full simulation results including verdict |
 | `GET` | `/rate-limit` | Check rate limit status |
 | `POST` | `/compile` | Compile a custom scenario from JSON |
+| `GET` | `/retry-stats` | Cross-run schema retry rollup (last N completed runs). Query param: `?limit=N` |
+
+### Schema retry telemetry
+
+Every Zod-validated LLM call site reports `{ attempts, calls, fallbacks }` to the run-scoped cost tracker. On run completion the server snapshots the per-schema rollup into a rotating ring of the last 100 runs (`.retry-stats.json` on disk). `GET /retry-stats` aggregates the ring into a response like:
+
+```json
+{
+  "runCount": 87,
+  "schemas": {
+    "DepartmentReport": {
+      "calls": 2608, "attempts": 2721, "fallbacks": 3,
+      "avgAttempts": 1.04, "fallbackRate": 0.0012,
+      "runsPresent": 87
+    },
+    "CommanderDecision": { "calls": 1056, "attempts": 1089, ... }
+  }
+}
+```
+
+`avgAttempts > 1.2` on a schema means the model is retrying on validation failure often enough to be worth tuning (tighter schema, clearer prompt, or drop `maxRetries` to 1 when the first attempt nearly always succeeds). `fallbackRate > 0` means the run served degraded data on at least one turn.
 
 ### npm Package Exports
 
