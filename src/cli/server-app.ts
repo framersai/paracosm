@@ -494,15 +494,24 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         }
 
         // Apply user-supplied keys to env for this request so downstream
-        // LLM calls route to the user's account, not the host's. Mirrors
-        // /setup behavior. Placeholder values (e.g. "sk-...") are ignored
-        // so a masked display string never replaces a real key.
-        if (apiKey && typeof apiKey === 'string' && !apiKey.includes('...')) {
-          env.OPENAI_API_KEY = apiKey;
-        }
-        if (anthropicKey && typeof anthropicKey === 'string' && !anthropicKey.includes('...')) {
-          env.ANTHROPIC_API_KEY = anthropicKey;
-        }
+        // LLM calls route to the user's account, not the host's. Keys are
+        // snapshotted + restored after the compile completes so they don't
+        // leak into subsequent unrelated requests. Placeholder values
+        // (e.g. "sk-...") are ignored so a masked display string never
+        // replaces a real key.
+        const compileEnvSnapshot: Array<[string, string | undefined]> = [];
+        const scopeCompileKey = (name: string, value: unknown) => {
+          if (typeof value !== 'string' || !value || value.includes('...')) return;
+          compileEnvSnapshot.push([name, env[name]]);
+          env[name] = value;
+        };
+        scopeCompileKey('OPENAI_API_KEY', apiKey);
+        scopeCompileKey('ANTHROPIC_API_KEY', anthropicKey);
+        const restoreCompileEnv = () => {
+          for (const [name, prior] of compileEnvSnapshot) {
+            if (prior === undefined) delete env[name]; else env[name] = prior;
+          }
+        };
 
         const provider = requestedProvider || (env.ANTHROPIC_API_KEY ? 'anthropic' : 'openai');
         // Force the cheapest class only when the host is billing
@@ -517,18 +526,23 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Access-Control-Allow-Origin': '*' });
         res.write('event: status\ndata: {"status":"compiling"}\n\n');
 
-        const compiled = await runCompileScenario(scenarioJson, {
-          provider,
-          model,
-          cache: true,
-          seedText,
-          seedUrl,
-          webSearch: webSearch ?? true,
-          maxSearches,
-          onProgress(hookName: string, status: string) {
-            res.write(`event: progress\ndata: ${JSON.stringify({ hook: hookName, status })}\n\n`);
-          },
-        });
+        let compiled;
+        try {
+          compiled = await runCompileScenario(scenarioJson, {
+            provider,
+            model,
+            cache: true,
+            seedText,
+            seedUrl,
+            webSearch: webSearch ?? true,
+            maxSearches,
+            onProgress(hookName: string, status: string) {
+              res.write(`event: progress\ndata: ${JSON.stringify({ hook: hookName, status })}\n\n`);
+            },
+          });
+        } finally {
+          restoreCompileEnv();
+        }
 
         // Update the active scenario for GET /scenario
         activeScenario = compiled;
@@ -568,6 +582,16 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
     // Rate limit status endpoint
     // Post-simulation colonist chat
     if (req.url === '/chat' && req.method === 'POST') {
+      // Hoist env-scoping helpers OUTSIDE the try so the catch can
+      // still call restoreChatEnv. Without this, an exception thrown
+      // between scopeChatKey() and the inner restore would leak the
+      // caller's keys into subsequent requests.
+      const chatEnvSnapshot: Array<[string, string | undefined]> = [];
+      const restoreChatEnv = () => {
+        for (const [name, prior] of chatEnvSnapshot) {
+          if (prior === undefined) delete env[name]; else env[name] = prior;
+        }
+      };
       try {
         const { agentId, message, apiKey, anthropicKey } = JSON.parse(await readBody(req));
         if (!agentId || !message) {
@@ -578,16 +602,16 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
 
         // Apply user-supplied keys to env for this request so the
         // downstream chat agent routes to the user's account when a
-        // BYO key is present. Mirrors /setup + /compile behavior.
-        // Placeholder masks like 'sk-...' are rejected so a displayed
-        // masked string can never replace a real key.
+        // BYO key is present. Placeholder masks like 'sk-...' are
+        // rejected so a displayed masked string never replaces a real key.
         const chatUserKey = !!(apiKey || anthropicKey);
-        if (apiKey && typeof apiKey === 'string' && !apiKey.includes('...')) {
-          env.OPENAI_API_KEY = apiKey;
-        }
-        if (anthropicKey && typeof anthropicKey === 'string' && !anthropicKey.includes('...')) {
-          env.ANTHROPIC_API_KEY = anthropicKey;
-        }
+        const scopeChatKey = (name: string, value: unknown) => {
+          if (typeof value !== 'string' || !value || value.includes('...')) return;
+          chatEnvSnapshot.push([name, env[name]]);
+          env[name] = value;
+        };
+        scopeChatKey('OPENAI_API_KEY', apiKey);
+        scopeChatKey('ANTHROPIC_API_KEY', anthropicKey);
 
         // Rate-limit chat per IP per hour. Runs against the host's
         // key unless a session key was provided in the request body,
@@ -680,6 +704,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
 
         // Send message through the agent session (full history + memory + RAG automatic)
         const result = await session.send(message);
+        restoreChatEnv();
 
         res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
@@ -689,6 +714,10 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
           firstMessage: isNew,
         }));
       } catch (err) {
+        // Restore env on error path too — mutations happened before
+        // whatever threw. Without this, a failed chat call leaves the
+        // caller's keys persisted in env for subsequent requests.
+        try { restoreChatEnv(); } catch {}
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: String(err) }));
       }
@@ -863,24 +892,29 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
           );
         }
 
-        if (simConfig.apiKey && !simConfig.apiKey.includes('...')) {
-          env.OPENAI_API_KEY = simConfig.apiKey;
-        }
-        if (simConfig.anthropicKey && !simConfig.anthropicKey.includes('...')) {
-          env.ANTHROPIC_API_KEY = simConfig.anthropicKey;
-        }
-        if (simConfig.serperKey && !simConfig.serperKey.includes('...')) {
-          env.SERPER_API_KEY = simConfig.serperKey;
-        }
-        if (simConfig.firecrawlKey && !simConfig.firecrawlKey.includes('...')) {
-          env.FIRECRAWL_API_KEY = simConfig.firecrawlKey;
-        }
-        if (simConfig.tavilyKey && !simConfig.tavilyKey.includes('...')) {
-          env.TAVILY_API_KEY = simConfig.tavilyKey;
-        }
-        if (simConfig.cohereKey && !simConfig.cohereKey.includes('...')) {
-          env.COHERE_API_KEY = simConfig.cohereKey;
-        }
+        // Key-scope safety: snapshot the env values we're about to mutate
+        // so we can restore them when THIS sim ends. Without this, user A's
+        // key persists in process.env after their sim completes; user B's
+        // subsequent sim then silently uses A's key if B didn't provide one.
+        // The restore runs in the startWithConfig().finally() below.
+        const envKeysToRestore: Array<[string, string | undefined]> = [];
+        const scopeKey = (envName: string, userValue: string | undefined) => {
+          if (!userValue || userValue.includes('...')) return;
+          envKeysToRestore.push([envName, env[envName]]);
+          env[envName] = userValue;
+        };
+        scopeKey('OPENAI_API_KEY', simConfig.apiKey);
+        scopeKey('ANTHROPIC_API_KEY', simConfig.anthropicKey);
+        scopeKey('SERPER_API_KEY', simConfig.serperKey);
+        scopeKey('FIRECRAWL_API_KEY', simConfig.firecrawlKey);
+        scopeKey('TAVILY_API_KEY', simConfig.tavilyKey);
+        scopeKey('COHERE_API_KEY', simConfig.cohereKey);
+        const restoreEnv = () => {
+          for (const [name, prior] of envKeysToRestore) {
+            if (prior === undefined) delete env[name];
+            else env[name] = prior;
+          }
+        };
 
         // If a run is already in flight, abort it before starting the
         // new one. Previously /setup silently no-op'd on simRunning,
@@ -903,7 +937,10 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
           }
         }
 
-        void marsServer.startWithConfig(simConfig);
+        // Start the sim and restore env when it finishes — prevents the
+        // caller's keys from leaking into any subsequent /setup from a
+        // different user that doesn't pass their own keys.
+        marsServer.startWithConfig(simConfig).finally(restoreEnv);
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ redirect: '/sim' }));
