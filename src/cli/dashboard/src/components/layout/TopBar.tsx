@@ -140,21 +140,24 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
       {/* Center: Turn info + progress */}
       <div className="flex items-center gap-3 flex-1 justify-center" style={{ minWidth: 0 }}>
         {gameState.turn > 0 && (
-          <div className="topbar-meta flex items-center gap-2" style={{ fontSize: '11px', fontFamily: 'var(--mono)', color: 'var(--text-2)' }}>
+          <div className="topbar-meta flex items-center gap-2 shrink-0" style={{ fontSize: '11px', fontFamily: 'var(--mono)', color: 'var(--text-2)', minWidth: 0 }}>
+            {/* Compact short labels with hover tooltips for full meaning.
+                Previous "Turn 5/6 Yr 2067 Seed 950" pushed the block wide
+                enough to collide with the scenario name at ~1200-1400px. */}
             <span title={`Turn ${gameState.turn} of ${gameState.maxTurns}`}>
-              <span style={{ color: 'var(--text-3)' }}>Turn </span>
+              <span style={{ color: 'var(--text-3)' }}>T</span>
               <strong style={{ color: 'var(--text-1)' }}>{gameState.turn}</strong>
               <span style={{ color: 'var(--text-3)' }}>/{gameState.maxTurns}</span>
             </span>
             <span title={`Year ${gameState.year}`}>
-              <span style={{ color: 'var(--text-3)' }}>Yr </span>
+              <span style={{ color: 'var(--text-3)' }}>Y</span>
               <strong style={{ color: 'var(--text-1)' }}>{gameState.year}</strong>
             </span>
             <span title={`Seed ${gameState.seed} — same seed produces the same deterministic kernel outcomes`}>
-              <span style={{ color: 'var(--text-3)' }}>Seed </span>
+              <span style={{ color: 'var(--text-3)' }}>S</span>
               <strong style={{ color: 'var(--text-1)' }}>{gameState.seed}</strong>
             </span>
-            <div className="w-20 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--border)' }} role="progressbar" aria-valuenow={gameState.turn} aria-valuemin={0} aria-valuemax={gameState.maxTurns} aria-label={`Simulation progress, turn ${gameState.turn} of ${gameState.maxTurns}`}>
+            <div className="topbar-progress w-20 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--border)' }} role="progressbar" aria-valuenow={gameState.turn} aria-valuemin={0} aria-valuemax={gameState.maxTurns} aria-label={`Simulation progress, turn ${gameState.turn} of ${gameState.maxTurns}`}>
               <div className="h-full rounded-full transition-all" style={{ width: `${Math.round((gameState.turn / gameState.maxTurns) * 100)}%`, background: 'linear-gradient(90deg, var(--side-a), var(--side-b))' }} />
             </div>
           </div>

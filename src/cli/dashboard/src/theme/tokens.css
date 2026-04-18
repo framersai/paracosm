@@ -433,15 +433,36 @@
   /* === RESPONSIVE — MOBILE FIRST === */
 
   /* Tablet and below */
-  /* Narrow desktop / tablet landscape. At this width the full topbar
-     (logo + scenario name + turn meta + github + tour + run + save +
-     copy + load + clear + status + theme) starts overlapping. Drop
-     the secondary labels first so the primary actions stay visible. */
-  @media (max-width: 1024px) {
+  /* Wider than 1024 but still narrow enough that the full topbar
+     (logo + PARACOSM + AGENTOS + | + scenario name + turn meta +
+     progress bar + GITHUB + HOW IT WORKS + RUN + Save + Copy + Load
+     + Clear + status + theme) overflows. At ~1440 the scenario name
+     already starts kissing the turn meta block once a sim is mid-
+     run. Drop AGENTOS + scenario name here, before the collision. */
+  @media (max-width: 1440px) {
     .topbar-agentos { display: none !important; }
     .topbar-scenario { display: none !important; }
+  }
+
+  /* Narrow desktop / tablet landscape. At this width even without
+     the scenario name the tour-label + some action labels start
+     overlapping, so fold the tour button to an icon + drop the
+     per-turn progress bar. */
+  @media (max-width: 1200px) {
     .topbar-tour-label { display: none !important; }
     .topbar-tour-icon { display: inline !important; }
+    .topbar-progress { display: none !important; }
+  }
+
+  /* Let the topbar's own flex children shrink below their content
+     width. Without min-width:0 on the flex items, long text blocks
+     refuse to shrink at all and the row blows past the viewport. */
+  .topbar > div { min-width: 0; }
+  .topbar-scenario {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 180px;
   }
 
   @media (max-width: 768px) {
