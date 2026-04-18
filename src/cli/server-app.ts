@@ -79,7 +79,7 @@ function readBody(req: IncomingMessage): Promise<string> {
 
 export interface CreateMarsServerOptions {
   env?: NodeJS.ProcessEnv;
-  runPairSimulations?: (config: NormalizedSimulationConfig, broadcast: BroadcastFn, signal?: AbortSignal) => Promise<void>;
+  runPairSimulations?: (config: NormalizedSimulationConfig, broadcast: BroadcastFn, signal?: AbortSignal, scenario?: ScenarioPackage) => Promise<void>;
   generateText?: (args: { provider: string; model: string; prompt: string }) => Promise<{ text: string }>;
   compileScenario?: (scenarioJson: Record<string, unknown>, options: Record<string, unknown>) => Promise<ScenarioPackage>;
   scenarioDir?: string;
@@ -1452,7 +1452,12 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       const controller = new AbortController();
       activeSimAbortController = controller;
       try {
-        await startSimulations(config, broadcast, controller.signal);
+        // Thread the currently-active scenario through to the pair
+        // runner. Without this the runner defaults to Mars regardless
+        // of which scenario the user compiled — the page title would
+        // show the custom name but the simulation would run Mars
+        // hooks + content.
+        await startSimulations(config, broadcast, controller.signal, activeScenario);
       } finally {
         disarmDisconnectWatchdog();
         if (activeSimAbortController === controller) {
