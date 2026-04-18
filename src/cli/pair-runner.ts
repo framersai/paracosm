@@ -1,5 +1,7 @@
 import { DEFAULT_KEY_PERSONNEL, type NormalizedSimulationConfig } from './sim-config.js';
 import { marsScenario } from '../engine/mars/index.js';
+import { generateValidatedObject } from '../runtime/llm-invocations/generateValidatedObject.js';
+import { VerdictSchema } from '../runtime/schemas/verdict.js';
 
 export type BroadcastFn = (event: string, data: unknown) => void;
 
@@ -126,7 +128,6 @@ export async function runPairSimulations(
         ].join('\n');
       };
 
-      const { generateText } = await import('@framers/agentos');
       // Verdict runs once per completed sim and is the single most
       // user-facing synthesis call in the pipeline: it reads both
       // final states, the per-leader cause-of-death breakdown, the
@@ -137,10 +138,13 @@ export async function runPairSimulations(
       const verdictModel = simConfig.provider === 'anthropic'
         ? 'claude-sonnet-4-6'
         : 'gpt-5.4';
-      const { text: verdictText } = await generateText({
-        provider: simConfig.provider || 'openai',
-        model: verdictModel,
-        prompt: `You are judging a colony simulation. Two AI commanders with opposing HEXACO personality profiles led identical colonies through ${turns} turns from the same starting conditions and deterministic seed. Your job is to write a verdict that explains WHY the runs diverged the way they did, not just WHO won.
+      try {
+        const { object: verdict, fromFallback } = await generateValidatedObject({
+          provider: simConfig.provider || 'openai',
+          model: verdictModel,
+          schema: VerdictSchema,
+          schemaName: 'Verdict',
+          prompt: `You are judging a colony simulation. Two AI commanders with opposing HEXACO personality profiles led identical colonies through ${turns} turns from the same starting conditions and deterministic seed. Your job is to write a verdict that explains WHY the runs diverged the way they did, not just WHO won.
 
 ${formatLeader('LEADER A', a, colA)}
 
@@ -151,40 +155,26 @@ Tool forging is a cost / capability tradeoff: every forged tool spent a judge LL
 
 Mortality is a cause-specific signal, not a number. The "Mortality" line above names HOW each colonist died. A leader who lost 5 to starvation made different resource-allocation decisions than a leader who lost 5 to radiation cancer; a leader with despair deaths presided over a colony in psychological freefall. Reference the specific causes when they shape the story.
 
-REASON STEP BY STEP BEFORE WRITING THE JSON
+REASONING — populate the "reasoning" field of your JSON response with a numbered list covering:
+  (1) Population trajectory — how did each colony's population evolve, and which tradeoffs produced that shape?
+  (2) Morale + psychological state — which leader's colony held together emotionally, and what does that say about HEXACO + decision style?
+  (3) Resource efficiency — food, power, infrastructure — which side ran leaner, which hit crises?
+  (4) Innovation signature — tools forged vs reused, breadth vs depth. What does each leader's toolbox say about their cognition?
+  (5) Mortality story — which causes dominated each side, and what does THAT say about the leader's priorities?
+  (6) The single most impactful divergence — resource decision, crisis response, tool strategy, or emergent behavior. Name it precisely.
+  (7) Weighing the tradeoffs, who won and why.
 
-Use this exact structure. Do NOT skip the reasoning block. The JSON comes last.
-
-<thinking>
-1. Population trajectory — how did each colony's population evolve, and which tradeoffs produced that shape?
-2. Morale + psychological state — which leader's colony held together emotionally, and what does that say about HEXACO + decision style?
-3. Resource efficiency — food, power, infrastructure — which side ran leaner, which hit crises?
-4. Innovation signature — tools forged vs reused, breadth vs depth. What does each leader's toolbox say about their cognition?
-5. Mortality story — which causes dominated each side, and what does THAT say about the leader's priorities?
-6. The single most impactful divergence — resource decision, crisis response, tool strategy, or emergent behavior. Name it precisely.
-7. Weighing the tradeoffs, who won and why.
-</thinking>
-
-<verdict>
-{
-  "winner": "A" or "B" or "tie",
-  "winnerName": "name of the winning leader, or 'Tie' for a tie",
-  "headline": "one-line verdict grounded in the key divergence (max 80 chars)",
-  "summary": "2-3 sentences naming the personality + tool-use + mortality pattern that drove the divergence",
-  "keyDivergence": "the single most impactful difference between the two runs — resource, decision, emergent capability, or mortality pattern",
-  "scores": { "a": { "survival": 0-10, "prosperity": 0-10, "morale": 0-10, "innovation": 0-10 }, "b": { "survival": 0-10, "prosperity": 0-10, "morale": 0-10, "innovation": 0-10 } }
-}
-</verdict>`,
-      });
-
-      // Parse verdict. Model may emit a <thinking>...</thinking> block
-      // before the JSON; strip that first so the greedy {..} match doesn't
-      // swallow any literal braces inside the reasoning prose.
-      try {
-        const stripped = verdictText.replace(/<thinking>[\s\S]*?<\/thinking>/, '');
-        const jsonMatch = stripped.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          const verdict = JSON.parse(jsonMatch[0]);
+Then fill out:
+  winner: "A" or "B" or "tie"
+  winnerName: the winning leader's name, or "Tie" for a tie
+  headline: one-line verdict grounded in the key divergence (max 80 chars)
+  summary: 2-3 sentences naming the personality + tool-use + mortality pattern that drove the divergence
+  keyDivergence: the single most impactful difference between the two runs
+  scores: { a: { survival, prosperity, morale, innovation }, b: { survival, prosperity, morale, innovation } } — each 0-10`,
+        });
+        if (fromFallback) {
+          console.log('  Verdict schema fallback; skipping broadcast');
+        } else {
           broadcast('verdict', {
             ...verdict,
             leaderA: { name: a.leader.name, archetype: a.leader.archetype, colony: a.leader.colony },
@@ -198,11 +188,11 @@ Use this exact structure. Do NOT skip the reasoning block. The JSON comes last.
           console.log(`  Winner: ${verdict.winnerName} (${verdict.winner})`);
           console.log(`  ${verdict.summary}\n`);
         }
-      } catch (parseErr) {
-        console.log('  Verdict parse failed:', parseErr);
+      } catch (verdictErr) {
+        console.log('  Verdict generation failed:', verdictErr);
       }
-    } catch (verdictErr) {
-      console.log('  Verdict generation failed:', verdictErr);
+    } catch (outerErr) {
+      console.log('  Verdict outer failure:', outerErr);
     }
   }
 
