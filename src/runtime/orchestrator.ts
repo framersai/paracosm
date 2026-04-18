@@ -24,9 +24,9 @@ import {
 } from './commander-setup.js';
 import { buildAvailableToolsBlock, buildForgedToolbox, type ForgedLedger } from './tool-ledger.js';
 import { buildCitationCatalog } from './citations-catalog.js';
-import type { Department, TurnOutcome } from '../engine/core/state.js';
+import type { Department, HexacoProfile, HexacoSnapshot, TurnOutcome } from '../engine/core/state.js';
 import { SeededRng } from '../engine/core/rng.js';
-import { classifyOutcome, classifyOutcomeById } from '../engine/core/progression.js';
+import { classifyOutcome, classifyOutcomeById, driftCommanderHexaco } from '../engine/core/progression.js';
 import type { DepartmentReport, CommanderDecision, TurnArtifact } from './contracts.js';
 import { SimulationKernel, type PolicyEffect } from '../engine/core/kernel.js';
 import type { KeyPersonnel } from '../engine/core/agent-generator.js';
@@ -247,6 +247,16 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
    * both makes failure / re-forge attempts auditable.
    */
   const forgedLedger: ForgedLedger = new Map();
+
+  // Commander HEXACO evolves per-turn via driftCommanderHexaco. Clone
+  // the caller's leader.hexaco so we never mutate the caller's config —
+  // pair-runner reuses configs across runs and chat-agents hold
+  // references to the baseline profile. Every downstream read of the
+  // commander's current personality goes through commanderHexacoLive.
+  const commanderHexacoLive: HexacoProfile = { ...leader.hexaco };
+  const commanderHexacoHistory: HexacoSnapshot[] = [
+    { turn: 0, year: startYear, hexaco: { ...leader.hexaco } },
+  ];
 
   // Commander does NOT use systemBlocks caching because AgentOS's
   // `systemBlocks` path replaces the assembled system prompt entirely,
@@ -571,7 +581,8 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
       const alive = preState.agents.filter(c => c.health.alive);
       const dirCtx: DirectorContext = {
         turn, year,
-        leaderName: leader.name, leaderArchetype: leader.archetype, leaderHexaco: leader.hexaco,
+        leaderName: leader.name, leaderArchetype: leader.archetype, leaderHexaco: commanderHexacoLive,
+        leaderHexacoHistory: commanderHexacoHistory,
         state: preState.colony as unknown as Record<string, number>,
         politics: preState.politics as unknown as Record<string, number | string | boolean>,
         colony: preState.colony as unknown as Record<string, number>,
@@ -1093,10 +1104,10 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
       // delta caps, so this widens divergence without breaking the kernel.
       const isRiskyChoice = resolvedOptionId === event.riskyOptionId;
       const personalityBonus =
-        (leader.hexaco.openness - 0.5) * 0.20 +
-        (leader.hexaco.conscientiousness - 0.5) * 0.12 +
+        (commanderHexacoLive.openness - 0.5) * 0.20 +
+        (commanderHexacoLive.conscientiousness - 0.5) * 0.12 +
         // Alignment kicker: choosing in line with personality boosts effect
-        (isRiskyChoice ? (leader.hexaco.openness - 0.5) : (leader.hexaco.conscientiousness - 0.5)) * 0.10;
+        (isRiskyChoice ? (commanderHexacoLive.openness - 0.5) : (commanderHexacoLive.conscientiousness - 0.5)) * 0.10;
 
       // Tool intelligence factor — tally what departments forged THIS
       // event (using the bucket snapshots taken before the dept calls)
@@ -1172,7 +1183,13 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
 
     // ── Post-events: drift, reactions, memory, artifacts ──────────────
     const prevYear = turn === 1 ? startYear : yearSchedule[turn - 2] ?? startYear;
-    kernel.applyDrift(leader.hexaco, lastOutcome, Math.max(1, year - prevYear));
+    const yearDelta = Math.max(1, year - prevYear);
+    kernel.applyDrift(commanderHexacoLive, lastOutcome, yearDelta);
+    // Commander drifts alongside their agents. Outcome-pull only (no
+    // leader-pull since commander IS the leader; no role-pull since
+    // they have no department). Mutates commanderHexacoLive in place
+    // and appends this turn's snapshot to commanderHexacoHistory.
+    driftCommanderHexaco(commanderHexacoLive, lastOutcome, yearDelta, turn, year, commanderHexacoHistory);
 
     const drifted = kernel.getState().agents.filter(c => c.promotion && c.health.alive);
     const driftData: Record<string, { name: string; hexaco: any }> = {};
@@ -1386,7 +1403,17 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
 
   const output = {
     simulation: `${sc.id}-v3`,
-    leader: { name: leader.name, archetype: leader.archetype, colony: leader.colony, hexaco: leader.hexaco },
+    leader: {
+      name: leader.name,
+      archetype: leader.archetype,
+      colony: leader.colony,
+      /** Drifted current profile — matches the Agent type convention where hexaco is the live value. */
+      hexaco: commanderHexacoLive,
+      /** Original config the caller passed in — immutable baseline for trajectory comparison. */
+      hexacoBaseline: { ...leader.hexaco },
+      /** Per-turn snapshots of commander HEXACO evolution. */
+      hexacoHistory: commanderHexacoHistory,
+    },
     /** Per-turn artifacts — now carry the full department reports +
      *  merged commander decision + applied policies (was previously
      *  just empty placeholders). */
