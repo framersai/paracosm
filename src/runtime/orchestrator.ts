@@ -291,6 +291,12 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     instructions: leader.instructions,
     personality: { openness: leader.hexaco.openness, conscientiousness: leader.hexaco.conscientiousness, extraversion: leader.hexaco.extraversion, agreeableness: leader.hexaco.agreeableness, emotionality: leader.hexaco.emotionality, honesty: leader.hexaco.honestyHumility },
     maxSteps: opts.execution?.commanderMaxSteps ?? DEFAULT_EXECUTION.commanderMaxSteps,
+    // Commander outputs CommanderDecision JSON: rationale + reasoning +
+    // selectedOptionId etc. Typical ~500-1500 output tokens; cap 3000
+    // for headroom. Without this the session sends use the provider
+    // default (4-8k) and a misbehaving model can yap to the ceiling
+    // on every retry — at maxSteps=5 that compounds into real money.
+    maxTokens: 3000,
   });
   const cmdSess = commander.session(`${sid}-cmd`);
 
@@ -528,6 +534,13 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
       systemBlocks: [{ text: deptSystemPrompt, cacheBreakpoint: true }],
       tools,
       maxSteps: opts.execution?.departmentMaxSteps ?? DEFAULT_EXECUTION.departmentMaxSteps,
+      // Department outputs DepartmentReport JSON: summary + risks +
+      // opportunities + recommendedActions + forgedToolsUsed +
+      // recommendedEffects. Typical ~2000-3500 output tokens; cap 5000
+      // for headroom on tool-heavy reports. Each agentic step within
+      // departmentMaxSteps gets its own cap so the worst-case ceiling
+      // is bounded at maxSteps × 5000 instead of maxSteps × providerDefault.
+      maxTokens: 5000,
     });
     deptAgents.set(dept, a);
     deptSess.set(dept, a.session(`${sid}-${dept}`));
