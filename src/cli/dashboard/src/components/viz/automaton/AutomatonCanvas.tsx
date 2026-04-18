@@ -176,7 +176,7 @@ export function AutomatonCanvas(props: AutomatonCanvasProps) {
           nowMs,
           sideColor,
           intensity: mode === 'mood' ? 1 : mode === 'forge' ? 0.2 : 0.35,
-          hoveredId: hovered?.agentId ?? null,
+          hoveredIndex: hovered?.gridIndex ?? null,
           deltaMs: Math.min(100, delta),
         });
         if (mode !== 'ecology') {
@@ -238,11 +238,9 @@ export function AutomatonCanvas(props: AutomatonCanvasProps) {
     }
   };
   const onMouseLeave = () => { setHovered(null); setHoveredHex(null); };
-  const onClick = () => {
-    if (hovered && onSelectAgent) {
-      onSelectAgent(hovered.agentId);
-    }
-  };
+  const onClick = () => { /* mood cells are abstract Conway cells, no per-cell drilldown */ };
+  // Surface so downstream calls that expect onSelectAgent don't tree-shake warn
+  void onSelectAgent;
 
   const ariaLabel = snapshot
     ? `${mode === 'mood' ? 'Mood propagation' : mode === 'forge' ? 'Forge flow' : 'Ecology grid'} for leader ${side === 'a' ? 'A' : 'B'}, turn ${snapshot.turn}, ${Math.round(snapshot.morale * 100)}% morale`
@@ -257,7 +255,7 @@ export function AutomatonCanvas(props: AutomatonCanvasProps) {
         onMouseMove={onMouseMove}
         onMouseLeave={onMouseLeave}
         onClick={onClick}
-        style={{ width: '100%', height: '100%', display: 'block', cursor: hovered ? 'pointer' : 'default' }}
+        style={{ width: '100%', height: '100%', display: 'block', cursor: (mode === 'ecology' && hoveredHex) ? 'pointer' : 'default' }}
       />
       {hovered && mode !== 'ecology' && (
         <div
@@ -277,9 +275,11 @@ export function AutomatonCanvas(props: AutomatonCanvasProps) {
             zIndex: 5,
           }}
         >
-          <div style={{ color: sideColor, fontWeight: 700 }}>{hovered.name}</div>
+          <div style={{ color: sideColor, fontWeight: 700 }}>
+            {hovered.alive ? 'alive' : 'dead'} · gen {hovered.bornGen >= 0 ? hovered.bornGen : '—'}
+          </div>
           <div style={{ color: 'var(--text-3)' }}>
-            {hovered.department}
+            Conway cell ({hovered.q}, {hovered.r})
           </div>
         </div>
       )}
