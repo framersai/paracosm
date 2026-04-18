@@ -305,10 +305,18 @@ function AppContent() {
   // flash in between.
   useEffect(() => {
     if (!launching) return;
-    if (gameState.isRunning || sse.isComplete || sse.status === 'error') {
+    // Any sign of life from the server clears the launching spinner:
+    // first turn kicked off (isRunning), run finished (isComplete),
+    // connection broke (status==='error'), or at least one event
+    // arrived (events.length > 0). The old gate was just isRunning,
+    // which missed the case where the user navigated away and came
+    // back mid-run — events were streaming in but launching stayed
+    // true until gameState caught up, firing the 30s stall toast
+    // spuriously.
+    if (gameState.isRunning || sse.isComplete || sse.status === 'error' || sse.events.length > 0) {
       setLaunching(false);
     }
-  }, [launching, gameState.isRunning, sse.isComplete, sse.status]);
+  }, [launching, gameState.isRunning, sse.isComplete, sse.status, sse.events.length]);
 
   // End-of-sim toast: fire exactly once when the run transitions to a
   // terminal state. Distinguishes Complete (all turns finished, verdict
@@ -332,16 +340,22 @@ function AppContent() {
     }
   }, [sse.isComplete, sse.isAborted, tourActive, toast]);
 
-  // Safety timeout: if /setup succeeded but no events arrived in 60s,
-  // give up and show the empty state instead of spinning forever.
+  // Safety timeout: if /setup succeeded but no events arrived in 30s,
+  // give up on the spinner. Only toast when we really saw nothing —
+  // if SSE events arrived, the sim is alive and the user does not
+  // need a "Launch Stalled" message scaring them while they watch
+  // events stream in.
   useEffect(() => {
     if (!launching) return;
     const timer = setTimeout(() => {
       setLaunching(false);
-      toast('error', 'Launch Stalled', 'No events received within 30 seconds. The simulation may still complete in the background.');
+      const hasSignal = sse.events.length > 0 || gameState.isRunning || sse.isComplete;
+      if (!hasSignal) {
+        toast('error', 'Launch Stalled', 'No events received within 30 seconds. The simulation may still complete in the background.');
+      }
     }, 30_000);
     return () => clearTimeout(timer);
-  }, [launching, toast]);
+  }, [launching, toast, sse.events.length, sse.isComplete, gameState.isRunning]);
 
   const handleRun = useCallback(async () => {
     const defaultPreset = scenario.presets.find(p => p.id === 'default');
