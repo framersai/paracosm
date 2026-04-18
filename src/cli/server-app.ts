@@ -25,9 +25,21 @@ function projectScenarioForClient(sc: ScenarioPackage) {
     presets: sc.presets,
     ui: sc.ui,
     policies: {
-      toolForging: sc.policies.toolForging.enabled,
-      bulletin: sc.policies.bulletin.enabled,
-      characterChat: sc.policies.characterChat.enabled,
+      // Compiled scenarios can express policies either as
+      // { toolForging: true } (boolean shorthand) or as
+      // { toolForging: { enabled: true } } (object with flags).
+      // The server crashed with "Cannot read properties of
+      // undefined (reading 'enabled')" on the shorthand form.
+      // Defensive reader handles both shapes and missing entries.
+      toolForging: typeof sc.policies?.toolForging === 'object'
+        ? Boolean((sc.policies.toolForging as { enabled?: boolean }).enabled)
+        : Boolean(sc.policies?.toolForging),
+      bulletin: typeof sc.policies?.bulletin === 'object'
+        ? Boolean((sc.policies.bulletin as { enabled?: boolean }).enabled)
+        : Boolean(sc.policies?.bulletin),
+      characterChat: typeof sc.policies?.characterChat === 'object'
+        ? Boolean((sc.policies.characterChat as { enabled?: boolean }).enabled)
+        : Boolean(sc.policies?.characterChat),
     },
   };
 }

@@ -975,7 +975,17 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
       }
 
       // Commander
-      const summaries = reports.map(r => `## ${r.department.toUpperCase()} (conf: ${r.confidence})\n${r.summary}\nRisks: ${r.risks.map(x => `[${x.severity}] ${x.description}`).join('; ') || 'none'}\nRecs: ${r.recommendedActions.join('; ') || 'none'}`).join('\n\n');
+      // Defensive: LLM occasionally returns risks/recommendedActions as
+      // a string or an object instead of an array. Previously the
+      // commander prompt builder crashed with "r.risks.map is not a
+      // function" and the entire event was aborted.
+      const summaries = reports.map(r => {
+        const risks = Array.isArray(r.risks) ? r.risks : [];
+        const recs = Array.isArray(r.recommendedActions) ? r.recommendedActions : [];
+        const risksLine = risks.map(x => `[${x?.severity ?? '?'}] ${x?.description ?? ''}`).join('; ') || 'none';
+        const recsLine = recs.join('; ') || 'none';
+        return `## ${r.department.toUpperCase()} (conf: ${r.confidence})\n${r.summary}\nRisks: ${risksLine}\nRecs: ${recsLine}`;
+      }).join('\n\n');
       const optionText = event.options.length ? '\n\nOPTIONS:\n' + event.options.map(o => `- ${o.id}: ${o.label} — ${o.description}${o.isRisky ? ' [RISKY]' : ''}`).join('\n') + '\n\nYou MUST include "selectedOptionId" in your JSON response.' : '';
       const effectsList = reports.flatMap(r => (r.recommendedEffects || []).map(e => `  - ${e.id} (${e.type}): ${e.description}${e.colonyDelta ? ' | Delta: ' + JSON.stringify(e.colonyDelta) : ''}`));
       const effectsText = effectsList.length ? '\n\nAVAILABLE POLICY EFFECTS:\n' + effectsList.join('\n') : '';
