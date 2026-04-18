@@ -212,14 +212,17 @@ export const DEFAULT_EXECUTION: SimulationExecutionConfig = {
  */
 export const DEMO_MODELS: Record<LlmProvider, SimulationModelConfig> = {
   openai: {
-    // Departments moved to flagship. Mid-tier (gpt-5.4-mini) kept
-    // emitting inputSchema/outputSchema with additionalProperties:true
-    // and no declared properties, so every forge hit the pre-judge
-    // shape validator and failed. Flagship reliably follows the
-    // worked-example schema format in the forge prompt. The extra
-    // cost is bounded by departmentMaxSteps: 2 and the judge staying
-    // on nano for cheap pass/fail review.
-    departments: 'gpt-5.4',
+    // gpt-4o-mini for departments. Different model family than the
+    // gpt-5.4 line; historically reliable for structured JSON output
+    // at a tiny fraction of the cost. Combined with the tightened
+    // forge prompt and the pre-judge shape validator, this is the
+    // cheapest shot at passing forges. $0.60/M output is 25x cheaper
+    // than gpt-5.4 flagship, 7.5x cheaper than gpt-5.4-mini.
+    //
+    // Fallback plan if this tier regresses forge quality: bump to
+    // gpt-4o ($10/M output, still half of gpt-5.4) before considering
+    // flagship again.
+    departments: 'gpt-4o-mini',
     commander: 'gpt-5.4-nano',
     director: 'gpt-5.4-nano',
     judge: 'gpt-5.4-nano',
