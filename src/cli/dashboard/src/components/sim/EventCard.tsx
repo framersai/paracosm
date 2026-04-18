@@ -469,6 +469,7 @@ export function EventCard({ event, side }: EventCardProps) {
       const outcome = String(dd.outcome || '');
       const decision = String(dd._decision || '');
       const rationale = String(dd._rationale || '');
+      const reasoning = String(dd._reasoning || '');
       const policies = (dd._policies as string[]) || [];
       const colonyDeltas = dd.colonyDeltas as Record<string, number> | undefined;
       const turnNum = String(dd.turn || '');
@@ -511,12 +512,24 @@ export function EventCard({ event, side }: EventCardProps) {
               ))}
             </div>
           )}
-          {/* Expandable reasoning */}
-          {(rationale || policies.length > 0) && (
+          {/* Expandable reasoning. `reasoning` is the full stepwise CoT
+              (new in the Zod migration — previously stripped and
+              discarded). `rationale` is the compressed one-paragraph
+              summary. Show both in the expand: reasoning first (numbered
+              steps render in the wrapping `div` as preformatted lines),
+              then rationale, then policies. */}
+          {(rationale || reasoning || policies.length > 0) && (
             <details style={{ marginTop: '4px' }}>
-              <summary style={{ fontSize: '12px', color: sideColor, fontWeight: 600, cursor: 'pointer' }}>Full reasoning &amp; policies</summary>
+              <summary style={{ fontSize: '12px', color: sideColor, fontWeight: 600, cursor: 'pointer' }}>
+                Full reasoning &amp; policies
+              </summary>
               <div style={{ marginTop: '4px', fontSize: '11px', color: 'var(--text-2)', lineHeight: 1.5 }}>
-                {decision}
+                {reasoning && (
+                  <div style={{ marginBottom: '6px', whiteSpace: 'pre-wrap', fontFamily: 'var(--mono)', fontSize: '10.5px', color: 'var(--text-1)', background: 'var(--bg-card)', padding: '6px 8px', borderRadius: '3px', border: '1px solid var(--border)' }}>
+                    {reasoning}
+                  </div>
+                )}
+                {decision && <div>{decision}</div>}
                 {rationale && <div style={{ marginTop: '4px', fontStyle: 'italic' }}>{rationale}</div>}
                 {policies.map((p, i) => <div key={i} style={{ color: 'var(--amber)' }}>&rarr; {p}</div>)}
               </div>

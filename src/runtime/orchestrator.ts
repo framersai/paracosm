@@ -1101,7 +1101,17 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
       }
       const decision = decisionParsed as unknown as CommanderDecision;
       console.log(`  [commander] ${decision.decision.slice(0, 120)}...`);
-      emit('commander_decided', { turn, year, decision: decision.decision, rationale: decision.rationale, selectedPolicies: decision.selectedPolicies, eventIndex: ei });
+      emit('commander_decided', {
+        turn, year,
+        decision: decision.decision,
+        rationale: decision.rationale,
+        /** Full stepwise CoT preserved from the schema's reasoning field.
+         *  Dashboard renders this behind a "Show full analysis" expand;
+         *  rationale is the default compressed view. */
+        reasoning: (decision as unknown as { reasoning?: string }).reasoning ?? '',
+        selectedPolicies: decision.selectedPolicies,
+        eventIndex: ei,
+      });
 
       kernel.applyPolicy(decisionToPolicy(decision, reports, turn, year));
       const agentUpdates = reports.flatMap(r => (r.featuredAgentUpdates || []).filter(u => u && u.agentId && u.updates).map(u => ({ agentId: u.agentId, health: u.updates?.health, career: u.updates?.career, narrativeEvent: u.updates?.narrative?.event })));

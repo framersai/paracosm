@@ -76,6 +76,11 @@ export interface SideState {
   decisions: number;
   pendingDecision: string;
   pendingRationale: string;
+  /** Full stepwise CoT from the commander's reasoning schema field.
+   *  Piped into the outcome event as `_reasoning` so the Reports tab can
+   *  render it behind an expand. Empty string when the decision schema
+   *  lacked the field (older runs before the Zod migration). */
+  pendingReasoning: string;
   pendingPolicies: string[];
   outcome: string | null;
   agentSnapshots: AgentSnapshot[][];
@@ -152,7 +157,7 @@ function emptySide(): SideState {
     leader: null, colony: null, prevColony: null, crisis: null,
     events: [], popHistory: [], moraleHistory: [],
     deaths: 0, deathCauses: {}, tools: 0, toolNames: new Set<string>(), citations: 0, decisions: 0,
-    pendingDecision: '', pendingRationale: '', pendingPolicies: [],
+    pendingDecision: '', pendingRationale: '', pendingReasoning: '', pendingPolicies: [],
     outcome: null, agentSnapshots: [], currentEvents: [],
   };
 }
@@ -365,6 +370,7 @@ export function useGameState(sseEvents: SimEvent[], isComplete: boolean): GameSt
         case 'commander_decided':
           s.pendingDecision = dd.decision as string || '';
           s.pendingRationale = dd.rationale as string || '';
+          s.pendingReasoning = dd.reasoning as string || '';
           s.pendingPolicies = (dd.selectedPolicies as string[]) || [];
           break;
 
@@ -378,6 +384,7 @@ export function useGameState(sseEvents: SimEvent[], isComplete: boolean): GameSt
               ...dd,
               _decision: s.pendingDecision,
               _rationale: s.pendingRationale,
+              _reasoning: s.pendingReasoning,
               _policies: s.pendingPolicies,
             },
           });
