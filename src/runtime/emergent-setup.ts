@@ -22,7 +22,16 @@ import {
   EmergentCapabilityEngine, EmergentJudge, EmergentToolRegistry,
   ComposableToolBuilder, SandboxedToolForge, ForgeToolMetaTool, generateText,
   type EmergentTool,
+  wrapForgeTool as wrapForgeToolAgentOS,
+  validateForgeShape,
+  inferSchemaFromTestCases,
+  type CapturedForge as AgentOSCapturedForge,
+  type ForgeLogEvent,
 } from '@framers/agentos';
+
+// Re-export the generalized forge utilities so existing paracosm call
+// sites continue to import from this module without churn.
+export { validateForgeShape, inferSchemaFromTestCases };
 import { DEFAULT_EXECUTION, type SimulationExecutionConfig } from '../cli/sim-config.js';
 import type { LlmProvider } from '../engine/types.js';
 
@@ -294,139 +303,17 @@ export interface CapturedForge {
 }
 
 /**
- * Derive a JSON-Schema primitive type from a concrete testCase value.
- * Handles the types the sandbox forge actually returns: number, string,
- * boolean, object, array. Falls back to `string` for anything else so
- * the schema stays well-formed.
- */
-function inferTypeFromValue(v: unknown): string {
-  if (typeof v === 'number') return 'number';
-  if (typeof v === 'boolean') return 'boolean';
-  if (typeof v === 'string') return 'string';
-  if (Array.isArray(v)) return 'array';
-  if (v !== null && typeof v === 'object') return 'object';
-  return 'string';
-}
-
-/**
- * When inputSchema / outputSchema lack declared properties but the
- * testCases carry real field values, synthesize properties from the
- * testCase data so the shape validator passes.
- *
- * The LLM regularly emits concrete test cases without formalizing the
- * schema shape. Before this helper, every such forge was rejected by
- * validateForgeShape even though the intent was clearly legitimate.
- *
- * Mutates `req.inputSchema` / `req.outputSchema` in place. A scanned
- * union of fields across ALL testCases is used so a single incomplete
- * case doesn't narrow the schema.
- *
- * Exported for unit testing.
- */
-export function inferSchemaFromTestCases(req: {
-  inputSchema?: unknown;
-  outputSchema?: unknown;
-  testCases?: unknown;
-}): void {
-  const tcArr = Array.isArray(req.testCases)
-    ? (req.testCases as Array<{ input?: unknown; expectedOutput?: unknown }>)
-    : [];
-  if (tcArr.length === 0) return;
-
-  const inferProperties = (key: 'input' | 'expectedOutput') => {
-    const props: Record<string, { type: string }> = {};
-    for (const tc of tcArr) {
-      const data = tc?.[key];
-      if (!data || typeof data !== 'object' || Array.isArray(data)) continue;
-      for (const [field, value] of Object.entries(data as Record<string, unknown>)) {
-        if (props[field]) continue;
-        props[field] = { type: inferTypeFromValue(value) };
-      }
-    }
-    return props;
-  };
-
-  const maybeUpgrade = (
-    schemaKey: 'inputSchema' | 'outputSchema',
-    testCaseKey: 'input' | 'expectedOutput',
-  ) => {
-    const schema = req[schemaKey];
-    const current = (schema && typeof schema === 'object' ? schema : {}) as {
-      type?: string;
-      properties?: Record<string, unknown>;
-      required?: string[];
-      additionalProperties?: boolean;
-    };
-    const hasProps =
-      current.properties &&
-      typeof current.properties === 'object' &&
-      Object.keys(current.properties).length > 0;
-    if (hasProps) return;
-
-    const inferred = inferProperties(testCaseKey);
-    if (Object.keys(inferred).length === 0) return;
-
-    req[schemaKey] = {
-      type: 'object',
-      properties: inferred,
-      required: Object.keys(inferred),
-      additionalProperties: false,
-    };
-  };
-
-  maybeUpgrade('inputSchema', 'input');
-  maybeUpgrade('outputSchema', 'expectedOutput');
-}
-
-/**
- * Shape check run against a normalized forge request before it hits
- * the judge. Catches the failure modes that cause almost all cheap-
- * tier forge rejections (empty schemas + empty-input testCases) and
- * returns a list of reasons. Empty array means the forge is well-
- * formed enough to warrant the judge's attention.
- *
- * Exported for direct unit testing so the rule surface is pinned
- * without having to mock the forge engine.
- */
-export function validateForgeShape(req: {
-  inputSchema?: unknown;
-  outputSchema?: unknown;
-  testCases?: unknown;
-}): string[] {
-  const errors: string[] = [];
-  const inputSchema = req.inputSchema as { properties?: Record<string, unknown> } | null;
-  const outputSchema = req.outputSchema as { properties?: Record<string, unknown> } | null;
-  const inputProps = inputSchema && typeof inputSchema.properties === 'object' ? inputSchema.properties : null;
-  const outputProps = outputSchema && typeof outputSchema.properties === 'object' ? outputSchema.properties : null;
-  if (!inputProps || Object.keys(inputProps).length === 0) {
-    errors.push('inputSchema has no declared properties; add at least two typed fields');
-  }
-  if (!outputProps || Object.keys(outputProps).length === 0) {
-    errors.push('outputSchema has no declared properties; add at least one typed output field');
-  }
-  const tcArr = Array.isArray(req.testCases)
-    ? (req.testCases as Array<{ input?: unknown; expectedOutput?: unknown }>)
-    : [];
-  if (tcArr.length < 2) {
-    errors.push(`need at least 2 testCases, got ${tcArr.length}`);
-  }
-  const emptyInputs = tcArr.filter(tc => {
-    const inp = tc?.input;
-    return !inp || typeof inp !== 'object' || Object.keys(inp as Record<string, unknown>).length === 0;
-  }).length;
-  if (emptyInputs > 0) {
-    errors.push(`${emptyInputs} testCase${emptyInputs === 1 ? '' : 's'} use empty input; every test needs real field values`);
-  }
-  return errors;
-}
-
-/**
  * Wrap the raw forge_tool meta-tool so each department's forge attempts
- * get captured + logged + normalized before they reach the engine. LLMs
- * emit wild variety in forge_tool args (stringified JSON, wrong mode
- * spellings, missing allowlists, no code body). This wrapper fixes them
- * up so the engine never crashes deep in sandbox validation, and every
- * attempt gets recorded into the `capture` sink regardless of outcome.
+ * get captured + logged + normalized before they reach the engine.
+ *
+ * Thin adapter over AgentOS's `wrapForgeTool`. Preserves paracosm's
+ * legacy positional signature (dept, capture) and wire shape
+ * (CapturedForge.department) so every downstream consumer — orchestrator
+ * buckets, SSE payloads, the dashboard's forge viz — keeps working
+ * without a schema-level migration. Internally the AgentOS version does
+ * all the normalization, shape validation, schema inference, and capture
+ * — paracosm contributes the pm2-format console logging and the
+ * department-shaped capture record.
  */
 export function wrapForgeTool(
   raw: ForgeToolMetaTool,
@@ -435,182 +322,44 @@ export function wrapForgeTool(
   dept: string,
   capture: (record: CapturedForge) => void,
 ): ITool {
-  return {
-    ...(raw as any),
-    async execute(args: Record<string, unknown>, ctx: any) {
-      const fixed = { ...args };
-      for (const k of ['implementation', 'inputSchema', 'outputSchema', 'testCases']) {
-        if (typeof (fixed as any)[k] === 'string') {
-          try {
-            (fixed as any)[k] = JSON.parse((fixed as any)[k]);
-          } catch (e) {
-            console.warn(`  [forge] Failed to parse ${k}:`, e);
-          }
-        }
-      }
-      // Normalize implementation. LLMs send a wide variety of mode
-      // spellings and sometimes mis-label compose specs as sandbox or
-      // vice versa. AgentOS's engine does a STRICT `mode === 'compose'`
-      // check — anything else falls into the sandbox branch, which
-      // then reads `allowlist` / `code` fields that a compose spec
-      // does not carry. That path crashes with
-      //   TypeError: Cannot read properties of undefined (reading 'includes')
-      // inside SandboxedToolForge.validateCode. Normalize to one of
-      // exactly 'sandbox' or 'compose', infer from field shape when
-      // the mode string is unfamiliar, backstop every required field
-      // so neither engine path can crash on malformed LLM output.
-      if (fixed.implementation && typeof fixed.implementation === 'object') {
-        const impl = fixed.implementation as any;
-        if (impl.mode === 'code' || impl.mode === 'javascript' || impl.mode === 'js') {
-          impl.mode = 'sandbox';
-        }
-        if (
-          impl.mode === 'composed' ||
-          impl.mode === 'composition' ||
-          impl.mode === 'composable' ||
-          impl.mode === 'chain' ||
-          impl.mode === 'pipeline'
-        ) {
-          impl.mode = 'compose';
-        }
-        if (impl.mode !== 'sandbox' && impl.mode !== 'compose') {
-          if (Array.isArray(impl.steps)) impl.mode = 'compose';
-          else if (typeof impl.code === 'string') impl.mode = 'sandbox';
-          else impl.mode = 'sandbox';
-        }
-        if (impl.mode === 'sandbox') {
-          if (!Array.isArray(impl.allowlist)) impl.allowlist = [];
-          if (impl.code != null && typeof impl.code !== 'string') impl.code = String(impl.code);
-          if (!impl.code || typeof impl.code !== 'string') {
-            impl.code = 'function execute(input) { return { error: "No code provided in forge request" }; }';
-          }
-          if (!impl.code.includes('function execute')) {
-            impl.code = `function execute(input) {\n${impl.code}\n}`;
-          }
-        } else if (impl.mode === 'compose') {
-          if (!Array.isArray(impl.steps)) impl.steps = [];
-          for (const step of impl.steps) {
-            if (step && typeof step === 'object') {
-              if (typeof step.tool !== 'string') step.tool = '';
-              if (typeof step.name !== 'string') step.name = step.tool || 'step';
-              if (!step.inputMapping || typeof step.inputMapping !== 'object') {
-                step.inputMapping = {};
-              }
-            }
-          }
-        }
-      }
-      if (!fixed.inputSchema || typeof fixed.inputSchema !== 'object') {
-        fixed.inputSchema = { type: 'object', additionalProperties: true };
-      }
-      if (!fixed.outputSchema || typeof fixed.outputSchema !== 'object') {
-        fixed.outputSchema = { type: 'object', additionalProperties: true };
-      }
-      if (!Array.isArray(fixed.testCases) || fixed.testCases.length === 0) {
-        fixed.testCases = [{ input: {}, expectedOutput: {} }];
-      }
-      for (const tc of fixed.testCases as any[]) {
-        if (!tc.input || typeof tc.input !== 'object') tc.input = {};
-        if (tc.expectedOutput === undefined) tc.expectedOutput = {};
-      }
-
-      // Schema inference from testCases.
-      //
-      // The LLM often provides concrete testCases with real field values
-      // but forgets to declare `inputSchema.properties` / `outputSchema.
-      // properties`. The shape validator then rejects every forge before
-      // the judge sees it. Since the testCases already witness the fields
-      // the tool actually consumes, we can synthesize the missing schema
-      // properties from them and pass the shape check deterministically.
-      //
-      // This is NOT a relaxation of the schema discipline — the tool code
-      // still has to handle whatever inputs come in. It's a correction of
-      // a common LLM oversight (examples without formalization) that was
-      // the dominant cause of turn-1 forge failures in the demo.
-      inferSchemaFromTestCases(fixed);
-      const mode = (fixed.implementation as any)?.mode || '?';
-      const toolName = String(fixed.name || 'unnamed');
-      const toolDescription = String((fixed as any).description || toolName);
-
-      // Pre-judge validation via the extracted helper so the rule
-      // surface stays testable without mocking the whole forge engine.
-      const shapeErrors = validateForgeShape(fixed);
-      if (shapeErrors.length > 0) {
-        const reason = `Shape check failed: ${shapeErrors.join('; ')}`;
-        console.log(`    🔧 [${dept}] ✗ "${toolName}" — ${reason}`);
-        capture({
-          name: toolName,
-          description: toolDescription,
-          mode: String(mode),
-          inputSchema: fixed.inputSchema,
-          outputSchema: fixed.outputSchema,
-          approved: false,
-          confidence: 0,
-          output: null,
-          errorReason: reason.slice(0, 240),
-          department: dept,
-          timestamp: Date.now(),
-        });
-        return {
-          success: false,
-          error: reason,
-          output: { success: false, verdict: { approved: false, confidence: 0, reasoning: reason } },
-        } as any;
-      }
-
-      console.log(`    🔧 [${dept}] Forging "${toolName}" (${mode})...`);
-      const patched = { ...ctx, gmiId: agentId, sessionData: { ...(ctx?.sessionData ?? {}), sessionId } };
-      try {
-        const r = await raw.execute(fixed as any, patched);
-        const out = r.output as any;
-        const verdict = out?.verdict || {};
-        // Judge confidence is the judge's score for whether the tool
-        // is safe + correct. When the judge fails the forge, its
-        // confidence is in REJECTING the tool; surfacing that as the
-        // tool's own quality score is misleading. So:
-        //   approved → use judge confidence if provided, else 0.85
-        //   rejected → confidence is 0 (not accepted at all)
-        const judgeConfidence = typeof verdict.confidence === 'number' ? verdict.confidence : null;
-        const confidence = r.success ? (judgeConfidence ?? 0.85) : 0;
-        const errorReason = !r.success
-          ? String(r.error || verdict.reasoning || out?.error || '').slice(0, 240)
-          : undefined;
-        if (r.success) {
-          console.log(`    🔧 [${dept}] ✓ "${toolName}" approved (conf ${confidence.toFixed(2)})`);
-        } else {
-          console.log(`    🔧 [${dept}] ✗ "${toolName}" — ${errorReason}`);
-        }
-        capture({
-          name: toolName,
-          description: toolDescription,
-          mode: String(mode),
-          inputSchema: fixed.inputSchema,
-          outputSchema: fixed.outputSchema,
-          approved: !!r.success,
-          confidence,
-          output: out?.testResults ?? out?.result ?? out ?? null,
-          errorReason,
-          department: dept,
-          timestamp: Date.now(),
-        });
-        return r;
-      } catch (err) {
-        console.log(`    🔧 [${dept}] ERR: ${err}`);
-        capture({
-          name: toolName,
-          description: toolDescription,
-          mode: String(mode),
-          inputSchema: fixed.inputSchema,
-          outputSchema: fixed.outputSchema,
-          approved: false,
-          confidence: 0,
-          output: null,
-          errorReason: String(err).slice(0, 240),
-          department: dept,
-          timestamp: Date.now(),
-        });
-        return { success: false, error: String(err) };
+  return wrapForgeToolAgentOS({
+    raw,
+    agentId,
+    sessionId,
+    scope: dept,
+    capture: (record: AgentOSCapturedForge) => {
+      capture({
+        name: record.name,
+        description: record.description,
+        mode: record.mode,
+        inputSchema: record.inputSchema,
+        outputSchema: record.outputSchema,
+        approved: record.approved,
+        confidence: record.confidence,
+        output: record.output,
+        errorReason: record.errorReason,
+        department: record.scope ?? dept,
+        timestamp: record.timestamp,
+      });
+    },
+    log: (event: ForgeLogEvent) => {
+      const scopeLabel = event.scope ?? dept;
+      switch (event.kind) {
+        case 'start':
+          console.log(`    🔧 [${scopeLabel}] Forging "${event.toolName}" (${event.mode})...`);
+          break;
+        case 'approved':
+          console.log(
+            `    🔧 [${scopeLabel}] ✓ "${event.toolName}" approved (conf ${event.confidence.toFixed(2)})`,
+          );
+          break;
+        case 'rejected':
+          console.log(`    🔧 [${scopeLabel}] ✗ "${event.toolName}" — ${event.reason}`);
+          break;
+        case 'error':
+          console.log(`    🔧 [${scopeLabel}] ERR: ${event.error}`);
+          break;
       }
     },
-  };
+  });
 }

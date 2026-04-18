@@ -19,7 +19,10 @@ import {
   getDefaultPricing,
   type CostSite,
 } from './pricing.js';
-import { classifyForgeRejection } from './forge-rejection-classifier.js';
+import {
+  ForgeStatsAggregator,
+  type ForgeStats as AgentOSForgeStats,
+} from '@framers/agentos';
 
 /** Token + cost rollup for a single pipeline stage across a run. */
 export interface CostBucket {
@@ -58,50 +61,11 @@ export interface CostBreakdownEntry {
  * the same SSE payload that ships cost data also ships "how is the
  * judge treating this run's forges". Persists across the run (never
  * decrements, matching the schemaRetries pattern).
+ *
+ * Identical in shape to AgentOS's {@link AgentOSForgeStats}; aliased so
+ * any future drift in the canonical definition propagates automatically.
  */
-export interface ForgeStats {
-  /** Total forge attempts (approved + rejected combined). */
-  attempts: number;
-  /** Attempts the judge approved. */
-  approved: number;
-  /** Attempts the judge rejected (shape check OR judge verdict). */
-  rejected: number;
-  /** Sum of confidence across APPROVED forges. Divide by `approved` for avg. */
-  approvedConfidenceSum: number;
-  /**
-   * Count of UNIQUE tool names seen this run. A forge that got rejected
-   * and re-forged under the same name counts once. Provides the
-   * "how many distinct tools did this run attempt" signal.
-   */
-  uniqueNames: number;
-  /**
-   * Count of unique tool names that got approved at least once this
-   * run. Raw `approved` counts every approval attempt (re-forges add);
-   * `uniqueApproved` counts tools that landed in the toolbox.
-   */
-  uniqueApproved: number;
-  /**
-   * Count of unique tool names that were ONLY rejected (never
-   * approved) this run. Non-zero means some forge ideas failed
-   * terminally; the retry loop did not recover. This is the
-   * actionable quality signal — small even when raw `rejected` is
-   * large because most rejections recover on subsequent attempts.
-   */
-  uniqueTerminalRejections: number;
-  /**
-   * Histogram of rejection reasons this run, classified by
-   * classifyForgeRejection. Turns "why did forges fail" from a
-   * log-grep question into a live dashboard signal. Keys match
-   * ForgeRejectionCategory.
-   */
-  rejectionReasons: {
-    schema_extra_field: number;
-    shape_check: number;
-    parse_error: number;
-    judge_correctness: number;
-    other: number;
-  };
-}
+export type ForgeStats = AgentOSForgeStats;
 
 /**
  * Per-run prompt-cache rollup. Ships alongside forgeStats on every
@@ -252,43 +216,14 @@ export function createCostTracker(modelConfig: SimulationModelConfig): CostTrack
    */
   const schemaRetries = new Map<string, { attempts: number; calls: number; fallbacks: number }>();
   /**
-   * Running forge stats. Incremented on every wrapForgeTool capture so
-   * SSE consumers see a live approval-rate indicator as the run goes.
+   * Running forge stats aggregator. Every wrapForgeTool capture feeds
+   * through recordForgeAttempt, which delegates to the AgentOS
+   * aggregator so SSE consumers see a live approval-rate indicator as
+   * the run goes. The aggregator owns the unique-name set bookkeeping,
+   * the rejection-reason histogram, and the `uniqueTerminalRejections =
+   * |rejectedNames − approvedNames|` math.
    */
-  const forgeStats: ForgeStats = {
-    attempts: 0,
-    approved: 0,
-    rejected: 0,
-    approvedConfidenceSum: 0,
-    uniqueNames: 0,
-    uniqueApproved: 0,
-    uniqueTerminalRejections: 0,
-    rejectionReasons: {
-      schema_extra_field: 0,
-      shape_check: 0,
-      parse_error: 0,
-      judge_correctness: 0,
-      other: 0,
-    },
-  };
-  // Per-name sets so the rollup can report unique-tool metrics. A tool
-  // rejected twice then approved contributes to `rejectedNames` and
-  // `approvedNames` both — at snapshot time, uniqueTerminalRejections =
-  // |rejectedNames - approvedNames|.
-  const approvedNames = new Set<string>();
-  const rejectedNames = new Set<string>();
-  const refreshUniqueForgeCounts = () => {
-    forgeStats.uniqueApproved = approvedNames.size;
-    // Names that were rejected but never approved = terminal failures.
-    let terminal = 0;
-    for (const n of rejectedNames) if (!approvedNames.has(n)) terminal += 1;
-    forgeStats.uniqueTerminalRejections = terminal;
-    // Total unique = union of both sets.
-    const union = new Set<string>();
-    for (const n of approvedNames) union.add(n);
-    for (const n of rejectedNames) union.add(n);
-    forgeStats.uniqueNames = union.size;
-  };
+  const forgeAggregator = new ForgeStatsAggregator();
   /**
    * Provider-error counters keyed by classifier kind. Incremented on
    * every classified error, not just terminal ones, so rate-limit
@@ -388,8 +323,9 @@ export function createCostTracker(modelConfig: SimulationModelConfig): CostTrack
     if (schemaRetries.size > 0) {
       payload.schemaRetries = Object.fromEntries(schemaRetries.entries());
     }
-    if (forgeStats.attempts > 0) {
-      payload.forgeStats = { ...forgeStats };
+    const forgeSnapshot = forgeAggregator.snapshot();
+    if (forgeSnapshot.attempts > 0) {
+      payload.forgeStats = forgeSnapshot;
     }
     if (cacheReadTokens > 0 || cacheCreationTokens > 0) {
       payload.cacheStats = {
@@ -415,21 +351,7 @@ export function createCostTracker(modelConfig: SimulationModelConfig): CostTrack
   };
 
   const recordForgeAttempt: CostTracker['recordForgeAttempt'] = (approved, confidence, toolName, errorReason) => {
-    forgeStats.attempts += 1;
-    if (approved) {
-      forgeStats.approved += 1;
-      forgeStats.approvedConfidenceSum += confidence;
-      if (toolName) approvedNames.add(toolName);
-    } else {
-      forgeStats.rejected += 1;
-      if (toolName) rejectedNames.add(toolName);
-      // Bucket the rejection reason so /retry-stats and the dashboard
-      // can show the failure-mode distribution without log-grep. Only
-      // meaningful on rejections; approvals never carry errorReason.
-      const category = classifyForgeRejection(errorReason);
-      forgeStats.rejectionReasons[category] += 1;
-    }
-    refreshUniqueForgeCounts();
+    forgeAggregator.recordAttempt(approved, confidence, toolName, errorReason);
   };
 
   const recordProviderError: CostTracker['recordProviderError'] = (kind) => {
@@ -446,8 +368,9 @@ export function createCostTracker(modelConfig: SimulationModelConfig): CostTrack
     if (schemaRetries.size > 0) {
       out.schemaRetries = Object.fromEntries(schemaRetries.entries());
     }
-    if (forgeStats.attempts > 0) {
-      out.forgeStats = { ...forgeStats };
+    const forgeSnapshot = forgeAggregator.snapshot();
+    if (forgeSnapshot.attempts > 0) {
+      out.forgeStats = forgeSnapshot;
     }
     // Emit cacheStats only when the provider reported at least one
     // cache-related token count. OpenAI runs (which auto-cache but
