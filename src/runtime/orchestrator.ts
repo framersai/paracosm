@@ -9,12 +9,13 @@ import {
 } from './emergent-setup.js';
 import {
   humanizeToolName,
-  parseDeptReport,
   parseCmdDecision,
   emptyReport,
   emptyDecision,
   decisionToPolicy,
 } from './parsers.js';
+import { sendAndValidate } from './llm-invocations/sendAndValidate.js';
+import { DepartmentReportSchema } from './schemas/department.js';
 import { createCostTracker } from './cost-tracker.js';
 import {
   buildPersonalityCue,
@@ -739,11 +740,21 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
         // it actually forged — captured forges below are authoritative.
         const forgeBucketStart = deptForgeBuckets.get(dept)?.length ?? 0;
         try {
-          const r = await sess.send(ctx);
-          // Tag as 'departments' so the StatsBar breakdown shows this
-          // (biggest cost line item) separately from director/commander.
-          trackUsage(r, 'departments');
-          const report = parseDeptReport(r.text, dept);
+          const { object: parsedDeptReport, fromFallback: deptFallback } = await sendAndValidate({
+            session: sess,
+            prompt: ctx,
+            schema: DepartmentReportSchema,
+            onUsage: (usage) => trackUsage(usage as any, 'departments'),
+            onProviderError: (err) => reportProviderError(err, `dept:${dept}:turn${turn}:event${ei + 1}`),
+            fallback: { ...emptyReport(dept), summary: `${dept} report unavailable this turn.` } as any,
+          });
+          if (deptFallback) {
+            console.log(`    [${dept}] schema fallback; using empty report skeleton`);
+          }
+          // Cast schema-inferred result back to the legacy DepartmentReport
+          // nominal type so downstream code (reports consumer, cost tracker,
+          // citation plumbing) sees the same shape it always has.
+          const report = parsedDeptReport as unknown as DepartmentReport;
           // Citation provenance guarantee: when the LLM omits citations but the
           // research packet carried real sources, attribute them to the report.
           // This keeps the citation flow auditable end-to-end (seed → memory →

@@ -59,53 +59,6 @@ export function cleanSummary(raw: string): string {
 }
 
 /**
- * Synthesize a clean one-sentence summary from whatever the LLM
- * returned in its JSON payload. Prefers `summary` → `decision` →
- * `recommendation`. Falls back to joined recommendedActions, then to
- * joined risk descriptions, then to a generic "department analysis
- * complete" stub so the UI always has something non-empty to show.
- */
-export function buildReadableSummary(raw: any, dept: Department): string {
-  const summaryText = raw.summary || raw.decision || raw.recommendation || '';
-  const cleaned = cleanSummary(summaryText);
-  if (cleaned && cleaned.length >= 20) return cleaned;
-
-  const recs = (raw.recommendedActions || []).slice(0, 2).join('. ');
-  if (recs) return cleanSummary(recs);
-
-  const risks = (raw.risks || []).map((r: any) => r.description).slice(0, 2).join('. ');
-  if (risks) return cleanSummary(risks);
-
-  return `${dept.charAt(0).toUpperCase() + dept.slice(1)} department analysis complete.`;
-}
-
-/**
- * Parse a department's LLM response into a typed DepartmentReport.
- * JSON preferred; falls back to markdown-citation scraping when the
- * model returns prose. Always returns a non-empty object — never
- * throws, never returns null.
- */
-export function parseDeptReport(text: string, dept: Department): DepartmentReport {
-  const jsonStr = extractJson(text);
-  if (jsonStr) {
-    try {
-      const raw = JSON.parse(jsonStr);
-      if (raw.department || raw.summary || raw.risks || raw.recommendedActions) {
-        const report = { ...emptyReport(dept), ...raw, department: dept };
-        report.summary = buildReadableSummary(raw, dept);
-        if (typeof report.confidence !== 'number' || report.confidence < 0.1) report.confidence = 0.8;
-        return report;
-      }
-    } catch { /* try next block */ }
-  }
-
-  const cites: DepartmentReport['citations'] = [];
-  let m; const re = /\[([^\]]+)\]\(([^)]+)\)/g;
-  while ((m = re.exec(text))) if (m[2].startsWith('http')) cites.push({ text: m[1], url: m[2], context: m[1] });
-  return { ...emptyReport(dept), summary: cleanSummary(text), citations: cites };
-}
-
-/**
  * Parse a commander's LLM response into a typed CommanderDecision.
  * JSON preferred; falls back to treating the entire text as a free-
  * form decision + rationale when no JSON body is recoverable.
