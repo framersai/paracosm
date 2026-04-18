@@ -6,6 +6,7 @@ import type { AutomatonMode } from './automaton/shared.js';
 
 const AUTOMATON_MODE_KEY = 'paracosm:vizAutomatonMode';
 const AUTOMATON_COLLAPSED_KEY = 'paracosm:vizAutomatonCollapsed';
+const AUTOMATON_MAXIMIZED_KEY = 'paracosm:vizAutomatonMaximized';
 const AUTOMATON_NUDGE_KEY = 'paracosm:automatonNudgeSeen';
 
 function readStoredMode(): AutomatonMode {
@@ -62,6 +63,14 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
   // localStorage so the user's last-picked mode persists.
   const [automatonMode, setAutomatonModeState] = useState<AutomatonMode>(() => readStoredMode());
   const [automatonCollapsed, setAutomatonCollapsedState] = useState<boolean>(() => readStoredCollapsed());
+  const [automatonMaximized, setAutomatonMaximizedState] = useState<boolean>(() => {
+    try { return localStorage.getItem(AUTOMATON_MAXIMIZED_KEY) === '1'; }
+    catch { return false; }
+  });
+  const setAutomatonMaximized = useCallback((next: boolean) => {
+    setAutomatonMaximizedState(next);
+    try { localStorage.setItem(AUTOMATON_MAXIMIZED_KEY, next ? '1' : '0'); } catch { /* silent */ }
+  }, []);
   const setAutomatonMode = useCallback((m: AutomatonMode) => {
     setAutomatonModeState(m);
     try { localStorage.setItem(AUTOMATON_MODE_KEY, m); } catch { /* silent */ }
@@ -345,6 +354,8 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
           forgeAttempts={forgeFeeds.a.attempts}
           reuseCalls={forgeFeeds.a.reuses}
           scenarioDepartments={scenario.departments.map(d => d.id)}
+          automatonMaximized={automatonMaximized}
+          onAutomatonMaximizedChange={setAutomatonMaximized}
         />
         <ColonyPanel
           snapshot={snapB}
@@ -367,6 +378,8 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
           forgeAttempts={forgeFeeds.b.attempts}
           reuseCalls={forgeFeeds.b.reuses}
           scenarioDepartments={scenario.departments.map(d => d.id)}
+          automatonMaximized={automatonMaximized}
+          onAutomatonMaximizedChange={setAutomatonMaximized}
         />
       </div>
       <Legend />

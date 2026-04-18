@@ -178,6 +178,10 @@ interface ColonyPanelProps {
   reuseCalls?: Array<{ turn: number; originDept: string; callingDept: string; name: string }>;
   /** Department ids from the scenario — used by the ecology hex grid. */
   scenarioDepartments?: string[];
+  /** When true, the automaton band fills the panel and tile sections
+   *  hide. Lifted to ColonyViz so both sides maximize together. */
+  automatonMaximized?: boolean;
+  onAutomatonMaximizedChange?: (next: boolean) => void;
   /**
    * Non-zero when this side's latest snapshot is older than the other
    * leader's (e.g. the other side finished turn 5 but this side is
@@ -200,6 +204,7 @@ export function ColonyPanel(props: ColonyPanelProps) {
     side, hexacoById, automatonMode, automatonCollapsed,
     onAutomatonModeChange, onAutomatonCollapseToggle,
     forgeAttempts, reuseCalls, scenarioDepartments,
+    automatonMaximized, onAutomatonMaximizedChange,
   } = props;
 
   const layout = useMemo(
@@ -311,7 +316,14 @@ export function ColonyPanel(props: ColonyPanelProps) {
         reuseCalls={reuseCalls}
         scenarioDepartments={scenarioDepartments}
         onSelectAgent={onSelect}
+        maximized={automatonMaximized}
+        onMaximizedChange={onAutomatonMaximizedChange}
       />
+
+      {/* Tile sections hide entirely when the automaton is maximized so
+          the canvas can fill the full panel height. */}
+      {!automatonMaximized && (
+        <>
 
       <div>
         {sectionHeader('Featured', layout.featured.length)}
@@ -365,12 +377,18 @@ export function ColonyPanel(props: ColonyPanelProps) {
         ) : emptySlot('department clusters')}
       </div>
 
-      <div>
-        {sectionHeader('Deceased', layout.ghosts.length)}
+      <details style={{ border: 'none' }}>
+        <summary style={{ cursor: 'pointer', listStyle: 'none' }}>
+          {sectionHeader('Deceased (click to expand)', layout.ghosts.length)}
+        </summary>
         {layout.ghosts.length > 0 ? (
-          <GhostLayer ghosts={layout.ghosts} selectedId={selectedId} onSelect={onSelect} />
+          <div style={{ paddingTop: 6 }}>
+            <GhostLayer ghosts={layout.ghosts} selectedId={selectedId} onSelect={onSelect} />
+          </div>
         ) : emptySlot('deceased colonists')}
-      </div>
+      </details>
+        </>
+      )}
     </div>
   );
 }

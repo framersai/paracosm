@@ -103,7 +103,9 @@ export function hashString(s: string): number {
   return h >>> 0;
 }
 
-export const DEFAULT_BAND_HEIGHT = 140;
-export const ECOLOGY_BAND_HEIGHT = 240;
+export const DEFAULT_BAND_HEIGHT = 360;
+export const ECOLOGY_BAND_HEIGHT = 440;
 export const COLLAPSED_BAND_HEIGHT = 16;
-export const MOBILE_BAND_HEIGHT = 80;
+export const MOBILE_BAND_HEIGHT = 180;
+/** Maximize mode: automaton fills the panel, tile sections hidden. */
+export const MAX_BAND_HEIGHT_VH = 70;

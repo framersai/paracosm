@@ -9,6 +9,8 @@ import {
   MOBILE_BAND_HEIGHT,
 } from './shared.js';
 
+const AUTOMATON_MAXIMIZED_KEY = 'paracosm:vizAutomatonMaximized';
+
 interface HexacoShape { O: number; C: number; E: number; A: number; Em: number; HH: number }
 
 interface AutomatonBandProps {
@@ -26,6 +28,10 @@ interface AutomatonBandProps {
   reuseCalls?: ReuseCallInput[];
   scenarioDepartments?: string[];
   onSelectAgent?: (agentId: string) => void;
+  /** Maximize mode fills the whole panel. Lifted so both sides expand
+   *  together. Undefined → panel owns local state. */
+  maximized?: boolean;
+  onMaximizedChange?: (next: boolean) => void;
 }
 
 /**
@@ -35,7 +41,18 @@ interface AutomatonBandProps {
  * shared parent.
  */
 export function AutomatonBand(props: AutomatonBandProps) {
-  const { snapshot, hexacoById, side, sideColor, mode, collapsed, onModeChange, onCollapseToggle, eventCategories, eventIntensity, forgeAttempts, reuseCalls, scenarioDepartments, onSelectAgent } = props;
+  const { snapshot, hexacoById, side, sideColor, mode, collapsed, onModeChange, onCollapseToggle, eventCategories, eventIntensity, forgeAttempts, reuseCalls, scenarioDepartments, onSelectAgent, maximized: maximizedProp, onMaximizedChange } = props;
+  const [localMaximized, setLocalMaximized] = useState<boolean>(() => {
+    try { return localStorage.getItem(AUTOMATON_MAXIMIZED_KEY) === '1'; }
+    catch { return false; }
+  });
+  const maximized = maximizedProp ?? localMaximized;
+  const toggleMaximized = () => {
+    const next = !maximized;
+    if (onMaximizedChange) onMaximizedChange(next);
+    else setLocalMaximized(next);
+    try { localStorage.setItem(AUTOMATON_MAXIMIZED_KEY, next ? '1' : '0'); } catch { /* silent */ }
+  };
   const [isMobile, setIsMobile] = useState<boolean>(() =>
     typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches,
   );
@@ -88,7 +105,11 @@ export function AutomatonBand(props: AutomatonBandProps) {
 
   // Reduced-motion users default collapsed with a static summary.
   const effectiveCollapsed = collapsed || reducedMotion;
-  const bandHeight = effectiveCollapsed ? (reducedMotion ? 40 : COLLAPSED_BAND_HEIGHT) : expandedHeight;
+  const bandHeight = effectiveCollapsed
+    ? (reducedMotion ? 40 : COLLAPSED_BAND_HEIGHT)
+    : maximized
+    ? undefined // flex to fill the panel; height:'100%' handled below
+    : expandedHeight;
 
   return (
     <div
@@ -96,13 +117,15 @@ export function AutomatonBand(props: AutomatonBandProps) {
       style={{
         position: 'relative',
         width: '100%',
-        height: bandHeight,
+        height: bandHeight !== undefined ? bandHeight : '100%',
+        flex: maximized && !effectiveCollapsed ? 1 : 'none',
+        minHeight: maximized && !effectiveCollapsed ? 320 : undefined,
         marginBottom: 6,
         borderRadius: 6,
         overflow: 'hidden',
         background: 'var(--bg-deep)',
         border: '1px solid var(--border)',
-        transition: 'height 220ms cubic-bezier(0.2, 0.9, 0.3, 1)',
+        transition: effectiveCollapsed ? 'height 220ms cubic-bezier(0.2, 0.9, 0.3, 1)' : undefined,
       }}
     >
       {effectiveCollapsed ? (
@@ -163,7 +186,7 @@ export function AutomatonBand(props: AutomatonBandProps) {
             side={side}
             sideColor={sideColor}
             mode={mode}
-            height={bandHeight}
+            height={bandHeight ?? (maximized ? 600 : expandedHeight)}
             eventCategories={eventCategories}
             eventIntensity={eventIntensity}
             forgeAttempts={forgeAttempts}
@@ -173,8 +196,10 @@ export function AutomatonBand(props: AutomatonBandProps) {
           />
           <ModePill
             mode={mode}
+            maximized={maximized}
             onChange={onModeChange}
             onCollapse={onCollapseToggle}
+            onMaximizeToggle={toggleMaximized}
           />
         </>
       )}
@@ -182,10 +207,12 @@ export function AutomatonBand(props: AutomatonBandProps) {
   );
 }
 
-function ModePill({ mode, onChange, onCollapse }: {
+function ModePill({ mode, maximized, onChange, onCollapse, onMaximizeToggle }: {
   mode: AutomatonMode;
+  maximized: boolean;
   onChange: (mode: AutomatonMode) => void;
   onCollapse: () => void;
+  onMaximizeToggle: () => void;
 }) {
   const segStyle = (m: AutomatonMode): React.CSSProperties => ({
     padding: '2px 8px',
@@ -215,10 +242,28 @@ function ModePill({ mode, onChange, onCollapse }: {
       <button type="button" aria-pressed={mode === 'ecology'} onClick={() => onChange('ecology')} style={{ ...segStyle('ecology'), borderLeft: 'none', borderRadius: '0 3px 3px 0' }}>ECOLOGY</button>
       <button
         type="button"
+        aria-label={maximized ? 'Restore automaton size' : 'Maximize automaton (hide tile grid)'}
+        onClick={onMaximizeToggle}
+        title={maximized ? 'Restore' : 'Maximize — hide tile grid below'}
+        style={{
+          marginLeft: 6,
+          width: 18, height: 18,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          border: '1px solid var(--border)', borderRadius: 3,
+          background: maximized ? 'var(--amber)' : 'var(--bg-panel)',
+          color: maximized ? 'var(--bg-deep)' : 'var(--text-3)',
+          cursor: 'pointer', fontSize: 10, lineHeight: 1,
+          padding: 0,
+        }}
+      >
+        {maximized ? '❭❬' : '❬❭'}
+      </button>
+      <button
+        type="button"
         aria-label="Collapse automaton band"
         onClick={onCollapse}
         style={{
-          marginLeft: 6,
+          marginLeft: 4,
           width: 18, height: 18,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           border: '1px solid var(--border)', borderRadius: 3,
