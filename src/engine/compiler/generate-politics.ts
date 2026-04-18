@@ -1,95 +1,83 @@
 /**
- * Generate a politics hook from scenario JSON via LLM.
- * The politics hook returns delta values for political/social crisis outcomes.
+ * Generate a politics hook from scenario JSON via generateValidatedCode.
+ * The politics hook returns delta values for political/social event
+ * outcomes.
+ *
+ * @module paracosm/engine/compiler/generate-politics
  */
-
 import type { GenerateTextFn } from './types.js';
+import type { CompilerTelemetry } from './telemetry.js';
+import { generateValidatedCode } from './llm-invocations/generateValidatedCode.js';
 
-function buildPrompt(scenarioJson: Record<string, any>): string {
+type PoliticsFn = (category: string, outcome: string) => Record<string, number> | null;
+
+function buildSystemBlock(scenarioJson: Record<string, any>): string {
   const labels = scenarioJson.labels ?? {};
   const effects = scenarioJson.effects ?? {};
   const categories = typeof effects === 'object' && !Array.isArray(effects)
     ? Object.keys(effects)
     : [];
-
   return `You are generating a politics hook for a simulation engine.
 
 SCENARIO: ${labels.name ?? 'Unknown'} — ${labels.settlementNoun ?? 'settlement'} simulation
-CRISIS CATEGORIES: ${categories.join(', ')}
+EVENT CATEGORIES: ${categories.join(', ')}
 
-Generate a TypeScript arrow function that returns politics deltas for political/social crisis outcomes.
-
-The function receives:
-- category: string (one of the crisis categories above)
-- outcome: string (contains "success" or "failure")
+Function signature: (category, outcome) => Record<string, number> | null
 
 Return:
-- null if the category is not political/social in nature
-- A Record<string, number> of politics field deltas for political/social categories
-
-For success outcomes, the deltas should push toward independence/autonomy.
-For failure outcomes, the deltas should push toward dependency/instability.
-
-Pick 1-3 politics field names appropriate to this scenario's domain.
+- null for non-political categories
+- Record<string, number> of politics field deltas for political/social categories
 
 Rules:
-1. Return null for non-political categories
-2. Return a plain object with numeric deltas for political categories
-3. Do NOT use external imports
-4. Keep delta values small (e.g., 0.01-0.10 for percentages, 1-5 for integers)
-
-Return ONLY the arrow function, no markdown fences, no explanation.`;
+1. Success → push toward independence/autonomy
+2. Failure → push toward dependency/instability
+3. 1-3 politics fields appropriate to this scenario
+4. Small deltas (0.01-0.10 for pct, 1-5 for ints)
+5. NO external imports`;
 }
 
-export function parseResponse(text: string): ((category: string, outcome: string) => Record<string, number> | null) | null {
-  let cleaned = text.trim();
-  cleaned = cleaned.replace(/^```(?:typescript|ts)?\n?/i, '').replace(/\n?```$/i, '').trim();
-  if (cleaned.endsWith(';')) cleaned = cleaned.slice(0, -1).trim();
+const userPrompt = 'Return ONLY the arrow function. No markdown fences.';
 
+export function parseResponse(text: string): PoliticsFn | null {
+  let cleaned = text.trim();
+  cleaned = cleaned.replace(/^```(?:typescript|ts|javascript|js)?\n?/i, '').replace(/\n?```$/i, '').trim();
+  if (cleaned.endsWith(';')) cleaned = cleaned.slice(0, -1).trim();
   try {
     const fn = new Function('return ' + cleaned)();
-    if (typeof fn === 'function') return fn;
-    return null;
+    return typeof fn === 'function' ? fn : null;
   } catch {
     return null;
   }
 }
 
+function smokeTest(fn: PoliticsFn): void {
+  const political = fn('political', 'risky_success');
+  if (political !== null && typeof political !== 'object') {
+    throw new Error('Political result must be null or object');
+  }
+}
+
+const fallback: PoliticsFn = () => null;
+
+export interface GeneratePoliticsOptions {
+  telemetry?: CompilerTelemetry;
+}
+
 export async function generatePoliticsHook(
   scenarioJson: Record<string, any>,
   generateText: GenerateTextFn,
-  maxRetries = 3,
-): Promise<{ hook: (category: string, outcome: string) => Record<string, number> | null; source: string }> {
-  let lastError = '';
-
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    const retryHint = attempt > 0 ? `\n\nPrevious attempt failed: ${lastError}. Fix the issue.` : '';
-    const text = await generateText(buildPrompt(scenarioJson) + retryHint);
-    const fn = parseResponse(text);
-
-    if (!fn) {
-      lastError = 'Could not parse response into a function';
-      continue;
-    }
-
-    // Smoke test
-    try {
-      const nonPolitical = fn('environmental', 'risky_success');
-      const political = fn('political', 'risky_success');
-      if (political !== null && typeof political !== 'object') {
-        lastError = 'Political result must be null or object';
-        continue;
-      }
-      return { hook: fn, source: text.trim() };
-    } catch (err) {
-      lastError = String(err);
-    }
-  }
-
-  // Fallback: no-op
-  console.warn('[compiler] Politics hook generation failed. Using no-op.');
-  return {
-    hook: () => null,
-    source: '// No-op: generation failed',
-  };
+  options: GeneratePoliticsOptions = {},
+): Promise<{ hook: PoliticsFn; source: string; attempts: number; fromFallback: boolean }> {
+  const result = await generateValidatedCode<PoliticsFn>({
+    hookName: 'politics',
+    systemCacheable: buildSystemBlock(scenarioJson),
+    prompt: userPrompt,
+    parse: parseResponse,
+    smokeTest,
+    fallback,
+    fallbackSource: '// No-op: generation failed',
+    generateText,
+    telemetry: options.telemetry,
+  });
+  return { hook: result.hook, source: result.source, attempts: result.attempts, fromFallback: result.fromFallback };
 }
