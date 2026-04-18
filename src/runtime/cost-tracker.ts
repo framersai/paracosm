@@ -62,6 +62,12 @@ export interface CostPayload {
   /** Run-wide USD saved by prompt caching vs a no-cache run. */
   cacheSavingsUSD: number;
   breakdown: Record<string, CostBreakdownEntry>;
+  /**
+   * Per-schema retry rollup. Populated once sendAndValidate / generateValidatedObject
+   * start reporting attempt counts. Only present when at least one
+   * schema-validated call completed.
+   */
+  schemaRetries?: Record<string, { attempts: number; calls: number; fallbacks: number }>;
 }
 
 /** Cost tracker bundle returned by createCostTracker. */
@@ -187,7 +193,7 @@ export function createCostTracker(modelConfig: SimulationModelConfig): CostTrack
         };
       }
     }
-    return {
+    const payload: CostPayload = {
       totalTokens,
       totalCostUSD: Math.round(totalCostUSD * 10000) / 10000,
       llmCalls,
@@ -196,6 +202,10 @@ export function createCostTracker(modelConfig: SimulationModelConfig): CostTrack
       cacheSavingsUSD: Math.round(runCacheSavingsUSD * 10000) / 10000,
       breakdown,
     };
+    if (schemaRetries.size > 0) {
+      payload.schemaRetries = Object.fromEntries(schemaRetries.entries());
+    }
+    return payload;
   };
 
   const recordSchemaAttempt: CostTracker['recordSchemaAttempt'] = (schemaName, attempts, fellBack) => {
