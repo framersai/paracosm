@@ -302,6 +302,44 @@ export function inferProviderFromModel(model?: string): LlmProvider | undefined 
   return undefined;
 }
 
+/**
+ * Infer the run's provider from the API keys the user actually supplied
+ * for the session. Takes precedence over model-name inference because
+ * when a user pastes only one key and leaves the model dropdowns at the
+ * default OpenAI values, their intent is clearly to run against the
+ * provider whose key they provided — the model tier just hasn't been
+ * updated in the UI.
+ *
+ * Returns `'anthropic'` when the user supplied only an Anthropic key,
+ * `'openai'` when only an OpenAI key, and `undefined` when both or
+ * neither are present (ambiguous — defer to the next signal).
+ *
+ * Filters out the `...` masking string the settings panel posts when
+ * a stored key is unchanged, and blank/whitespace strings.
+ *
+ * @param apiKey    OpenAI API key from the session payload.
+ * @param anthropicKey Anthropic API key from the session payload.
+ */
+export function inferProviderFromKeys(
+  apiKey?: string,
+  anthropicKey?: string,
+): LlmProvider | undefined {
+  const isRealKey = (key: string | undefined): boolean => {
+    if (typeof key !== 'string') return false;
+    const trimmed = key.trim();
+    if (!trimmed) return false;
+    // Settings UI posts '...' / '...masked...' when the field wasn't
+    // edited, so strip those before considering the key "set".
+    if (trimmed.includes('...')) return false;
+    return true;
+  };
+  const hasOpenai = isRealKey(apiKey);
+  const hasAnthropic = isRealKey(anthropicKey);
+  if (hasAnthropic && !hasOpenai) return 'anthropic';
+  if (hasOpenai && !hasAnthropic) return 'openai';
+  return undefined;
+}
+
 export function resolveSimulationModels(
   provider: LlmProvider,
   models?: Partial<SimulationModelConfig>,
@@ -395,7 +433,26 @@ export function normalizeSimulationConfig(input: SimulationSetupPayload): Normal
     throw new Error('Two leaders required');
   }
 
+  // Priority for provider resolution:
+  //   1. User-supplied keys — if exactly one is set, that's the provider
+  //      the user wants to bill against. Beats `input.provider` because
+  //      the UI sends the Provider dropdown state even when the user
+  //      only changed the key fields, so `provider: 'openai'` may just
+  //      be the default useState value rather than a deliberate choice.
+  //   2. Explicit input.provider (deliberate when both keys are set so
+  //      keys don't disambiguate).
+  //   3. Model-name hints (legacy signal; accurate when the UI wires
+  //      models and keys together).
+  //   4. Fall back to 'openai' to match the hosted demo's default
+  //      server-key path.
+  //
+  // Prior order inferred provider purely from explicit-or-model-name
+  // signals, so a user who pasted only an Anthropic key left the
+  // default gpt-5.4 model tiers in place and silently ran against the
+  // server's env OPENAI_API_KEY while their Anthropic key sat unused
+  // in ANTHROPIC_API_KEY.
   const inferredProvider =
+    inferProviderFromKeys(input.apiKey, input.anthropicKey) ??
     input.provider ??
     inferProviderFromModel(input.models?.commander) ??
     inferProviderFromModel(input.models?.departments) ??
