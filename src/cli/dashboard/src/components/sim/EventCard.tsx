@@ -663,6 +663,51 @@ export function EventCard({ event, side }: EventCardProps) {
         </div>
       );
 
+    case 'validation_fallback': {
+      const schemaName = String(dd.schemaName || '<unknown>');
+      const site = String(dd.site || '');
+      const preview = String(dd.rawTextPreview || '');
+      return (
+        <div
+          style={{
+            margin: '0 8px 4px',
+            borderRadius: '4px',
+            padding: '6px 10px',
+            background: 'rgba(232, 180, 74, 0.08)',
+            border: '1px solid var(--amber-dim, #8a6a2a)',
+            borderLeft: `3px solid ${sideColor}`,
+            fontSize: '11px',
+            color: 'var(--text-2)',
+            fontFamily: 'var(--mono)',
+          }}
+          role="status"
+          aria-label={`Schema fallback on ${schemaName}`}
+        >
+          <div style={{ fontWeight: 700, color: 'var(--amber)', marginBottom: '2px' }}>
+            ⚠ SCHEMA FALLBACK — {schemaName}
+          </div>
+          <div style={{ color: 'var(--text-3)', fontSize: '10px' }}>
+            site: {site || 'n/a'}
+          </div>
+          {preview && (
+            <details style={{ marginTop: '3px' }}>
+              <summary style={{ fontSize: '10px', color: 'var(--text-3)', cursor: 'pointer' }}>
+                Raw output preview
+              </summary>
+              <pre style={{
+                margin: '3px 0 0', padding: '4px 6px',
+                background: 'var(--bg-card)', border: '1px solid var(--border)',
+                borderRadius: '3px', fontSize: '10px', whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+              }}>
+                {preview}
+              </pre>
+            </details>
+          )}
+        </div>
+      );
+    }
+
     default:
       return null;
   }
