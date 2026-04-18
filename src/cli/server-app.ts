@@ -157,8 +157,14 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
   let activeScenario: ScenarioPackage = marsScenario;
   // Raw custom scenario JSON payloads authored during this session.
   const memoryScenarios = new Map<string, unknown>();
-  // Runnable custom scenarios that can appear in the catalog and be switched to.
+  // Runnable scenarios that can appear in the catalog and be switched to.
+  // Disk-loaded + builtins register into the SAME map so the switch /
+  // list / active-derivation code is universal — no hardcoded branches
+  // for specific IDs. New builtins ship by adding one more
+  // customScenarioCatalog.set(id, { scenario, source: 'builtin' }) here.
   const customScenarioCatalog = loadDiskCustomScenarios(scenarioDir);
+  customScenarioCatalog.set(marsScenario.id, { scenario: marsScenario, source: 'builtin' });
+  customScenarioCatalog.set(lunarScenario.id, { scenario: lunarScenario, source: 'builtin' });
   const clients: Set<ServerResponse> = new Set();
 
   // Event buffer: stores all broadcast events so new clients can catch up.
@@ -470,27 +476,32 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       return;
     }
 
-    // List available built-in scenarios
+    // List scenarios that can be switched to. Builtins, disk-loaded,
+    // in-memory runnable customs, and any currently-active compiled
+    // scenario all live in the same catalog — this endpoint is a
+    // uniform iteration over it. No hardcoded IDs.
     if (req.url === '/scenarios' && req.method === 'GET') {
-      const scenarios = [
-        { id: 'mars-genesis', name: 'Mars Genesis', description: '100-colonist Mars colony over 50 years', departments: marsScenario.departments.length },
-        { id: 'lunar-outpost', name: 'Lunar Outpost', description: '50-person crew at the lunar south pole', departments: lunarScenario.departments.length },
-      ];
-      // Add runnable custom scenarios from memory, disk, or compilation.
+      const scenarios: Array<{ id: string; name: string; description: string; departments: number; source: string }> = [];
       for (const [id, entry] of customScenarioCatalog) {
         const sc = entry.scenario;
-        if (id !== 'mars-genesis' && id !== 'lunar-outpost') {
-          scenarios.push({
-            id,
-            name: sc.labels?.name || id,
-            description: describeCustomScenarioSource(entry.source),
-            departments: sc.departments?.length || 0,
-          });
-        }
+        scenarios.push({
+          id,
+          name: sc.labels?.name || id,
+          description: describeCustomScenarioSource(entry.source),
+          departments: sc.departments?.length || 0,
+          source: entry.source,
+        });
       }
-      // Add active compiled scenario if it's not already listed
-      if (activeScenario.id !== 'mars-genesis' && activeScenario.id !== 'lunar-outpost' && !customScenarioCatalog.has(activeScenario.id)) {
-        scenarios.push({ id: activeScenario.id, name: activeScenario.labels?.name || activeScenario.id, description: 'Custom compiled scenario', departments: activeScenario.departments?.length || 0 });
+      // Active scenario might not be in the catalog yet (freshly
+      // compiled but we haven't written it back — belt-and-suspenders).
+      if (!customScenarioCatalog.has(activeScenario.id)) {
+        scenarios.push({
+          id: activeScenario.id,
+          name: activeScenario.labels?.name || activeScenario.id,
+          description: 'Custom compiled scenario',
+          departments: activeScenario.departments?.length || 0,
+          source: 'compiled',
+        });
       }
       res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
       res.end(JSON.stringify({ scenarios, active: activeScenario.id }));
@@ -575,18 +586,18 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       return;
     }
 
-    // Switch active scenario
+    // Switch active scenario. Uniform catalog lookup — builtins
+    // (mars-genesis, lunar-outpost) are registered into the same map
+    // at server init, so this handler has NO hardcoded IDs. Any ID
+    // that resolves to a runnable entry switches; source JSONs that
+    // were /scenario/store'd but never compiled get a specific
+    // "needs compile" error instead of the misleading "Unknown".
     if (req.url === '/scenario/switch' && req.method === 'POST') {
       const { id } = JSON.parse(await readBody(req));
-      if (id === 'mars-genesis') activeScenario = marsScenario;
-      else if (id === 'lunar-outpost') activeScenario = lunarScenario;
-      else if (customScenarioCatalog.has(id)) activeScenario = customScenarioCatalog.get(id)!.scenario;
-      else if (memoryScenarios.has(id)) {
-        // JSON was /scenario/store'd but it's a source-shape scenario
-        // (no hooks, no world, policies as plain booleans) so
-        // isRunnableScenarioPackage rejected it and it never entered
-        // customScenarioCatalog. Running it would silently fall back to
-        // Mars. Tell the user exactly why and point at /compile.
+      const entry = customScenarioCatalog.get(id);
+      if (entry) {
+        activeScenario = entry.scenario;
+      } else if (memoryScenarios.has(id)) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
           error: `Scenario "${id}" is stored but not runnable — it's a source JSON (missing hooks, world, or canonical policies shape). Click Compile in the Scenario Editor to generate hooks before switching to it.`,
@@ -594,8 +605,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
           id,
         }));
         return;
-      }
-      else {
+      } else {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: `Unknown scenario: ${id}. Use /compile or /scenario/store for custom scenarios.` }));
         return;
