@@ -2,6 +2,7 @@ import { DEFAULT_KEY_PERSONNEL, type NormalizedSimulationConfig } from './sim-co
 import { marsScenario } from '../engine/mars/index.js';
 import { generateValidatedObject } from '../runtime/llm-invocations/generateValidatedObject.js';
 import { VerdictSchema } from '../runtime/schemas/verdict.js';
+import type { ScenarioPackage } from '../engine/types.js';
 
 export type BroadcastFn = (event: string, data: unknown) => void;
 
@@ -17,6 +18,15 @@ export async function runPairSimulations(
    * so a returning user sees everything up to the cancel point.
    */
   signal?: AbortSignal,
+  /**
+   * Scenario to run. Defaults to Mars Genesis when omitted so CLI
+   * callers that don't thread a scenario still work. The server path
+   * passes the currently-active scenario (set by /compile or
+   * /scenario/switch) so custom-compiled scenarios (e.g. "Brain Sim")
+   * actually get their own hooks + labels run instead of silently
+   * falling back to Mars while the page title shows the custom name.
+   */
+  scenario: ScenarioPackage = marsScenario,
 ): Promise<void> {
   const { leaders, turns, seed, startYear, liveSearch, customEvents } = simConfig;
   broadcast('status', { phase: 'starting', maxTurns: turns, customEvents });
@@ -52,7 +62,7 @@ export async function runPairSimulations(
       startingResources: simConfig.startingResources,
       startingPolitics: simConfig.startingPolitics,
       execution: simConfig.execution,
-      scenario: marsScenario,
+      scenario,
       signal,
     }).then(result => {
       broadcast('result', {
