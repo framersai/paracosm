@@ -304,27 +304,80 @@ Agents are created lazily on first chat message (~2-3s init) and pooled (max 10,
 | `GET` | `/results` | Full simulation results including verdict |
 | `GET` | `/rate-limit` | Check rate limit status |
 | `POST` | `/compile` | Compile a custom scenario from JSON |
-| `GET` | `/retry-stats` | Cross-run schema retry rollup (last N completed runs). Query param: `?limit=N` |
+| `GET` | `/retry-stats` | Cross-run reliability rollup (schemas + forges + caches + providerErrors) over the last N completed runs. Query param: `?limit=N` |
 
-### Schema retry telemetry
+### Reliability telemetry (`/retry-stats`)
 
-Every Zod-validated LLM call site reports `{ attempts, calls, fallbacks }` to the run-scoped cost tracker. On run completion the server snapshots the per-schema rollup into a rotating ring of the last 100 runs (`.retry-stats.json` on disk). `GET /retry-stats` aggregates the ring into a response like:
+Every Zod-validated LLM call site reports `{ attempts, calls, fallbacks }` to the run-scoped cost tracker. Every forge attempt reports `{ approved, confidence, name, errorReason }`. Every LLM call that throws gets classified by the provider-error classifier. Every cache hit/write on supported providers increments the cache tracker. On run completion the server snapshots the per-run rollup into a rotating ring of the last 100 runs (`.retry-stats.json` on disk).
+
+`GET /retry-stats` aggregates the ring into a unified response:
 
 ```json
 {
   "runCount": 87,
   "schemas": {
-    "DepartmentReport": {
-      "calls": 2608, "attempts": 2721, "fallbacks": 3,
-      "avgAttempts": 1.04, "fallbackRate": 0.0012,
-      "runsPresent": 87
+    "DepartmentReport":     { "calls": 2608, "attempts": 2721, "fallbacks": 3, "avgAttempts": 1.04, "fallbackRate": 0.0012, "runsPresent": 87 },
+    "CommanderDecision":    { "calls": 1056, "attempts": 1089, ... },
+    "compile:fingerprint":  { "calls": 87,  "attempts": 87, ... },
+    "compile:politics":     { "calls": 87,  "attempts": 87, ... }
+  },
+  "forges": {
+    "totalAttempts": 1420, "approved": 1180, "rejected": 240,
+    "approvalRate": 0.8310, "avgApprovedConfidence": 0.92,
+    "totalUniqueNames": 1020, "totalUniqueApproved": 1015,
+    "totalUniqueTerminalRejections": 5,
+    "uniqueApprovalRate": 0.9951,
+    "rejectionReasons": {
+      "schema_extra_field": 210, "shape_check": 18,
+      "parse_error": 4, "judge_correctness": 8, "other": 0
     },
-    "CommanderDecision": { "calls": 1056, "attempts": 1089, ... }
+    "runsPresent": 72
+  },
+  "caches": {
+    "totalReadTokens": 18420000, "totalCreationTokens": 2800000,
+    "totalSavingsUSD": 42.35, "readRatio": 0.8681, "runsPresent": 65
+  },
+  "providerErrors": {
+    "auth": 0, "quota": 12, "rate_limit": 28, "network": 2, "unknown": 4,
+    "total": 46, "runsPresent": 18
   }
 }
 ```
 
-`avgAttempts > 1.2` on a schema means the model is retrying on validation failure often enough to be worth tuning (tighter schema, clearer prompt, or drop `maxRetries` to 1 when the first attempt nearly always succeeds). `fallbackRate > 0` means the run served degraded data on at least one turn.
+Interpretation:
+
+- `schemas.compile:*` — compiler hook generation reliability. `fallbackRate > 0` on a `compile:*` entry means silent-degradation compiles landed on the host (investigate via `compile_validation_fallback` SSE events).
+- `forges.approvalRate` — attempt-level including retries. `uniqueApprovalRate` is the real quality signal: unique tools that landed in the toolbox / unique names attempted.
+- `forges.rejectionReasons` — failure-mode histogram. A dominant `schema_extra_field` bucket means the LLM is declaring strict output schemas then returning extra fields (the 2026-04-18 forge-guidance prompt fix targets this).
+- `caches.readRatio` < 0.7 means the cache keeps getting invalidated. Zero `caches` fields mean the provider doesn't expose cache counters (OpenAI auto-caches opaquely; Anthropic reports).
+- `providerErrors.auth` + `.quota` are terminal (run aborts). `.rate_limit` + `.network` + `.unknown` are non-terminal; the retry layer handles them.
+
+`avgAttempts > 1.2` on a schema means the model is retrying on validation failure often enough to be worth tuning. `fallbackRate > 0` means the run served degraded data on at least one turn.
+
+### Custom scenarios — compile before running
+
+Source scenarios (`<name>.json`) are sparse authoring files. They must be **compiled** before the runtime can execute them. Compilation generates six hooks (progression, prompts, fingerprint, politics, reactions, director instructions, milestones) via LLM calls (~$0.10 once, then disk-cached).
+
+Dashboard flow:
+
+1. Paste or load JSON into the Scenario Editor.
+2. Click **Compile** — watches the SSE progress stream (`compile_hook` events per hook generated). Cost is billed against the user-supplied API key when provided, else the host's.
+3. After `compile_done`, the scenario is both added to `customScenarioCatalog` AND set as the active scenario. The Sim tab will run it on the next RUN click.
+
+Common mistake: clicking **Store** (saves the JSON draft, does not generate hooks) and then hitting RUN. The run proceeds with whichever scenario was previously active (Mars by default) — the editor still shows Mercury, the page title pulls the label from the stored JSON, but the simulation runs Mars. Fix: click Compile, not Store.
+
+Programmatic flow:
+
+```ts
+import { compileScenario } from 'paracosm/compiler';
+import { runSimulation } from 'paracosm/runtime';
+import sourceJson from './mission-mercury.json';
+
+const scenario = await compileScenario(sourceJson, { provider: 'anthropic', model: 'claude-sonnet-4-6' });
+await runSimulation(leader, personnel, { scenario, maxTurns: 8 });
+```
+
+The runtime `scenario` parameter MUST be a compiled `ScenarioPackage` (has `hooks`), not the raw source JSON.
 
 ### npm Package Exports
 
