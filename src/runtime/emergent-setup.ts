@@ -294,6 +294,91 @@ export interface CapturedForge {
 }
 
 /**
+ * Derive a JSON-Schema primitive type from a concrete testCase value.
+ * Handles the types the sandbox forge actually returns: number, string,
+ * boolean, object, array. Falls back to `string` for anything else so
+ * the schema stays well-formed.
+ */
+function inferTypeFromValue(v: unknown): string {
+  if (typeof v === 'number') return 'number';
+  if (typeof v === 'boolean') return 'boolean';
+  if (typeof v === 'string') return 'string';
+  if (Array.isArray(v)) return 'array';
+  if (v !== null && typeof v === 'object') return 'object';
+  return 'string';
+}
+
+/**
+ * When inputSchema / outputSchema lack declared properties but the
+ * testCases carry real field values, synthesize properties from the
+ * testCase data so the shape validator passes.
+ *
+ * The LLM regularly emits concrete test cases without formalizing the
+ * schema shape. Before this helper, every such forge was rejected by
+ * validateForgeShape even though the intent was clearly legitimate.
+ *
+ * Mutates `req.inputSchema` / `req.outputSchema` in place. A scanned
+ * union of fields across ALL testCases is used so a single incomplete
+ * case doesn't narrow the schema.
+ *
+ * Exported for unit testing.
+ */
+export function inferSchemaFromTestCases(req: {
+  inputSchema?: unknown;
+  outputSchema?: unknown;
+  testCases?: unknown;
+}): void {
+  const tcArr = Array.isArray(req.testCases)
+    ? (req.testCases as Array<{ input?: unknown; expectedOutput?: unknown }>)
+    : [];
+  if (tcArr.length === 0) return;
+
+  const inferProperties = (key: 'input' | 'expectedOutput') => {
+    const props: Record<string, { type: string }> = {};
+    for (const tc of tcArr) {
+      const data = tc?.[key];
+      if (!data || typeof data !== 'object' || Array.isArray(data)) continue;
+      for (const [field, value] of Object.entries(data as Record<string, unknown>)) {
+        if (props[field]) continue;
+        props[field] = { type: inferTypeFromValue(value) };
+      }
+    }
+    return props;
+  };
+
+  const maybeUpgrade = (
+    schemaKey: 'inputSchema' | 'outputSchema',
+    testCaseKey: 'input' | 'expectedOutput',
+  ) => {
+    const schema = req[schemaKey];
+    const current = (schema && typeof schema === 'object' ? schema : {}) as {
+      type?: string;
+      properties?: Record<string, unknown>;
+      required?: string[];
+      additionalProperties?: boolean;
+    };
+    const hasProps =
+      current.properties &&
+      typeof current.properties === 'object' &&
+      Object.keys(current.properties).length > 0;
+    if (hasProps) return;
+
+    const inferred = inferProperties(testCaseKey);
+    if (Object.keys(inferred).length === 0) return;
+
+    req[schemaKey] = {
+      type: 'object',
+      properties: inferred,
+      required: Object.keys(inferred),
+      additionalProperties: false,
+    };
+  };
+
+  maybeUpgrade('inputSchema', 'input');
+  maybeUpgrade('outputSchema', 'expectedOutput');
+}
+
+/**
  * Shape check run against a normalized forge request before it hits
  * the judge. Catches the failure modes that cause almost all cheap-
  * tier forge rejections (empty schemas + empty-input testCases) and
@@ -428,6 +513,21 @@ export function wrapForgeTool(
         if (!tc.input || typeof tc.input !== 'object') tc.input = {};
         if (tc.expectedOutput === undefined) tc.expectedOutput = {};
       }
+
+      // Schema inference from testCases.
+      //
+      // The LLM often provides concrete testCases with real field values
+      // but forgets to declare `inputSchema.properties` / `outputSchema.
+      // properties`. The shape validator then rejects every forge before
+      // the judge sees it. Since the testCases already witness the fields
+      // the tool actually consumes, we can synthesize the missing schema
+      // properties from them and pass the shape check deterministically.
+      //
+      // This is NOT a relaxation of the schema discipline — the tool code
+      // still has to handle whatever inputs come in. It's a correction of
+      // a common LLM oversight (examples without formalization) that was
+      // the dominant cause of turn-1 forge failures in the demo.
+      inferSchemaFromTestCases(fixed);
       const mode = (fixed.implementation as any)?.mode || '?';
       const toolName = String(fixed.name || 'unnamed');
       const toolDescription = String((fixed as any).description || toolName);
