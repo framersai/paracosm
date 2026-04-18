@@ -400,7 +400,7 @@ ROBUSTNESS RULES (the judge enforces these — failed forges hurt the colony):
    - one with a boundary value (population=0, capacity=1, etc.)
 7. Bound your output to a defined range (e.g., score 0..100, multiplier 0.1..10) so downstream code stays predictable.
 
-GOOD FORGE EXAMPLE (follow this shape, adapt the domain):
+GOOD FORGE EXAMPLE (follow this shape, adapt the domain). Every declared property is in "required". No optional output fields — the judge treats optional fields as schema-mismatch bait, so KEEP EVERY FIELD REQUIRED and always return every one from execute().
 {
   "name": "radiation_dose_risk_score",
   "description": "Scores cumulative Mars radiation exposure risk on 0..100.",
@@ -411,31 +411,32 @@ GOOD FORGE EXAMPLE (follow this shape, adapt the domain):
       "age_years": { "type": "number" },
       "shielding_factor": { "type": "number", "description": "0..1 reduction" }
     },
-    "required": ["cumulative_dose_msv", "age_years"],
+    "required": ["cumulative_dose_msv", "age_years", "shielding_factor"],
     "additionalProperties": false
   },
   "outputSchema": {
     "type": "object",
     "properties": {
       "risk_score": { "type": "number", "description": "0..100, higher is worse" },
-      "tier": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
-      "warnings": { "type": "array", "items": { "type": "string" } }
+      "tier": { "type": "string", "enum": ["low", "medium", "high", "critical"] }
     },
     "required": ["risk_score", "tier"],
     "additionalProperties": false
   },
   "implementation": {
     "mode": "sandbox",
-    "code": "function execute(input){try{const d=Number.isFinite(+input.cumulative_dose_msv)?+input.cumulative_dose_msv:0;const a=Number.isFinite(+input.age_years)?+input.age_years:30;const s=Number.isFinite(+input.shielding_factor)?Math.max(0,Math.min(1,+input.shielding_factor)):0;const eff=d*(1-s);let score=Math.max(0,Math.min(100,eff/30*(1+Math.max(0,(60-a))/100)));const tier=score>=80?'critical':score>=50?'high':score>=20?'medium':'low';const w=[];if(d<=0)w.push('no dose recorded');return{risk_score:Math.round(score),tier,warnings:w};}catch(e){return{risk_score:0,tier:'low',warnings:['calc error']};}}",
+    "code": "function execute(input){try{const d=Number.isFinite(+input.cumulative_dose_msv)?+input.cumulative_dose_msv:0;const a=Number.isFinite(+input.age_years)?+input.age_years:30;const s=Number.isFinite(+input.shielding_factor)?Math.max(0,Math.min(1,+input.shielding_factor)):0;const eff=d*(1-s);let score=Math.max(0,Math.min(100,eff/30*(1+Math.max(0,(60-a))/100)));const tier=score>=80?'critical':score>=50?'high':score>=20?'medium':'low';return{risk_score:Math.round(score),tier};}catch(e){return{risk_score:0,tier:'low'};}}",
     "allowlist": []
   },
   "testCases": [
     { "input": { "cumulative_dose_msv": 1200, "age_years": 42, "shielding_factor": 0.3 }, "expectedOutput": { "tier": "high" } },
-    { "input": { "cumulative_dose_msv": 0, "age_years": 30 }, "expectedOutput": { "risk_score": 0, "tier": "low" } },
+    { "input": { "cumulative_dose_msv": 0, "age_years": 30, "shielding_factor": 0 }, "expectedOutput": { "risk_score": 0, "tier": "low" } },
     { "input": { "cumulative_dose_msv": 4000, "age_years": 65, "shielding_factor": 0 }, "expectedOutput": { "tier": "critical" } }
   ]
 }
-Every field declared in properties, additionalProperties:false on both schemas, three real test cases each with real inputs and a field-level assertion in expectedOutput. Match this density or the judge will reject.
+Every field declared in properties AND required AND returned by execute(). additionalProperties:false on both schemas. Three real test cases each with real inputs matching declared fields and a field-level assertion in expectedOutput. Match this density exactly or the judge will reject.
+
+IF YOUR FORGE IS REJECTED: the tool result will tell you the exact shape failure ("inputSchema has no declared properties", "outputSchema has no declared properties", "testCases use empty input", etc.). Immediately call forge_tool AGAIN with those specific fixes. Do not skip. Do not move to a different tool. Fix the named fields and resubmit — you get two retries before the department moves on.
 
 REPORT FORMAT:
 Respond with valid JSON ONLY (no markdown, no prose outside the JSON):

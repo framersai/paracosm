@@ -278,11 +278,14 @@ export const DEMO_EXECUTION: SimulationExecutionConfig & {
   maxActiveDepartments: number;
 } = {
   commanderMaxSteps: 2,
-  // Each extra department step replays the full conversation to the
-  // model; at ~15-29K tokens per replay on mini that was the single
-  // biggest cost lever. Two steps covers the forge + one reaction to
-  // the judge verdict; a third step was almost always redundant.
-  departmentMaxSteps: 2,
+  // Three steps gives the dept loop enough room to: forge attempt #1,
+  // see the shape-validator or judge rejection, retry with the fix,
+  // and write the final report. At 2 steps a shape-check rejection
+  // burned the model's only retry and the tool never entered the
+  // registry, so the reuse economy never got started. gpt-4o-mini
+  // tokens per step are much cheaper than gpt-5.4-mini's were, so the
+  // extra step's cost is well within the demo envelope.
+  departmentMaxSteps: 3,
   sandboxTimeoutMs: 10000,
   sandboxMemoryMB: 128,
   reactionBatchSize: 10,
