@@ -1,98 +1,75 @@
+/**
+ * Forge — Tool Lineage Tree
+ *
+ * Replaces the prior particle overlay that read a non-existent
+ * `cell.department` field on MoodCell and therefore spawned nothing.
+ * This version renders the forge economy directly: one node per
+ * attempt laid out on a turn × department grid, re-forge chains
+ * connected vertically within each name, reuse calls drawn as
+ * curved arcs from the originator node to the calling dept's row.
+ *
+ * Reads the same cumulative `forgeAttempts[]` + `reuseCalls[]` arrays
+ * the caller already aggregates, plus the snapshot's current turn.
+ * No dependency on the mood state (the prior dept-center lookup is
+ * gone — the lineage tree computes its own layout).
+ *
+ * Module contract preserved: createForgeState / refreshDeptCenters /
+ * syncOrbitCenters / tickForge / drawForge. The two no-op exports
+ * (refreshDeptCenters, syncOrbitCenters) stay so AutomatonCanvas.tsx
+ * doesn't need a patch.
+ *
+ * @module paracosm/cli/dashboard/viz/automaton/modes/forge
+ */
 import type { MoodState } from './mood.js';
 import { rgba } from '../shared.js';
 
-/**
- * Forge flow overlay. Reads forge_attempt and dept_done.forgedTools
- * events as they stream in, spawns particles from the forging
- * department's center, draws curved tracers for reuse calls, and
- * accretes orbit counters around departments that originated tools
- * that got reused. Pool-managed so mid-turn GC never runs.
- */
+type AttemptOutcome = 'approved' | 'rejected';
 
-const POOL_SIZE = 160;
-
-type ParticleKind = 'birth' | 'reject' | 'tracer' | 'orbit';
-
-interface Particle {
-  active: boolean;
-  kind: ParticleKind;
-  bornMs: number;
-  lifetimeMs: number;
-  /** Starting point. For tracers also reused as the curve origin. */
+interface ForgeNode {
+  turn: number;
+  department: string;
+  name: string;
+  outcome: AttemptOutcome;
+  /** Chain index: 0 = first attempt, 1 = first re-forge, etc. */
+  attemptIndex: number;
+  /** Cached layout position, populated in drawForge. */
   x: number;
   y: number;
-  /** Velocity px/ms. For birth/reject particles only. */
-  vx: number;
-  vy: number;
-  /** Tracer endpoint + control point (for Bézier curve). */
-  tx: number;
-  ty: number;
-  cx: number;
-  cy: number;
-  /** Orbit phase + angular velocity + center + radius. */
-  dept: string;
-  orbitAngle: number;
-  orbitSpeed: number;
-  orbitRadius: number;
-  /** Color RGB triple. */
-  r: number;
-  g: number;
-  b: number;
+}
+
+interface ReuseArc {
+  turn: number;
+  originDept: string;
+  callingDept: string;
+  name: string;
 }
 
 export interface ForgeState {
-  pool: Particle[];
-  /** Which forge events we've already ingested (turn|index keys). */
-  seenForgeKeys: Set<string>;
-  /** Per-dept orbit counts — total reuses of tools originated there. */
-  reuseByDept: Map<string, number>;
-  /** Last turn we ingested. */
+  nodes: ForgeNode[];
+  arcs: ReuseArc[];
+  /** Deduplication set so re-ticks of the same cumulative arrays
+   *  don't add the same event twice. */
+  seenKeys: Set<string>;
   lastTurnSeen: number;
-  /** Cached dept centers, recomputed on roster change. */
-  deptCenters: Map<string, { x: number; y: number }>;
-  deptCentersKey: string;
+  /** Per-tool attempt counter used to number chain positions. */
+  attemptCountByName: Map<string, number>;
 }
 
 export function createForgeState(): ForgeState {
-  const pool: Particle[] = [];
-  for (let i = 0; i < POOL_SIZE; i++) {
-    pool.push({
-      active: false,
-      kind: 'birth',
-      bornMs: 0,
-      lifetimeMs: 0,
-      x: 0, y: 0,
-      vx: 0, vy: 0,
-      tx: 0, ty: 0,
-      cx: 0, cy: 0,
-      dept: '',
-      orbitAngle: 0,
-      orbitSpeed: 0,
-      orbitRadius: 0,
-      r: 0, g: 0, b: 0,
-    });
-  }
   return {
-    pool,
-    seenForgeKeys: new Set(),
-    reuseByDept: new Map(),
+    nodes: [],
+    arcs: [],
+    seenKeys: new Set(),
     lastTurnSeen: -1,
-    deptCenters: new Map(),
-    deptCentersKey: '',
+    attemptCountByName: new Map(),
   };
 }
 
-function acquire(state: ForgeState): Particle | null {
-  for (const p of state.pool) {
-    if (!p.active) {
-      p.active = true;
-      return p;
-    }
-  }
-  return null; // hard cap reached, drop silently per spec
-}
+/** Kept for AutomatonCanvas contract compat; no-op under the new design. */
+export function refreshDeptCenters(_state: ForgeState, _mood: MoodState): void { /* unused */ }
+export function syncOrbitCenters(_state: ForgeState): void { /* unused */ }
 
-function deptColor(dept: string): [number, number, number] {
+function deptRgb(dept: string): [number, number, number] {
   const d = (dept || '').toLowerCase();
   if (d.includes('medical')) return [0x4e, 0xcd, 0xc4];
   if (d.includes('engineer')) return [0xe8, 0xb4, 0x4a];
@@ -102,33 +79,6 @@ function deptColor(dept: string): [number, number, number] {
   if (d.includes('research') || d.includes('science')) return [0x95, 0x6b, 0xd8];
   if (d.includes('ops') || d.includes('operations')) return [0xc8, 0x7a, 0x3a];
   return [0xa8, 0x98, 0x78];
-}
-
-/**
- * Compute a dept center from the mood state's current cell positions.
- * Cached by a roster key so it only recomputes when promotions or
- * deaths change which cells belong to which dept.
- */
-export function refreshDeptCenters(forge: ForgeState, mood: MoodState): void {
-  const keyParts: string[] = [];
-  const groups = new Map<string, { sumX: number; sumY: number; count: number }>();
-  for (const cell of mood.cells.values()) {
-    if (!cell.alive) continue;
-    const dept = cell.department || 'unknown';
-    keyParts.push(`${cell.agentId}:${dept}`);
-    const g = groups.get(dept) || { sumX: 0, sumY: 0, count: 0 };
-    g.sumX += cell.x;
-    g.sumY += cell.y;
-    g.count += 1;
-    groups.set(dept, g);
-  }
-  const key = keyParts.sort().join('|');
-  if (key === forge.deptCentersKey) return;
-  forge.deptCenters.clear();
-  for (const [dept, g] of groups.entries()) {
-    forge.deptCenters.set(dept, { x: g.sumX / g.count, y: g.sumY / g.count });
-  }
-  forge.deptCentersKey = key;
 }
 
 export interface ForgeTickInput {
@@ -143,110 +93,29 @@ export interface ForgeTickInput {
   snapshotTurn: number;
 }
 
-function keyFor(kind: string, a: ForgeTickInput['forgeAttempts'][number] | ForgeTickInput['reuseCalls'][number]): string {
-  if ('approved' in a) return `forge|${a.turn}|${a.eventIndex}|${a.name}`;
-  return `reuse|${a.turn}|${a.originDept}->${a.callingDept}|${a.name}`;
-}
-
-export function tickForge(state: ForgeState, mood: MoodState, input: ForgeTickInput): void {
-  if (input.snapshotTurn <= state.lastTurnSeen) return;
-  refreshDeptCenters(state, mood);
-
+export function tickForge(state: ForgeState, _mood: MoodState, input: ForgeTickInput): void {
   for (const att of input.forgeAttempts) {
-    const key = keyFor('forge', att);
-    if (state.seenForgeKeys.has(key)) continue;
-    state.seenForgeKeys.add(key);
-    const origin = state.deptCenters.get(att.department);
-    if (!origin) continue;
-    const rgb = att.approved ? deptColor(att.department) : [0xa0, 0x98, 0x88] as [number, number, number];
-    const count = att.approved ? 8 : 3;
-    for (let i = 0; i < count; i++) {
-      const p = acquire(state);
-      if (!p) break;
-      p.kind = att.approved ? 'birth' : 'reject';
-      p.bornMs = input.nowMs;
-      p.lifetimeMs = att.approved ? 1200 : 900;
-      p.x = origin.x;
-      p.y = origin.y;
-      const angle = (Math.PI * 2 * i) / count + (att.approved ? 0 : Math.PI / 2);
-      const speed = att.approved ? 0.04 + Math.random() * 0.04 : 0.02 + Math.random() * 0.02;
-      p.vx = Math.cos(angle) * speed;
-      p.vy = Math.sin(angle) * speed + (att.approved ? 0 : 0.03);
-      p.r = rgb[0];
-      p.g = rgb[1];
-      p.b = rgb[2];
-    }
+    const key = `forge|${att.turn}|${att.eventIndex}|${att.department}|${att.name}|${att.approved ? 'a' : 'r'}`;
+    if (state.seenKeys.has(key)) continue;
+    state.seenKeys.add(key);
+    const prev = state.attemptCountByName.get(att.name) ?? 0;
+    state.attemptCountByName.set(att.name, prev + 1);
+    state.nodes.push({
+      turn: att.turn,
+      department: att.department || 'unknown',
+      name: att.name || '(unnamed)',
+      outcome: att.approved ? 'approved' : 'rejected',
+      attemptIndex: prev,
+      x: 0,
+      y: 0,
+    });
   }
-
   for (const reuse of input.reuseCalls) {
-    const key = keyFor('reuse', reuse);
-    if (state.seenForgeKeys.has(key)) continue;
-    state.seenForgeKeys.add(key);
-    const origin = state.deptCenters.get(reuse.originDept);
-    const target = state.deptCenters.get(reuse.callingDept);
-    if (!origin || !target) continue;
-    const p = acquire(state);
-    if (!p) continue;
-    p.kind = 'tracer';
-    p.bornMs = input.nowMs;
-    p.lifetimeMs = 1400;
-    p.x = origin.x;
-    p.y = origin.y;
-    p.tx = target.x;
-    p.ty = target.y;
-    // Control point: midpoint with perpendicular offset for a curve.
-    const mx = (origin.x + target.x) / 2;
-    const my = (origin.y + target.y) / 2;
-    const dx = target.x - origin.x;
-    const dy = target.y - origin.y;
-    const len = Math.sqrt(dx * dx + dy * dy) || 1;
-    // Perpendicular normal. Self-reuse (len ~ 0) uses a vertical offset
-    // so the rotating arc reads as an arc instead of a dot.
-    const perpX = -dy / len;
-    const perpY = dx / len;
-    const curveAmount = len < 10 ? 24 : Math.min(35, len * 0.35);
-    p.cx = mx + perpX * curveAmount;
-    p.cy = my + perpY * curveAmount;
-    const rgb = deptColor(reuse.originDept);
-    p.r = rgb[0];
-    p.g = rgb[1];
-    p.b = rgb[2];
-
-    const prev = state.reuseByDept.get(reuse.originDept) || 0;
-    state.reuseByDept.set(reuse.originDept, prev + 1);
+    const key = `reuse|${reuse.turn}|${reuse.originDept}|${reuse.callingDept}|${reuse.name}`;
+    if (state.seenKeys.has(key)) continue;
+    state.seenKeys.add(key);
+    state.arcs.push({ ...reuse });
   }
-
-  // Sync orbit particles per dept to match reuseByDept counts.
-  const activeOrbitCounts = new Map<string, number>();
-  for (const p of state.pool) {
-    if (!p.active || p.kind !== 'orbit') continue;
-    activeOrbitCounts.set(p.dept, (activeOrbitCounts.get(p.dept) || 0) + 1);
-  }
-  for (const [dept, count] of state.reuseByDept.entries()) {
-    const have = activeOrbitCounts.get(dept) || 0;
-    const target = Math.min(count, 12);
-    if (have >= target) continue;
-    const center = state.deptCenters.get(dept);
-    if (!center) continue;
-    const rgb = deptColor(dept);
-    for (let i = have; i < target; i++) {
-      const p = acquire(state);
-      if (!p) break;
-      p.kind = 'orbit';
-      p.bornMs = input.nowMs;
-      p.lifetimeMs = Number.MAX_SAFE_INTEGER; // orbits are persistent
-      p.x = center.x;
-      p.y = center.y;
-      p.dept = dept;
-      p.orbitAngle = Math.random() * Math.PI * 2;
-      p.orbitSpeed = 0.0008 + Math.random() * 0.0006;
-      p.orbitRadius = 14 + (i % 3) * 4;
-      p.r = rgb[0];
-      p.g = rgb[1];
-      p.b = rgb[2];
-    }
-  }
-
   state.lastTurnSeen = input.snapshotTurn;
 }
 
@@ -257,94 +126,168 @@ export interface ForgeDrawOptions {
   deltaMs: number;
 }
 
+function layoutDimensions(canvasW: number, canvasH: number, maxTurn: number, depts: string[]) {
+  const padL = 72;
+  const padR = 24;
+  const padT = 20;
+  const padB = 36;
+  const plotW = Math.max(120, canvasW - padL - padR);
+  const plotH = Math.max(80, canvasH - padT - padB);
+  const turnSlots = Math.max(1, maxTurn);
+  const turnStep = plotW / turnSlots;
+  const deptStep = plotH / Math.max(1, depts.length);
+  return { padL, padR, padT, padB, plotW, plotH, turnStep, deptStep };
+}
+
 export function drawForge(state: ForgeState, opts: ForgeDrawOptions): void {
-  const { ctx, nowMs, intensity, deltaMs } = opts;
-  ctx.save();
-  ctx.globalCompositeOperation = 'lighter';
+  const { ctx, intensity } = opts;
+  const canvas = ctx.canvas;
+  const dpr = window.devicePixelRatio || 1;
+  const width = canvas.width / dpr;
+  const height = canvas.height / dpr;
+  ctx.clearRect(0, 0, width, height);
 
-  for (const p of state.pool) {
-    if (!p.active) continue;
-    const age = nowMs - p.bornMs;
-    if (p.kind !== 'orbit' && age > p.lifetimeMs) {
-      p.active = false;
-      continue;
-    }
+  if (state.nodes.length === 0) {
+    ctx.fillStyle = rgba([150, 140, 120], 0.4);
+    ctx.font = '11px ui-sans-serif, system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('no forges yet — waiting for turn 1', width / 2, height / 2);
+    return;
+  }
 
-    if (p.kind === 'birth' || p.kind === 'reject') {
-      const t = age / p.lifetimeMs;
-      const alpha = (1 - t) * intensity * 0.85;
-      p.x += p.vx * deltaMs;
-      p.y += p.vy * deltaMs;
-      // Reject particles drift downward; birth particles decelerate.
-      if (p.kind === 'reject') {
-        p.vy += 0.00003 * deltaMs;
-      } else {
-        p.vx *= 1 - 0.001 * deltaMs;
-        p.vy *= 1 - 0.001 * deltaMs;
-      }
-      ctx.fillStyle = rgba([p.r, p.g, p.b], alpha);
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.kind === 'birth' ? 2.2 : 1.6, 0, Math.PI * 2);
-      ctx.fill();
-    } else if (p.kind === 'tracer') {
-      const t = age / p.lifetimeMs;
-      const drawPhase = Math.min(1, t / 0.43); // first 43% draws in
-      const fadePhase = t > 0.43 ? (t - 0.43) / 0.57 : 0;
-      const alpha = (1 - fadePhase) * intensity * 0.8;
-      ctx.strokeStyle = rgba([p.r, p.g, p.b], alpha);
-      ctx.lineWidth = 1.2;
-      ctx.beginPath();
-      // Quadratic Bézier from (p.x, p.y) via (p.cx, p.cy) to (p.tx, p.ty),
-      // clipped at drawPhase along its length.
-      const steps = 18;
-      const stop = Math.max(1, Math.round(steps * drawPhase));
-      ctx.moveTo(p.x, p.y);
-      for (let i = 1; i <= stop; i++) {
-        const u = i / steps;
-        const oneMinus = 1 - u;
-        const bx = oneMinus * oneMinus * p.x + 2 * oneMinus * u * p.cx + u * u * p.tx;
-        const by = oneMinus * oneMinus * p.y + 2 * oneMinus * u * p.cy + u * u * p.ty;
-        ctx.lineTo(bx, by);
-      }
-      ctx.stroke();
-      // Leading head dot while draw-in is still happening.
-      if (drawPhase < 1) {
-        const u = drawPhase;
-        const oneMinus = 1 - u;
-        const hx = oneMinus * oneMinus * p.x + 2 * oneMinus * u * p.cx + u * u * p.tx;
-        const hy = oneMinus * oneMinus * p.y + 2 * oneMinus * u * p.cy + u * u * p.ty;
-        ctx.fillStyle = rgba([p.r, p.g, p.b], intensity);
-        ctx.beginPath();
-        ctx.arc(hx, hy, 2.4, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    } else if (p.kind === 'orbit') {
-      p.orbitAngle += p.orbitSpeed * deltaMs;
-      // Track dept center if it moved (promotions/deaths reshape dept
-      // geometry between turns).
-      // x/y here are the center, not the particle position — particle
-      // position is derived on draw.
-      const angle = p.orbitAngle;
-      const px = p.x + Math.cos(angle) * p.orbitRadius;
-      const py = p.y + Math.sin(angle) * p.orbitRadius * 0.7;
-      ctx.fillStyle = rgba([p.r, p.g, p.b], intensity * 0.85);
-      ctx.beginPath();
-      ctx.arc(px, py, 1.6, 0, Math.PI * 2);
-      ctx.fill();
+  // Collect dept list and max turn from current state so layout grows
+  // with the run.
+  const deptSet = new Set<string>();
+  let maxTurn = 0;
+  for (const n of state.nodes) {
+    deptSet.add(n.department);
+    if (n.turn > maxTurn) maxTurn = n.turn;
+  }
+  const depts = [...deptSet].sort();
+  const { padL, padT, turnStep, deptStep } = layoutDimensions(width, height, Math.max(maxTurn, 1), depts);
+
+  // Axis labels (subtle).
+  ctx.fillStyle = rgba([160, 152, 136], 0.65);
+  ctx.font = '9px ui-sans-serif, system-ui';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  for (let di = 0; di < depts.length; di++) {
+    const y = padT + deptStep * (di + 0.5);
+    ctx.fillText(depts[di].slice(0, 10).toUpperCase(), padL - 6, y);
+  }
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  for (let t = 1; t <= maxTurn; t++) {
+    const x = padL + turnStep * (t - 0.5);
+    ctx.fillText(`T${t}`, x, height - 16);
+  }
+
+  // Grid guides — very dim horizontal lines per dept row.
+  ctx.strokeStyle = rgba([90, 84, 70], 0.22);
+  ctx.lineWidth = 0.6;
+  for (let di = 0; di < depts.length; di++) {
+    const y = padT + deptStep * (di + 0.5);
+    ctx.beginPath();
+    ctx.moveTo(padL, y);
+    ctx.lineTo(padL + turnStep * maxTurn, y);
+    ctx.stroke();
+  }
+
+  // Lay out nodes. Within a (turn, dept) cell, stack multiple attempts
+  // vertically so retries within a single event are visible.
+  const cellStacks = new Map<string, ForgeNode[]>();
+  for (const node of state.nodes) {
+    const cellKey = `${node.turn}|${node.department}`;
+    const arr = cellStacks.get(cellKey) ?? [];
+    arr.push(node);
+    cellStacks.set(cellKey, arr);
+  }
+  for (const [cellKey, stack] of cellStacks.entries()) {
+    const [turnStr, dept] = cellKey.split('|');
+    const turn = parseInt(turnStr, 10);
+    const deptIdx = depts.indexOf(dept);
+    if (deptIdx < 0) continue;
+    const cellX = padL + turnStep * (turn - 0.5);
+    const cellY = padT + deptStep * (deptIdx + 0.5);
+    const stackOffset = Math.min(8, stack.length);
+    for (let i = 0; i < stack.length; i++) {
+      const shift = (i - (stackOffset - 1) / 2) * 7;
+      stack[i].x = cellX;
+      stack[i].y = cellY + shift;
     }
   }
 
-  ctx.restore();
-}
+  // Connect re-forge chains (same name, consecutive attempts).
+  const nodesByName = new Map<string, ForgeNode[]>();
+  for (const node of state.nodes) {
+    const arr = nodesByName.get(node.name) ?? [];
+    arr.push(node);
+    nodesByName.set(node.name, arr);
+  }
+  for (const chain of nodesByName.values()) {
+    if (chain.length < 2) continue;
+    chain.sort((a, b) => a.attemptIndex - b.attemptIndex);
+    for (let i = 1; i < chain.length; i++) {
+      const a = chain[i - 1];
+      const b = chain[i];
+      ctx.strokeStyle = rgba([160, 140, 100], 0.4 * intensity);
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2, 2]);
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
 
-/** Reflect roster changes in orbit particle centers. */
-export function syncOrbitCenters(state: ForgeState): void {
-  for (const p of state.pool) {
-    if (!p.active || p.kind !== 'orbit') continue;
-    const center = state.deptCenters.get(p.dept);
-    if (center) {
-      p.x = center.x;
-      p.y = center.y;
+  // Reuse arcs — curved from originator's latest approved node to the
+  // calling dept's row at the reuse turn.
+  for (const arc of state.arcs) {
+    const originNodes = nodesByName.get(arc.name) ?? [];
+    const origin = originNodes.find(n => n.outcome === 'approved');
+    if (!origin) continue;
+    const callingDeptIdx = depts.indexOf(arc.callingDept || origin.department);
+    if (callingDeptIdx < 0) continue;
+    const arcX = padL + turnStep * (arc.turn - 0.5);
+    const arcY = padT + deptStep * (callingDeptIdx + 0.5);
+    const rgb = deptRgb(arc.originDept);
+    ctx.strokeStyle = rgba(rgb, 0.55 * intensity);
+    ctx.lineWidth = 1.2;
+    const mx = (origin.x + arcX) / 2;
+    const my = (origin.y + arcY) / 2 - Math.abs(origin.y - arcY) * 0.25 - 14;
+    ctx.beginPath();
+    ctx.moveTo(origin.x, origin.y);
+    ctx.quadraticCurveTo(mx, my, arcX, arcY);
+    ctx.stroke();
+    // Small dot at the reuse endpoint.
+    ctx.fillStyle = rgba(rgb, 0.75 * intensity);
+    ctx.beginPath();
+    ctx.arc(arcX, arcY, 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Nodes themselves — approved = filled dept color, rejected = open ring dashed.
+  for (const node of state.nodes) {
+    const rgb = deptRgb(node.department);
+    if (node.outcome === 'approved') {
+      ctx.fillStyle = rgba(rgb, 0.9 * intensity);
+      ctx.beginPath();
+      ctx.arc(node.x, node.y, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = rgba(rgb, intensity);
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.arc(node.x, node.y, 3.5, 0, Math.PI * 2);
+      ctx.stroke();
+    } else {
+      ctx.strokeStyle = rgba([200, 90, 80], 0.85 * intensity);
+      ctx.lineWidth = 1.2;
+      ctx.setLineDash([1.5, 1.5]);
+      ctx.beginPath();
+      ctx.arc(node.x, node.y, 3.2, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
     }
   }
 }
