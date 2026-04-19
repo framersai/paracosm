@@ -181,7 +181,14 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
       }
     }
 
-    return Object.entries(map).sort((a, b) => Number(a[0]) - Number(b[0]));
+    // Object.entries keys are always strings; coerce to numbers here so
+    // downstream consumers (collectRunStripData, section ids, sparkline
+    // data) can treat turn numbers numerically without re-parsing each
+    // time. The typed tuple fixes a tsc error that the runtime coercion
+    // was already handling correctly.
+    return Object.entries(map)
+      .map(([k, v]) => [Number(k), v] as [number, { a: TurnData; b: TurnData }])
+      .sort((a, b) => a[0] - b[0]);
   }, [state]);
 
   const nameA = state.a.leader?.name || 'Leader A';

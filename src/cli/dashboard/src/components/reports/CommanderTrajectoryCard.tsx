@@ -51,14 +51,52 @@ interface CommanderSnapshot {
   honestyHumility: number;
 }
 
-/** Extract per-turn commander snapshots for a single leader from the SSE event stream. */
+/**
+ * Minimal event shape this card needs. Compatible with both the live
+ * `SimEvent` stream (carries `leader`) and the per-side `ProcessedEvent[]`
+ * that `useGameState` exposes (where every event on `state.a.events` is
+ * already attributed to leader A and the `leader` field is optional).
+ */
+interface TrajectoryEvent {
+  type: string;
+  leader?: string;
+  data?: Record<string, unknown>;
+}
+
+/**
+ * Either a strict HEXACO snapshot or the looser `Record<string, number>`
+ * shape used on LeaderConfig. Widening the prop type so `state.a.leader?.hexaco`
+ * (typed as a loose record) flows in without a cast.
+ */
+type BaselineHexacoInput = CommanderSnapshot | Record<string, number>;
+
+function coerceSnapshot(input: BaselineHexacoInput | undefined): CommanderSnapshot | undefined {
+  if (!input) return undefined;
+  const required: Array<keyof CommanderSnapshot> = [
+    'openness',
+    'conscientiousness',
+    'extraversion',
+    'agreeableness',
+    'emotionality',
+    'honestyHumility',
+  ];
+  for (const k of required) {
+    if (typeof (input as Record<string, number>)[k] !== 'number') return undefined;
+  }
+  return input as CommanderSnapshot;
+}
+
+/** Extract per-turn commander snapshots for a single leader from the event stream. */
 function extractCommanderTrajectory(
-  events: SimEvent[],
+  events: TrajectoryEvent[],
   leaderName: string,
 ): Array<{ turn: number; hexaco: CommanderSnapshot }> {
   const out: Array<{ turn: number; hexaco: CommanderSnapshot }> = [];
   for (const e of events) {
-    if (e.type !== 'drift' || e.leader !== leaderName || !e.data) continue;
+    if (e.type !== 'drift' || !e.data) continue;
+    // Accept events without a leader field (ProcessedEvent on state.a/b
+    // is already attributed to one side); filter only when present.
+    if (e.leader !== undefined && e.leader !== leaderName) continue;
     const commander = (e.data as Record<string, unknown>).commander as CommanderSnapshot | undefined;
     const turn = (e.data as Record<string, unknown>).turn as number | undefined;
     if (!commander || typeof turn !== 'number') continue;
@@ -72,17 +110,18 @@ export function CommanderTrajectoryCard({
   leaderName,
   baselineHexaco,
 }: {
-  events: SimEvent[];
+  events: TrajectoryEvent[] | SimEvent[];
   leaderName: string;
   /** Turn-0 baseline. Prepended so the chart shows the drift FROM config,
    *  not just the drift BETWEEN turn 1 and turn N. */
-  baselineHexaco?: CommanderSnapshot;
+  baselineHexaco?: BaselineHexacoInput;
 }) {
+  const baseline = coerceSnapshot(baselineHexaco);
   const trajectory = extractCommanderTrajectory(events, leaderName);
-  if (trajectory.length === 0 && !baselineHexaco) return null;
+  if (trajectory.length === 0 && !baseline) return null;
 
-  const series: Array<{ turn: number; hexaco: CommanderSnapshot }> = baselineHexaco
-    ? [{ turn: 0, hexaco: baselineHexaco }, ...trajectory]
+  const series: Array<{ turn: number; hexaco: CommanderSnapshot }> = baseline
+    ? [{ turn: 0, hexaco: baseline }, ...trajectory]
     : trajectory;
   if (series.length < 2) return null;
 

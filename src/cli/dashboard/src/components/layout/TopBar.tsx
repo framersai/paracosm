@@ -1,11 +1,19 @@
 import { useTheme } from '../../theme/ThemeProvider';
 import type { ScenarioClientPayload } from '../../hooks/useScenario';
 import type { GameState } from '../../hooks/useGameState';
+import type { useSSE } from '../../hooks/useSSE';
 import { LoadMenu } from './LoadMenu';
+
+/**
+ * Mirror the full useSSE return shape so TopBar can read providerError,
+ * abortReason, validationFallbacks etc. without any fields getting
+ * silently lost behind a narrower inline literal.
+ */
+type SseState = ReturnType<typeof useSSE>;
 
 interface TopBarProps {
   scenario: ScenarioClientPayload;
-  sse: { status: string; events: Array<unknown>; isComplete: boolean; isAborted?: boolean };
+  sse: SseState;
   gameState: GameState;
   onSave?: () => void;
   onLoad?: () => void;

@@ -4,8 +4,11 @@ import { computeLayout } from './viz-layout.js';
 import type { CellSnapshot, TurnSnapshot } from './viz-types.js';
 
 function cell(overrides: Partial<CellSnapshot> & { agentId: string }): CellSnapshot {
+  // `name` defaults to the required agentId; everything else gets a
+  // sane stub, then the caller's overrides win via the spread. The
+  // explicit `agentId:` line used to sit at the top; removed because
+  // the spread already covers it (TS2783 flagged the duplicate).
   return {
-    agentId: overrides.agentId,
     name: overrides.agentId,
     department: 'medical',
     role: 'role',

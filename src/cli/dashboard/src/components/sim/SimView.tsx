@@ -219,7 +219,9 @@ export function SimView({ state, sseStatus, onRun, verdict, launching: launching
         );
       })()}
 
-      {/* Shared stats row */}
+      {/* Shared stats row. Cost + leader-name props were dropped from
+          StatsBar when the cost breakdown moved to its own modal; the
+          component ignored them even at runtime, so stop passing them. */}
       <StatsBar
         colonyA={state.a.colony}
         colonyB={state.b.colony}
@@ -234,11 +236,6 @@ export function SimView({ state, sseStatus, onRun, verdict, launching: launching
         citationsA={state.a.citations}
         citationsB={state.b.citations}
         crisisText={crisisText}
-        cost={state.cost}
-        costA={state.costA}
-        costB={state.costB}
-        leaderAName={state.a.leader?.name || presetLeaderA?.name}
-        leaderBName={state.b.leader?.name || presetLeaderB?.name}
         toolRegistry={toolRegistry}
       />
 

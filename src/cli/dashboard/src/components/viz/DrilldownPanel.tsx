@@ -121,13 +121,19 @@ export function DrilldownPanel(props: DrilldownPanelProps) {
       .map(s => {
         const hit = s.cells.find(c => c.agentId === selectedId);
         if (!hit) return null;
-        return {
+        // Build the object so `crisisTitle` is only present when defined,
+        // which matches MoodPoint's `crisisTitle?: string` (optional
+        // property) rather than the looser `crisisTitle: string | undefined`
+        // TS would otherwise infer from a conditional spread.
+        const crisis = s.eventCategories?.[0];
+        const point: { turn: number; moodScore: number; crisisTitle?: string } = {
           turn: s.turn,
           moodScore: MOOD_TO_SCORE[hit.mood] ?? 0.5,
-          crisisTitle: s.eventCategories?.[0],
         };
+        if (typeof crisis === 'string' && crisis.length > 0) point.crisisTitle = crisis;
+        return point;
       })
-      .filter((p): p is { turn: number; moodScore: number; crisisTitle?: string } => !!p);
+      .filter((p): p is { turn: number; moodScore: number; crisisTitle?: string } => p !== null);
   }, [selectedId, snapshots]);
 
   if (!selectedId || !center) return null;
