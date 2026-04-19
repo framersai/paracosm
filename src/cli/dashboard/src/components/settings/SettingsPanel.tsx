@@ -4,7 +4,6 @@ import { LeaderConfig, type LeaderFormData } from './LeaderConfig';
 import { ScenarioEditor } from './ScenarioEditor';
 import { getDashboardTabFromHref, resolveSetupRedirectHref } from '../../tab-routing';
 import { subscribeScenarioUpdates } from '../../scenario-sync';
-import { SavedSessionsPicker } from './SavedSessionsPicker';
 
 
 const DEFAULT_HEXACO: Record<string, number> = {
@@ -347,26 +346,6 @@ export function SettingsPanel() {
       <p style={{ fontSize: '13px', color: 'var(--text-2)', marginBottom: '16px' }}>
         Configure two leaders and launch. {scenario.departments.length} departments: {scenario.departments.map(d => d.label).join(', ')}.
       </p>
-
-      {/*
-        Saved-sessions replay picker. Surfaces above the leader-config
-        form so first-time visitors see "watch a demo" before they
-        consider running their own. Hidden when no sessions are saved
-        yet, so the section doesn't add visual noise on a fresh deploy.
-        Picking a session navigates to /sim?replay=<id>; the App's
-        useReplaySessionId hook reads the query and useSSE swaps the
-        EventSource to the replay endpoint.
-      */}
-      <SavedSessionsPicker
-        onReplay={(id) => {
-          const url = new URL(window.location.href);
-          url.searchParams.set('replay', id);
-          // Land on the sim tab so the dashboard's main canvas is what
-          // the user sees first when the replay starts streaming.
-          const target = resolveSetupRedirectHref(url.toString(), 'sim');
-          window.location.assign(target);
-        }}
-      />
 
       {/* Leaders grid */}
       <div className="responsive-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
