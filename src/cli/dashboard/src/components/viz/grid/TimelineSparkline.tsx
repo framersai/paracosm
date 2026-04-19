@@ -93,6 +93,7 @@ export function TimelineSparkline({
   return (
     <div
       style={{
+        position: 'relative',
         padding: '4px 10px 2px',
         background: 'var(--bg-panel)',
         borderBottom: '1px solid var(--border)',
@@ -211,6 +212,69 @@ export function TimelineSparkline({
           strokeWidth={1}
         />
       </svg>
+      {typeof hoveredTurn === 'number' && (() => {
+        const a = snapsA[hoveredTurn];
+        const b = snapsB[hoveredTurn];
+        if (!a && !b) return null;
+        const leftPct = (hoveredTurn / Math.max(1, maxTurns - 1)) * 100;
+        return (
+          <div
+            style={{
+              position: 'absolute',
+              left: `calc(${leftPct}% + 8px)`,
+              bottom: 6,
+              minWidth: 150,
+              maxWidth: 200,
+              padding: '5px 8px',
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border)',
+              borderRadius: 3,
+              fontFamily: 'var(--mono)',
+              fontSize: 9,
+              color: 'var(--text-2)',
+              pointerEvents: 'none',
+              boxShadow: '0 4px 14px rgba(0, 0, 0, 0.35)',
+              zIndex: 6,
+              transform: leftPct > 75 ? 'translateX(calc(-100% - 16px))' : undefined,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 9,
+                fontWeight: 800,
+                color: 'var(--amber)',
+                letterSpacing: '0.08em',
+                marginBottom: 3,
+              }}
+            >
+              T{hoveredTurn + 1}
+              {a?.year ? ` · ${a.year}` : ''}
+            </div>
+            {a && (
+              <div style={{ color: 'var(--vis)', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <span style={{ fontWeight: 800 }}>A</span>
+                <span>pop {a.population}</span>
+                <span>· {Math.round(a.morale * 100)}% mor</span>
+                <span>· {a.foodReserve.toFixed(1)}mo</span>
+                {(a.births > 0 || a.deaths > 0) && (
+                  <span>· +{a.births}/-{a.deaths}</span>
+                )}
+              </div>
+            )}
+            {b && (
+              <div style={{ color: 'var(--eng)', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <span style={{ fontWeight: 800 }}>B</span>
+                <span>pop {b.population}</span>
+                <span>· {Math.round(b.morale * 100)}% mor</span>
+                <span>· {b.foodReserve.toFixed(1)}mo</span>
+                {(b.births > 0 || b.deaths > 0) && (
+                  <span>· +{b.births}/-{b.deaths}</span>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }

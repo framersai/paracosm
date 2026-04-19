@@ -13,7 +13,10 @@ interface DrawGlyphsOptions {
  *  colonists get an outer halo that sinusoidally pulses with `timeMs`
  *  so the eye tracks them without losing positional stability.
  *  `searchQuery` (case-insensitive substring) highlights matching
- *  colonists with a bright amber ring and dims non-matches. */
+ *  colonists with a bright amber ring and dims non-matches.
+ *  `nameLabels` when true renders first-name labels under featured
+ *  and diverged glyphs — surfaces narrative-important colonists
+ *  without requiring hover. */
 export function drawGlyphs(
   ctx: CanvasRenderingContext2D,
   cells: CellSnapshot[],
@@ -24,6 +27,8 @@ export function drawGlyphs(
   divergenceOnly = false,
   timeMs = 0,
   searchQuery = '',
+  nameLabels = false,
+  labelColor = 'rgba(216, 204, 176, 0.9)',
 ): void {
   void ({} as DrawGlyphsOptions);
   ctx.save();
@@ -90,6 +95,36 @@ export function drawGlyphs(
     ctx.beginPath();
     ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
     ctx.stroke();
+  }
+
+  // Always-on name labels for featured + diverged colonists. Rendered
+  // in a second pass so labels aren't overdrawn by adjacent glyph strokes.
+  if (nameLabels) {
+    ctx.font = '9px ui-monospace, monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    for (const c of cells) {
+      if (!c.alive) continue;
+      const pos = positions.get(c.agentId);
+      if (!pos) continue;
+      const diverged = divergedIds?.has(c.agentId) ?? false;
+      if (divergenceOnly && !diverged) continue;
+      if (!c.featured && !diverged) continue;
+      const matchesSearch = query.length > 0 && c.name.toLowerCase().includes(query);
+      const searchDim = query.length > 0 && !matchesSearch;
+      if (searchDim) continue;
+      const label = c.name.split(/\s+/)[0];
+      const y = pos.y + (c.featured ? 12 : 10);
+      // Plate behind the label so it reads over the RD field.
+      const w = ctx.measureText(label).width;
+      ctx.fillStyle = 'rgba(10, 8, 6, 0.55)';
+      ctx.fillRect(pos.x - w / 2 - 3, y - 1, w + 6, 10);
+      ctx.fillStyle = diverged
+        ? 'rgba(232, 180, 74, 0.95)'
+        : labelColor;
+      ctx.globalAlpha = intensity;
+      ctx.fillText(label, pos.x, y);
+    }
   }
   ctx.restore();
 }
