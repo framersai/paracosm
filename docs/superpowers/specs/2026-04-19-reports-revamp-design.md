@@ -62,18 +62,19 @@ Modified:
 
 ```ts
 interface HeroScoreboardProps {
+  /** Raw verdict payload. Component reads verdict.winnerName, headline,
+   *  summary, keyDivergence, finalStats.a/.b (population, morale, food,
+   *  power, modules, science, tools). Shape mirrors the VerdictData type
+   *  in VerdictCard.tsx. */
+  verdict: Record<string, unknown> | null | undefined;
   leaderAName: string;
   leaderBName: string;
-  verdict: Record<string, unknown> | null | undefined;
-  finalStats: {
-    a: { population?: number; morale?: number; food?: number; power?: number; modules?: number; science?: number; toolsForged?: number };
-    b: { population?: number; morale?: number; food?: number; power?: number; modules?: number; science?: number; toolsForged?: number };
-  };
+  /** Default: scroll #verdict into view. Override for tests. */
   onViewFullVerdict?: () => void;
 }
 ```
 
-Renders: amber top band with winner name + one-line headline pulled from `verdict.headline || verdict.summary`. Below: seven stat rows (one per metric) showing A value, a thin horizontal bar visualizing the relative split (0..1 normalized within each metric), and B value. Bar fill color matches the winning side. "View full verdict" link at the footer anchor-scrolls to the existing inline `VerdictPanel`, which stays rendered below in its current position; `onViewFullVerdict` is the scroll handler (default: `document.getElementById('verdict')?.scrollIntoView({ behavior: 'smooth' })`).
+Renders: amber top band with `verdict.winnerName` + one-line headline from `verdict.headline || verdict.summary`. Below: seven stat rows (one per field in `verdict.finalStats`: population, morale, food, power, modules, science, tools) each showing A value, a thin horizontal bar visualizing the relative split normalized within the metric, and B value. Bar fill color matches the winning side (`var(--vis)` for A-wins, `var(--eng)` for B-wins, `var(--border-hl)` for tied). "View full verdict" anchor at the footer calls `onViewFullVerdict` (default: `document.getElementById('verdict')?.scrollIntoView({ behavior: 'smooth' })`). The existing inline `VerdictPanel` stays rendered below in its current position; Hero is a scannable top-of-page summary, not a replacement.
 
 **`RunStrip`**
 
@@ -90,19 +91,25 @@ interface RunStripProps {
 }
 ```
 
-Renders: one row of N cells (N = turn count). Each cell is a button containing the turn number + year + event icon + two stacked outcome badges (A top, B bottom). Outcome colors: `SAFE_WIN` green, `RISKY_WIN` amber, `SAFE_LOSS` muted rust, `RISKY_LOSS` rust, unknown text-3. Divergent cells get a thicker outline. Click jumps via `onJumpToTurn(n)` which scrolls `#turn-<n>` into view.
+Renders: one row of N cells (N = turn count). Each cell is a button containing the turn number + year + event icon + two stacked outcome badges (A top, B bottom). Outcome string keys (from the orchestrator, matching the `Badge` component in [Badge.tsx](../../../src/cli/dashboard/src/components/shared/Badge.tsx)): `conservative_success` green ("SAFE WIN"), `risky_success` amber ("RISKY WIN"), `conservative_failure` muted rust ("SAFE LOSS"), `risky_failure` rust ("RISKY LOSS"), unknown fall back to text-3 with the raw outcome string uppercased. Divergent cells get a thicker outline. Click jumps via `onJumpToTurn(n)` which scrolls `#turn-<n>` into view.
 
 **`MetricSparklines`**
 
 ```ts
+interface MetricSeries {
+  /** Stable id, matches the source ColonyState field. */
+  id: 'population' | 'morale' | 'foodMonthsReserve' | 'powerKw' | 'infrastructureModules' | 'scienceOutput';
+  /** User-facing label ("Population", "Morale", "Food (mo)", etc.). */
+  label: string;
+  /** Optional suffix for the final-value readout. */
+  unit?: string;
+  /** Per-turn snapshots. Turn index is the x-axis. */
+  a: Array<{ turn: number; value: number }>;
+  b: Array<{ turn: number; value: number }>;
+}
+
 interface MetricSparklinesProps {
-  metrics: Array<{
-    id: 'population' | 'morale' | 'food' | 'power' | 'modules' | 'science';
-    label: string;
-    unit?: string;
-    a: Array<{ turn: number; value: number }>;
-    b: Array<{ turn: number; value: number }>;
-  }>;
+  metrics: MetricSeries[];
   sideAColor: string;
   sideBColor: string;
 }
@@ -126,20 +133,20 @@ Renders: right-fixed rail on widths ≥ 1024px, horizontal sticky strip on narro
 
 Exports pure functions:
 
-- `outcomeColor(outcome: string | undefined): string` maps outcome strings to CSS variables.
-- `classifyTurn(aFirstTitle: string | undefined, bFirstTitle: string | undefined): 'shared' | 'divergent'`.
-- `collectMetricSeries(state: GameState): MetricSparklinesProps['metrics']` extracts per-turn colony state snapshots from the SSE event stream for both sides.
-- `collectRunStripData(turns: Array<[number, { a: TurnData; b: TurnData }]>): RunStripProps['turns']`.
+- `outcomeColor(outcome: string | undefined): string` maps the four outcome keys (`conservative_success`, `conservative_failure`, `risky_success`, `risky_failure`) plus `undefined` to CSS variables. Unknown keys return `var(--text-3)`.
+- `classifyTurn(aFirstTitle: string | undefined, bFirstTitle: string | undefined): 'shared' | 'divergent'`. Shared when both titles exist and match; divergent otherwise.
+- `collectMetricSeries(state: GameState): MetricSeries[]` walks both sides' `ProcessedEvent[]` (from [useGameState.ts](../../../src/cli/dashboard/src/hooks/useGameState.ts)), pulls `ColonyState` snapshots off every event that carries `data.colony`, and groups them by turn to produce the six-metric series. Metrics emitted: `population`, `morale`, `foodMonthsReserve`, `powerKw`, `infrastructureModules`, `scienceOutput`.
+- `collectRunStripData(turns: Array<[number, { a: TurnData; b: TurnData }]>): RunStripProps['turns']` reads the first event per side to build each cell; title mismatch drives the `diverged` flag.
 
 All helpers are unit-testable with `node:test` and have no React or DOM dependencies.
 
 ### Data flow
 
-Same SSE → `useGameState` → `ReportView` path as today. The new helpers derive additional views from the same `state` object:
+Same SSE then `useGameState` then `ReportView` path as today. The new helpers derive additional views from the same `state` object:
 
-- Final stats grid: reads `state.a` and `state.b` tail values (already computed for the current verdict panel).
-- Sparklines: walks the per-turn colony state snapshots the orchestrator already emits (the `colony` field on each turn's event blocks).
-- Run strip: reads each turn's first event's outcome string per side.
+- Final stats grid: reads `verdict.finalStats.a` and `verdict.finalStats.b` directly (shape mirrors the `VerdictData` type in [VerdictCard.tsx](../../../src/cli/dashboard/src/components/sim/VerdictCard.tsx)). When `verdict` is absent (sim still running), the hero hides its stats block and shows a "Simulation in progress" line instead.
+- Sparklines: `collectMetricSeries` walks `state.a.events` and `state.b.events`, each of which is a `ProcessedEvent` carrying a `ColonyState` payload when applicable. The helper pulls the six fields off every event that has `data.colony` and groups by turn so each metric's series is `{ turn, value }` pairs.
+- Run strip: `collectRunStripData` reads each turn's first event block (title, icon, outcome) per side from the same `turns` array the existing per-turn loop already builds.
 
 No new hooks, no new fetches, no new SSE events.
 
