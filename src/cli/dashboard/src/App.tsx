@@ -159,6 +159,59 @@ function AppContent() {
     if (!el) return;
     el.scrollTop = el.scrollHeight;
   }, [effectiveEvents.length]);
+
+  // ── Forge result toasts ─────────────────────────────────────────
+  // Surface every forge_attempt as a toast so users see WHICH tool
+  // was attempted, whether the judge approved or rejected it, and the
+  // judge's reasoning. Without this, forge events are visible only in
+  // the dense viz / event log and users miss the reliability signal.
+  //
+  // Suppressed during the initial buffer replay (replayDone=false) so
+  // a fresh page load doesn't fire 50 toasts at once for a long
+  // historical run. Live forge_attempt events that arrive after the
+  // buffer flush get a toast each.
+  const seenForgeKeysRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!sse.replayDone) {
+      // Pre-replay: seed the dedupe set with every forge_attempt
+      // currently in the buffer so we don't toast them once replayDone
+      // flips. Only EVENTS THAT ARRIVE AFTER buffer flush should toast.
+      for (const ev of effectiveEvents) {
+        if (ev.type === 'forge_attempt') {
+          const d = ev.data as Record<string, unknown>;
+          const key = `${ev.leader || ''}|${d?.name || ''}|${d?.timestamp || ''}|${d?.approved}`;
+          seenForgeKeysRef.current.add(key);
+        }
+      }
+      return;
+    }
+    for (const ev of effectiveEvents) {
+      if (ev.type !== 'forge_attempt') continue;
+      const d = ev.data as Record<string, unknown>;
+      const key = `${ev.leader || ''}|${d?.name || ''}|${d?.timestamp || ''}|${d?.approved}`;
+      if (seenForgeKeysRef.current.has(key)) continue;
+      seenForgeKeysRef.current.add(key);
+      const name = String(d?.name || 'unnamed tool');
+      const dept = String(d?.department || ev.leader || '').toUpperCase();
+      const approved = d?.approved === true;
+      const confidence = typeof d?.confidence === 'number' ? d.confidence : null;
+      const reason = String(d?.errorReason || '').slice(0, 220);
+      if (approved) {
+        const confStr = confidence != null ? ` · conf ${confidence.toFixed(2)}` : '';
+        toast(
+          'success',
+          `${dept ? `${dept} · ` : ''}forged ${name}`,
+          `Judge approved${confStr}`,
+        );
+      } else {
+        toast(
+          'error',
+          `${dept ? `${dept} · ` : ''}rejected ${name}`,
+          reason || 'Judge rejected (no reason provided)',
+        );
+      }
+    }
+  }, [effectiveEvents, sse.replayDone, toast]);
   const citationRegistry = useCitationRegistry(gameState);
   const toolRegistry = useToolRegistry(gameState);
   const persistence = useGamePersistence(scenario.labels.shortName);
