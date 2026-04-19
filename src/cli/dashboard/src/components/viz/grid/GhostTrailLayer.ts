@@ -1,10 +1,23 @@
 import type { CellSnapshot, GridPosition } from '../viz-types.js';
 
+export interface GhostTrailColors {
+  outline: string;
+  arrowLine: string;
+  arrowHead: string;
+}
+
+const DEFAULT_GHOST_COLORS: GhostTrailColors = {
+  outline: 'rgba(216, 204, 176, 0.32)',
+  arrowLine: 'rgba(216, 204, 176, 0.25)',
+  arrowHead: 'rgba(216, 204, 176, 0.5)',
+};
+
 /**
  * Draw faded prior-turn colonist outlines with arrows to their current
  * positions. Only renders colonists present in BOTH turns so the effect
  * reads as "this person moved here." Skips colonists whose movement is
- * below a pixel threshold (no visible delta).
+ * below a pixel threshold (no visible delta). Colors are theme-aware
+ * when a `GhostTrailColors` object is passed.
  */
 export function drawGhostTrail(
   ctx: CanvasRenderingContext2D,
@@ -12,6 +25,7 @@ export function drawGhostTrail(
   currentPositions: Map<string, GridPosition>,
   previousCells: CellSnapshot[] | undefined,
   previousPositions: Map<string, GridPosition> | undefined,
+  colors: GhostTrailColors = DEFAULT_GHOST_COLORS,
 ): void {
   if (!previousCells || !previousPositions) return;
   const currById = new Map(currentCells.map(c => [c.agentId, c]));
@@ -29,8 +43,7 @@ export function drawGhostTrail(
     const dist = Math.hypot(dx, dy);
     if (dist < 3) continue;
 
-    // Faded prior-position outline.
-    ctx.strokeStyle = 'rgba(216, 204, 176, 0.32)';
+    ctx.strokeStyle = colors.outline;
     ctx.lineWidth = 1;
     ctx.setLineDash([2, 2]);
     ctx.beginPath();
@@ -38,28 +51,20 @@ export function drawGhostTrail(
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Arrow line from prior → current.
-    ctx.strokeStyle = 'rgba(216, 204, 176, 0.25)';
+    ctx.strokeStyle = colors.arrowLine;
     ctx.lineWidth = 0.9;
     ctx.beginPath();
     ctx.moveTo(pFrom.x, pFrom.y);
     ctx.lineTo(pTo.x, pTo.y);
     ctx.stroke();
 
-    // Arrow head at current position (small triangle).
     const ang = Math.atan2(dy, dx);
     const ah = 4;
-    ctx.fillStyle = 'rgba(216, 204, 176, 0.5)';
+    ctx.fillStyle = colors.arrowHead;
     ctx.beginPath();
     ctx.moveTo(pTo.x, pTo.y);
-    ctx.lineTo(
-      pTo.x - Math.cos(ang - 0.4) * ah,
-      pTo.y - Math.sin(ang - 0.4) * ah,
-    );
-    ctx.lineTo(
-      pTo.x - Math.cos(ang + 0.4) * ah,
-      pTo.y - Math.sin(ang + 0.4) * ah,
-    );
+    ctx.lineTo(pTo.x - Math.cos(ang - 0.4) * ah, pTo.y - Math.sin(ang - 0.4) * ah);
+    ctx.lineTo(pTo.x - Math.cos(ang + 0.4) * ah, pTo.y - Math.sin(ang + 0.4) * ah);
     ctx.closePath();
     ctx.fill();
   }

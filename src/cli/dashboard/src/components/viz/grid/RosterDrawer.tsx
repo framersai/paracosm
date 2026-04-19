@@ -109,7 +109,7 @@ export function RosterDrawer({
         maxHeight: 'calc(100% - 16px)',
         display: 'flex',
         flexDirection: 'column',
-        background: 'rgba(14, 11, 9, 0.92)',
+        background: 'var(--bg-panel)',
         border: '1px solid var(--border)',
         borderRadius: 4,
         boxShadow: '0 4px 16px rgba(0, 0, 0, 0.6)',

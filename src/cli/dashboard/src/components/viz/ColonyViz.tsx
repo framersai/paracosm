@@ -838,7 +838,7 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
                     : palette === 'cool'
                     ? 'linear-gradient(135deg, #4ecdc4 0 40%, #9b6bd8 100%)'
                     : 'linear-gradient(135deg, #f5f0e4 0 40%, #6b5f50 100%)',
-                color: palette === 'mono' ? '#0a0806' : '#0a0806',
+                color: 'var(--text-contrast)',
                 border: '1px solid var(--border)',
                 borderRadius: 3,
                 cursor: 'pointer',
@@ -1244,7 +1244,7 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
               maxWidth: 520,
               width: 'calc(100% - 24px)',
               padding: '8px 14px',
-              background: 'rgba(14, 11, 9, 0.92)',
+              background: 'var(--bg-panel)',
               border: `1px solid ${alertToast.side === 'a' ? 'var(--vis)' : 'var(--eng)'}`,
               borderLeft:
                 alertToast.kind === 'morale-crash'
@@ -1299,7 +1299,7 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
               maxWidth: 520,
               width: 'calc(100% - 24px)',
               padding: '8px 14px',
-              background: 'rgba(14, 11, 9, 0.92)',
+              background: 'var(--bg-panel)',
               border: `1px solid ${crisisToast.side === 'a' ? 'var(--vis)' : 'var(--eng)'}`,
               borderLeft: '3px solid var(--rust)',
               borderRadius: 4,
