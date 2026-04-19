@@ -6,7 +6,8 @@ import { drawSeeds } from './SeedLayer.js';
 import { drawGlyphs } from './GlyphLayer.js';
 import { drawFlares } from './FlareLayer.js';
 import { drawHud } from './HudLayer.js';
-import { useGridState } from './useGridState.js';
+import { useGridState, type ForgeAttempt, type ReuseCall } from './useGridState.js';
+import { computeDeptCenters } from './deptCenters.js';
 import { GridRenderer } from '../../../lib/webgl/gridRenderer.js';
 import { flaresToDeposits } from '../../../lib/webgl/events.js';
 import { GridMetricsStrip } from './GridMetricsStrip.js';
@@ -33,6 +34,10 @@ interface LivingColonyGridProps {
   mode: GridMode;
   /** HEXACO profiles keyed by agentId for the popover radar. */
   hexacoById?: Map<string, HexacoShape>;
+  /** Cumulative forge attempts for this side — drives forge flares. */
+  forgeAttempts?: ForgeAttempt[];
+  /** Cumulative reuse calls — drives reuse arcs. */
+  reuseCalls?: ReuseCall[];
   /** Invoked when the user chooses "Open chat" inside the popover. */
   onOpenChat?: (colonistName: string) => void;
 }
@@ -97,6 +102,8 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
     initialPopulation = 20,
     mode,
     hexacoById,
+    forgeAttempts,
+    reuseCalls,
     onOpenChat,
   } = props;
 
@@ -169,10 +176,22 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
     return computeGridPositions(snapshot.cells, clusterMode, GRID_W, GRID_H);
   }, [snapshot, clusterMode]);
 
+  const deptCentersOverlay = useMemo(() => {
+    if (!snapshot) return new Map<string, { x: number; y: number }>();
+    return computeDeptCenters(snapshot.cells, positions);
+  }, [snapshot, positions]);
+
   const gridState = useGridState(
-    { snapshot, previousSnapshot },
+    {
+      snapshot,
+      previousSnapshot,
+      forgeAttempts,
+      reuseCalls,
+      eventCategories: snapshot?.eventCategories,
+    },
     canvasWrapRef,
-    () => gridPositions,
+    () => positions,
+    () => deptCentersOverlay,
   );
 
   // Mode-driven render intensity. All modes still render the field but
@@ -197,15 +216,19 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
       strength: i.strength * seedIntensity,
       radius: 1,
     } as const));
-    const flareDepositsGrid = flaresToDeposits(
-      gridState.flares.map(f => {
-        const id = f.sourceId;
-        const gp = id ? gridPositions.get(id) : undefined;
-        return gp ? { ...f, x: gp.x, y: gp.y } : f;
-      }),
-      GRID_W,
-      GRID_H,
-    );
+    // Flares are stored in overlay-space pixels; rescale to grid-space
+    // for WebGL deposits. Overlay continues to render with the original
+    // pixel coords so flare rings land under the cursor correctly.
+    const scaleX = GRID_W / Math.max(1, size.w);
+    const scaleY = GRID_H / Math.max(1, size.h);
+    const flaresGridSpace = gridState.flares.map(f => ({
+      ...f,
+      x: f.x * scaleX,
+      y: f.y * scaleY,
+      endX: typeof f.endX === 'number' ? f.endX * scaleX : undefined,
+      endY: typeof f.endY === 'number' ? f.endY * scaleY : undefined,
+    }));
+    const flareDepositsGrid = flaresToDeposits(flaresGridSpace, GRID_W, GRID_H);
 
     const tintBase = resolveRgb(sideColor, containerRef.current);
     const tintScaled: [number, number, number] = [

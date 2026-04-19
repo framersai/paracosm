@@ -7,11 +7,33 @@ import {
   type FlareQueue,
   type ActiveFlare,
 } from './flareQueue.js';
-import type { TurnSnapshot } from '../viz-types.js';
+import type { TurnSnapshot, GridPosition } from '../viz-types.js';
+
+export interface ForgeAttempt {
+  turn: number;
+  eventIndex: number;
+  department: string;
+  name: string;
+  approved: boolean;
+  confidence?: number;
+}
+
+export interface ReuseCall {
+  turn: number;
+  originDept: string;
+  callingDept: string;
+  name: string;
+}
 
 interface UseGridStateInputs {
   snapshot: TurnSnapshot | undefined;
   previousSnapshot: TurnSnapshot | undefined;
+  /** Cumulative forge attempts for this side. Hook de-duplicates. */
+  forgeAttempts?: ForgeAttempt[];
+  /** Cumulative reuse calls. Hook de-duplicates. */
+  reuseCalls?: ReuseCall[];
+  /** Event categories fired this turn (used for crisis flares). */
+  eventCategories?: string[];
 }
 
 interface GridStateHandle {
@@ -19,18 +41,33 @@ interface GridStateHandle {
   tickClock: number;
 }
 
+const CRISIS_CATEGORIES = new Set([
+  'political',
+  'social',
+  'infrastructure',
+  'medical',
+  'resource',
+  'environmental',
+]);
+
 /**
  * Owns the per-leader flare queue and a monotonic frame counter that
- * the renderer reads each rAF tick. When a new turn snapshot arrives,
- * diffs births/deaths against the previous snapshot and seeds matching
- * flares. Pauses on visibilitychange / off-screen.
+ * the renderer reads each rAF tick. Seeds flares from:
+ *   - Birth events (colonists newly present since last snapshot)
+ *   - Death events (colonists who died between snapshots)
+ *   - Forge attempts (approved + rejected)
+ *   - Reuse calls (origin dept → calling dept arc)
+ *   - Crisis events (category-gated, fires at colony center)
+ * Pauses on visibilitychange / off-screen.
  */
 export function useGridState(
   inputs: UseGridStateInputs,
   containerRef: React.RefObject<HTMLElement | null>,
-  positionLookup: () => Map<string, { x: number; y: number }>,
+  positionLookup: () => Map<string, GridPosition>,
+  deptCenterLookup?: () => Map<string, GridPosition>,
 ): GridStateHandle {
   const flareQueueRef = useRef<FlareQueue>(createFlareQueue());
+  const seenKeysRef = useRef<Set<string>>(new Set());
   const [tickClock, setTickClock] = useState(0);
   const prevTurnRef = useRef<number>(-1);
   const onScreenRef = useRef(true);
@@ -38,7 +75,7 @@ export function useGridState(
     typeof document !== 'undefined' ? !document.hidden : true,
   );
 
-  // Seed flares on turn change by diffing births + deaths.
+  // Births / deaths — diffed from snapshot ↔ previousSnapshot each turn.
   useEffect(() => {
     const snap = inputs.snapshot;
     const prev = inputs.previousSnapshot;
@@ -84,7 +121,71 @@ export function useGridState(
         }
       }
     }
-  }, [inputs.snapshot, inputs.previousSnapshot, positionLookup]);
+
+    // Crisis flares from event categories. One per category, once per
+    // turn, anchored at the overall cluster centroid.
+    const cats = inputs.eventCategories ?? snap.eventCategories ?? [];
+    if (cats.length > 0) {
+      const allPositions = Array.from(positions.values());
+      if (allPositions.length > 0) {
+        const cx =
+          allPositions.reduce((a, b) => a + b.x, 0) / allPositions.length;
+        const cy =
+          allPositions.reduce((a, b) => a + b.y, 0) / allPositions.length;
+        for (const raw of cats) {
+          const cat = raw.toLowerCase();
+          if (!CRISIS_CATEGORIES.has(cat)) continue;
+          const key = `crisis|${snap.turn}|${cat}`;
+          if (seenKeysRef.current.has(key)) continue;
+          seenKeysRef.current.add(key);
+          pushFlare(flareQueueRef.current, {
+            kind: 'crisis',
+            x: cx,
+            y: cy,
+            totalFrames: 90,
+          });
+        }
+      }
+    }
+  }, [inputs.snapshot, inputs.previousSnapshot, inputs.eventCategories, positionLookup]);
+
+  // Forge + reuse — fire whenever new cumulative entries land (not just
+  // at turn_done, since the runtime can stream forge events mid-turn).
+  useEffect(() => {
+    if (!deptCenterLookup) return;
+    const centers = deptCenterLookup();
+    if (centers.size === 0) return;
+
+    for (const att of inputs.forgeAttempts ?? []) {
+      const key = `forge|${att.turn}|${att.eventIndex}|${att.department}|${att.name}|${att.approved ? 'a' : 'r'}`;
+      if (seenKeysRef.current.has(key)) continue;
+      seenKeysRef.current.add(key);
+      const center = centers.get((att.department || 'unknown').toLowerCase());
+      if (!center) continue;
+      pushFlare(flareQueueRef.current, {
+        kind: att.approved ? 'forge_approved' : 'forge_rejected',
+        x: center.x,
+        y: center.y,
+        totalFrames: att.approved ? 30 : 22,
+      });
+    }
+    for (const reuse of inputs.reuseCalls ?? []) {
+      const key = `reuse|${reuse.turn}|${reuse.originDept}|${reuse.callingDept}|${reuse.name}`;
+      if (seenKeysRef.current.has(key)) continue;
+      seenKeysRef.current.add(key);
+      const origin = centers.get((reuse.originDept || 'unknown').toLowerCase());
+      const calling = centers.get((reuse.callingDept || 'unknown').toLowerCase());
+      if (!origin || !calling) continue;
+      pushFlare(flareQueueRef.current, {
+        kind: 'reuse',
+        x: origin.x,
+        y: origin.y,
+        endX: calling.x,
+        endY: calling.y,
+        totalFrames: 40,
+      });
+    }
+  }, [inputs.forgeAttempts, inputs.reuseCalls, deptCenterLookup]);
 
   // Visibility + intersection → pause.
   useEffect(() => {

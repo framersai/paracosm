@@ -377,6 +377,8 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
             lagTurns={snapATurn < snapBTurn ? snapBTurn - snapATurn : 0}
             mode={gridMode}
             hexacoById={hexacoById}
+            forgeAttempts={forgeFeeds.a.attempts}
+            reuseCalls={forgeFeeds.a.reuses}
             onOpenChat={handleOpenChat}
           />
           <LivingColonyGrid
@@ -391,6 +393,8 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
             lagTurns={snapBTurn < snapATurn ? snapATurn - snapBTurn : 0}
             mode={gridMode}
             hexacoById={hexacoById}
+            forgeAttempts={forgeFeeds.b.attempts}
+            reuseCalls={forgeFeeds.b.reuses}
             onOpenChat={handleOpenChat}
           />
         </div>
