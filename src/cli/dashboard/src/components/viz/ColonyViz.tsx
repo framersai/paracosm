@@ -320,10 +320,12 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
     ? `A vs B: ${snapB.population - snapA.population >= 0 ? '+' : ''}${snapB.population - snapA.population} pop, ${Math.round((snapB.morale - snapA.morale) * 100)}% morale, ${snapB.foodReserve - snapA.foodReserve > 0 ? '+' : ''}${(snapB.foodReserve - snapA.foodReserve).toFixed(1)}mo food`
     : '';
 
-  // Feature flag: VITE_NEW_GRID controls which viz renders. Default (unset)
-  // is the new living-colony grid. Setting VITE_NEW_GRID=0 explicitly opts
-  // back to the legacy ColonyPanel tile grid as a bail-out path.
-  const useNewGrid = import.meta.env.VITE_NEW_GRID !== '0';
+  // Feature flag: VITE_NEW_GRID=1 renders the living-colony grid. Default
+  // (unset) keeps the comprehensive tile viz — the grid is a foundation
+  // only until Phase 2 adds labels, hover tooltips, click popovers, tab
+  // presets (Mood / Forge / Ecology), legend, and full metric chrome.
+  // Flip back to default-on after Phase 2 lands.
+  const useNewGrid = import.meta.env.VITE_NEW_GRID === '1';
   if (useNewGrid) {
     const prevSnapA = currentTurn > 0
       ? (snapsA[currentTurn - 1] ?? snapsA[snapsA.length - 2])
