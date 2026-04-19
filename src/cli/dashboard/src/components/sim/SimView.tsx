@@ -352,21 +352,29 @@ export function SimView({ state, sseStatus, onRun, verdict, launching: launching
             )}
             <button
               onClick={() => {
-                // Find the top-bar LOAD button and click it so the user
-                // lands directly in the saved-runs picker, matching the
-                // mental model of "load a previously saved simulation".
-                const loadBtn = document.querySelector<HTMLButtonElement>(
-                  '[data-paracosm-load-menu-trigger="true"]',
+                // Prior UX tried to programmatically click the TopBar LOAD
+                // dropdown. That dropdown opens at the top of the screen
+                // while the user is looking at the empty state in the
+                // middle, so the click registered as "nothing happened"
+                // from the user's POV.
+                //
+                // Instead, scroll to the WATCH A PRIOR RUN card directly
+                // below — it already renders the cached-run list with
+                // one-click REPLAY buttons and explanatory empty-state
+                // copy when there are none. If the card isn't on-page
+                // (shouldn't happen, but defensive), fall back to the
+                // file picker so the button never dead-ends.
+                const cta = document.querySelector<HTMLElement>(
+                  '[data-paracosm-replay-cta="true"]',
                 );
-                if (loadBtn) {
-                  loadBtn.click();
-                  loadBtn.scrollIntoView({ block: 'center' });
-                } else {
-                  // Fallback: scroll the CTA below into view if no trigger found.
-                  document
-                    .querySelector('[data-paracosm-replay-cta="true"]')
-                    ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
+                if (!cta) return;
+                cta.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // Flash the card border so the user's eye catches the
+                // landing spot (scroll alone is easy to miss on a long
+                // empty state).
+                cta.style.transition = 'box-shadow 300ms ease-out';
+                cta.style.boxShadow = '0 0 0 2px var(--amber, #e8b44a)';
+                setTimeout(() => { cta.style.boxShadow = ''; }, 1200);
               }}
               style={{
                 background: 'linear-gradient(135deg, var(--amber), #c8952e)', color: 'var(--bg-deep)',
