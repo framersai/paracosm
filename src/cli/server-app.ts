@@ -94,6 +94,12 @@ export interface CreateMarsServerOptions {
    * burning API credits on an abandoned tab.
    */
   disconnectGraceMs?: number;
+  /**
+   * Override the session store instance. Intended for tests; the
+   * default production path opens a SQLite store at
+   * `${APP_DIR}/data/sessions.db`.
+   */
+  sessionStore?: SessionStore;
 }
 
 export interface MarsServer extends Server {
@@ -209,9 +215,9 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
   // open. Cap of 10 saved sessions; oldest evicts when an admin saves
   // an 11th. The store is opened once at server start so the SQLite
   // handle and prepared statements stay warm across requests.
+  let sessionStore: SessionStore | null = options.sessionStore ?? null;
   const sessionsDbPath = resolve(env.APP_DIR || '.', 'data', 'sessions.db');
-  let sessionStore: SessionStore | null = null;
-  try {
+  if (!sessionStore) try {
     sessionStore = openSessionStore(sessionsDbPath);
     console.log(`  [sessions] Opened session store at ${sessionsDbPath} (${sessionStore.count()} stored)`);
   } catch (err) {

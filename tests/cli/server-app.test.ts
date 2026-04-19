@@ -596,3 +596,115 @@ test('auto-saves a cleanly completed run to the session store', async () => {
     rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+test('does not auto-save when sim_aborted fires before complete', async () => {
+  const tmp = mkdtempSync(join(tmpdir(), 'paracosm-autosave-abort-'));
+  const server = createMarsServer({
+    env: { ...process.env, APP_DIR: tmp },
+    runPairSimulations: async (_cfg, broadcast) => {
+      broadcast('setup', { leaderA: { name: leaderA.name }, leaderB: { name: leaderB.name } });
+      broadcast('turn_done', { turn: 1 });
+      broadcast('turn_done', { turn: 2 });
+      broadcast('turn_done', { turn: 3 });
+      broadcast('sim_aborted', { reason: 'user_cancel' });
+      broadcast('complete', { cost: { totalCostUSD: 0 } });
+    },
+  });
+  server.listen(0);
+  await once(server, 'listening');
+  const address = server.address();
+  const port = typeof address === 'object' && address ? address.port : 0;
+  try {
+    await server.startWithConfig(makeConfig());
+    const res = await fetch(`http://127.0.0.1:${port}/sessions`);
+    const json = await res.json() as { sessions: unknown[] };
+    assert.equal(json.sessions.length, 0);
+  } finally {
+    server.close();
+    await once(server, 'close');
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('does not auto-save when turn count is below AUTO_SAVE_MIN_TURNS', async () => {
+  const tmp = mkdtempSync(join(tmpdir(), 'paracosm-autosave-short-'));
+  const server = createMarsServer({
+    env: { ...process.env, APP_DIR: tmp },
+    runPairSimulations: async (_cfg, broadcast) => {
+      broadcast('setup', { leaderA: { name: leaderA.name }, leaderB: { name: leaderB.name } });
+      broadcast('turn_done', { turn: 1 });
+      broadcast('turn_done', { turn: 2 });
+      broadcast('complete', { cost: { totalCostUSD: 0 } });
+    },
+  });
+  server.listen(0);
+  await once(server, 'listening');
+  const address = server.address();
+  const port = typeof address === 'object' && address ? address.port : 0;
+  try {
+    await server.startWithConfig(makeConfig());
+    const res = await fetch(`http://127.0.0.1:${port}/sessions`);
+    const json = await res.json() as { sessions: unknown[] };
+    assert.equal(json.sessions.length, 0);
+  } finally {
+    server.close();
+    await once(server, 'close');
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('emits complete twice but saves only once', async () => {
+  const tmp = mkdtempSync(join(tmpdir(), 'paracosm-autosave-double-'));
+  const server = createMarsServer({
+    env: { ...process.env, APP_DIR: tmp },
+    runPairSimulations: async (_cfg, broadcast) => {
+      broadcast('setup', { leaderA: { name: leaderA.name }, leaderB: { name: leaderB.name } });
+      for (let i = 1; i <= 3; i++) broadcast('turn_done', { turn: i });
+      broadcast('complete', { cost: { totalCostUSD: 0.1 } });
+      broadcast('complete', { cost: { totalCostUSD: 0.1 } });
+    },
+  });
+  server.listen(0);
+  await once(server, 'listening');
+  const address = server.address();
+  const port = typeof address === 'object' && address ? address.port : 0;
+  try {
+    await server.startWithConfig(makeConfig());
+    const res = await fetch(`http://127.0.0.1:${port}/sessions`);
+    const json = await res.json() as { sessions: unknown[] };
+    assert.equal(json.sessions.length, 1);
+  } finally {
+    server.close();
+    await once(server, 'close');
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('auto-save errors do not break the broadcast pipeline', async () => {
+  let saveCalled = false;
+  const throwingStore = {
+    saveSession: () => { saveCalled = true; throw new Error('disk full'); },
+    listSessions: () => [],
+    getSession: () => null,
+    count: () => 0,
+    close: () => {},
+  } as unknown as import('../../src/cli/session-store.js').SessionStore;
+
+  const server = createMarsServer({
+    sessionStore: throwingStore,
+    runPairSimulations: async (_cfg, broadcast) => {
+      broadcast('setup', { leaderA: { name: leaderA.name }, leaderB: { name: leaderB.name } });
+      for (let i = 1; i <= 3; i++) broadcast('turn_done', { turn: i });
+      broadcast('complete', { cost: { totalCostUSD: 0.1 } });
+    },
+  });
+  server.listen(0);
+  await once(server, 'listening');
+  try {
+    await server.startWithConfig(makeConfig());
+    assert.equal(saveCalled, true);
+  } finally {
+    server.close();
+    await once(server, 'close');
+  }
+});
