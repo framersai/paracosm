@@ -387,16 +387,36 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
    * client-facing broadcast.
    */
   const autoSaveOnComplete = () => {
-    if (!sessionStore) return;
-    if (currentRunAborted) return;
-    if (currentRunSaved) return;
-    if (eventBuffer.length === 0) return;
+    // Every branch logs a single [sessions] line so production can see
+    // in server stderr/stdout WHY a run did or did not make it into the
+    // ring. Without these, a save silently failing on a writable-but-
+    // locked SQLite file (container volume quirk) looked identical to
+    // a clean save from outside.
+    if (!sessionStore) {
+      console.log('[sessions] auto-save skipped: session store not initialized');
+      return;
+    }
+    if (currentRunAborted) {
+      console.log('[sessions] auto-save skipped: run was aborted');
+      return;
+    }
+    if (currentRunSaved) {
+      console.log('[sessions] auto-save skipped: already saved for this run');
+      return;
+    }
+    if (eventBuffer.length === 0) {
+      console.log('[sessions] auto-save skipped: empty event buffer');
+      return;
+    }
 
     const turnDoneCount = eventBuffer.reduce(
       (n, msg) => n + (msg.startsWith('event: turn_done\n') ? 1 : 0),
       0,
     );
-    if (turnDoneCount < AUTO_SAVE_MIN_TURNS) return;
+    if (turnDoneCount < AUTO_SAVE_MIN_TURNS) {
+      console.log(`[sessions] auto-save skipped: turn_done count ${turnDoneCount} below AUTO_SAVE_MIN_TURNS (${AUTO_SAVE_MIN_TURNS})`);
+      return;
+    }
 
     try {
       const now = Date.now();
@@ -404,8 +424,9 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         ts: eventTimestamps[i] || now,
         sse,
       }));
-      sessionStore.saveSession(events);
+      const result = sessionStore.saveSession(events);
       currentRunSaved = true;
+      console.log(`[sessions] auto-saved run ${result.id}: ${events.length} events, ${turnDoneCount} turns (store count: ${sessionStore.count()})`);
     } catch (err) {
       console.warn('[sessions] auto-save failed:', err);
     }
