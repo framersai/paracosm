@@ -219,6 +219,32 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
     expiresAt: number;
   } | null>(null);
 
+  // gridSettings is declared here BEFORE any effect that reads it in a
+  // dependency array. Previously it was declared further below, which
+  // caused a TDZ "Cannot access before initialization" error in the
+  // minified bundle because React dep-arrays evaluate inline during
+  // render (unlike the effect bodies themselves).
+  const [gridSettings, setGridSettingsState] = useState<GridSettings>(() => {
+    try {
+      const raw = localStorage.getItem('paracosm:gridSettings');
+      if (raw) {
+        const parsed = JSON.parse(raw) as Partial<GridSettings>;
+        return { ...DEFAULT_GRID_SETTINGS, ...parsed };
+      }
+    } catch {
+      /* silent */
+    }
+    return DEFAULT_GRID_SETTINGS;
+  });
+  const setGridSettings = useCallback((next: GridSettings) => {
+    setGridSettingsState(next);
+    try {
+      localStorage.setItem('paracosm:gridSettings', JSON.stringify(next));
+    } catch {
+      /* silent */
+    }
+  }, []);
+
   // Scan both event streams for the most recent un-toasted crisis.
   useEffect(() => {
     if (!gridSettings.alerts) return;
@@ -361,26 +387,9 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
   const toggleFocus = useCallback((side: 'a' | 'b') => {
     setFocusedSide(prev => (prev === side ? null : side));
   }, []);
-  const [gridSettings, setGridSettingsState] = useState<GridSettings>(() => {
-    try {
-      const raw = localStorage.getItem('paracosm:gridSettings');
-      if (raw) {
-        const parsed = JSON.parse(raw) as Partial<GridSettings>;
-        return { ...DEFAULT_GRID_SETTINGS, ...parsed };
-      }
-    } catch {
-      /* silent */
-    }
-    return DEFAULT_GRID_SETTINGS;
-  });
-  const setGridSettings = useCallback((next: GridSettings) => {
-    setGridSettingsState(next);
-    try {
-      localStorage.setItem('paracosm:gridSettings', JSON.stringify(next));
-    } catch {
-      /* silent */
-    }
-  }, []);
+  // Note: gridSettings is hoisted above (near crisisToast) so effects
+  // that depend on it can register without triggering a TDZ in minified
+  // production bundles.
 
   useSoundCues({
     enabled: gridSettings.sound,
