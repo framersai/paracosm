@@ -252,6 +252,7 @@ function rowToMeta(row: SessionMetaRow): SessionMeta {
  */
 function deriveMetadata(events: TimestampedEvent[]): SessionMetaOverride {
   const out: SessionMetaOverride = {};
+  let maxCostSeen = 0;
   for (const { sse } of events) {
     const lines = sse.split('\n');
     if (lines.length < 2) continue;
@@ -264,24 +265,57 @@ function deriveMetadata(events: TimestampedEvent[]): SessionMetaOverride {
     } catch {
       continue;
     }
+    // The orchestrator wraps every engine-emitted event in
+    // `broadcast('sim', {type: <realType>, ...})`. So we treat the
+    // nested `type` as the authoritative event kind for sim frames,
+    // and otherwise fall back to the SSE event name.
+    const innerType = eventType === 'sim' && typeof data.type === 'string'
+      ? data.type
+      : eventType;
     if (eventType === 'active_scenario') {
       if (typeof data.id === 'string') out.scenarioId = data.id;
       if (typeof data.name === 'string') out.scenarioName = data.name;
     }
+    // Two paths to the leader roster:
+    //   1. Legacy SSE `event: setup` frames (kept so callers that
+    //      pre-wrap-style feed events — including the test suite — keep
+    //      working).
+    //   2. Live prod path: pair-runner emits `event: status` with
+    //      `phase: 'parallel'` at launch carrying the leaders array.
+    //      The engine never actually fires an SSE `setup` event.
     if (eventType === 'setup') {
       const leaderA = (data as { leaderA?: { name?: string } }).leaderA?.name;
       const leaderB = (data as { leaderB?: { name?: string } }).leaderB?.name;
       if (typeof leaderA === 'string') out.leaderA = leaderA;
       if (typeof leaderB === 'string') out.leaderB = leaderB;
     }
-    if (eventType === 'turn_done') {
-      const turn = (data as { turn?: number }).turn;
-      if (typeof turn === 'number') out.turnCount = turn;
+    if (eventType === 'status' && data.phase === 'parallel') {
+      const leaders = Array.isArray((data as { leaders?: unknown[] }).leaders)
+        ? (data as { leaders: Array<{ name?: string }> }).leaders
+        : [];
+      if (typeof leaders[0]?.name === 'string') out.leaderA = leaders[0].name;
+      if (typeof leaders[1]?.name === 'string') out.leaderB = leaders[1].name;
     }
-    if (eventType === 'complete') {
-      const cost = (data as { cost?: { totalCostUSD?: number } }).cost?.totalCostUSD;
-      if (typeof cost === 'number') out.totalCostUSD = cost;
+    // Count the highest `turn` observed. innerType covers both the
+    // wrapped prod shape (`event: sim` + data.type=turn_done) and the
+    // unwrapped legacy shape (`event: turn_done`) via the fallback
+    // above.
+    if (innerType === 'turn_done') {
+      const turn = (data as { turn?: number }).turn;
+      if (typeof turn === 'number' && turn > (out.turnCount ?? 0)) {
+        out.turnCount = turn;
+      }
+    }
+    // Every sim event carries a cumulative `_cost` payload; `complete`
+    // sometimes also carries a top-level `cost`. Track the highest
+    // totalCostUSD observed across either so the metadata reflects the
+    // full run cost even when the terminal `complete` itself omits it.
+    const costCarrier = data as { _cost?: { totalCostUSD?: number }; cost?: { totalCostUSD?: number } };
+    const seenCost = costCarrier._cost?.totalCostUSD ?? costCarrier.cost?.totalCostUSD;
+    if (typeof seenCost === 'number' && seenCost > maxCostSeen) {
+      maxCostSeen = seenCost;
     }
   }
+  if (maxCostSeen > 0) out.totalCostUSD = maxCostSeen;
   return out;
 }

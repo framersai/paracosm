@@ -117,3 +117,35 @@ test('saveSession survives malformed JSON in event data', () => {
   const { id } = store.saveSession(bogus);
   assert.equal(store.getSession(id)?.meta.scenarioName, 'Mars');
 });
+
+// Regression test for the real production SSE shape: the orchestrator
+// wraps every engine event in `broadcast('sim', {type: <realType>, ...})`
+// and pair-runner fires `event: status` (not `event: setup`) for the
+// leader roster. An earlier deriveMetadata matched on the unwrapped
+// shape only, so turnCount + leader names stayed null on every real
+// save. This test pins the wrapped-shape behaviour so the bug can't
+// silently come back.
+test('saveSession derives metadata from wrapped sim + status events', () => {
+  const store = openSessionStore(':memory:');
+  const wrapped: TimestampedEvent[] = [
+    makeEvent('active_scenario', { id: 'mars', name: 'Mars Genesis' }, 1000),
+    makeEvent('status', {
+      phase: 'parallel',
+      leaders: [{ name: 'Aria Chen' }, { name: 'Dietrich Voss' }],
+    }, 1200),
+    makeEvent('sim', { type: 'turn_done', turn: 1, _cost: { totalCostUSD: 0.05 } }, 3000),
+    makeEvent('sim', { type: 'turn_done', turn: 2, _cost: { totalCostUSD: 0.11 } }, 5000),
+    makeEvent('sim', { type: 'turn_done', turn: 3, _cost: { totalCostUSD: 0.18 } }, 7000),
+    makeEvent('complete', {}, 9000),
+  ];
+  const { id } = store.saveSession(wrapped);
+  const stored = store.getSession(id);
+  assert.ok(stored);
+  assert.equal(stored.meta.scenarioName, 'Mars Genesis');
+  assert.equal(stored.meta.leaderA, 'Aria Chen');
+  assert.equal(stored.meta.leaderB, 'Dietrich Voss');
+  assert.equal(stored.meta.turnCount, 3);
+  // Highest _cost.totalCostUSD seen wins — complete itself has no cost,
+  // but the cumulative value in the last turn_done is authoritative.
+  assert.equal(stored.meta.totalCostUSD, 0.18);
+});

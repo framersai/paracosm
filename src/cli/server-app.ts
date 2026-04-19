@@ -429,10 +429,19 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       return;
     }
 
-    const turnDoneCount = eventBuffer.reduce(
-      (n, msg) => n + (msg.startsWith('event: turn_done\n') ? 1 : 0),
-      0,
-    );
+    // Count completed turns. Two shapes are in play:
+    //   1. Legacy / test shape: `broadcast('turn_done', ...)` → frame
+    //      line `event: turn_done\n...`.
+    //   2. Real production shape: the orchestrator wraps every engine
+    //      event in `broadcast('sim', {type: 'turn_done', ...})` →
+    //      frame line `event: sim\ndata: {"type":"turn_done",...}`.
+    // The prior check only matched shape (1), so every prod run
+    // silently skipped with `below_min_turns`. Match either shape.
+    const turnDoneCount = eventBuffer.reduce((n, msg) => {
+      if (msg.startsWith('event: turn_done\n')) return n + 1;
+      if (msg.startsWith('event: sim\n') && msg.includes('"type":"turn_done"')) return n + 1;
+      return n;
+    }, 0);
     if (turnDoneCount < AUTO_SAVE_MIN_TURNS) {
       console.log(`[sessions] auto-save skipped: turn_done count ${turnDoneCount} below AUTO_SAVE_MIN_TURNS (${AUTO_SAVE_MIN_TURNS})`);
       emitSaveStatus('skipped', { reason: 'below_min_turns', turnDoneCount, minTurns: AUTO_SAVE_MIN_TURNS });
