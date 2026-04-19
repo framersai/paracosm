@@ -44,6 +44,13 @@ interface LivingColonyGridProps {
    *  turn. Highlighted in DIVERGENCE mode + tinted in all other modes
    *  when non-empty. */
   divergedIds?: Set<string>;
+  /** agentId currently hovered on the SIBLING panel. Shown as a
+   *  sympathetic ring on this side so the same colonist is easy to
+   *  compare across panels. */
+  siblingHoveredId?: string | null;
+  /** Fires when the user hovers a colonist on this panel. Lifted so
+   *  the sibling panel can render a sympathetic ring. */
+  onHoverChange?: (agentId: string | null) => void;
   /** Invoked when the user chooses "Open chat" inside the popover. */
   onOpenChat?: (colonistName: string) => void;
 }
@@ -111,6 +118,8 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
     forgeAttempts,
     reuseCalls,
     divergedIds,
+    siblingHoveredId,
+    onHoverChange,
     onOpenChat,
   } = props;
 
@@ -129,6 +138,11 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
     y: number;
   } | null>(null);
   const [popover, setPopover] = useState<ClickPopoverPayload | null>(null);
+  /** Turn-transition pulse value in [0, 1], decays per frame. Non-
+   *  reactive so it doesn't force re-render on every decay step —
+   *  the render effect reads `.current` inline. */
+  const pulseRef = useRef<number>(0);
+  const lastTurnRef = useRef<number>(-1);
 
   // Resize observer on the canvas wrapper (not the full container — the
   // container also holds the metrics strip DOM above the canvas).
@@ -216,6 +230,17 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
     const ctx = overlay.getContext('2d');
     if (!ctx) return;
 
+    // Turn transition pulse: spike the pulse value on turn change, then
+    // decay by ~0.05/frame (≈600ms at 30fps) back to 0. Used to brighten
+    // the field tint and thicken the panel glow briefly.
+    if (snapshot.turn !== lastTurnRef.current) {
+      lastTurnRef.current = snapshot.turn;
+      if (!reducedMotion) pulseRef.current = 1.0;
+    } else {
+      pulseRef.current = Math.max(0, pulseRef.current - 0.05);
+    }
+    const pulse = pulseRef.current;
+
     const { F, k } = computeChemistryParams(snapshot, initialPopulation);
     const injections = computeInjections(snapshot.cells, gridPositions);
     const colonistDeposits = injections.map(i => ({
@@ -240,10 +265,13 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
     const flareDepositsGrid = flaresToDeposits(flaresGridSpace, GRID_W, GRID_H);
 
     const tintBase = resolveRgb(sideColor, containerRef.current);
+    // Pulse boosts tint briefly on each new turn so the field "breathes"
+    // when fresh data lands.
+    const pulseBoost = 1 + pulse * 0.7;
     const tintScaled: [number, number, number] = [
-      tintBase[0] * fieldIntensity,
-      tintBase[1] * fieldIntensity,
-      tintBase[2] * fieldIntensity,
+      Math.min(1, tintBase[0] * fieldIntensity * pulseBoost),
+      Math.min(1, tintBase[1] * fieldIntensity * pulseBoost),
+      Math.min(1, tintBase[2] * fieldIntensity * pulseBoost),
     ];
     // Reduced motion: render one tick per snapshot change (no ongoing
     // animation), stepsPerFrame=0 stops RD evolution. Event flares still
@@ -297,6 +325,23 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
         ctx.restore();
       }
     }
+    // Sympathetic ring: same colonist is being hovered on the sibling
+    // panel. Dashed + dimmer so it reads as secondary.
+    if (siblingHoveredId && siblingHoveredId !== hovered?.cell.agentId) {
+      const pos = positions.get(siblingHoveredId);
+      if (pos) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(232, 180, 74, 0.75)';
+        ctx.lineWidth = 1.4;
+        ctx.globalAlpha = 0.85;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, 11, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+      }
+    }
   }, [
     gridState.tickClock,
     snapshot,
@@ -315,6 +360,7 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
     glyphIntensity,
     hovered,
     divergedIds,
+    siblingHoveredId,
     reducedMotion,
   ]);
 
@@ -326,14 +372,21 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
       const y = e.clientY - rect.top;
       const hit = hitTestGlyph(snapshot.cells, positions, x, y);
       if (hit) {
-        setHovered({ cell: hit, x, y });
+        setHovered(prev =>
+          prev && prev.cell.agentId === hit.agentId ? prev : { cell: hit, x, y },
+        );
+        onHoverChange?.(hit.agentId);
       } else if (hovered) {
         setHovered(null);
+        onHoverChange?.(null);
       }
     },
-    [snapshot, positions, hovered],
+    [snapshot, positions, hovered, onHoverChange],
   );
-  const onMouseLeave = useCallback(() => setHovered(null), []);
+  const onMouseLeave = useCallback(() => {
+    setHovered(null);
+    onHoverChange?.(null);
+  }, [onHoverChange]);
   const onClick = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
       if (!snapshot) return;
@@ -383,8 +436,22 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
           minHeight: 0,
           overflow: 'hidden',
           background: 'var(--bg-deep)',
-          border: `1px solid ${sideColor}33`,
+          border: `1px solid ${snapshot
+            ? snapshot.morale >= 0.6
+              ? 'rgba(106, 173, 72, 0.55)'
+              : snapshot.morale >= 0.3
+              ? 'rgba(232, 180, 74, 0.55)'
+              : 'rgba(196, 74, 30, 0.65)'
+            : `${sideColor}33`}`,
           borderRadius: 4,
+          boxShadow: snapshot
+            ? snapshot.morale >= 0.6
+              ? '0 0 16px rgba(106, 173, 72, 0.18)'
+              : snapshot.morale >= 0.3
+              ? '0 0 16px rgba(232, 180, 74, 0.12)'
+              : '0 0 20px rgba(196, 74, 30, 0.25)'
+            : 'none',
+          transition: 'border-color 400ms ease, box-shadow 400ms ease',
         }}
       >
         <canvas

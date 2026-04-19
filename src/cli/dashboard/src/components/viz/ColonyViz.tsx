@@ -164,6 +164,8 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
   }, []);
 
   const [helpOpen, setHelpOpen] = useState(false);
+  const [hoveredA, setHoveredA] = useState<string | null>(null);
+  const [hoveredB, setHoveredB] = useState<string | null>(null);
   useEffect(() => {
     const useNewGridFlag = import.meta.env.VITE_NEW_GRID !== '0';
     const onKey = (e: KeyboardEvent) => {
@@ -379,7 +381,18 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
         >
           <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <GridModePills mode={gridMode} onChange={setGridMode} />
+              <GridModePills
+                mode={gridMode}
+                onChange={setGridMode}
+                counts={{
+                  forge:
+                    forgeFeeds.a.attempts.filter(a => a.approved).length +
+                    forgeFeeds.b.attempts.filter(a => a.approved).length,
+                  divergence:
+                    (divergenceData.aliveOnlyA?.size ?? 0) +
+                    (divergenceData.aliveOnlyB?.size ?? 0),
+                }}
+              />
             </div>
             <button
               type="button"
@@ -448,6 +461,8 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
             forgeAttempts={forgeFeeds.a.attempts}
             reuseCalls={forgeFeeds.a.reuses}
             divergedIds={divergenceData.aliveOnlyA}
+            siblingHoveredId={hoveredB}
+            onHoverChange={setHoveredA}
             onOpenChat={handleOpenChat}
           />
           <LivingColonyGrid
@@ -465,6 +480,8 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
             forgeAttempts={forgeFeeds.b.attempts}
             reuseCalls={forgeFeeds.b.reuses}
             divergedIds={divergenceData.aliveOnlyB}
+            siblingHoveredId={hoveredA}
+            onHoverChange={setHoveredB}
             onOpenChat={handleOpenChat}
           />
         </div>

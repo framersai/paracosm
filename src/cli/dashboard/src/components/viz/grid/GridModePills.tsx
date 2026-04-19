@@ -16,13 +16,18 @@ export function gridModeHint(mode: GridMode): string {
  * Mode pill row rendered above each leader grid. Shared state lifted
  * to ColonyViz so toggling on one leader also toggles the other —
  * panels stay visually comparable across mode switches.
+ * Optional counts render as a "· N" suffix — typically used for FORGE
+ * (total approved forges across both leaders) and DIVERGENCE (total
+ * diverged colonists across both sides).
  */
 export function GridModePills({
   mode,
   onChange,
+  counts,
 }: {
   mode: GridMode;
   onChange: (next: GridMode) => void;
+  counts?: Partial<Record<GridMode, number>>;
 }) {
   return (
     <div
@@ -39,6 +44,7 @@ export function GridModePills({
     >
       {MODES.map((m, i) => {
         const active = mode === m.key;
+        const count = counts?.[m.key];
         return (
           <button
             key={m.key}
@@ -67,9 +73,31 @@ export function GridModePills({
               cursor: 'pointer',
               textTransform: 'uppercase',
               transition: 'background 120ms, color 120ms',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 4,
+              whiteSpace: 'nowrap',
             }}
           >
-            {m.label}
+            <span>{m.label}</span>
+            {typeof count === 'number' && count > 0 && (
+              <span
+                style={{
+                  padding: '0 4px',
+                  borderRadius: 2,
+                  background: active ? 'rgba(10, 8, 6, 0.25)' : 'var(--bg-deep)',
+                  color: active ? 'var(--bg-deep)' : 'var(--amber)',
+                  fontSize: 8,
+                  fontWeight: 700,
+                  letterSpacing: '0.05em',
+                  minWidth: 14,
+                  textAlign: 'center',
+                }}
+              >
+                {count}
+              </span>
+            )}
           </button>
         );
       })}
