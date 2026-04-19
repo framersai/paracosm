@@ -92,6 +92,27 @@ bounded collective under a leader's decisions.
 }
 ```
 
+> **Terminology — `labels.populationNoun` + `settlementNoun`**
+>
+> The engine defaults to **`colonists` / `colony`** (Mars-flavoured) when a scenario omits these
+> fields, but every scenario can — and should — override them. The dashboard uses the overridden
+> nouns throughout: help legends, roster headers, empty states, screen-reader text, the viz tab,
+> report summaries. A handful of examples:
+>
+> | Scenario       | `settlementNoun` | `populationNoun` |
+> |----------------|------------------|------------------|
+> | Mars Genesis   | `colony`         | `colonists`      |
+> | Submarine      | `habitat`        | `crew`           |
+> | Medieval       | `kingdom`        | `subjects`       |
+> | Corporate      | `company`        | `employees`      |
+> | Space Station  | `station`        | `operators`      |
+> | Generation Ship| `vessel`         | `passengers`     |
+>
+> `populationNoun` is the **plural** form; the dashboard derives the singular (`colonists` →
+> `colonist`) and capitalised variants automatically. `settlementNoun` is **singular** (`colony`,
+> not `colonies`). Paracosm the engine is an "AI agent swarm" at the meta layer; what it simulates
+> inside each run is scenario-flavoured via these fields.
+
 ### 2. Compile and run
 
 ```typescript

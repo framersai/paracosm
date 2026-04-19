@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import type { TurnSnapshot } from '../viz-types.js';
+import { useScenarioLabels } from '../../../hooks/useScenarioLabels.js';
 
 interface RunSummaryDrawerProps {
   open: boolean;
@@ -65,6 +66,7 @@ function computeSide(snaps: TurnSnapshot[]): SideStats | null {
  */
 export function RunSummaryDrawer(props: RunSummaryDrawerProps) {
   const { open, onClose } = props;
+  const labels = useScenarioLabels();
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -270,7 +272,7 @@ export function RunSummaryDrawer(props: RunSummaryDrawerProps) {
             </div>
           </div>
           <div style={{ fontSize: 11, color: 'var(--text-3)', lineHeight: 1.5 }}>
-            Colonists alive on one side but dead on the other at the final snapshot — a measure
+            {labels.People} alive on one side but dead on the other at the final snapshot — a measure
             of how much the two leaders' decisions diverged the outcomes.
           </div>
         </div>
