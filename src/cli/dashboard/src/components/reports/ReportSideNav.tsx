@@ -106,9 +106,13 @@ export function ReportSideNav(props: ReportSideNavProps) {
     <nav
       aria-label="Report sections"
       style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 5,
+        // Non-sticky: on narrow viewports the parent `.reports-layout`
+        // flips to column-stacking and positions this nav ABOVE the
+        // scrolling content div via CSS `order: -1`. Since the content
+        // div is the scroll container, a sticky rule here has no
+        // scrolling ancestor to stick against and would misbehave
+        // (sitting at the top of the page scroll instead of the
+        // reports viewport).
         background: 'var(--bg-panel)',
         borderBottom: '1px solid var(--border)',
         padding: '6px 8px',
@@ -116,6 +120,7 @@ export function ReportSideNav(props: ReportSideNavProps) {
         overflowX: 'auto',
         display: 'flex',
         gap: 4,
+        flexShrink: 0,
       }}
     >
       {items.map(item => (

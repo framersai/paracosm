@@ -454,6 +454,20 @@
     .topbar-progress { display: none !important; }
   }
 
+  /* Tablet / narrow laptop. Matches ReportSideNav's own desktop gate
+     (min-width: 1024px): below this width the side rail renders as a
+     horizontal pill strip, so flip the outer Reports flex container
+     to column-stacking so the pills go above the content instead of
+     shrinking the content column to ~20px wide — which was rendering
+     `<details>` summaries as vertical one-char-per-line text.
+     `order: -1` on the sidenav pulls it above the content even though
+     the sidenav is rendered AFTER the content div in JSX (which is
+     the right spot for the desktop right-rail layout). */
+  @media (max-width: 1023.98px) {
+    .reports-layout { flex-direction: column !important; }
+    .reports-layout > nav[aria-label="Report sections"] { order: -1 !important; }
+  }
+
   /* Let the topbar's own flex children shrink below their content
      width. Without min-width:0 on the flex items, long text blocks
      refuse to shrink at all and the row blows past the viewport. */

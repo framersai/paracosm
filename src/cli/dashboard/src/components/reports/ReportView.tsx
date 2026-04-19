@@ -265,8 +265,25 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
   }
 
   return (
-    <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
-      <div ref={scrollRef} onScroll={onScroll} className="reports-content" role="region" aria-label="Turn-by-turn report" style={{ flex: 1, overflowY: 'auto', padding: '24px 32px', background: 'var(--bg-deep)' }}>
+    <div className="reports-layout" style={{ display: 'flex', flex: 1, minHeight: 0, minWidth: 0 }}>
+      <div
+        ref={scrollRef}
+        onScroll={onScroll}
+        className="reports-content"
+        role="region"
+        aria-label="Turn-by-turn report"
+        style={{
+          flex: 1,
+          // Without minWidth: 0 the flex child refuses to shrink below
+          // its intrinsic content width, which on narrow viewports pushes
+          // the side-rail off-screen AND collapses `<details>` markers
+          // into one-char-per-line vertical text. Explicit zero fixes both.
+          minWidth: 0,
+          overflowY: 'auto',
+          padding: '24px 32px',
+          background: 'var(--bg-deep)',
+        }}
+      >
       <h2 style={{ fontSize: '22px', color: 'var(--amber)', fontFamily: 'var(--mono)', marginBottom: '16px' }}>
         Turn-by-Turn Report
       </h2>
