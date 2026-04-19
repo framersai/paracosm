@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useRef, useState, useCallback } from 'react';
+import { useMemo, useEffect, useRef, useState, useCallback, type ReactNode } from 'react';
 import type { GameState } from '../../hooks/useGameState';
 import { useCitationContext } from '../../hooks/useCitationRegistry';
 import { useToolContext } from '../../hooks/useToolRegistry';
@@ -9,6 +9,12 @@ import { ToolboxSection } from '../shared/ToolboxSection';
 import { VerdictCard, VerdictPanel } from '../sim/VerdictCard';
 import { CostBreakdownModal } from '../layout/CostBreakdownModal';
 import { CommanderTrajectoryCard } from './CommanderTrajectoryCard';
+import {
+  buildReportSections,
+  REPORT_ARTIFACT_LABELS,
+  REPORT_FOCUS_LABELS,
+  type EventReportSection,
+} from './reportSections';
 
 /**
  * Tiny hook for booleans persisted to localStorage. Used here to remember
@@ -33,6 +39,7 @@ function usePersistedToggle(key: string, initial: boolean): [boolean, (v: boolea
 interface ReportViewProps {
   state: GameState;
   verdict?: Record<string, unknown> | null;
+  reportSections: Array<'crisis' | 'departments' | 'decision' | 'outcome' | 'quotes' | 'causality'>;
 }
 
 interface EventBlock {
@@ -73,7 +80,7 @@ function getEventBlock(turn: TurnData, eventIndex: number, totalEvents: number):
   return block;
 }
 
-export function ReportView({ state, verdict }: ReportViewProps) {
+export function ReportView({ state, verdict, reportSections }: ReportViewProps) {
   const citationRegistry = useCitationContext();
   const toolRegistry = useToolContext();
   // User's expand/collapse preference for References + Toolbox in this tab,
@@ -174,6 +181,30 @@ export function ReportView({ state, verdict }: ReportViewProps) {
 
   const nameA = state.a.leader?.name || 'Leader A';
   const nameB = state.b.leader?.name || 'Leader B';
+  const hasTrajectories = state.a.events.some(e => e.type === 'drift') || state.b.events.some(e => e.type === 'drift');
+  const hasQuotes = turns.some(([, sides]) => sides.a.reactions.length > 0 || sides.b.reactions.length > 0);
+  const hasCausality = turns.some(([, sides]) => (
+    [...sides.a.events.values(), ...sides.b.events.values()].some(block => Boolean(block.rationale))
+  ));
+  const reportPlan = useMemo(() => buildReportSections({
+    configuredSections: reportSections,
+    hasQuotes,
+    hasCausality,
+    hasVerdict: Boolean(verdict),
+    hasTrajectories,
+    hasCost: Boolean(state.cost && state.cost.llmCalls > 0),
+    hasToolbox: toolRegistry.list.length > 0,
+    hasReferences: citationRegistry.list.length > 0,
+  }), [
+    reportSections,
+    hasQuotes,
+    hasCausality,
+    verdict,
+    hasTrajectories,
+    state.cost,
+    toolRegistry.list.length,
+    citationRegistry.list.length,
+  ]);
 
   if (!state.a.events.length && !state.b.events.length) {
     return (
@@ -208,13 +239,102 @@ export function ReportView({ state, verdict }: ReportViewProps) {
         Turn-by-Turn Report
       </h2>
 
+      <section style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+        gap: 12,
+        marginBottom: 16,
+      }}>
+        <div style={{
+          padding: '12px 14px',
+          borderRadius: 8,
+          background: 'var(--bg-panel)',
+          border: '1px solid var(--border)',
+          boxShadow: 'var(--card-shadow)',
+        }}>
+          <div style={{
+            fontSize: 11,
+            fontWeight: 800,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            color: 'var(--amber)',
+            fontFamily: 'var(--mono)',
+            marginBottom: 8,
+          }}>
+            Scenario Focus
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {reportPlan.focusSections.map(section => (
+              <span
+                key={section}
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  padding: '3px 8px',
+                  borderRadius: 999,
+                  border: '1px solid var(--border-hl)',
+                  background: 'var(--bg-elevated)',
+                  color: 'var(--amber)',
+                  fontFamily: 'var(--mono)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                }}
+              >
+                {REPORT_FOCUS_LABELS[section]}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div style={{
+          padding: '12px 14px',
+          borderRadius: 8,
+          background: 'var(--bg-panel)',
+          border: '1px solid var(--border)',
+          boxShadow: 'var(--card-shadow)',
+        }}>
+          <div style={{
+            fontSize: 11,
+            fontWeight: 800,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            color: 'var(--amber)',
+            fontFamily: 'var(--mono)',
+            marginBottom: 8,
+          }}>
+            This Run Produced
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {reportPlan.artifacts.map(artifact => (
+              <span
+                key={artifact}
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  padding: '3px 8px',
+                  borderRadius: 999,
+                  border: '1px solid var(--border)',
+                  background: 'var(--bg-card)',
+                  color: artifact === 'timeline' ? 'var(--text-1)' : 'var(--text-2)',
+                  fontFamily: 'var(--mono)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                }}
+              >
+                {REPORT_ARTIFACT_LABELS[artifact]}
+              </span>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {verdict && <VerdictPanel verdict={verdict} />}
 
       {/* Commander personality arcs. Shown once per side once there's at
           least one turn of drift data, so the user can visually inspect
           how each commander's HEXACO evolved across the run. Data comes
           from drift SSE events emitted after every turn. */}
-      {(state.a.events.some(e => e.type === 'drift') || state.b.events.some(e => e.type === 'drift')) && (
+      {hasTrajectories && (
         <div className="responsive-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
           <CommanderTrajectoryCard
             events={state.a.events}
@@ -318,15 +438,15 @@ export function ReportView({ state, verdict }: ReportViewProps) {
                 display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px',
                 marginBottom: ei < eventCount - 1 ? 12 : 0,
               }}>
-                <EventSide block={a.events.get(ei)} eventIndex={ei} totalEvents={eventCount} name={nameA} sideColor="var(--vis)" />
-                <EventSide block={b.events.get(ei)} eventIndex={ei} totalEvents={eventCount} name={nameB} sideColor="var(--eng)" />
+                <EventSide block={a.events.get(ei)} eventIndex={ei} totalEvents={eventCount} name={nameA} sideColor="var(--vis)" sections={reportPlan.eventSections} />
+                <EventSide block={b.events.get(ei)} eventIndex={ei} totalEvents={eventCount} name={nameB} sideColor="var(--eng)" sections={reportPlan.eventSections} />
               </div>
             ))}
 
             {/* Per-turn shared sections: colony state + agent voices */}
             <div className="responsive-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: 12 }}>
-              <TurnSharedFooter data={a} name={nameA} sideColor="var(--vis)" />
-              <TurnSharedFooter data={b} name={nameB} sideColor="var(--eng)" />
+              <TurnSharedFooter data={a} name={nameA} sideColor="var(--vis)" showQuotes={reportPlan.footerSections.includes('quotes')} />
+              <TurnSharedFooter data={b} name={nameB} sideColor="var(--eng)" showQuotes={reportPlan.footerSections.includes('quotes')} />
             </div>
           </div>
         );
@@ -369,6 +489,7 @@ function EventSide({ block, eventIndex, totalEvents, name, sideColor }: {
   totalEvents: number;
   name: string;
   sideColor: string;
+  sections: EventReportSection[];
 }) {
   if (!block || !block.title) {
     return (
@@ -386,6 +507,70 @@ function EventSide({ block, eventIndex, totalEvents, name, sideColor }: {
     );
   }
 
+  const eventSections: Record<EventReportSection, ReactNode> = {
+    crisis: (
+      <div key="crisis">
+        <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-1)', marginBottom: '4px' }}>
+          {block.title}
+          {block.category && (
+            <span style={{ fontSize: '10px', color: 'var(--text-3)', background: 'var(--bg-deep)', padding: '1px 6px', borderRadius: '3px', marginLeft: '6px', fontFamily: 'var(--mono)' }}>
+              {block.category}
+            </span>
+          )}
+          {block.emergent && <span style={{ fontSize: '9px', fontWeight: 800, color: 'var(--rust)', fontFamily: 'var(--mono)', marginLeft: '6px' }}>EMERGENT</span>}
+        </div>
+
+        {block.description && (
+          <div style={{ fontSize: '12px', color: 'var(--text-3)', lineHeight: 1.5, marginBottom: '8px', fontStyle: 'italic' }}>
+            {block.description}
+          </div>
+        )}
+      </div>
+    ),
+    decision: block.decision ? (
+      <div key="decision" style={{ fontSize: '13px', color: 'var(--text-2)', lineHeight: 1.6, marginBottom: '6px' }}>
+        {block.decision}
+      </div>
+    ) : null,
+    outcome: block.outcome ? (
+      <div key="outcome" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+        <Badge outcome={block.outcome} />
+        {Array.isArray(block.policies) && block.policies.length > 0 && (
+          <span style={{ fontSize: '10px', color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
+            {block.policies.map(p => String(p)).join(' / ')}
+          </span>
+        )}
+      </div>
+    ) : null,
+    causality: block.rationale ? (
+      <details key="causality" style={{ marginBottom: '8px' }}>
+        <summary style={{ fontSize: '11px', fontWeight: 600, cursor: 'pointer', color: sideColor, fontFamily: 'var(--mono)' }}>Rationale</summary>
+        <div style={{ fontSize: '12px', color: 'var(--text-2)', lineHeight: 1.6, marginTop: '4px', fontStyle: 'italic', paddingLeft: '8px', borderLeft: `2px solid ${sideColor}` }}>
+          {block.rationale}
+        </div>
+      </details>
+    ) : null,
+    departments: Object.keys(block.depts).length > 0 ? (
+      <details key="departments" style={{ marginBottom: '8px' }} open>
+        <summary style={{ fontSize: '11px', fontWeight: 600, cursor: 'pointer', color: sideColor, fontFamily: 'var(--mono)' }}>
+          Departments ({Object.keys(block.depts).length})
+        </summary>
+        <div style={{ marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          {Object.entries(block.depts).map(([dept, d]) => (
+            <div key={dept} style={{ fontSize: '12px', padding: '4px 8px', background: 'var(--bg-deep)', borderRadius: '4px', borderLeft: `2px solid ${sideColor}` }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontWeight: 700, color: 'var(--text-1)' }}>{dept.charAt(0).toUpperCase() + dept.slice(1)}</span>
+                <span style={{ fontSize: '10px', color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>{d.citations}c {d.tools}t</span>
+              </div>
+              {d.summary && <div style={{ color: 'var(--text-2)', lineHeight: 1.5, marginTop: '2px' }}>{d.summary}</div>}
+              <CitationPills citations={d.citationList} label="" />
+            </div>
+          ))}
+        </div>
+      </details>
+    ) : null,
+  };
+
   return (
     <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '6px', padding: '14px 16px' }}>
       <h4 style={{ fontSize: '15px', fontFamily: 'var(--mono)', fontWeight: 800, color: sideColor, marginBottom: '8px' }}>
@@ -397,76 +582,14 @@ function EventSide({ block, eventIndex, totalEvents, name, sideColor }: {
         )}
       </h4>
 
-      <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-1)', marginBottom: '4px' }}>
-        {block.title}
-        {block.category && (
-          <span style={{ fontSize: '10px', color: 'var(--text-3)', background: 'var(--bg-deep)', padding: '1px 6px', borderRadius: '3px', marginLeft: '6px', fontFamily: 'var(--mono)' }}>
-            {block.category}
-          </span>
-        )}
-        {block.emergent && <span style={{ fontSize: '9px', fontWeight: 800, color: 'var(--rust)', fontFamily: 'var(--mono)', marginLeft: '6px' }}>EMERGENT</span>}
-      </div>
-
-      {block.description && (
-        <div style={{ fontSize: '12px', color: 'var(--text-3)', lineHeight: 1.5, marginBottom: '8px', fontStyle: 'italic' }}>
-          {block.description}
-        </div>
-      )}
-
-      {block.decision && (
-        <div style={{ fontSize: '13px', color: 'var(--text-2)', lineHeight: 1.6, marginBottom: '6px' }}>
-          {block.decision}
-        </div>
-      )}
-
-      {block.outcome && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-          <Badge outcome={block.outcome} />
-          {Array.isArray(block.policies) && block.policies.length > 0 && (
-            <span style={{ fontSize: '10px', color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
-              {block.policies.map(p => String(p)).join(' / ')}
-            </span>
-          )}
-        </div>
-      )}
-
-      {block.rationale && (
-        <details style={{ marginBottom: '8px' }}>
-          <summary style={{ fontSize: '11px', fontWeight: 600, cursor: 'pointer', color: sideColor, fontFamily: 'var(--mono)' }}>Rationale</summary>
-          <div style={{ fontSize: '12px', color: 'var(--text-2)', lineHeight: 1.6, marginTop: '4px', fontStyle: 'italic', paddingLeft: '8px', borderLeft: `2px solid ${sideColor}` }}>
-            {block.rationale}
-          </div>
-        </details>
-      )}
-
-      {Object.keys(block.depts).length > 0 && (
-        <details style={{ marginBottom: '8px' }} open>
-          <summary style={{ fontSize: '11px', fontWeight: 600, cursor: 'pointer', color: sideColor, fontFamily: 'var(--mono)' }}>
-            Departments ({Object.keys(block.depts).length})
-          </summary>
-          <div style={{ marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            {Object.entries(block.depts).map(([dept, d]) => (
-              <div key={dept} style={{ fontSize: '12px', padding: '4px 8px', background: 'var(--bg-deep)', borderRadius: '4px', borderLeft: `2px solid ${sideColor}` }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontWeight: 700, color: 'var(--text-1)' }}>{dept.charAt(0).toUpperCase() + dept.slice(1)}</span>
-                  <span style={{ fontSize: '10px', color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>{d.citations}c {d.tools}t</span>
-                </div>
-                {d.summary && <div style={{ color: 'var(--text-2)', lineHeight: 1.5, marginTop: '2px' }}>{d.summary}</div>}
-                {/* Compact numbered pills — full sources live in the
-                    References section at the bottom of the report. */}
-                <CitationPills citations={d.citationList} label="" />
-              </div>
-            ))}
-          </div>
-        </details>
-      )}
+      {sections.map(section => eventSections[section]).filter(Boolean)}
     </div>
   );
 }
 
-function TurnSharedFooter({ data, name, sideColor }: { data: TurnData; name: string; sideColor: string }) {
+function TurnSharedFooter({ data, name, sideColor, showQuotes }: { data: TurnData; name: string; sideColor: string; showQuotes: boolean }) {
   const colony = data.colony as Record<string, number> | undefined;
-  if (!colony && data.reactions.length === 0) return <div />;
+  if (!colony && (!showQuotes || data.reactions.length === 0)) return <div />;
 
   return (
     <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px 12px' }}>
@@ -486,7 +609,7 @@ function TurnSharedFooter({ data, name, sideColor }: { data: TurnData; name: str
         </details>
       )}
 
-      {data.reactions.length > 0 && (
+      {showQuotes && data.reactions.length > 0 && (
         <details open>
           <summary style={{ fontSize: '11px', fontWeight: 600, cursor: 'pointer', color: sideColor, fontFamily: 'var(--mono)' }}>
             Agent Voices ({data.totalReactions || data.reactions.length})

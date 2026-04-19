@@ -1,4 +1,5 @@
 import { useScenarioContext } from '../../App';
+import { describeAvailability, type ProductAvailability } from './aboutStatus';
 
 interface FaqItem {
   q: string;
@@ -92,7 +93,7 @@ interface PricingTier {
   features: string[];
   cta: { label: string; href: string };
   highlight?: boolean;
-  badge?: string;
+  availability: ProductAvailability;
 }
 
 const PRICING: PricingTier[] = [
@@ -110,7 +111,7 @@ const PRICING: PricingTier[] = [
       'Community support via Discord',
     ],
     cta: { label: 'View on GitHub', href: 'https://github.com/framersai/paracosm' },
-    badge: 'Available Now',
+    availability: 'available_now',
   },
   {
     name: 'Pro',
@@ -127,7 +128,7 @@ const PRICING: PricingTier[] = [
       'Expanded reporting over time',
     ],
     cta: { label: 'Join Early Access', href: 'mailto:team@frame.dev?subject=Paracosm Pro Early Access' },
-    badge: 'Planned',
+    availability: 'planned',
   },
   {
     name: 'Enterprise',
@@ -145,7 +146,7 @@ const PRICING: PricingTier[] = [
     ],
     cta: { label: 'Contact Sales', href: 'mailto:team@frame.dev?subject=Paracosm Enterprise Inquiry' },
     highlight: true,
-    badge: 'Design Partners',
+    availability: 'design_partners',
   },
   {
     name: 'Platform',
@@ -162,12 +163,56 @@ const PRICING: PricingTier[] = [
       'Dedicated infrastructure',
     ],
     cta: { label: 'Contact Sales', href: 'mailto:team@frame.dev?subject=Paracosm Platform Inquiry' },
-    badge: 'Future',
+    availability: 'future_roadmap',
   },
 ];
 
+interface ProductSurfaceCard {
+  title: string;
+  availability: ProductAvailability;
+  description: string;
+}
+
+const PRODUCT_SURFACES: ProductSurfaceCard[] = [
+  {
+    title: 'Open-source engine',
+    availability: 'available_now',
+    description: 'Core simulation runtime, Mars + Lunar scenarios, CLI, batch runner, and dashboard.',
+  },
+  {
+    title: 'Scenario Compiler',
+    availability: 'local_build',
+    description: 'JSON-to-runtime authoring path that already works in the CLI and local dashboard.',
+  },
+  {
+    title: 'Hosted demo API',
+    availability: 'early_access',
+    description: 'Rate-limited shared demo infrastructure for quick runs before you bring your own keys.',
+  },
+  {
+    title: 'Enterprise orchestration',
+    availability: 'design_partners',
+    description: 'Private deployment, large parallel fleets, governance, and org controls for serious operators.',
+  },
+  {
+    title: 'White-label platform',
+    availability: 'future_roadmap',
+    description: 'Marketplace, branding, custom domains, and commercial distribution packaging.',
+  },
+];
+
+const AVAILABILITY_TONE_STYLES: Record<ReturnType<typeof describeAvailability>['tone'], { color: string; background: string; border: string }> = {
+  green: { color: 'var(--green)', background: 'rgba(106,173,72,.10)', border: 'rgba(106,173,72,.35)' },
+  teal: { color: 'var(--teal)', background: 'rgba(90,191,173,.10)', border: 'rgba(90,191,173,.35)' },
+  amber: { color: 'var(--amber)', background: 'rgba(218,165,32,.10)', border: 'rgba(218,165,32,.35)' },
+  rust: { color: 'var(--rust)', background: 'rgba(224,101,48,.10)', border: 'rgba(224,101,48,.35)' },
+};
+
 export function AboutPage() {
   const scenario = useScenarioContext();
+  const surfaces = PRODUCT_SURFACES.map(surface => ({ ...surface, status: describeAvailability(surface.availability) }));
+  const availableSurfaces = surfaces.filter(surface => surface.status.group === 'available');
+  const roadmapSurfaces = surfaces.filter(surface => surface.status.group === 'roadmap');
 
   return (
     <div className="about-content" style={{ flex: 1, overflowY: 'auto', padding: '32px 48px', background: 'var(--bg-deep)', width: '100%' }}>
@@ -188,6 +233,48 @@ export function AboutPage() {
             Availability note: the open-source engine is available now. Hosted Pro, Enterprise, and Platform offerings shown below are roadmap tiers and early-access packaging, not generally available SaaS products yet.
           </p>
         </header>
+
+        <section style={{ marginBottom: '24px' }} aria-labelledby="surface-heading">
+          <h2 id="surface-heading" style={{ fontSize: '20px', color: 'var(--amber)', fontFamily: 'var(--mono)', paddingBottom: '8px', borderBottom: '1px solid var(--border)', marginBottom: '14px' }}>
+            Product Surface
+          </h2>
+          <div className="responsive-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+            {[{ title: 'Use Today', items: availableSurfaces }, { title: 'Roadmap', items: roadmapSurfaces }].map(group => (
+              <div key={group.title} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '6px', padding: '14px 16px', boxShadow: 'var(--card-shadow)' }}>
+                <div style={{ fontSize: '11px', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--amber)', fontFamily: 'var(--mono)', marginBottom: '10px' }}>
+                  {group.title}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {group.items.map(item => {
+                    const tone = AVAILABILITY_TONE_STYLES[item.status.tone];
+                    return (
+                      <article key={item.title} style={{ padding: '10px 12px', borderRadius: '6px', background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
+                          <h3 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-1)' }}>{item.title}</h3>
+                          <span style={{
+                            fontSize: '9px',
+                            fontWeight: 800,
+                            letterSpacing: '1px',
+                            textTransform: 'uppercase',
+                            padding: '2px 8px',
+                            borderRadius: '12px',
+                            color: tone.color,
+                            background: tone.background,
+                            border: `1px solid ${tone.border}`,
+                          }}>
+                            {item.status.label}
+                          </span>
+                        </div>
+                        <p style={{ fontSize: '12px', color: 'var(--text-2)', lineHeight: 1.6, marginBottom: '4px' }}>{item.description}</p>
+                        <p style={{ fontSize: '11px', color: 'var(--text-3)', lineHeight: 1.6 }}>{item.status.detail}</p>
+                      </article>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
 
         {/* How it works */}
         <section style={{ marginBottom: '24px' }} aria-labelledby="how-heading">
@@ -284,37 +371,39 @@ export function AboutPage() {
             packaging for infrastructure, persistence, governance, and zero-code workflows. No vendor lock-in.
           </p>
           <div className="responsive-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-            {PRICING.map(tier => (
-              <article
-                key={tier.name}
-                className="hover-lift"
-                style={{
-                  borderRadius: '6px',
-                  padding: '16px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  background: 'var(--bg-card)',
-                  border: tier.highlight ? '2px solid var(--amber)' : '1px solid var(--border)',
-                  boxShadow: tier.highlight ? '0 0 20px var(--amber-glow)' : 'var(--card-shadow)',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                  <h3 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-1)' }}>{tier.name}</h3>
-                  {tier.badge && (
+            {PRICING.map(tier => {
+              const status = describeAvailability(tier.availability);
+              const tone = AVAILABILITY_TONE_STYLES[status.tone];
+              return (
+                <article
+                  key={tier.name}
+                  className="hover-lift"
+                  style={{
+                    borderRadius: '6px',
+                    padding: '16px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    background: 'var(--bg-card)',
+                    border: tier.highlight ? '2px solid var(--amber)' : '1px solid var(--border)',
+                    boxShadow: tier.highlight ? '0 0 20px var(--amber-glow)' : 'var(--card-shadow)',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                    <h3 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-1)' }}>{tier.name}</h3>
                     <span style={{
                       fontSize: '9px', fontWeight: 800, letterSpacing: '1px', textTransform: 'uppercase',
                       padding: '2px 8px', borderRadius: '12px',
-                      background: 'var(--bg-elevated)', color: 'var(--amber)', border: '1px solid var(--border-hl)',
+                      color: tone.color, background: tone.background, border: `1px solid ${tone.border}`,
                     }}>
-                      {tier.badge}
+                      {status.label}
                     </span>
-                  )}
-                </div>
+                  </div>
                 <div style={{ marginBottom: '8px' }}>
                   <span style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-1)' }}>{tier.price}</span>
                   <span style={{ fontSize: '12px', marginLeft: '4px', color: 'var(--text-3)' }}>{tier.period}</span>
                 </div>
                 <p style={{ fontSize: '12px', marginBottom: '12px', color: 'var(--text-2)' }}>{tier.description}</p>
+                <p style={{ fontSize: '11px', marginBottom: '12px', color: 'var(--text-3)', lineHeight: 1.6 }}>{status.detail}</p>
                 <ul style={{ fontSize: '12px', listStyle: 'none', padding: 0, marginBottom: '16px', flex: 1, color: 'var(--text-3)' }}>
                   {tier.features.map(f => (
                     <li key={f} style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', marginBottom: '6px' }}>
@@ -342,8 +431,9 @@ export function AboutPage() {
                 >
                   {tier.cta.label}
                 </a>
-              </article>
-            ))}
+                </article>
+              );
+            })}
           </div>
         </section>
 
