@@ -359,6 +359,38 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
     }
   };
 
+  /**
+   * Persist the current run to the session ring when it completes
+   * cleanly. Called from inside broadcast() on an `event: complete`
+   * frame. Silent no-op when conditions aren't met. Errors are logged
+   * but never propagate: a cache write failure must not fail the
+   * client-facing broadcast.
+   */
+  const autoSaveOnComplete = () => {
+    if (!sessionStore) return;
+    if (currentRunAborted) return;
+    if (currentRunSaved) return;
+    if (eventBuffer.length === 0) return;
+
+    const turnDoneCount = eventBuffer.reduce(
+      (n, msg) => n + (msg.startsWith('event: turn_done\n') ? 1 : 0),
+      0,
+    );
+    if (turnDoneCount < AUTO_SAVE_MIN_TURNS) return;
+
+    try {
+      const now = Date.now();
+      const events: TimestampedEvent[] = eventBuffer.map((sse, i) => ({
+        ts: eventTimestamps[i] || now,
+        sse,
+      }));
+      sessionStore.saveSession(events);
+      currentRunSaved = true;
+    } catch (err) {
+      console.warn('[sessions] auto-save failed:', err);
+    }
+  };
+
   const broadcast: BroadcastFn = (event, data) => {
     const msg = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
     eventBuffer.push(msg);
@@ -371,6 +403,9 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         clients.delete(res);
       }
     }
+    if (event === 'sim_aborted') {
+      currentRunAborted = true;
+    }
     // On simulation completion, snapshot the run's schema-retry payload
     // to the cross-run ring buffer so /retry-stats can aggregate across
     // production runs. We pull schemaRetries from the MOST RECENT cost
@@ -379,6 +414,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
     // picture.
     if (event === 'complete') {
       captureRetrySnapshot();
+      autoSaveOnComplete();
     }
   };
 
