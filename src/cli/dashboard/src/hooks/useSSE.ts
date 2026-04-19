@@ -93,7 +93,25 @@ interface SSEState {
   replayDone: boolean;
 }
 
-export function useSSE() {
+/**
+ * Options for the live event-stream subscription.
+ *
+ * `replaySessionId` switches the underlying EventSource from the live
+ * /events feed to a stored session's /sessions/:id/replay endpoint. The
+ * dashboard renders the replayed events with the same SSE pipeline used
+ * for live runs — same event-key dedupe, same status-event handling —
+ * so the rest of the app does not need a "is this live or replay" code
+ * path. The optional `replaySpeed` query is forwarded to the server's
+ * pacing logic; defaults to 1 (original timing) when omitted.
+ */
+export interface UseSSEOptions {
+  replaySessionId?: string | null;
+  replaySpeed?: number;
+}
+
+export function useSSE(options: UseSSEOptions = {}) {
+  const replaySessionId = options.replaySessionId ?? null;
+  const replaySpeed = options.replaySpeed;
   const [state, setState] = useState<SSEState>({
     status: 'connecting',
     events: [],
@@ -264,7 +282,16 @@ function rollupValidationFallbacks(events: SimEvent[]): ValidationFallbackBucket
 
     const open = () => {
       if (cancelled) return;
-      const es = new EventSource('/events');
+      // Switch the EventSource between live (/events) and replay
+      // (/sessions/:id/replay) based on whether a replay session was
+      // requested. Replay mode uses the same event format so the rest
+      // of the pipeline is unchanged; only the data source flips.
+      const sourceUrl = replaySessionId
+        ? `/sessions/${encodeURIComponent(replaySessionId)}/replay${
+            replaySpeed != null ? `?speed=${encodeURIComponent(String(replaySpeed))}` : ''
+          }`
+        : '/events';
+      const es = new EventSource(sourceUrl);
       esRef.current = es;
 
       es.addEventListener('connected', () => {
@@ -464,7 +491,11 @@ function rollupValidationFallbacks(events: SimEvent[]): ValidationFallbackBucket
       if (es) { try { es.close(); } catch {} }
       esRef.current = null;
     };
-  }, []);
+    // Re-subscribe whenever the source URL changes (live <-> replay,
+    // or one replay session to another). Without these deps the hook
+    // would silently keep the original /events EventSource open even
+    // when the caller passed a replay id.
+  }, [replaySessionId, replaySpeed]);
 
   return { ...state, reset, loadEvents };
 }
