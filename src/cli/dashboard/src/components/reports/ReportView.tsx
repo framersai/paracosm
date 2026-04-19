@@ -15,6 +15,11 @@ import {
   REPORT_FOCUS_LABELS,
   type EventReportSection,
 } from './reportSections';
+import { HeroScoreboard } from './HeroScoreboard';
+import { RunStrip } from './RunStrip';
+import { MetricSparklines } from './MetricSparklines';
+import { ReportSideNav, type SideNavItem } from './ReportSideNav';
+import { collectMetricSeries, collectRunStripData } from './reports-shared';
 
 /**
  * Tiny hook for booleans persisted to localStorage. Used here to remember
@@ -206,6 +211,22 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
     citationRegistry.list.length,
   ]);
 
+  // Derivations for the new top-of-report surfaces. All memoized on the
+  // same inputs the existing turn map uses so they update in sync.
+  const stripCells = useMemo(() => collectRunStripData(turns), [turns]);
+  const metricSeries = useMemo(() => collectMetricSeries(state), [state]);
+  const sideNavItems = useMemo<SideNavItem[]>(() => {
+    const items: SideNavItem[] = [{ id: 'hero', label: 'Summary' }];
+    if (verdict) items.push({ id: 'verdict', label: 'Verdict' });
+    if (stripCells.length > 0) items.push({ id: 'strip', label: 'Strip' });
+    if (metricSeries.some(m => m.a.length > 0 || m.b.length > 0)) items.push({ id: 'sparklines', label: 'Metrics' });
+    if (hasTrajectories) items.push({ id: 'trajectory', label: 'Trajectory' });
+    for (const [turnNum] of turns) items.push({ id: `turn-${turnNum}`, label: `Turn ${turnNum}` });
+    if (toolRegistry.list.length > 0) items.push({ id: 'toolbox', label: 'Toolbox' });
+    if (citationRegistry.list.length > 0) items.push({ id: 'references', label: 'References' });
+    return items;
+  }, [verdict, stripCells.length, metricSeries, hasTrajectories, turns, toolRegistry.list.length, citationRegistry.list.length]);
+
   // All hooks must be declared before any conditional return, otherwise
   // React throws #310 ("rendered more hooks than during the previous
   // render") when the empty-state early-return branch stops taking.
@@ -237,120 +258,52 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
   }
 
   return (
-    <div ref={scrollRef} onScroll={onScroll} className="reports-content" role="region" aria-label="Turn-by-turn report" style={{ flex: 1, overflowY: 'auto', padding: '24px 32px', background: 'var(--bg-deep)' }}>
+    <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+      <div ref={scrollRef} onScroll={onScroll} className="reports-content" role="region" aria-label="Turn-by-turn report" style={{ flex: 1, overflowY: 'auto', padding: '24px 32px', background: 'var(--bg-deep)' }}>
       <h2 style={{ fontSize: '22px', color: 'var(--amber)', fontFamily: 'var(--mono)', marginBottom: '16px' }}>
         Turn-by-Turn Report
       </h2>
 
-      <section style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-        gap: 12,
-        marginBottom: 16,
-      }}>
-        <div style={{
-          padding: '12px 14px',
-          borderRadius: 8,
-          background: 'var(--bg-panel)',
-          border: '1px solid var(--border)',
-          boxShadow: 'var(--card-shadow)',
-        }}>
-          <div style={{
-            fontSize: 11,
-            fontWeight: 800,
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-            color: 'var(--amber)',
-            fontFamily: 'var(--mono)',
-            marginBottom: 8,
-          }}>
-            Scenario Focus
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {reportPlan.focusSections.map(section => (
-              <span
-                key={section}
-                style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  padding: '3px 8px',
-                  borderRadius: 999,
-                  border: '1px solid var(--border-hl)',
-                  background: 'var(--bg-elevated)',
-                  color: 'var(--amber)',
-                  fontFamily: 'var(--mono)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.04em',
-                }}
-              >
-                {REPORT_FOCUS_LABELS[section]}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        <div style={{
-          padding: '12px 14px',
-          borderRadius: 8,
-          background: 'var(--bg-panel)',
-          border: '1px solid var(--border)',
-          boxShadow: 'var(--card-shadow)',
-        }}>
-          <div style={{
-            fontSize: 11,
-            fontWeight: 800,
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-            color: 'var(--amber)',
-            fontFamily: 'var(--mono)',
-            marginBottom: 8,
-          }}>
-            This Run Produced
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {reportPlan.artifacts.map(artifact => (
-              <span
-                key={artifact}
-                style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  padding: '3px 8px',
-                  borderRadius: 999,
-                  border: '1px solid var(--border)',
-                  background: 'var(--bg-card)',
-                  color: artifact === 'timeline' ? 'var(--text-1)' : 'var(--text-2)',
-                  fontFamily: 'var(--mono)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.04em',
-                }}
-              >
-                {REPORT_ARTIFACT_LABELS[artifact]}
-              </span>
-            ))}
-          </div>
-        </div>
+      <section id="hero">
+        <HeroScoreboard
+          verdict={verdict}
+          leaderAName={nameA}
+          leaderBName={nameB}
+        />
       </section>
 
-      {verdict && <VerdictPanel verdict={verdict} />}
+      <section id="strip">
+        <RunStrip turns={stripCells} leaderAName={nameA} leaderBName={nameB} />
+      </section>
+
+      <section id="sparklines">
+        <MetricSparklines metrics={metricSeries} leaderAName={nameA} leaderBName={nameB} />
+      </section>
+
+      <section id="verdict">
+        {verdict && <VerdictPanel verdict={verdict} />}
+      </section>
 
       {/* Commander personality arcs. Shown once per side once there's at
           least one turn of drift data, so the user can visually inspect
           how each commander's HEXACO evolved across the run. Data comes
           from drift SSE events emitted after every turn. */}
-      {hasTrajectories && (
-        <div className="responsive-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-          <CommanderTrajectoryCard
-            events={state.a.events}
-            leaderName={nameA}
-            baselineHexaco={state.a.leader?.hexaco}
-          />
-          <CommanderTrajectoryCard
-            events={state.b.events}
-            leaderName={nameB}
-            baselineHexaco={state.b.leader?.hexaco}
-          />
-        </div>
-      )}
+      <section id="trajectory">
+        {hasTrajectories && (
+          <div className="responsive-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+            <CommanderTrajectoryCard
+              events={state.a.events}
+              leaderName={nameA}
+              baselineHexaco={state.a.leader?.hexaco}
+            />
+            <CommanderTrajectoryCard
+              events={state.b.events}
+              leaderName={nameB}
+              baselineHexaco={state.b.leader?.hexaco}
+            />
+          </div>
+        )}
+      </section>
 
       {/* Cost breakdown trigger. Moved out of the StatsBar header when
           the row got too dense; Reports is the right home since users
@@ -414,8 +367,13 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
         const diverged = aFirst && bFirst && aFirst !== bFirst;
 
         return (
-          <div key={turnNum} style={{
-            background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: '8px',
+          <section key={turnNum} id={`turn-${turnNum}`} style={{
+            background: diverged
+              ? 'color-mix(in srgb, var(--bg-panel) 90%, var(--rust) 10%)'
+              : 'var(--bg-panel)',
+            border: '1px solid var(--border)',
+            borderLeft: diverged ? '3px solid var(--rust)' : '1px solid var(--border)',
+            borderRadius: '8px',
             padding: '16px 20px', marginBottom: '14px', boxShadow: 'var(--card-shadow)',
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
@@ -451,7 +409,7 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
               <TurnSharedFooter data={a} name={nameA} sideColor="var(--vis)" showQuotes={reportPlan.footerSections.includes('quotes')} />
               <TurnSharedFooter data={b} name={nameB} sideColor="var(--eng)" showQuotes={reportPlan.footerSections.includes('quotes')} />
             </div>
-          </div>
+          </section>
         );
       })}
 
@@ -459,24 +417,71 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
           tab so the turn-by-turn report is the focus on open. The user's
           expand choice is persisted to localStorage so subsequent visits
           restore their preferred view. */}
-      {toolRegistry.list.length > 0 && (
-        <ToolboxSection
-          registry={toolRegistry}
-          title="Forged Toolbox"
-          collapsible
-          defaultOpen={toolsOpen}
-          onToggle={setToolsOpen}
-        />
-      )}
-      {citationRegistry.list.length > 0 && (
-        <ReferencesSection
-          registry={citationRegistry}
-          title="References"
-          collapsible
-          defaultOpen={refsOpen}
-          onToggle={setRefsOpen}
-        />
-      )}
+      <section id="toolbox">
+        {toolRegistry.list.length > 0 && (
+          <ToolboxSection
+            registry={toolRegistry}
+            title="Forged Toolbox"
+            collapsible
+            defaultOpen={toolsOpen}
+            onToggle={setToolsOpen}
+          />
+        )}
+      </section>
+
+      <section id="references">
+        {citationRegistry.list.length > 0 && (
+          <ReferencesSection
+            registry={citationRegistry}
+            title="References"
+            collapsible
+            defaultOpen={refsOpen}
+            onToggle={setRefsOpen}
+          />
+        )}
+      </section>
+
+      <details style={{
+        marginTop: 16, padding: '10px 14px',
+        background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 8,
+        fontSize: 11, fontFamily: 'var(--mono)', color: 'var(--text-3)',
+      }}>
+        <summary style={{ cursor: 'pointer', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-2)' }}>
+          What's in this report?
+        </summary>
+        <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 10 }}>
+          <div>
+            <div style={{ fontWeight: 800, color: 'var(--amber)', marginBottom: 4 }}>Scenario focus</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {reportPlan.focusSections.map(section => (
+                <span key={section} style={{
+                  fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999,
+                  border: '1px solid var(--border)', background: 'var(--bg-elevated, var(--bg-card))',
+                  color: 'var(--amber)',
+                }}>
+                  {REPORT_FOCUS_LABELS[section]}
+                </span>
+              ))}
+            </div>
+          </div>
+          <div>
+            <div style={{ fontWeight: 800, color: 'var(--amber)', marginBottom: 4 }}>This run produced</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {reportPlan.artifacts.map(artifact => (
+                <span key={artifact} style={{
+                  fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999,
+                  border: '1px solid var(--border)', background: 'var(--bg-card)',
+                  color: 'var(--text-2)',
+                }}>
+                  {REPORT_ARTIFACT_LABELS[artifact]}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </details>
+      </div>
+      <ReportSideNav items={sideNavItems} scrollRoot={scrollRef.current} />
     </div>
   );
 }
