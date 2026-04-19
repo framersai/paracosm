@@ -391,15 +391,10 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
   // that depend on it can register without triggering a TDZ in minified
   // production bundles.
 
-  useSoundCues({
-    enabled: gridSettings.sound,
-    snapshotA: snapsA[snapsA.length - 1],
-    prevSnapshotA: snapsA[snapsA.length - 2],
-    snapshotB: snapsB[snapsB.length - 1],
-    prevSnapshotB: snapsB[snapsB.length - 2],
-    forgeAttemptsA: forgeFeeds.a.attempts,
-    forgeAttemptsB: forgeFeeds.b.attempts,
-  });
+  // useSoundCues depends on forgeFeeds which is memoized further down
+  // in the hook block; the hook body is called later but its argument
+  // object is evaluated inline here. The call is now hoisted AFTER
+  // forgeFeeds below to avoid TDZ in minified bundles.
 
   // Timelapse recording state. Uses MediaRecorder on a composite
   // canvas stream so the user can capture a short webm of the viz.
@@ -628,6 +623,21 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
   const snapATurn = snapA?.turn ?? 0;
   const snapBTurn = snapB?.turn ?? 0;
 
+  // Resolve leader metadata eagerly (before the empty-state early return
+  // below). `searchMatchesMemo`, `useSoundCues`, and the forgeFeeds memo
+  // all reference these in their dependency arrays, which evaluate
+  // inline during render and would otherwise hit a TDZ in minified
+  // production bundles (`Cannot access 'st' before initialization`).
+  const defaultPreset = scenario.presets.find(p => p.id === 'default');
+  const presetA: LeaderInfo | null = defaultPreset?.leaders?.[0]
+    ? { name: defaultPreset.leaders[0].name, archetype: defaultPreset.leaders[0].archetype, colony: 'Colony Alpha', hexaco: defaultPreset.leaders[0].hexaco, instructions: defaultPreset.leaders[0].instructions, quote: '' }
+    : null;
+  const presetB: LeaderInfo | null = defaultPreset?.leaders?.[1]
+    ? { name: defaultPreset.leaders[1].name, archetype: defaultPreset.leaders[1].archetype, colony: 'Colony Beta', hexaco: defaultPreset.leaders[1].hexaco, instructions: defaultPreset.leaders[1].instructions, quote: '' }
+    : null;
+  const leaderA = state.a.leader ?? presetA;
+  const leaderB = state.b.leader ?? presetB;
+
   // Memoize search matches: recomputes only when the query or either
   // snapshot changes. Previously re-ran on every parent re-render,
   // which fires roughly per animation frame via child tickClock bumps.
@@ -748,6 +758,18 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
     return feed;
   }, [state]);
 
+  // Now that forgeFeeds exists, wire up sound cues. The hook internally
+  // guards on `enabled` so it's cheap when sound is off.
+  useSoundCues({
+    enabled: gridSettings.sound,
+    snapshotA: snapsA[snapsA.length - 1],
+    prevSnapshotA: snapsA[snapsA.length - 2],
+    snapshotB: snapsB[snapsB.length - 1],
+    prevSnapshotB: snapsB[snapsB.length - 2],
+    forgeAttemptsA: forgeFeeds.a.attempts,
+    forgeAttemptsB: forgeFeeds.b.attempts,
+  });
+
   const hexacoById = useMemo(() => {
     const m = new Map<string, HexacoShape>();
     for (const side of ['a', 'b'] as const) {
@@ -781,20 +803,8 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
     );
   }
 
-  // Fall back to the scenario's default preset leaders when the live
-  // sim state hasn't populated them yet. Matches the SimView pattern
-  // so the Viz tab surfaces Aria Chen / Dietrich Voss identities
-  // rather than generic "Leader A" / "Leader B" placeholders.
-  const defaultPreset = scenario.presets.find(p => p.id === 'default');
-  const presetA: LeaderInfo | null = defaultPreset?.leaders?.[0]
-    ? { name: defaultPreset.leaders[0].name, archetype: defaultPreset.leaders[0].archetype, colony: 'Colony Alpha', hexaco: defaultPreset.leaders[0].hexaco, instructions: defaultPreset.leaders[0].instructions, quote: '' }
-    : null;
-  const presetB: LeaderInfo | null = defaultPreset?.leaders?.[1]
-    ? { name: defaultPreset.leaders[1].name, archetype: defaultPreset.leaders[1].archetype, colony: 'Colony Beta', hexaco: defaultPreset.leaders[1].hexaco, instructions: defaultPreset.leaders[1].instructions, quote: '' }
-    : null;
-  const leaderA = state.a.leader ?? presetA;
-  const leaderB = state.b.leader ?? presetB;
-
+  // Leader metadata is now resolved above (pre-early-return) so
+  // dependency arrays in searchMatchesMemo / useSoundCues don't hit TDZ.
   const diffLine = snapA && snapB
     ? `A vs B: ${snapB.population - snapA.population >= 0 ? '+' : ''}${snapB.population - snapA.population} pop, ${Math.round((snapB.morale - snapA.morale) * 100)}% morale, ${snapB.foodReserve - snapA.foodReserve > 0 ? '+' : ''}${(snapB.foodReserve - snapA.foodReserve).toFixed(1)}mo food`
     : '';
