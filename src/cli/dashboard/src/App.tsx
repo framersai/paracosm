@@ -619,7 +619,7 @@ function AppContent() {
 
             {activeTab === 'settings' && <SettingsPanel />}
 
-            {activeTab === 'reports' && <ReportView state={gameState} verdict={sse.verdict} />}
+            {activeTab === 'reports' && <ReportView state={gameState} verdict={sse.verdict} reportSections={scenario.ui.reportSections} />}
 
             {/* ChatPanel stays mounted across tab switches so per-agent
                 message threads survive when the user jumps to Sim / Reports

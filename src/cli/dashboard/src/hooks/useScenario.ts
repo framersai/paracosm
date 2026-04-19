@@ -40,6 +40,7 @@ export interface ScenarioClientPayload {
   ui: {
     headerMetrics: Array<{ id: string; format: string }>;
     tooltipFields: string[];
+    reportSections: Array<'crisis' | 'departments' | 'decision' | 'outcome' | 'quotes' | 'causality'>;
     departmentIcons: Record<string, string>;
     setupSections: string[];
   };
@@ -71,6 +72,7 @@ const MARS_FALLBACK: ScenarioClientPayload = {
       { id: 'infrastructureModules', format: 'number' }, { id: 'scienceOutput', format: 'number' },
     ],
     tooltipFields: ['boneDensityPct', 'cumulativeRadiationMsv', 'psychScore', 'marsborn'],
+    reportSections: ['crisis', 'departments', 'decision', 'outcome', 'quotes'],
     departmentIcons: { medical: '🏥', engineering: '⚙️', agriculture: '🌱', psychology: '🧠', governance: '🏛️' },
     setupSections: ['leaders', 'personnel', 'resources', 'departments', 'events', 'models', 'advanced'],
   },
