@@ -17,6 +17,11 @@ export interface HudOpts {
   leaderArchetype?: string;
   /** First year of the scenario (for "Yr N of colony" math). */
   startYear?: number;
+  /** Theme-resolved label box background (bg-deep CSS variable at
+   *  resolve time). Defaults to a dark rgba fallback. */
+  labelBg?: string;
+  /** Theme-resolved text color for secondary HUD lines. */
+  textMuted?: string;
 }
 
 const DEPT_COLORS: Record<string, string> = {
@@ -65,7 +70,7 @@ export function drawHud(
     const chipY = 9;
     const chipH = 13;
     const padX = 5;
-    ctx.fillStyle = `rgba(10, 8, 6, 0.5)`;
+    ctx.fillStyle = opts.labelBg ?? `rgba(10, 8, 6, 0.5)`;
     ctx.fillRect(chipX, chipY, tw + padX * 2, chipH);
     ctx.strokeStyle = opts.sideColor;
     ctx.lineWidth = 1;
@@ -78,7 +83,7 @@ export function drawHud(
   }
 
   // Turn + year + colony-age line.
-  ctx.fillStyle = 'rgba(216, 204, 176, 0.75)';
+  ctx.fillStyle = opts.textMuted ?? 'rgba(216, 204, 176, 0.75)';
   const year = snapshot?.year;
   const yearLabel = typeof year === 'number'
     ? typeof opts.startYear === 'number'
@@ -159,7 +164,7 @@ export function drawHud(
       placed.push({ ...p, y });
     }
     for (const p of placed) {
-      ctx.fillStyle = 'rgba(10, 8, 6, 0.85)';
+      ctx.fillStyle = opts.labelBg ?? 'rgba(10, 8, 6, 0.85)';
       ctx.fillRect(p.cx - p.w / 2, p.y - p.h / 2, p.w, p.h);
       ctx.strokeStyle = deptColor(p.dept);
       ctx.lineWidth = 1;
@@ -181,7 +186,7 @@ export function drawHud(
       ? 'rgba(232, 180, 74, 0.9)'
       : 'rgba(196, 74, 30, 0.9)';
   ctx.fillText(`MORALE ${morale}%`, opts.width - 10, 10);
-  ctx.fillStyle = 'rgba(216, 204, 176, 0.75)';
+  ctx.fillStyle = opts.textMuted ?? 'rgba(216, 204, 176, 0.75)';
   ctx.fillText(`FOOD ${snapshot.foodReserve.toFixed(1)}mo`, opts.width - 10, 24);
 
   ctx.textAlign = 'left';
@@ -208,7 +213,7 @@ export function drawHud(
     ctx.fillStyle = opts.sideColor;
   }
   if (snapshot.deaths > 0 || snapshot.births > 0) {
-    ctx.fillStyle = 'rgba(216, 204, 176, 0.65)';
+    ctx.fillStyle = opts.textMuted ?? 'rgba(216, 204, 176, 0.65)';
     ctx.fillText(`+${snapshot.births} -${snapshot.deaths}`, 10, opts.height - 8);
   }
 

@@ -324,15 +324,31 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
     if (mode !== 'ecology') drawSeeds(ctx, snapshot.cells, positions);
     if (mode !== 'ecology' && settings.deptRings) drawDeptRings(ctx, snapshot.cells, positions);
     if (settings.ghostTrail && previousSnapshot) {
-      // Compute previous-turn positions lazily here — cheaper than
-      // another useMemo since this only runs when the setting is on.
       const prevPositions = computeGridPositions(
         previousSnapshot.cells,
         clusterMode,
         size.w,
         size.h,
       );
-      drawGhostTrail(ctx, snapshot.cells, positions, previousSnapshot.cells, prevPositions);
+      const ghostColors = {
+        outline:
+          (cs && hexToRgba(cs.getPropertyValue('--text-2').trim(), 0.32)) ||
+          'rgba(216, 204, 176, 0.32)',
+        arrowLine:
+          (cs && hexToRgba(cs.getPropertyValue('--text-2').trim(), 0.25)) ||
+          'rgba(216, 204, 176, 0.25)',
+        arrowHead:
+          (cs && hexToRgba(cs.getPropertyValue('--text-2').trim(), 0.5)) ||
+          'rgba(216, 204, 176, 0.5)',
+      };
+      drawGhostTrail(
+        ctx,
+        snapshot.cells,
+        positions,
+        previousSnapshot.cells,
+        prevPositions,
+        ghostColors,
+      );
     }
     if (settings.lines && (mode === 'living' || mode === 'mood')) {
       drawLines(ctx, snapshot.cells, positions, resolvedSide);
@@ -350,6 +366,32 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
         reducedMotion ? 0 : performance.now(),
         searchQuery,
       );
+    // Resolve theme-dependent colors from CSS vars so HUD label boxes
+    // and secondary text read correctly under both light + dark themes.
+    const cs = containerRef.current ? getComputedStyle(containerRef.current) : null;
+    const hexToRgba = (hex: string, alpha: number): string | null => {
+      if (!hex.startsWith('#') || hex.length !== 7) return null;
+      const n = parseInt(hex.slice(1), 16);
+      const r = (n >> 16) & 0xff;
+      const g = (n >> 8) & 0xff;
+      const b = n & 0xff;
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    };
+    const labelBg =
+      (cs && hexToRgba(cs.getPropertyValue('--bg-deep').trim(), 0.85)) ||
+      'rgba(10, 8, 6, 0.85)';
+    const textMuted =
+      (cs && hexToRgba(cs.getPropertyValue('--text-2').trim(), 0.8)) ||
+      'rgba(216, 204, 176, 0.75)';
+    const crosshairStroke =
+      (cs && hexToRgba(cs.getPropertyValue('--text-2').trim(), 0.22)) ||
+      'rgba(216, 204, 176, 0.22)';
+    const crosshairTracerStroke =
+      (cs && hexToRgba(cs.getPropertyValue('--text-2').trim(), 0.4)) ||
+      'rgba(216, 204, 176, 0.4)';
+    const crosshairTracerFill =
+      (cs && hexToRgba(cs.getPropertyValue('--text-2').trim(), 0.7)) ||
+      'rgba(216, 204, 176, 0.7)';
     drawHud(ctx, snapshot, {
       leaderName,
       leaderArchetype,
@@ -361,6 +403,8 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
       cells: snapshot.cells,
       positions,
       previousSnapshot,
+      labelBg,
+      textMuted,
     });
 
     // Hover ring on top of HUD so it reads as "selected".
@@ -382,7 +426,7 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
     // positional reference when reading the field.
     if (cursor && !hovered && settings.crosshair) {
       ctx.save();
-      ctx.strokeStyle = 'rgba(216, 204, 176, 0.22)';
+      ctx.strokeStyle = crosshairStroke;
       ctx.lineWidth = 0.5;
       ctx.setLineDash([3, 4]);
       ctx.beginPath();
@@ -408,7 +452,7 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
       }
       if (nearest) {
         ctx.save();
-        ctx.strokeStyle = 'rgba(216, 204, 176, 0.4)';
+        ctx.strokeStyle = crosshairTracerStroke;
         ctx.setLineDash([2, 3]);
         ctx.lineWidth = 0.6;
         ctx.beginPath();
@@ -416,7 +460,7 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
         ctx.lineTo(cursor.x + nearest.dx, cursor.y + nearest.dy);
         ctx.stroke();
         ctx.setLineDash([]);
-        ctx.fillStyle = 'rgba(216, 204, 176, 0.7)';
+        ctx.fillStyle = crosshairTracerFill;
         ctx.font = '9px ui-monospace, monospace';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
@@ -637,7 +681,7 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
             alignItems: 'center',
             justifyContent: 'center',
             padding: 0,
-            background: 'rgba(14, 11, 9, 0.75)',
+            background: 'var(--bg-panel)',
             color: rosterOpen ? 'var(--amber)' : 'var(--text-3)',
             border: `1px solid ${rosterOpen ? 'var(--amber)' : 'var(--border)'}`,
             borderRadius: 3,
@@ -667,7 +711,7 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
               alignItems: 'center',
               justifyContent: 'center',
               padding: 0,
-              background: 'rgba(14, 11, 9, 0.75)',
+              background: 'var(--bg-panel)',
               color: isFocused ? 'var(--amber)' : 'var(--text-3)',
               border: `1px solid ${isFocused ? 'var(--amber)' : 'var(--border)'}`,
               borderRadius: 3,
