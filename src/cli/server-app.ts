@@ -397,12 +397,26 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
     // ring. Without these, a save silently failing on a writable-but-
     // locked SQLite file (container volume quirk) looked identical to
     // a clean save from outside.
+    //
+    // Each skip/outcome also fires a `sim_saved` SSE event so the
+    // dashboard can surface "saved as <id>" / "save skipped: <reason>"
+    // without the user having to SSH the server to find out why the
+    // LOAD menu is still empty after a clean run.
+    const emitSaveStatus = (status: 'saved' | 'skipped' | 'failed', detail: Record<string, unknown>) => {
+      // Call broadcast directly so the client sees the status on the same
+      // stream as the rest of the run. Status events are included in the
+      // event buffer so a returning user (SSE reconnect + replay) still
+      // sees whether the prior run saved.
+      try { broadcast('sim_saved', { status, ...detail }); } catch { /* never fail the server on telemetry */ }
+    };
     if (!sessionStore) {
       console.log('[sessions] auto-save skipped: session store not initialized');
+      emitSaveStatus('skipped', { reason: 'store_not_initialized' });
       return;
     }
     if (currentRunAborted) {
       console.log('[sessions] auto-save skipped: run was aborted');
+      emitSaveStatus('skipped', { reason: 'run_aborted' });
       return;
     }
     if (currentRunSaved) {
@@ -411,6 +425,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
     }
     if (eventBuffer.length === 0) {
       console.log('[sessions] auto-save skipped: empty event buffer');
+      emitSaveStatus('skipped', { reason: 'empty_buffer' });
       return;
     }
 
@@ -420,6 +435,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
     );
     if (turnDoneCount < AUTO_SAVE_MIN_TURNS) {
       console.log(`[sessions] auto-save skipped: turn_done count ${turnDoneCount} below AUTO_SAVE_MIN_TURNS (${AUTO_SAVE_MIN_TURNS})`);
+      emitSaveStatus('skipped', { reason: 'below_min_turns', turnDoneCount, minTurns: AUTO_SAVE_MIN_TURNS });
       return;
     }
 
@@ -431,9 +447,19 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       }));
       const result = sessionStore.saveSession(events);
       currentRunSaved = true;
-      console.log(`[sessions] auto-saved run ${result.id}: ${events.length} events, ${turnDoneCount} turns (store count: ${sessionStore.count()})`);
+      const storeCount = sessionStore.count();
+      console.log(`[sessions] auto-saved run ${result.id}: ${events.length} events, ${turnDoneCount} turns (store count: ${storeCount})`);
+      emitSaveStatus('saved', {
+        id: result.id,
+        evictedId: result.evictedId,
+        eventCount: events.length,
+        turnCount: turnDoneCount,
+        totalStored: storeCount,
+      });
     } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
       console.warn('[sessions] auto-save failed:', err);
+      emitSaveStatus('failed', { error: message });
     }
   };
 

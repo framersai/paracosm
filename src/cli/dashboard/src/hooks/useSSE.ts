@@ -468,6 +468,23 @@ function rollupValidationFallbacks(events: SimEvent[]): ValidationFallbackBucket
         } catch {}
       });
 
+      // `sim_saved` reports the outcome of the server's
+      // autoSaveOnComplete pass (saved / skipped / failed + detail).
+      // Fold into the events stream as a synthetic SimEvent so the
+      // App-level toast effect can pick it up with the rest of the
+      // pipeline. Dedupe keyed on status+id so buffer replay after
+      // reconnect doesn't double-toast the same save.
+      es.addEventListener('sim_saved', (e: MessageEvent) => {
+        try {
+          const data = JSON.parse(e.data);
+          const evt: SimEvent = { type: 'sim_saved', leader: '', data };
+          const key = `sim_saved|${data.status ?? ''}|${data.id ?? ''}|${data.reason ?? ''}`;
+          if (seenEventKeys.has(key)) return;
+          seenEventKeys.add(key);
+          setState(prev => ({ ...prev, events: [...prev.events, evt] }));
+        } catch {}
+      });
+
       es.onerror = () => {
         // Browser EventSource auto-reconnects in some failure modes but
         // not all (e.g., 5xx, redeploys). Force a backoff reconnect to

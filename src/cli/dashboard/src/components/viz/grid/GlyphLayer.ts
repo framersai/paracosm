@@ -110,8 +110,8 @@ export function drawGlyphs(
       const diverged = divergedIds?.has(c.agentId) ?? false;
       if (divergenceOnly && !diverged) continue;
       if (!c.featured && !diverged) continue;
-      const matchesSearch = query.length > 0 && c.name.toLowerCase().includes(query);
-      const searchDim = query.length > 0 && !matchesSearch;
+      const matchesSearch = matchCell(c);
+      const searchDim = hasQuery && !matchesSearch;
       if (searchDim) continue;
       const label = c.name.split(/\s+/)[0];
       const y = pos.y + (c.featured ? 12 : 10);
