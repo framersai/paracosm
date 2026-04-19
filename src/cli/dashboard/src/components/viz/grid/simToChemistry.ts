@@ -28,14 +28,45 @@ export interface ChemistryParams {
 }
 
 /**
+ * Optional HEXACO personality profile threaded through from the
+ * leader so the chemistry can nudge F/k based on archetype. Without
+ * this, two leaders with identical turn-1 colony stats produce
+ * visually identical Turing patterns — which defeated the whole
+ * "emergent divergence" pitch because the canvas didn't diverge.
+ * The five traits used here are normalized 0..1.
+ */
+export interface LeaderPersonalityShape {
+  /** Openness — pushes F up toward more pattern expansion. */
+  openness?: number;
+  /** Conscientiousness — pulls k down toward tighter, ordered patterns. */
+  conscientiousness?: number;
+  /** Emotionality — pushes k up toward higher stress visibility. */
+  emotionality?: number;
+  /** Extraversion — pushes F up toward broader clustering. */
+  extraversion?: number;
+  /** Agreeableness — slight F nudge, smoother patterns. */
+  agreeableness?: number;
+  /** Honesty-humility — unused for chemistry; reserved. */
+  honestyHumility?: number;
+}
+
+/**
  * Compute global (F, k) feed/kill rates for this snapshot. Uses
  * morale × food × population-retention as the vitality axis, and
  * deaths + anxiousFraction as the stress axis. Output clamped inside
  * the Gray-Scott sweet-spot band.
+ *
+ * When a HEXACO profile is supplied the chemistry shifts per the
+ * archetype: Visionary leaders (high O+E, mid C) produce more open,
+ * spreading patterns; Engineer leaders (high C, low E) produce
+ * tighter, higher-contrast clusters. This breaks the turn-1 tie
+ * between identical colony states so the two panels visibly diverge
+ * from the first frame.
  */
 export function computeChemistryParams(
   snapshot: TurnSnapshot,
   initialPopulation: number,
+  leaderPersonality?: LeaderPersonalityShape,
 ): ChemistryParams {
   const foodNorm = clamp01(snapshot.foodReserve / 18);
   const popRetention = clamp01(snapshot.population / Math.max(1, initialPopulation));
@@ -49,10 +80,30 @@ export function computeChemistryParams(
       : 0;
   const stressNorm = clamp01(snapshot.deaths / 5 + anxiousFraction);
 
-  return {
-    F: lerp(F_MIN, F_MAX, healthNorm),
-    k: lerp(K_MIN, K_MAX, stressNorm),
-  };
+  let F = lerp(F_MIN, F_MAX, healthNorm);
+  let k = lerp(K_MIN, K_MAX, stressNorm);
+
+  // Personality-driven delta. Scaled at 12% of the F/k band width so
+  // the chemistry still sits inside the Gray-Scott sweet-spot for any
+  // reasonable HEXACO combo — the NaN-prone edges (F near 0, k near
+  // 0.07) stay safely out of reach. O+E pull F toward expansion; C
+  // pulls k toward order; Em pushes k toward stress.
+  if (leaderPersonality) {
+    const O = leaderPersonality.openness ?? 0.5;
+    const C = leaderPersonality.conscientiousness ?? 0.5;
+    const E = leaderPersonality.extraversion ?? 0.5;
+    const Em = leaderPersonality.emotionality ?? 0.5;
+    const A = leaderPersonality.agreeableness ?? 0.5;
+    const fBandWidth = F_MAX - F_MIN;
+    const kBandWidth = K_MAX - K_MIN;
+    // Center each trait around 0 (so 0.5 is neutral) and blend.
+    const fNudge = ((O - 0.5) * 0.6 + (E - 0.5) * 0.4 + (A - 0.5) * 0.1) * fBandWidth * 0.12;
+    const kNudge = ((Em - 0.5) * 0.5 + (0.5 - C) * 0.4) * kBandWidth * 0.12;
+    F = Math.max(F_MIN, Math.min(F_MAX, F + fNudge));
+    k = Math.max(K_MIN, Math.min(K_MAX, k + kNudge));
+  }
+
+  return { F, k };
 }
 
 export interface Injection {

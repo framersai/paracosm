@@ -44,6 +44,15 @@ interface LivingColonyGridProps {
   mode: GridMode;
   /** HEXACO profiles keyed by agentId for the popover radar. */
   hexacoById?: Map<string, HexacoShape>;
+  /**
+   * Leader's own HEXACO profile. When supplied, the Gray-Scott
+   * chemistry nudges F/k based on the leader's archetype so the two
+   * panels diverge visibly from turn 1 even when colony stats are
+   * identical — addressing user feedback that both sides rendered
+   * identically because the field inputs (morale/food/pop) were the
+   * same on both colonies at launch.
+   */
+  leaderHexaco?: HexacoShape;
   /** Cumulative forge attempts for this side — drives forge flares. */
   forgeAttempts?: ForgeAttempt[];
   /** Cumulative reuse calls — drives reuse arcs. */
@@ -146,6 +155,7 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
     initialPopulation = 20,
     mode,
     hexacoById,
+    leaderHexaco,
     forgeAttempts,
     reuseCalls,
     divergedIds,
@@ -363,7 +373,23 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
     }
     const pulse = pulseRef.current;
 
-    const { F, k } = computeChemistryParams(snapshot, initialPopulation);
+    // Thread the leader's HEXACO into the chemistry resolver so the
+    // Gray-Scott F/k lands in a personality-shifted spot within its
+    // safe band. This is the visible fix for "both sides look
+    // identical on turn 1" — the morale/food/pop inputs are the same
+    // at launch, but Visionary (high O+E) and Engineer (high C, low
+    // E) leaders now compute different F/k targets from the start.
+    const leaderPersonality = leaderHexaco
+      ? {
+          openness: leaderHexaco.O,
+          conscientiousness: leaderHexaco.C,
+          extraversion: leaderHexaco.E,
+          agreeableness: leaderHexaco.A,
+          emotionality: leaderHexaco.Em,
+          honestyHumility: leaderHexaco.HH,
+        }
+      : undefined;
+    const { F, k } = computeChemistryParams(snapshot, initialPopulation, leaderPersonality);
     const injections = computeInjections(snapshot.cells, gridPositions);
     const colonistDeposits = injections.map(i => ({
       x: i.x,

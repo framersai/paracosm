@@ -1096,6 +1096,14 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
             lagTurns={snapATurn < snapBTurn ? snapBTurn - snapATurn : 0}
             mode={gridMode}
             hexacoById={hexacoById}
+            leaderHexaco={leaderA?.hexaco ? {
+              O: leaderA.hexaco.O ?? leaderA.hexaco.openness ?? 0.5,
+              C: leaderA.hexaco.C ?? leaderA.hexaco.conscientiousness ?? 0.5,
+              E: leaderA.hexaco.E ?? leaderA.hexaco.extraversion ?? 0.5,
+              A: leaderA.hexaco.A ?? leaderA.hexaco.agreeableness ?? 0.5,
+              Em: leaderA.hexaco.Em ?? leaderA.hexaco.emotionality ?? 0.5,
+              HH: leaderA.hexaco.HH ?? leaderA.hexaco.honestyHumility ?? 0.5,
+            } : undefined}
             forgeAttempts={forgeFeeds.a.attempts}
             reuseCalls={forgeFeeds.a.reuses}
             divergedIds={divergenceData.aliveOnlyA}
@@ -1131,6 +1139,14 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
             lagTurns={snapBTurn < snapATurn ? snapATurn - snapBTurn : 0}
             mode={gridMode}
             hexacoById={hexacoById}
+            leaderHexaco={leaderB?.hexaco ? {
+              O: leaderB.hexaco.O ?? leaderB.hexaco.openness ?? 0.5,
+              C: leaderB.hexaco.C ?? leaderB.hexaco.conscientiousness ?? 0.5,
+              E: leaderB.hexaco.E ?? leaderB.hexaco.extraversion ?? 0.5,
+              A: leaderB.hexaco.A ?? leaderB.hexaco.agreeableness ?? 0.5,
+              Em: leaderB.hexaco.Em ?? leaderB.hexaco.emotionality ?? 0.5,
+              HH: leaderB.hexaco.HH ?? leaderB.hexaco.honestyHumility ?? 0.5,
+            } : undefined}
             forgeAttempts={forgeFeeds.b.attempts}
             reuseCalls={forgeFeeds.b.reuses}
             divergedIds={divergenceData.aliveOnlyB}
