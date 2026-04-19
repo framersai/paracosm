@@ -387,10 +387,138 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
     forgeAttemptsB: forgeFeeds.b.attempts,
   });
 
-  // Export the current viz as a composed PNG. Rasterises TurnBanner +
-  // the two canvases into an offscreen canvas at 2x for retina
-  // downloads.
+  // Timelapse recording state. Uses MediaRecorder on a composite
+  // canvas stream so the user can capture a short webm of the viz.
   const vizRootRef = useRef<HTMLDivElement | null>(null);
+  const [recording, setRecording] = useState(false);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const recChunksRef = useRef<Blob[]>([]);
+  const recCompositeRef = useRef<HTMLCanvasElement | null>(null);
+  const recRafRef = useRef<number>(0);
+
+  const startTimelapse = useCallback(() => {
+    const root = vizRootRef.current;
+    if (!root) return;
+    const rect = root.getBoundingClientRect();
+    const width = Math.max(640, Math.round(rect.width));
+    const height = Math.max(360, Math.round(rect.height));
+    const composite = document.createElement('canvas');
+    composite.width = width;
+    composite.height = height;
+    const ctx = composite.getContext('2d');
+    if (!ctx) return;
+    recCompositeRef.current = composite;
+    const stream = composite.captureStream(30);
+    let mimeType = 'video/webm;codecs=vp9';
+    if (typeof MediaRecorder !== 'undefined' && !MediaRecorder.isTypeSupported(mimeType)) {
+      mimeType = 'video/webm;codecs=vp8';
+      if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
+    }
+    let rec: MediaRecorder;
+    try {
+      rec = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 4_000_000 });
+    } catch {
+      console.warn('MediaRecorder unavailable — timelapse skipped');
+      return;
+    }
+    recChunksRef.current = [];
+    rec.ondataavailable = e => {
+      if (e.data && e.data.size > 0) recChunksRef.current.push(e.data);
+    };
+    rec.onstop = () => {
+      if (recRafRef.current) cancelAnimationFrame(recRafRef.current);
+      recRafRef.current = 0;
+      const blob = new Blob(recChunksRef.current, { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `paracosm-timelapse-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}.webm`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    };
+    recorderRef.current = rec;
+    setRecording(true);
+    rec.start();
+
+    const loop = () => {
+      const c = recCompositeRef.current;
+      const r = vizRootRef.current;
+      if (!c || !r) return;
+      const cctx = c.getContext('2d');
+      if (!cctx) return;
+      cctx.fillStyle = getComputedStyle(r).getPropertyValue('--bg-deep').trim() || '#0a0806';
+      cctx.fillRect(0, 0, c.width, c.height);
+      const rootRect = r.getBoundingClientRect();
+      const sx = c.width / Math.max(1, rootRect.width);
+      const sy = c.height / Math.max(1, rootRect.height);
+      const allCanvases = Array.from(r.querySelectorAll('canvas')) as HTMLCanvasElement[];
+      for (const cv of allCanvases) {
+        const cr = cv.getBoundingClientRect();
+        if (cr.width === 0 || cr.height === 0) continue;
+        cctx.drawImage(
+          cv,
+          (cr.left - rootRect.left) * sx,
+          (cr.top - rootRect.top) * sy,
+          cr.width * sx,
+          cr.height * sy,
+        );
+      }
+      recRafRef.current = requestAnimationFrame(loop);
+    };
+    recRafRef.current = requestAnimationFrame(loop);
+  }, []);
+
+  const stopTimelapse = useCallback(() => {
+    const rec = recorderRef.current;
+    if (!rec) return;
+    try {
+      rec.stop();
+    } catch {
+      /* silent */
+    }
+    recorderRef.current = null;
+    setRecording(false);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (recorderRef.current) {
+        try {
+          recorderRef.current.stop();
+        } catch {
+          /* silent */
+        }
+      }
+      if (recRafRef.current) cancelAnimationFrame(recRafRef.current);
+    };
+  }, []);
+
+  // Export the current run state as a JSON replay file.
+  const handleExportJson = useCallback(() => {
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      leaderA: { name: leaderA?.name ?? 'Leader A', archetype: leaderA?.archetype ?? '' },
+      leaderB: { name: leaderB?.name ?? 'Leader B', archetype: leaderB?.archetype ?? '' },
+      currentTurn,
+      snapshots: { a: snapsA, b: snapsB },
+      events: { a: state.a.events, b: state.b.events },
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `paracosm-replay-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }, [currentTurn, leaderA, leaderB, snapsA, snapsB, state.a.events, state.b.events]);
+
+
   const handleExportPng = useCallback(() => {
     const root = vizRootRef.current;
     if (!root) return;
@@ -762,6 +890,61 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
               }}
             >
               PNG
+            </button>
+            <button
+              type="button"
+              onClick={recording ? stopTimelapse : startTimelapse}
+              aria-label={recording ? 'Stop timelapse recording' : 'Start timelapse recording'}
+              title={recording ? 'Stop & download webm' : 'Record timelapse to webm'}
+              style={{
+                padding: '0 10px',
+                background: recording ? 'var(--rust)' : 'var(--bg-card)',
+                color: recording ? 'var(--bg-deep)' : 'var(--text-3)',
+                border: `1px solid ${recording ? 'var(--rust)' : 'var(--border)'}`,
+                borderRadius: 3,
+                cursor: 'pointer',
+                fontFamily: 'var(--mono)',
+                fontSize: 10,
+                fontWeight: 800,
+                letterSpacing: '0.08em',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                animation: recording
+                  ? 'paracosm-rec-pulse 1.2s ease-in-out infinite'
+                  : undefined,
+              }}
+            >
+              <span
+                style={{
+                  display: 'inline-block',
+                  width: 6,
+                  height: 6,
+                  borderRadius: 999,
+                  background: recording ? 'var(--bg-deep)' : 'var(--rust)',
+                }}
+              />
+              REC
+            </button>
+            <button
+              type="button"
+              onClick={handleExportJson}
+              aria-label="Export run snapshots + events as JSON"
+              title="Export JSON"
+              style={{
+                padding: '0 10px',
+                background: 'var(--bg-card)',
+                color: 'var(--text-3)',
+                border: '1px solid var(--border)',
+                borderRadius: 3,
+                cursor: 'pointer',
+                fontFamily: 'var(--mono)',
+                fontSize: 10,
+                fontWeight: 800,
+                letterSpacing: '0.08em',
+              }}
+            >
+              JSON
             </button>
             <button
               type="button"
@@ -1181,6 +1364,10 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
           @keyframes paracosm-jump-pulse {
             0%, 100% { box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 0 0 rgba(232, 180, 74, 0.4); }
             50%      { box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 0 8px rgba(232, 180, 74, 0); }
+          }
+          @keyframes paracosm-rec-pulse {
+            0%, 100% { filter: brightness(1); }
+            50%      { filter: brightness(1.2); }
           }
         `}</style>
       </div>

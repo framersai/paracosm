@@ -19,6 +19,7 @@ import type { GridMode } from './GridModePills.js';
 import { ClickPopover, type ClickPopoverPayload } from './ClickPopover.js';
 import { useMediaQuery, NARROW_QUERY, REDUCED_MOTION_QUERY } from './useMediaQuery.js';
 import { DEFAULT_GRID_SETTINGS, type GridSettings } from './GridSettingsDrawer.js';
+import { RosterDrawer } from './RosterDrawer.js';
 
 interface HexacoShape { O: number; C: number; E: number; A: number; Em: number; HH: number }
 
@@ -168,6 +169,7 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
   // is between glyphs (i.e. no glyph hit but cursor is still on-canvas).
   const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
   const [popover, setPopover] = useState<ClickPopoverPayload | null>(null);
+  const [rosterOpen, setRosterOpen] = useState(false);
   /** Turn-transition pulse value in [0, 1], decays per frame. Non-
    *  reactive so it doesn't force re-render on every decay step —
    *  the render effect reads `.current` inline. */
@@ -620,6 +622,35 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
             WebGL2 unavailable
           </div>
         )}
+        <button
+          type="button"
+          onClick={() => setRosterOpen(v => !v)}
+          aria-label={rosterOpen ? 'Close roster' : 'Open roster'}
+          title={rosterOpen ? 'Close roster' : 'Open roster'}
+          style={{
+            position: 'absolute',
+            top: 8,
+            right: onToggleFocus ? 36 : 8,
+            width: 22,
+            height: 22,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 0,
+            background: 'rgba(14, 11, 9, 0.75)',
+            color: rosterOpen ? 'var(--amber)' : 'var(--text-3)',
+            border: `1px solid ${rosterOpen ? 'var(--amber)' : 'var(--border)'}`,
+            borderRadius: 3,
+            cursor: 'pointer',
+            fontFamily: 'var(--mono)',
+            fontSize: 11,
+            fontWeight: 800,
+            lineHeight: 1,
+            zIndex: 6,
+          }}
+        >
+          {'\u2630'}
+        </button>
         {onToggleFocus && (
           <button
             type="button"
@@ -650,6 +681,32 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
             {isFocused ? '\u2921' : '\u2922'}
           </button>
         )}
+        <RosterDrawer
+          open={rosterOpen}
+          cells={snapshot?.cells ?? []}
+          leaderName={leaderName}
+          sideColor={resolveCssColor(sideColor, containerRef.current)}
+          searchQuery={searchQuery}
+          hoveredId={hovered?.cell.agentId ?? siblingHoveredId ?? null}
+          onHover={id => {
+            if (id) {
+              const c = snapshot?.cells.find(x => x.agentId === id);
+              const pos = c ? positions.get(id) : null;
+              if (c && pos) {
+                setHovered({ cell: c, x: pos.x, y: pos.y });
+                onHoverChange?.(id);
+                return;
+              }
+            }
+            setHovered(null);
+            onHoverChange?.(null);
+          }}
+          onSelect={c => {
+            const pos = positions.get(c.agentId);
+            if (pos) setPopover({ cell: c, x: pos.x, y: pos.y });
+          }}
+          onClose={() => setRosterOpen(false)}
+        />
         {mode === 'divergence' && snapshot && (divergedIds?.size ?? 0) === 0 && (
           <div
             style={{
