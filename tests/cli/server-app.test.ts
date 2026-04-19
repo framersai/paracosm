@@ -547,3 +547,52 @@ test('POST /chat replies using simulation colonist data after a completed run', 
     await once(server, 'close');
   }
 });
+
+/**
+ * Minimal normalized sim config for driving startWithConfig in tests.
+ * The auto-save tests inject a runPairSimulations that ignores the
+ * config, so only the type contract matters at compile time.
+ */
+function makeConfig(): NormalizedSimulationConfig {
+  return {
+    leaders: [leaderA, leaderB],
+    turns: 3,
+    yearsPerTurn: 0,
+    seed: 1,
+    startYear: 2035,
+    initialPopulation: 20,
+    provider: 'anthropic',
+  } as unknown as NormalizedSimulationConfig;
+}
+
+test('auto-saves a cleanly completed run to the session store', async () => {
+  const tmp = mkdtempSync(join(tmpdir(), 'paracosm-autosave-'));
+  const server = createMarsServer({
+    env: { ...process.env, APP_DIR: tmp },
+    runPairSimulations: async (_cfg, broadcast) => {
+      broadcast('active_scenario', { id: 'mars-genesis', name: 'Mars Genesis' });
+      broadcast('setup', { leaderA: { name: leaderA.name }, leaderB: { name: leaderB.name } });
+      broadcast('turn_done', { turn: 1 });
+      broadcast('turn_done', { turn: 2 });
+      broadcast('turn_done', { turn: 3 });
+      broadcast('complete', { cost: { totalCostUSD: 0.12 } });
+    },
+  });
+  server.listen(0);
+  await once(server, 'listening');
+  const address = server.address();
+  const port = typeof address === 'object' && address ? address.port : 0;
+
+  try {
+    await server.startWithConfig(makeConfig());
+    const res = await fetch(`http://127.0.0.1:${port}/sessions`);
+    const json = await res.json() as { sessions: Array<{ turnCount?: number; scenarioName?: string }> };
+    assert.equal(json.sessions.length, 1);
+    assert.equal(json.sessions[0].turnCount, 3);
+    assert.equal(json.sessions[0].scenarioName, 'Mars Genesis');
+  } finally {
+    server.close();
+    await once(server, 'close');
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
