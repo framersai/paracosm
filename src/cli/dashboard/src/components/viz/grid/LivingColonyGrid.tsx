@@ -15,6 +15,7 @@ import { GridMetricsStrip } from './GridMetricsStrip.js';
 import { hitTestGlyph } from './hitTest.js';
 import type { GridMode } from './GridModePills.js';
 import { ClickPopover, type ClickPopoverPayload } from './ClickPopover.js';
+import { useMediaQuery, NARROW_QUERY } from './useMediaQuery.js';
 
 interface HexacoShape { O: number; C: number; E: number; A: number; Em: number; HH: number }
 
@@ -113,6 +114,7 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
     onOpenChat,
   } = props;
 
+  const narrow = useMediaQuery(NARROW_QUERY);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasWrapRef = useRef<HTMLDivElement | null>(null);
   const webglCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -354,12 +356,13 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
       ref={containerRef}
       data-testid={`living-colony-grid-${side}`}
       style={{
-        flex: 1,
+        flex: narrow ? '0 0 auto' : 1,
         display: 'flex',
         flexDirection: 'column',
         gap: 6,
         padding: 8,
         minWidth: 0,
+        minHeight: narrow ? 420 : 0,
         overflow: 'hidden',
       }}
     >
@@ -416,12 +419,24 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
             WebGL2 unavailable
           </div>
         )}
-        {hovered && !popover && (
+        {hovered && !popover && (() => {
+          const ttW = 200;
+          const ttH = 80;
+          const margin = 8;
+          const left = Math.min(
+            Math.max(margin, hovered.x + 12),
+            Math.max(margin, size.w - ttW - margin),
+          );
+          const top = Math.min(
+            Math.max(margin, hovered.y - ttH - 8),
+            Math.max(margin, size.h - ttH - margin),
+          );
+          return (
           <div
             style={{
               position: 'absolute',
-              left: Math.min(size.w - 200, hovered.x + 12),
-              top: Math.max(0, hovered.y - 56),
+              left,
+              top,
               padding: '6px 10px',
               background: 'var(--bg-panel)',
               border: `1px solid ${sideColor}66`,
@@ -433,6 +448,7 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
               zIndex: 5,
               whiteSpace: 'nowrap',
               boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
+              maxWidth: ttW,
             }}
           >
             <div style={{ color: sideColor, fontWeight: 700, fontSize: 11 }}>
@@ -466,7 +482,8 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
               click for drilldown
             </div>
           </div>
-        )}
+          );
+        })()}
         <ClickPopover
           payload={popover}
           containerW={size.w}

@@ -1,10 +1,12 @@
 import type { TurnSnapshot } from '../viz-types.js';
+import { useMediaQuery, NARROW_QUERY } from './useMediaQuery.js';
 
 /**
  * Full colony metrics strip rendered above the living grid. Same
  * morale bar + mood-mix histogram + age distribution + family counts
  * the legacy ColonyPanel exposed — kept as a standalone component so
- * both viz modes render it consistently.
+ * both viz modes render it consistently. Collapses to 2 columns on
+ * narrow screens so nothing overflows on phone widths.
  */
 export function GridMetricsStrip({
   snapshot,
@@ -13,6 +15,7 @@ export function GridMetricsStrip({
   snapshot: TurnSnapshot;
   sideColor: string;
 }) {
+  const narrow = useMediaQuery(NARROW_QUERY);
   const alive = snapshot.cells.filter(c => c.alive);
   const moodCounts = alive.reduce<Record<string, number>>((m, c) => {
     const key = c.mood || 'neutral';
@@ -48,8 +51,8 @@ export function GridMetricsStrip({
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: 'auto 1.1fr 1fr auto',
-        gap: 10,
+        gridTemplateColumns: narrow ? '1fr 1fr' : 'auto 1.1fr 1fr auto',
+        gap: narrow ? 8 : 10,
         alignItems: 'stretch',
         padding: '8px 10px',
         background: 'var(--bg-panel)',

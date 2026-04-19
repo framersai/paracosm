@@ -29,6 +29,8 @@ import { DrilldownPanel } from './DrilldownPanel.js';
 import { VizControls } from './VizControls.js';
 import { LivingColonyGrid } from './grid/LivingColonyGrid.js';
 import { GridModePills, type GridMode } from './grid/GridModePills.js';
+import { GridHelpOverlay } from './grid/GridHelpOverlay.js';
+import { useMediaQuery, NARROW_QUERY } from './grid/useMediaQuery.js';
 import {
   computeDivergence,
   type ClusterMode,
@@ -161,21 +163,33 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
     setCurrentTurn(turn);
   }, []);
 
+  const [helpOpen, setHelpOpen] = useState(false);
   useEffect(() => {
+    const useNewGridFlag = import.meta.env.VITE_NEW_GRID !== '0';
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       if (e.key === 'ArrowLeft') { e.preventDefault(); handleStepBack(); }
       else if (e.key === 'ArrowRight') { e.preventDefault(); handleStepForward(); }
       else if (e.key === ' ' || e.key === 'Spacebar') { e.preventDefault(); handlePlayPause(); }
-      else if (e.key === 'm' || e.key === 'M') {
-        setMode(curr => CLUSTER_MODES[(CLUSTER_MODES.indexOf(curr) + 1) % CLUSTER_MODES.length]);
+      else if (e.key === '?' || (e.shiftKey && e.key === '/')) { e.preventDefault(); setHelpOpen(h => !h); }
+      else if (e.key === 'Escape' && helpOpen) { e.preventDefault(); setHelpOpen(false); }
+      else if (useNewGridFlag) {
+        if (e.key === '1') { e.preventDefault(); setGridMode('living'); }
+        else if (e.key === '2') { e.preventDefault(); setGridMode('mood'); }
+        else if (e.key === '3') { e.preventDefault(); setGridMode('forge'); }
+        else if (e.key === '4') { e.preventDefault(); setGridMode('ecology'); }
+        else if (e.key === '5') { e.preventDefault(); setGridMode('divergence'); }
+      } else {
+        if (e.key === 'm' || e.key === 'M') {
+          setMode(curr => CLUSTER_MODES[(CLUSTER_MODES.indexOf(curr) + 1) % CLUSTER_MODES.length]);
+        }
+        else if (e.key === 'd' || e.key === 'D') setShowDivergence(d => !d);
+        else if (e.key === 'a' || e.key === 'A') { e.preventDefault(); toggleAutomatonCollapsed(); }
+        else if (e.key === '1') { e.preventDefault(); setAutomatonMode('mood'); }
+        else if (e.key === '2') { e.preventDefault(); setAutomatonMode('forge'); }
+        else if (e.key === '3') { e.preventDefault(); setAutomatonMode('ecology'); }
       }
-      else if (e.key === 'd' || e.key === 'D') setShowDivergence(d => !d);
-      else if (e.key === 'a' || e.key === 'A') { e.preventDefault(); toggleAutomatonCollapsed(); }
-      else if (e.key === '1') { e.preventDefault(); setAutomatonMode('mood'); }
-      else if (e.key === '2') { e.preventDefault(); setAutomatonMode('forge'); }
-      else if (e.key === '3') { e.preventDefault(); setAutomatonMode('ecology'); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -342,6 +356,7 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
   // the living-colony grid. Set VITE_NEW_GRID=0 to opt back to the legacy
   // ColonyPanel tile grid.
   const useNewGrid = import.meta.env.VITE_NEW_GRID !== '0';
+  const narrow = useMediaQuery(NARROW_QUERY);
   if (useNewGrid) {
     const prevSnapA = currentTurn > 0
       ? (snapsA[currentTurn - 1] ?? snapsA[snapsA.length - 2])
@@ -352,8 +367,38 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
     return (
       <div className="viz-content" style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
         <TurnBanner state={state} currentTurn={currentTurn} />
-        <div style={{ padding: '6px 10px', background: 'var(--bg-deep)', borderBottom: '1px solid var(--border)' }}>
-          <GridModePills mode={gridMode} onChange={setGridMode} />
+        <div
+          style={{
+            padding: '6px 10px',
+            background: 'var(--bg-deep)',
+            borderBottom: '1px solid var(--border)',
+            display: 'flex',
+            gap: 8,
+            alignItems: 'stretch',
+          }}
+        >
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <GridModePills mode={gridMode} onChange={setGridMode} />
+          </div>
+          <button
+            type="button"
+            onClick={() => setHelpOpen(true)}
+            aria-label="Open help overlay (shortcut: ?)"
+            title="Help — what do these colors / symbols mean? (press ?)"
+            style={{
+              padding: '0 10px',
+              background: 'var(--bg-card)',
+              color: 'var(--text-3)',
+              border: '1px solid var(--border)',
+              borderRadius: 3,
+              cursor: 'pointer',
+              fontFamily: 'var(--mono)',
+              fontSize: 11,
+              fontWeight: 800,
+            }}
+          >
+            ?
+          </button>
         </div>
         {diffLine && (
           <div style={{
@@ -364,7 +409,17 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
             {diffLine}
           </div>
         )}
-        <div className="leaders-row" style={{ display: 'flex', flex: 1, minHeight: 0, gap: 4, overflow: 'hidden' }}>
+        <div
+          className="leaders-row"
+          style={{
+            display: 'flex',
+            flexDirection: narrow ? 'column' : 'row',
+            flex: 1,
+            minHeight: 0,
+            gap: 4,
+            overflow: narrow ? 'auto' : 'hidden',
+          }}
+        >
           <LivingColonyGrid
             snapshot={snapA}
             previousSnapshot={prevSnapA}
@@ -412,6 +467,7 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
           onStepForward={handleStepForward}
           onSpeedChange={setSpeed}
         />
+        <GridHelpOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
       </div>
     );
   }
