@@ -379,6 +379,7 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
             hexacoById={hexacoById}
             forgeAttempts={forgeFeeds.a.attempts}
             reuseCalls={forgeFeeds.a.reuses}
+            divergedIds={divergenceData.aliveOnlyA}
             onOpenChat={handleOpenChat}
           />
           <LivingColonyGrid
@@ -395,6 +396,7 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
             hexacoById={hexacoById}
             forgeAttempts={forgeFeeds.b.attempts}
             reuseCalls={forgeFeeds.b.reuses}
+            divergedIds={divergenceData.aliveOnlyB}
             onOpenChat={handleOpenChat}
           />
         </div>
