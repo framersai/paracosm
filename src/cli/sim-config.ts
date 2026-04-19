@@ -212,15 +212,23 @@ export const DEFAULT_EXECUTION: SimulationExecutionConfig = {
  */
 export const DEMO_MODELS: Record<LlmProvider, SimulationModelConfig> = {
   openai: {
-    // gpt-4o for departments. gpt-4o-mini kept copying the worked
-    // example verbatim for one forge and then emitting empty-property
-    // schemas for every other attempt, even with maxSteps:3 giving
-    // it room to retry. Stepping up to full gpt-4o ($10/M output —
-    // half of gpt-5.4 flagship, 16x gpt-4o-mini) for consistent
-    // structured-schema compliance on the forge path. Department
-    // volume is bounded by departmentMaxSteps:3 and the ~3 depts/turn
-    // demo cap, so per-run cost stays well under $1.
-    departments: 'gpt-4o',
+    // gpt-5.4-mini for departments. The prior gpt-4o pin (~$10/M output)
+    // was a fallback after gpt-4o-mini failed forge schema-compliance
+    // (kept copying the worked example verbatim, emitted empty-property
+    // schemas). gpt-5.4-mini sits between those at $4.50/M output —
+    // capable enough to write the structured forge tools, ~55% cheaper
+    // than gpt-4o on output. The original failure modes were:
+    //   1. emitting empty-property schemas → fixed by paracosm's
+    //      inferSchemaFromTestCases (verified working in prod)
+    //   2. emitting fields not in outputSchema → fixed by 611f651's
+    //      forge-guidance prompt edit (production data shows
+    //      schema_extra_field: 0/7 across 3 runs since deploy)
+    // Department volume is bounded by departmentMaxSteps:3 and the
+    // ~3 depts/turn demo cap, so per-run cost on a 3-turn demo lands
+    // under ~$0.30 here vs ~$1.25 with gpt-4o.
+    // Watch /retry-stats.forges.uniqueApprovalRate after the cutover —
+    // if it dips below 0.85, revert to 'gpt-4o' and revisit.
+    departments: 'gpt-5.4-mini',
     commander: 'gpt-5.4-nano',
     director: 'gpt-5.4-nano',
     judge: 'gpt-5.4-nano',
