@@ -12,10 +12,15 @@ import { flaresToDeposits } from '../../../lib/webgl/events.js';
 import { GridMetricsStrip } from './GridMetricsStrip.js';
 import { hitTestGlyph } from './hitTest.js';
 import type { GridMode } from './GridModePills.js';
+import { ClickPopover, type ClickPopoverPayload } from './ClickPopover.js';
+
+interface HexacoShape { O: number; C: number; E: number; A: number; Em: number; HH: number }
 
 interface LivingColonyGridProps {
   snapshot: TurnSnapshot | undefined;
   previousSnapshot?: TurnSnapshot | undefined;
+  /** Full snapshot history for this side; enables recent-memory lookup. */
+  snapshotHistory?: TurnSnapshot[];
   leaderName: string;
   leaderArchetype: string;
   leaderColony?: string;
@@ -26,9 +31,10 @@ interface LivingColonyGridProps {
   initialPopulation?: number;
   /** Shared grid mode across both leaders. */
   mode: GridMode;
-  /** Click handler that opens a colonist drilldown. Phase 2 popover
-   *  wiring lives in the parent; Phase 1 passes a navigate-to-chat. */
-  onSelectColonist?: (colonistName: string) => void;
+  /** HEXACO profiles keyed by agentId for the popover radar. */
+  hexacoById?: Map<string, HexacoShape>;
+  /** Invoked when the user chooses "Open chat" inside the popover. */
+  onOpenChat?: (colonistName: string) => void;
 }
 
 function resolveRgb(color: string, element: HTMLElement | null): [number, number, number] {
@@ -82,6 +88,7 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
   const {
     snapshot,
     previousSnapshot,
+    snapshotHistory,
     leaderName,
     sideColor,
     side,
@@ -89,7 +96,8 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
     clusterMode = 'departments',
     initialPopulation = 20,
     mode,
-    onSelectColonist,
+    hexacoById,
+    onOpenChat,
   } = props;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -104,6 +112,7 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
     x: number;
     y: number;
   } | null>(null);
+  const [popover, setPopover] = useState<ClickPopoverPayload | null>(null);
 
   // Resize observer on the canvas wrapper (not the full container — the
   // container also holds the metrics strip DOM above the canvas).
@@ -278,15 +287,26 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
   const onMouseLeave = useCallback(() => setHovered(null), []);
   const onClick = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
-      if (!snapshot || !onSelectColonist) return;
+      if (!snapshot) return;
       const rect = e.currentTarget.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
       const hit = hitTestGlyph(snapshot.cells, positions, x, y);
-      if (hit) onSelectColonist(hit.name);
+      if (hit) {
+        setPopover({ cell: hit, x, y });
+        setHovered(null);
+      }
     },
-    [snapshot, positions, onSelectColonist],
+    [snapshot, positions],
   );
+
+  // Close popover when the selected colonist vanishes (death during
+  // scrub/live update). Keeps the UI from showing stale drilldowns.
+  useEffect(() => {
+    if (!popover || !snapshot) return;
+    const stillAlive = snapshot.cells.find(c => c.agentId === popover.cell.agentId);
+    if (!stillAlive) setPopover(null);
+  }, [popover, snapshot]);
 
   return (
     <div
@@ -355,7 +375,7 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
             WebGL2 unavailable
           </div>
         )}
-        {hovered && (
+        {hovered && !popover && (
           <div
             style={{
               position: 'absolute',
@@ -401,13 +421,21 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
                 ? ` · psych ${Math.round(hovered.cell.psychScore * 100)}%`
                 : ''}
             </div>
-            {onSelectColonist && (
-              <div style={{ marginTop: 3, fontSize: 8, color: 'var(--text-4)' }}>
-                click to open chat
-              </div>
-            )}
+            <div style={{ marginTop: 3, fontSize: 8, color: 'var(--text-4)' }}>
+              click for drilldown
+            </div>
           </div>
         )}
+        <ClickPopover
+          payload={popover}
+          containerW={size.w}
+          containerH={size.h}
+          sideColor={resolveCssColor(sideColor, containerRef.current)}
+          hexacoById={hexacoById}
+          snapshots={snapshotHistory}
+          onClose={() => setPopover(null)}
+          onOpenChat={onOpenChat}
+        />
       </div>
     </div>
   );

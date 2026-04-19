@@ -368,6 +368,7 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
           <LivingColonyGrid
             snapshot={snapA}
             previousSnapshot={prevSnapA}
+            snapshotHistory={snapsA}
             leaderName={leaderA?.name ?? 'Leader A'}
             leaderArchetype={leaderA?.archetype ?? ''}
             leaderColony={leaderA?.colony ?? ''}
@@ -375,11 +376,13 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
             side="a"
             lagTurns={snapATurn < snapBTurn ? snapBTurn - snapATurn : 0}
             mode={gridMode}
-            onSelectColonist={onNavigateToChat}
+            hexacoById={hexacoById}
+            onOpenChat={handleOpenChat}
           />
           <LivingColonyGrid
             snapshot={snapB}
             previousSnapshot={prevSnapB}
+            snapshotHistory={snapsB}
             leaderName={leaderB?.name ?? 'Leader B'}
             leaderArchetype={leaderB?.archetype ?? ''}
             leaderColony={leaderB?.colony ?? ''}
@@ -387,7 +390,8 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
             side="b"
             lagTurns={snapBTurn < snapATurn ? snapATurn - snapBTurn : 0}
             mode={gridMode}
-            onSelectColonist={onNavigateToChat}
+            hexacoById={hexacoById}
+            onOpenChat={handleOpenChat}
           />
         </div>
         <VizControls
