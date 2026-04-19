@@ -167,3 +167,15 @@ export interface ViewLayout {
 /** Maximum featured tiles per leader at once. Keeps the top row
  *  readable at narrow widths. */
 export const FEATURED_CAP = 6;
+
+/** Layers composable inside the living-colony grid. Toggled via the
+ *  layer chip bar in Phase 2; declared here so Phase 1 grid-state
+ *  already knows the vocabulary. */
+export type LayerKey = 'field' | 'seeds' | 'flares' | 'glyphs' | 'lines' | 'hud';
+
+/** Named compositions of layers + event filters. Phase 2 wires the
+ *  cycler; Phase 1 defaults to 'living'. */
+export type PresetKey = 'living' | 'mood' | 'forge' | 'ecology' | 'divergence';
+
+/** Colonist position inside the grid (logical canvas coords). */
+export interface GridPosition { x: number; y: number }

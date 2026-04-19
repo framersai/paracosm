@@ -27,6 +27,7 @@ import { ClusterToggleRow } from './ClusterToggleRow.js';
 import { Legend } from './Legend.js';
 import { DrilldownPanel } from './DrilldownPanel.js';
 import { VizControls } from './VizControls.js';
+import { LivingColonyGrid } from './grid/LivingColonyGrid.js';
 import {
   computeDivergence,
   type ClusterMode,
@@ -318,6 +319,68 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
   const diffLine = snapA && snapB
     ? `A vs B: ${snapB.population - snapA.population >= 0 ? '+' : ''}${snapB.population - snapA.population} pop, ${Math.round((snapB.morale - snapA.morale) * 100)}% morale, ${snapB.foodReserve - snapA.foodReserve > 0 ? '+' : ''}${(snapB.foodReserve - snapA.foodReserve).toFixed(1)}mo food`
     : '';
+
+  // Feature flag: VITE_NEW_GRID=1 renders the Phase 1 living-colony
+  // grid in place of the legacy ColonyPanel tile grid. Default (flag
+  // unset or '0') keeps the existing viz so prod is unaffected until
+  // the Phase 4 flip.
+  const useNewGrid = import.meta.env.VITE_NEW_GRID === '1';
+  if (useNewGrid) {
+    const prevSnapA = currentTurn > 0
+      ? (snapsA[currentTurn - 1] ?? snapsA[snapsA.length - 2])
+      : undefined;
+    const prevSnapB = currentTurn > 0
+      ? (snapsB[currentTurn - 1] ?? snapsB[snapsB.length - 2])
+      : undefined;
+    return (
+      <div className="viz-content" style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+        <TurnBanner state={state} currentTurn={currentTurn} />
+        {diffLine && (
+          <div style={{
+            padding: '4px 12px', fontSize: 10, fontFamily: 'var(--mono)',
+            color: 'var(--text-3)', background: 'var(--bg-panel)',
+            borderBottom: '1px solid var(--border)',
+          }}>
+            {diffLine}
+          </div>
+        )}
+        <div className="leaders-row" style={{ display: 'flex', flex: 1, minHeight: 0, gap: 4, overflow: 'hidden' }}>
+          <LivingColonyGrid
+            snapshot={snapA}
+            previousSnapshot={prevSnapA}
+            leaderName={leaderA?.name ?? 'Leader A'}
+            leaderArchetype={leaderA?.archetype ?? ''}
+            leaderColony={leaderA?.colony ?? ''}
+            sideColor="var(--vis)"
+            side="a"
+            lagTurns={snapATurn < snapBTurn ? snapBTurn - snapATurn : 0}
+          />
+          <LivingColonyGrid
+            snapshot={snapB}
+            previousSnapshot={prevSnapB}
+            leaderName={leaderB?.name ?? 'Leader B'}
+            leaderArchetype={leaderB?.archetype ?? ''}
+            leaderColony={leaderB?.colony ?? ''}
+            sideColor="var(--eng)"
+            side="b"
+            lagTurns={snapBTurn < snapATurn ? snapATurn - snapBTurn : 0}
+          />
+        </div>
+        <VizControls
+          currentTurn={currentTurn}
+          maxTurn={maxTurn}
+          year={snapA?.year ?? snapB?.year ?? 0}
+          playing={playing}
+          speed={speed}
+          onTurnChange={handleTurnChange}
+          onPlayPause={handlePlayPause}
+          onStepBack={handleStepBack}
+          onStepForward={handleStepForward}
+          onSpeedChange={setSpeed}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="viz-content" style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
