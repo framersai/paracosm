@@ -447,6 +447,72 @@ function AppContent() {
     toast,
   ]);
 
+  // Local cache fallback: write completed runs to localStorage keyed
+  // by scenario shortName so the LOAD menu can surface them even when
+  // the server-side /sessions save was skipped (e.g. hosted container
+  // lost the SQLite volume, or the run took a path that tripped one
+  // of autoSaveOnComplete's guards). Dedup via the same fingerprint
+  // the terminal-toast effect uses so a remount doesn't rewrite the
+  // same data; bounded by the scenarioShortName key so switching
+  // scenarios doesn't trample prior scenario caches.
+  useEffect(() => {
+    if (tourActive) return;
+    if (!sse.isComplete) return;
+    if (sse.events.length === 0) return;
+    const fingerprint = `cached:${scenario.labels.shortName}:${sse.events.length}:${sse.isAborted ? 'a' : 'c'}`;
+    const storageKey = 'paracosm:lastCachedRunFingerprint';
+    try {
+      if (sessionStorage.getItem(storageKey) === fingerprint) return;
+      sessionStorage.setItem(storageKey, fingerprint);
+    } catch {
+      /* silent */
+    }
+    persistence.cacheEvents(sse.events, sse.results);
+  }, [
+    sse.isComplete,
+    sse.isAborted,
+    sse.events,
+    sse.results,
+    scenario.labels.shortName,
+    persistence,
+    tourActive,
+  ]);
+
+  // Surface the server's sim_saved outcome. Toast success with the
+  // saved id (so users can see the run landed in the ring) and
+  // errors with a concrete reason so a failed save doesn't look
+  // indistinguishable from a silent skip. Dedup via sessionStorage
+  // keyed on the status+id so returning to the tab after a full page
+  // reload doesn't re-toast the same saved run.
+  useEffect(() => {
+    if (tourActive) return;
+    const savedEvent = sse.events.find((e) => e.type === 'sim_saved');
+    if (!savedEvent) return;
+    const d = (savedEvent.data ?? {}) as Record<string, unknown>;
+    const status = String(d.status ?? 'unknown');
+    const fingerprint = `sim_saved:${status}:${d.id ?? ''}:${d.reason ?? ''}`;
+    const storageKey = 'paracosm:simSavedToastFingerprint';
+    try {
+      if (sessionStorage.getItem(storageKey) === fingerprint) return;
+      sessionStorage.setItem(storageKey, fingerprint);
+    } catch {
+      /* silent */
+    }
+    if (status === 'saved') {
+      const id = typeof d.id === 'string' ? d.id.slice(0, 8) : 'run';
+      toast('success', 'Saved to cache', `Run ${id}… stored. Open LOAD to replay.`);
+    } else if (status === 'failed') {
+      toast('error', 'Cache save failed', String(d.error ?? 'Unknown error'));
+    } else if (status === 'skipped') {
+      const reason = String(d.reason ?? 'unknown');
+      // Only toast skips the user would want to know about. "below min
+      // turns" is an expected state for aborted-too-early runs; silence it.
+      if (reason !== 'below_min_turns') {
+        toast('info', 'Not cached', `Skipped: ${reason.replace(/_/g, ' ')}.`);
+      }
+    }
+  }, [sse.events, tourActive, toast]);
+
   // Safety timeout: if /setup succeeded but no events arrived in 30s,
   // give up on the spinner. Only toast when we really saw nothing —
   // if SSE events arrived, the sim is alive and the user does not
