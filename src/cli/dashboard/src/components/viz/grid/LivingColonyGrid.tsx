@@ -438,7 +438,19 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
           position: 'relative',
           minHeight: 0,
           overflow: 'hidden',
-          background: 'var(--bg-deep)',
+          // Background star dust layer: repeating radial-gradient sim-
+          // ulates a very faint satellite-scan speckle so empty grid
+          // space doesn't read as flat black.
+          background:
+            `radial-gradient(1px 1px at 12% 28%, rgba(216, 204, 176, 0.12), transparent 60%), ` +
+            `radial-gradient(1px 1px at 37% 73%, rgba(216, 204, 176, 0.08), transparent 60%), ` +
+            `radial-gradient(1px 1px at 64% 14%, rgba(216, 204, 176, 0.1), transparent 60%), ` +
+            `radial-gradient(1px 1px at 82% 52%, rgba(216, 204, 176, 0.07), transparent 60%), ` +
+            `radial-gradient(1px 1px at 51% 90%, rgba(216, 204, 176, 0.09), transparent 60%), ` +
+            `radial-gradient(1px 1px at 7% 61%, rgba(216, 204, 176, 0.06), transparent 60%), ` +
+            `radial-gradient(1px 1px at 93% 84%, rgba(216, 204, 176, 0.08), transparent 60%), ` +
+            `var(--bg-deep)`,
+          backgroundSize: '140px 140px, 160px 160px, 130px 130px, 170px 170px, 150px 150px, 180px 180px, 165px 165px, auto',
           border: `1px solid ${snapshot
             ? snapshot.morale >= 0.6
               ? 'rgba(106, 173, 72, 0.55)'

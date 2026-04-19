@@ -31,6 +31,31 @@ import { LivingColonyGrid } from './grid/LivingColonyGrid.js';
 import { GridModePills, gridModeHint, type GridMode } from './grid/GridModePills.js';
 import { GridHelpOverlay } from './grid/GridHelpOverlay.js';
 import { useMediaQuery, NARROW_QUERY } from './grid/useMediaQuery.js';
+import { TimelineSparkline } from './grid/TimelineSparkline.js';
+import { EventChronicle } from './grid/EventChronicle.js';
+
+/** Tiny keyboard-shortcut chip for the footer legend. Kept local since
+ *  it's only used in the viz tab footer. */
+function Kbd({ k, v }: { k: string; v: string }) {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+      <kbd
+        style={{
+          padding: '1px 5px',
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border)',
+          borderRadius: 2,
+          fontFamily: 'var(--mono)',
+          fontSize: 8,
+          color: 'var(--text-3)',
+        }}
+      >
+        {k}
+      </kbd>
+      <span style={{ color: 'var(--text-4)' }}>{v}</span>
+    </span>
+  );
+}
 import {
   computeDivergence,
   type ClusterMode,
@@ -426,6 +451,18 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
             {gridModeHint(gridMode)}
           </div>
         </div>
+        <EventChronicle
+          eventsA={state.a.events as Array<{ type: string; turn?: number; data?: Record<string, unknown> }>}
+          eventsB={state.b.events as Array<{ type: string; turn?: number; data?: Record<string, unknown> }>}
+          currentTurn={currentTurn}
+          onJumpToTurn={handleTurnChange}
+        />
+        <TimelineSparkline
+          snapsA={snapsA}
+          snapsB={snapsB}
+          currentTurn={currentTurn}
+          onJumpToTurn={handleTurnChange}
+        />
         {diffLine && (
           <div style={{
             padding: '4px 12px', fontSize: 10, fontFamily: 'var(--mono)',
@@ -497,6 +534,27 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
           onStepForward={handleStepForward}
           onSpeedChange={setSpeed}
         />
+        <div
+          style={{
+            padding: '2px 10px 4px',
+            background: 'var(--bg-deep)',
+            borderTop: '1px solid var(--border)',
+            fontSize: 8,
+            fontFamily: 'var(--mono)',
+            color: 'var(--text-4)',
+            letterSpacing: '0.08em',
+            display: 'flex',
+            gap: 10,
+            flexWrap: 'wrap',
+          }}
+        >
+          <Kbd k="?" v="help" />
+          <Kbd k="1-5" v="mode" />
+          <Kbd k="\u2190 \u2192" v="scrub turn" />
+          <Kbd k="space" v="play / pause" />
+          <Kbd k="click" v="colonist drilldown" />
+          <Kbd k="esc" v="close popover" />
+        </div>
         {/* Off-screen aria-live region announces turn deltas to
             screen readers without visual change. Only updates when
             the turn index changes. */}
