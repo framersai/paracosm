@@ -206,16 +206,9 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
     citationRegistry.list.length,
   ]);
 
-  if (!state.a.events.length && !state.b.events.length) {
-    return (
-      <div style={{ flex: 1, overflowY: 'auto', padding: '24px 32px', background: 'var(--bg-deep)' }}>
-        <div style={{ color: 'var(--text-3)', fontSize: '15px', textAlign: 'center', padding: '40px' }}>
-          Run a simulation first to see the report.
-        </div>
-      </div>
-    );
-  }
-
+  // All hooks must be declared before any conditional return, otherwise
+  // React throws #310 ("rendered more hooks than during the previous
+  // render") when the empty-state early-return branch stops taking.
   const scrollRef = useRef<HTMLDivElement>(null);
   // Tail-to-bottom: auto-scroll on new turns only when the user is
   // already near the bottom. Releases as soon as they scroll up to
@@ -232,6 +225,16 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
       scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
     }
   }, [turns.length]);
+
+  if (!state.a.events.length && !state.b.events.length) {
+    return (
+      <div style={{ flex: 1, overflowY: 'auto', padding: '24px 32px', background: 'var(--bg-deep)' }}>
+        <div style={{ color: 'var(--text-3)', fontSize: '15px', textAlign: 'center', padding: '40px' }}>
+          Run a simulation first to see the report.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div ref={scrollRef} onScroll={onScroll} className="reports-content" role="region" aria-label="Turn-by-turn report" style={{ flex: 1, overflowY: 'auto', padding: '24px 32px', background: 'var(--bg-deep)' }}>
