@@ -130,13 +130,16 @@ function Card({ s, onPick }: { s: StoredSessionMeta; onPick: () => void }) {
 
 export function LoadMenu(props: LoadMenuProps) {
   const [open, setOpen] = useState(false);
-  const [cacheExpanded, setCacheExpanded] = useState(false);
+  // Cache section opens expanded by default so cached runs are visible
+  // the moment the menu opens; users one step closer to "watch a prior
+  // simulation" without a second click.
+  const [cacheExpanded, setCacheExpanded] = useState(true);
   const { sessions, status } = useSessions();
   const rootRef = useRef<HTMLDivElement>(null);
 
   const close = useCallback(() => {
     setOpen(false);
-    setCacheExpanded(false);
+    setCacheExpanded(true);
   }, []);
 
   useEffect(() => {
@@ -181,13 +184,6 @@ export function LoadMenu(props: LoadMenuProps) {
       </button>
       {open && (
         <div role="menu" style={popoverStyle}>
-          <div role="menuitem" tabIndex={0} style={rowStyle} onClick={handleFile}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleFile(); } }}
-          >
-            <span>Load from file</span>
-            <span style={{ color: 'var(--text-3)', fontSize: 10 }}>.json</span>
-          </div>
-
           {shouldShowCacheRow(status) && (
             <>
               <div role="menuitem" tabIndex={0} style={rowStyle} onClick={() => setCacheExpanded(v => !v)}
@@ -209,8 +205,13 @@ export function LoadMenu(props: LoadMenuProps) {
                   No cached runs yet. Completed runs appear here automatically.
                 </div>
               )}
+              {/*
+                Cards list caps at roughly 5 cards of visible height and
+                scrolls the rest. Each card is ~70px tall (3 text lines +
+                12px vertical padding + 6px bottom margin); 5 * 70 = 350.
+              */}
               {cacheExpanded && body === 'cards' && (
-                <div style={{ marginTop: 4 }}>
+                <div style={{ marginTop: 4, maxHeight: 350, overflowY: 'auto' }}>
                   {sessions.map(s => (
                     <Card key={s.id} s={s} onPick={() => handlePick(s.id)} />
                   ))}
@@ -218,6 +219,13 @@ export function LoadMenu(props: LoadMenuProps) {
               )}
             </>
           )}
+
+          <div role="menuitem" tabIndex={0} style={rowStyle} onClick={handleFile}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleFile(); } }}
+          >
+            <span>Load from file</span>
+            <span style={{ color: 'var(--text-3)', fontSize: 10 }}>.json</span>
+          </div>
         </div>
       )}
     </div>
