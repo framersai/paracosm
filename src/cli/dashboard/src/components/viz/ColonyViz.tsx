@@ -396,6 +396,27 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
   // object is evaluated inline here. The call is now hoisted AFTER
   // forgeFeeds below to avoid TDZ in minified bundles.
 
+  // Snap + leader derivations hoisted here (pre-callback) so any hook
+  // that captures them in its dependency array — handleExportJson,
+  // searchMatchesMemo, useSoundCues — doesn't hit a TDZ in minified
+  // production bundles. Deps evaluate inline during render, so every
+  // variable referenced by any hook's deps array MUST appear above the
+  // hook. React component scope is one giant `let` block after
+  // minification, so forward refs are runtime errors not parse errors.
+  const snapA = snapsA[currentTurn] ?? snapsA[snapsA.length - 1];
+  const snapB = snapsB[currentTurn] ?? snapsB[snapsB.length - 1];
+  const snapATurn = snapA?.turn ?? 0;
+  const snapBTurn = snapB?.turn ?? 0;
+  const defaultPreset = scenario.presets.find(p => p.id === 'default');
+  const presetA: LeaderInfo | null = defaultPreset?.leaders?.[0]
+    ? { name: defaultPreset.leaders[0].name, archetype: defaultPreset.leaders[0].archetype, colony: 'Colony Alpha', hexaco: defaultPreset.leaders[0].hexaco, instructions: defaultPreset.leaders[0].instructions, quote: '' }
+    : null;
+  const presetB: LeaderInfo | null = defaultPreset?.leaders?.[1]
+    ? { name: defaultPreset.leaders[1].name, archetype: defaultPreset.leaders[1].archetype, colony: 'Colony Beta', hexaco: defaultPreset.leaders[1].hexaco, instructions: defaultPreset.leaders[1].instructions, quote: '' }
+    : null;
+  const leaderA = state.a.leader ?? presetA;
+  const leaderB = state.b.leader ?? presetB;
+
   // Timelapse recording state. Uses MediaRecorder on a composite
   // canvas stream so the user can capture a short webm of the viz.
   const vizRootRef = useRef<HTMLDivElement | null>(null);
@@ -618,25 +639,8 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
   // recent snapshot that side has so both columns always render real
   // colony data. The lag indicator below the header (turn N, lagging)
   // tells the viewer when the two sides are not at the same playhead.
-  const snapA = snapsA[currentTurn] ?? snapsA[snapsA.length - 1];
-  const snapB = snapsB[currentTurn] ?? snapsB[snapsB.length - 1];
-  const snapATurn = snapA?.turn ?? 0;
-  const snapBTurn = snapB?.turn ?? 0;
-
-  // Resolve leader metadata eagerly (before the empty-state early return
-  // below). `searchMatchesMemo`, `useSoundCues`, and the forgeFeeds memo
-  // all reference these in their dependency arrays, which evaluate
-  // inline during render and would otherwise hit a TDZ in minified
-  // production bundles (`Cannot access 'st' before initialization`).
-  const defaultPreset = scenario.presets.find(p => p.id === 'default');
-  const presetA: LeaderInfo | null = defaultPreset?.leaders?.[0]
-    ? { name: defaultPreset.leaders[0].name, archetype: defaultPreset.leaders[0].archetype, colony: 'Colony Alpha', hexaco: defaultPreset.leaders[0].hexaco, instructions: defaultPreset.leaders[0].instructions, quote: '' }
-    : null;
-  const presetB: LeaderInfo | null = defaultPreset?.leaders?.[1]
-    ? { name: defaultPreset.leaders[1].name, archetype: defaultPreset.leaders[1].archetype, colony: 'Colony Beta', hexaco: defaultPreset.leaders[1].hexaco, instructions: defaultPreset.leaders[1].instructions, quote: '' }
-    : null;
-  const leaderA = state.a.leader ?? presetA;
-  const leaderB = state.b.leader ?? presetB;
+  // snap + leader derivations now live above the export callbacks so
+  // their deps arrays can reference leaderA/leaderB without TDZ.
 
   // Memoize search matches: recomputes only when the query or either
   // snapshot changes. Previously re-ran on every parent re-render,
