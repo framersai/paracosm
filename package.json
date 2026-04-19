@@ -58,6 +58,7 @@
   "dependencies": {
     "@framers/agentos": "^0.1.241",
     "@framers/sql-storage-adapter": "^0.6.2",
+    "better-sqlite3": "^12.9.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {

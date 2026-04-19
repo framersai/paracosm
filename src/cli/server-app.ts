@@ -24,6 +24,7 @@ import {
   type PerRunProviderErrors,
 } from './retry-stats.js';
 import { createCompilerTelemetry, type CompilerTelemetry } from '../engine/compiler/telemetry.js';
+import { openSessionStore, type SessionStore, type TimestampedEvent } from './session-store.js';
 
 function projectScenarioForClient(sc: ScenarioPackage) {
   return {
@@ -188,6 +189,30 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
     }
     return [];
   })();
+  // Parallel array of broadcast wall-clock timestamps. Index-aligned
+  // with eventBuffer so /admin/sessions/save can capture per-event
+  // pacing for replay. Rehydrated runs (post-deploy) start with no
+  // historical timestamps — replay of those would fall back to a
+  // fixed inter-event interval. Live runs after the deploy get
+  // accurate pacing.
+  const eventTimestamps: number[] = new Array(eventBuffer.length).fill(0);
+
+  // Persistent storage for completed sim runs. Lives at
+  // `${APP_DIR}/data/sessions.db`; the directory is created on first
+  // open. Cap of 10 saved sessions; oldest evicts when an admin saves
+  // an 11th. The store is opened once at server start so the SQLite
+  // handle and prepared statements stay warm across requests.
+  const sessionsDbPath = resolve(env.APP_DIR || '.', 'data', 'sessions.db');
+  let sessionStore: SessionStore | null = null;
+  try {
+    sessionStore = openSessionStore(sessionsDbPath);
+    console.log(`  [sessions] Opened session store at ${sessionsDbPath} (${sessionStore.count()} stored)`);
+  } catch (err) {
+    // Don't crash the server if SQLite init fails (missing native binary,
+    // disk full, etc) — sims still run, the /sessions and /admin/sessions
+    // routes just return 503.
+    console.log(`  [sessions] Failed to open session store: ${err}`);
+  }
 
   // Coalesce disk writes so a burst of broadcasts (e.g. 50 forge_attempt
   // events during a turn) only triggers one persist call. 500ms debounce
@@ -330,6 +355,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
   const broadcast: BroadcastFn = (event, data) => {
     const msg = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
     eventBuffer.push(msg);
+    eventTimestamps.push(Date.now());
     persistBufferSoon();
     for (const res of clients) {
       try {
@@ -358,6 +384,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
    */
   const clearEventBuffer = () => {
     eventBuffer.length = 0;
+    eventTimestamps.length = 0;
     if (persistTimer) {
       clearTimeout(persistTimer);
       persistTimer = null;
@@ -1078,6 +1105,118 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
           runCount: retryRing.length,
         }),
       );
+      return;
+    }
+
+    // ── Stored sessions: save / list / replay ───────────────────────
+    //
+    // Lets visitors replay a previously-saved demo via SSE instead of
+    // triggering a fresh LLM-powered run. Save is gated by ADMIN_WRITE
+    // (existing flag) — admin runs a good demo, hits POST /admin/sessions/save,
+    // the in-memory event buffer (with per-event wall-clock timestamps)
+    // gets written to SQLite. Public /sessions returns the metadata
+    // listing; public /sessions/:id/replay streams the events back at
+    // the original pacing (or accelerated via ?speed=N).
+
+    if (req.url === '/admin/sessions/save' && req.method === 'POST') {
+      if (!adminWrite) {
+        res.writeHead(403, { 'Content-Type': 'application/json', ...corsHeaders });
+        res.end(JSON.stringify({ error: 'ADMIN_WRITE not enabled on this server' }));
+        return;
+      }
+      if (!sessionStore) {
+        res.writeHead(503, { 'Content-Type': 'application/json', ...corsHeaders });
+        res.end(JSON.stringify({ error: 'session store unavailable' }));
+        return;
+      }
+      if (eventBuffer.length === 0) {
+        res.writeHead(400, { 'Content-Type': 'application/json', ...corsHeaders });
+        res.end(JSON.stringify({ error: 'no buffered events to save' }));
+        return;
+      }
+      try {
+        // Build the timestamped event array from the parallel buffers.
+        // For events whose timestamp is 0 (rehydrated from disk pre-
+        // timestamp-tracking), use the next known timestamp so replay
+        // pacing stays monotonic instead of bunching at the start.
+        const now = Date.now();
+        const events: TimestampedEvent[] = eventBuffer.map((sse, i) => ({
+          ts: eventTimestamps[i] || now,
+          sse,
+        }));
+        const result = sessionStore.saveSession(events);
+        res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders });
+        res.end(JSON.stringify({
+          ...result,
+          eventCount: events.length,
+          totalStored: sessionStore.count(),
+        }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json', ...corsHeaders });
+        res.end(JSON.stringify({ error: String(err) }));
+      }
+      return;
+    }
+
+    if (req.url === '/sessions' && req.method === 'GET') {
+      if (!sessionStore) {
+        res.writeHead(503, { 'Content-Type': 'application/json', ...corsHeaders });
+        res.end(JSON.stringify({ error: 'session store unavailable' }));
+        return;
+      }
+      try {
+        res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders });
+        res.end(JSON.stringify({ sessions: sessionStore.listSessions() }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json', ...corsHeaders });
+        res.end(JSON.stringify({ error: String(err) }));
+      }
+      return;
+    }
+
+    if (req.url?.startsWith('/sessions/') && req.url.endsWith('/replay') && req.method === 'GET') {
+      if (!sessionStore) {
+        res.writeHead(503, { 'Content-Type': 'application/json', ...corsHeaders });
+        res.end(JSON.stringify({ error: 'session store unavailable' }));
+        return;
+      }
+      const url = new URL(req.url, 'http://localhost');
+      const id = url.pathname.replace(/^\/sessions\//, '').replace(/\/replay$/, '');
+      const speedRaw = url.searchParams.get('speed');
+      const speed = Math.max(0.25, Math.min(50, speedRaw ? parseFloat(speedRaw) || 1 : 1));
+      const session = sessionStore.getSession(id);
+      if (!session) {
+        res.writeHead(404, { 'Content-Type': 'application/json', ...corsHeaders });
+        res.end(JSON.stringify({ error: 'session not found', id }));
+        return;
+      }
+      // SSE stream: same headers as /events. Replays on the original
+      // wall-clock pacing scaled by `speed` (1 = real-time, 4 = 4x
+      // faster, 0.5 = half speed). Closes the response when done.
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache, no-store, no-transform',
+        Connection: 'keep-alive',
+        'X-Accel-Buffering': 'no',
+        ...corsHeaders,
+      });
+      let cancelled = false;
+      req.on('close', () => { cancelled = true; });
+      void (async () => {
+        let prevTs = session.events[0]?.ts ?? 0;
+        for (const ev of session.events) {
+          if (cancelled) return;
+          const delay = Math.max(0, (ev.ts - prevTs) / speed);
+          if (delay > 0) await new Promise(r => setTimeout(r, delay));
+          prevTs = ev.ts;
+          try {
+            res.write(ev.sse);
+          } catch {
+            return;
+          }
+        }
+        try { res.end(); } catch { /* socket already closed */ }
+      })();
       return;
     }
 

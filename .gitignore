@@ -8,3 +8,5 @@ docs/plans/
 docs/specs/
 AUDIT-*.md
 NEXT-SESSION*.md
+# SQLite session-store data — server-local, copied to Linode separately.
+/data/
