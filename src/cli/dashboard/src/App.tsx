@@ -81,9 +81,31 @@ function isRedundantProviderErrorToast(
   return isProviderShaped && bannerCoversIt;
 }
 
+/**
+ * Read the `?replay=<id>` query param. Used to switch the SSE source
+ * from the live /events feed to /sessions/:id/replay so the dashboard
+ * can show a stored sim instead of triggering a new one. Re-runs on
+ * popstate so back/forward navigation toggles replay mode without a
+ * full page reload.
+ */
+function useReplaySessionId(): string | null {
+  const [id, setId] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return new URLSearchParams(window.location.search).get('replay');
+  });
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const sync = () => setId(new URLSearchParams(window.location.search).get('replay'));
+    window.addEventListener('popstate', sync);
+    return () => window.removeEventListener('popstate', sync);
+  }, []);
+  return id;
+}
+
 function AppContent() {
   const { scenario } = useScenario();
-  const sse = useSSE();
+  const replaySessionId = useReplaySessionId();
+  const sse = useSSE({ replaySessionId });
   const [tourActive, setTourActive] = useState(false);
 
   // Global verdict banner. Closable by the user; dismissal is keyed
@@ -414,6 +436,53 @@ function AppContent() {
               providerError={sse.providerError}
               onDismiss={() => setBannerDismissed(true)}
             />
+          ) : null}
+          {replaySessionId ? (
+            <div
+              role="status"
+              style={{
+                background: 'var(--accent)',
+                color: 'var(--bg-deep)',
+                padding: '8px 16px',
+                fontFamily: 'var(--mono)',
+                fontSize: 11,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12,
+                borderBottom: '1px solid var(--border)',
+              }}
+            >
+              <span>
+                <strong>REPLAYING SAVED DEMO</strong> · stored event stream, no LLM calls
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  // Drop the ?replay= query, return to live mode. Preserves
+                  // the rest of the URL (tab, etc) so users return to where
+                  // they were — popstate handler in useReplaySessionId
+                  // re-reads the param and useSSE re-subscribes to /events.
+                  const url = new URL(window.location.href);
+                  url.searchParams.delete('replay');
+                  window.history.pushState({}, '', url.toString());
+                  window.dispatchEvent(new PopStateEvent('popstate'));
+                }}
+                style={{
+                  padding: '4px 10px',
+                  background: 'transparent',
+                  border: '1px solid var(--bg-deep)',
+                  color: 'var(--bg-deep)',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                  fontFamily: 'var(--mono)',
+                  fontSize: 11,
+                  fontWeight: 600,
+                }}
+              >
+                EXIT REPLAY
+              </button>
+            </div>
           ) : null}
           <TopBar scenario={scenario} sse={sse} gameState={gameState} onSave={handleSave} onLoad={handleLoad} onClear={handleClear} onRun={handleRun} onTour={handleTourStart} onCopy={handleCopySummary} />
           <TabBar active={activeTab} onTabChange={setActiveTab} scenario={scenario} />
