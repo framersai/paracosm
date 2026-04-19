@@ -37,27 +37,38 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           registry-url: https://registry.npmjs.org
 
-      # Verify both lockfiles are in sync with their package.json before
-      # npm ci runs. npm ci's native failure message is cryptic and
-      # requires a follow-up debug-log read; this step writes a clear
-      # fix recipe directly into the annotations. Has fixed the same
-      # recurring dependabot-style desync twice already (PR #264, #310).
-      - name: Verify lockfiles are in sync with package.json
+      # Verify lockfiles are in sync with package.json. Emits ANNOTATIONS
+      # only (no hard fail) because re-resolving `npm install
+      # --package-lock-only` on CI's Linux x64 can legitimately produce
+      # drift against a lockfile authored on macOS arm64 — optional
+      # platform-specific deps (e.g. `@tailwindcss/oxide-wasm32-wasi`
+      # bundled children, native `fsevents` vs `@rollup/rollup-linux-*`)
+      # resolve differently per platform even when package.json hasn't
+      # changed. The authoritative check is `npm ci` below: it hard-fails
+      # on REAL desync (missing/added top-level deps) but tolerates
+      # platform churn. This preflight catches common dependabot-style
+      # real desync and surfaces it as a GitHub annotation for the PR
+      # author to fix, without blocking the deploy when only platform
+      # variance is in play. Recipe was added originally for PR #264,
+      # #310; kept as warn-only after #312/#313/#314 showed platform
+      # drift false-positives.
+      - name: Verify lockfiles are in sync with package.json (warn-only)
         run: |
-          set -e
+          set +e
           check() {
             local dir="$1"
             local label="$2"
             pushd "$dir" >/dev/null
             npm install --package-lock-only --no-audit --no-fund --ignore-scripts >/dev/null 2>&1
             if ! git diff --quiet package-lock.json; then
-              echo "::error file=${dir}/package-lock.json::${label} package-lock.json is out of sync with package.json."
-              echo "::error file=${dir}/package-lock.json::To fix locally: cd ${dir} && npm install --package-lock-only && git add package-lock.json && git commit -m 'chore(deps): sync lockfile' && git push"
+              echo "::warning file=${dir}/package-lock.json::${label} package-lock.json drift detected (may be platform-specific — npm ci will fail if real desync)."
+              echo "::warning file=${dir}/package-lock.json::To resync: cd ${dir} && npm install --package-lock-only && git add package-lock.json && git commit -m 'chore(deps): sync lockfile' && git push"
               echo ""
-              echo "--- drift in ${dir}/package-lock.json ---"
+              echo "--- drift in ${dir}/package-lock.json (warn) ---"
               git diff package-lock.json | head -40
-              popd >/dev/null
-              exit 1
+              # Restore the committed lockfile so the subsequent npm ci
+              # runs against the committed state, not the re-resolved one.
+              git checkout -- package-lock.json
             fi
             popd >/dev/null
           }
