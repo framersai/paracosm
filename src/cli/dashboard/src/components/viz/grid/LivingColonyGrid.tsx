@@ -260,11 +260,81 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
     () => deptCentersOverlay,
   );
 
-  // Mode-driven render intensity. All modes still render the field but
-  // forge/ecology dim it so their overlays stand out.
-  const fieldIntensity = mode === 'forge' || mode === 'ecology' ? 0.55 : 1.0;
-  const seedIntensity = mode === 'forge' ? 0.5 : 1.0;
-  const glyphIntensity = 1.0;
+  // Mode-driven rendering. Prior behaviour only nudged fieldIntensity
+  // by ~0.45 between modes, so pressing LIVING / MOOD / FORGE / ECOLOGY
+  // / DIVERGENCE produced near-identical visual output — the mode
+  // switcher read as a no-op to users. Each mode now drives a much
+  // stronger delta across fieldIntensity + seedIntensity + glyph
+  // visibility + palette + sideTint source so the canvas clearly
+  // reconfigures on each pill press:
+  //
+  //   LIVING     : full field + glyphs + lines, default palette. The
+  //                "default dashboard" view.
+  //   MOOD       : cool (teal/violet) palette, sideTint re-derived
+  //                from dominant alive-colonist mood. Seeds still
+  //                visible; lines visible. Reads as emotional-state
+  //                field rather than side-affiliation.
+  //   FORGE      : field dimmed hard (0.2×), palette flipped to mono.
+  //                Glyphs also dimmed so forge-flare pulses dominate.
+  //                Reads as "where in the colony is forging happening".
+  //   ECOLOGY    : field very dim (0.25×), glyphs hidden entirely.
+  //                Lets the metrics strip + crisis shockwaves carry
+  //                the story. Reads as pure resource / event stream.
+  //   DIVERGENCE : field medium-dim, palette default, glyphs fully
+  //                bright so the diverged-only highlight rings pop.
+  //                Reads as "who died / survived that the other side
+  //                did the opposite of".
+  const modeConfig = (() => {
+    switch (mode) {
+      case 'mood':
+        return { fieldIntensity: 0.9, seedIntensity: 1.1, glyphIntensity: 1.0, palette: 1 as 0 | 1 | 2 };
+      case 'forge':
+        return { fieldIntensity: 0.2, seedIntensity: 0.4, glyphIntensity: 0.7, palette: 2 as 0 | 1 | 2 };
+      case 'ecology':
+        return { fieldIntensity: 0.25, seedIntensity: 0.0, glyphIntensity: 0.0, palette: 0 as 0 | 1 | 2 };
+      case 'divergence':
+        return { fieldIntensity: 0.7, seedIntensity: 1.0, glyphIntensity: 1.0, palette: palette };
+      case 'living':
+      default:
+        return { fieldIntensity: 1.0, seedIntensity: 1.0, glyphIntensity: 1.0, palette: palette };
+    }
+  })();
+  const fieldIntensity = modeConfig.fieldIntensity;
+  const seedIntensity = modeConfig.seedIntensity;
+  const glyphIntensity = modeConfig.glyphIntensity;
+  const effectivePalette = modeConfig.palette;
+
+  // MOOD mode re-derives the field tint from the dominant alive-cell
+  // mood rather than side affiliation. Both leader panels end up
+  // visually distinct from each other when their mood distributions
+  // diverge (e.g. Aria's visionary colony trending anxious while
+  // Voss's engineer colony holds neutral). Falls back to sideColor
+  // on empty / null snapshots.
+  const moodTintedSideColor = useMemo(() => {
+    if (mode !== 'mood' || !snapshot) return sideColor;
+    const alive = snapshot.cells.filter(c => c.alive);
+    if (alive.length === 0) return sideColor;
+    const moodCounts: Record<string, number> = {};
+    for (const c of alive) {
+      moodCounts[c.mood] = (moodCounts[c.mood] || 0) + 1;
+    }
+    let dominantMood = 'neutral';
+    let bestCount = 0;
+    for (const [m, n] of Object.entries(moodCounts)) {
+      if (n > bestCount) { bestCount = n; dominantMood = m; }
+    }
+    // Map to CSS color vars so theme switching still works. Tokens
+    // here match the Toast / MetricsStrip mood palette used elsewhere.
+    switch (dominantMood) {
+      case 'positive':
+      case 'hopeful': return 'var(--green)';
+      case 'anxious': return 'var(--amber)';
+      case 'negative':
+      case 'defiant': return 'var(--rust)';
+      case 'resigned': return 'var(--text-3)';
+      default: return sideColor;
+    }
+  }, [mode, snapshot, sideColor]);
 
   useEffect(() => {
     const renderer = rendererRef.current;
@@ -307,7 +377,12 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
     }));
     const flareDepositsGrid = flaresToDeposits(flaresGridSpace, GRID_W, GRID_H);
 
-    const tintBase = resolveRgb(sideColor, containerRef.current);
+    // MOOD mode swaps the field tint from side-affiliation color to
+    // the dominant-mood color resolved above. All other modes keep
+    // their configured sideColor so the left/right split reads as
+    // leader A vs leader B.
+    const tintSource = mode === 'mood' ? moodTintedSideColor : sideColor;
+    const tintBase = resolveRgb(tintSource, containerRef.current);
     // Pulse boosts tint briefly on each new turn so the field "breathes"
     // when fresh data lands.
     const pulseBoost = 1 + pulse * 0.7;
@@ -327,7 +402,7 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
       deposits: [...colonistDeposits, ...flareDepositsGrid],
       sideTint: tintScaled,
       stepsPerFrame: scaledSteps,
-      palette,
+      palette: effectivePalette,
     });
 
     const resolvedSide = resolveCssColor(sideColor, containerRef.current);
