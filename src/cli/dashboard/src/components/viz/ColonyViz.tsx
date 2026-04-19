@@ -28,6 +28,7 @@ import { Legend } from './Legend.js';
 import { DrilldownPanel } from './DrilldownPanel.js';
 import { VizControls } from './VizControls.js';
 import { LivingColonyGrid } from './grid/LivingColonyGrid.js';
+import { GridModePills, type GridMode } from './grid/GridModePills.js';
 import {
   computeDivergence,
   type ClusterMode,
@@ -58,6 +59,23 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
   const [mode, setMode] = useState<ClusterMode>('families');
   const [showDivergence, setShowDivergence] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Grid mode (new living-colony grid). Shared across both leaders so
+  // tabs toggle in lockstep. Persisted to localStorage so the user's
+  // last-picked mode survives a page reload.
+  const [gridMode, setGridModeState] = useState<GridMode>(() => {
+    try {
+      const raw = localStorage.getItem('paracosm:gridMode');
+      if (raw === 'living' || raw === 'mood' || raw === 'forge' || raw === 'ecology' || raw === 'divergence') {
+        return raw;
+      }
+    } catch { /* silent */ }
+    return 'living';
+  });
+  const setGridMode = useCallback((m: GridMode) => {
+    setGridModeState(m);
+    try { localStorage.setItem('paracosm:gridMode', m); } catch { /* silent */ }
+  }, []);
 
   // Automaton mode + collapsed flag. Lifted to the viz root so both
   // leader panels render in the same lens simultaneously. Seeded from
@@ -334,6 +352,9 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
     return (
       <div className="viz-content" style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
         <TurnBanner state={state} currentTurn={currentTurn} />
+        <div style={{ padding: '6px 10px', background: 'var(--bg-deep)', borderBottom: '1px solid var(--border)' }}>
+          <GridModePills mode={gridMode} onChange={setGridMode} />
+        </div>
         {diffLine && (
           <div style={{
             padding: '4px 12px', fontSize: 10, fontFamily: 'var(--mono)',
@@ -353,6 +374,8 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
             sideColor="var(--vis)"
             side="a"
             lagTurns={snapATurn < snapBTurn ? snapBTurn - snapATurn : 0}
+            mode={gridMode}
+            onSelectColonist={onNavigateToChat}
           />
           <LivingColonyGrid
             snapshot={snapB}
@@ -363,6 +386,8 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
             sideColor="var(--eng)"
             side="b"
             lagTurns={snapBTurn < snapATurn ? snapATurn - snapBTurn : 0}
+            mode={gridMode}
+            onSelectColonist={onNavigateToChat}
           />
         </div>
         <VizControls

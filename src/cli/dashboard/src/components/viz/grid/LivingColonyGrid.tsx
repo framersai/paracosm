@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import type { TurnSnapshot, ClusterMode } from '../viz-types.js';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { TurnSnapshot, ClusterMode, CellSnapshot } from '../viz-types.js';
 import { computeGridPositions } from './gridPositions.js';
 import { computeChemistryParams, computeInjections } from './simToChemistry.js';
 import { drawSeeds } from './SeedLayer.js';
@@ -9,6 +9,9 @@ import { drawHud } from './HudLayer.js';
 import { useGridState } from './useGridState.js';
 import { GridRenderer } from '../../../lib/webgl/gridRenderer.js';
 import { flaresToDeposits } from '../../../lib/webgl/events.js';
+import { GridMetricsStrip } from './GridMetricsStrip.js';
+import { hitTestGlyph } from './hitTest.js';
+import type { GridMode } from './GridModePills.js';
 
 interface LivingColonyGridProps {
   snapshot: TurnSnapshot | undefined;
@@ -21,10 +24,13 @@ interface LivingColonyGridProps {
   lagTurns?: number;
   clusterMode?: ClusterMode;
   initialPopulation?: number;
+  /** Shared grid mode across both leaders. */
+  mode: GridMode;
+  /** Click handler that opens a colonist drilldown. Phase 2 popover
+   *  wiring lives in the parent; Phase 1 passes a navigate-to-chat. */
+  onSelectColonist?: (colonistName: string) => void;
 }
 
-/** Resolve a CSS color value (hex or var(...)) to a normalized [R, G, B]
- *  triple for GL uniforms. Reads computed styles so CSS variables resolve. */
 function resolveRgb(color: string, element: HTMLElement | null): [number, number, number] {
   let hex = color.trim();
   if (hex.startsWith('var(') && element) {
@@ -44,7 +50,6 @@ function resolveRgb(color: string, element: HTMLElement | null): [number, number
       return [(r * 17) / 255, (g * 17) / 255, (b * 17) / 255];
     }
   }
-  // rgb(r, g, b) or rgba(r, g, b, a)
   const rgbMatch = hex.match(/rgba?\(([^)]+)\)/);
   if (rgbMatch) {
     const parts = rgbMatch[1].split(',').map(s => parseFloat(s.trim()));
@@ -55,9 +60,6 @@ function resolveRgb(color: string, element: HTMLElement | null): [number, number
   return [0.35, 0.28, 0.2];
 }
 
-/** Resolved side color string (hex) to pass to Canvas2D stroke/fill
- *  layers. Canvas2D accepts CSS vars via computed style, but resolving
- *  here keeps the overlay draws fast. */
 function resolveCssColor(color: string, element: HTMLElement | null): string {
   if (color.startsWith('var(') && element) {
     const varName = color.slice(4, -1).trim();
@@ -67,14 +69,14 @@ function resolveCssColor(color: string, element: HTMLElement | null): string {
   return color;
 }
 
-/** RD grid resolution. Modest in Phase 1; Phase 4 profiles + tunes. */
 const GRID_W = 384;
 const GRID_H = 240;
 
 /**
- * Per-leader living colony grid. Renders a WebGL2 Gray-Scott field
- * in back, Canvas2D overlays in front. Pauses on tab hidden +
- * off-screen via useGridState.
+ * Per-leader living colony grid. WebGL2 Gray-Scott field in back,
+ * Canvas2D overlay in front (seeds, glyphs, flares, dept labels, HUD),
+ * GridMetricsStrip DOM layer above. Hover tooltip tracks the nearest
+ * colonist under cursor.
  */
 export function LivingColonyGrid(props: LivingColonyGridProps) {
   const {
@@ -86,17 +88,27 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
     lagTurns,
     clusterMode = 'departments',
     initialPopulation = 20,
+    mode,
+    onSelectColonist,
   } = props;
+
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const canvasWrapRef = useRef<HTMLDivElement | null>(null);
   const webglCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const rendererRef = useRef<GridRenderer | null>(null);
   const [size, setSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
   const [webglFailed, setWebglFailed] = useState(false);
+  const [hovered, setHovered] = useState<{
+    cell: CellSnapshot;
+    x: number;
+    y: number;
+  } | null>(null);
 
-  // Resize observer keeps both canvases sized to the container.
+  // Resize observer on the canvas wrapper (not the full container — the
+  // container also holds the metrics strip DOM above the canvas).
   useEffect(() => {
-    const el = containerRef.current;
+    const el = canvasWrapRef.current;
     if (!el) return;
     const ro = new ResizeObserver(entries => {
       for (const e of entries) {
@@ -109,7 +121,6 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
     return () => ro.disconnect();
   }, []);
 
-  // Initialize WebGL renderer once on first size.
   useEffect(() => {
     const canvas = webglCanvasRef.current;
     if (!canvas || size.w === 0 || size.h === 0 || rendererRef.current) return;
@@ -118,10 +129,7 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
     try {
       rendererRef.current = new GridRenderer({ canvas, width: GRID_W, height: GRID_H });
     } catch (err) {
-      console.warn(
-        '[LivingColonyGrid] WebGL2 init failed; Canvas2D fallback lands in Phase 3',
-        err,
-      );
+      console.warn('[LivingColonyGrid] WebGL2 init failed', err);
       setWebglFailed(true);
     }
     return () => {
@@ -130,7 +138,6 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
     };
   }, [size.w, size.h]);
 
-  // Size overlay canvas to the container (not the RD grid) with DPR scaling.
   useEffect(() => {
     const c = overlayCanvasRef.current;
     if (!c || size.w === 0 || size.h === 0) return;
@@ -155,11 +162,16 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
 
   const gridState = useGridState(
     { snapshot, previousSnapshot },
-    containerRef,
+    canvasWrapRef,
     () => gridPositions,
   );
 
-  // Per rAF tick: compute chemistry, run RD step, draw overlays.
+  // Mode-driven render intensity. All modes still render the field but
+  // forge/ecology dim it so their overlays stand out.
+  const fieldIntensity = mode === 'forge' || mode === 'ecology' ? 0.55 : 1.0;
+  const seedIntensity = mode === 'forge' ? 0.5 : 1.0;
+  const glyphIntensity = 1.0;
+
   useEffect(() => {
     const renderer = rendererRef.current;
     const overlay = overlayCanvasRef.current;
@@ -173,7 +185,7 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
       x: i.x,
       y: i.y,
       channel: i.channel,
-      strength: i.strength,
+      strength: i.strength * seedIntensity,
       radius: 1,
     } as const));
     const flareDepositsGrid = flaresToDeposits(
@@ -186,25 +198,49 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
       GRID_H,
     );
 
+    const tintBase = resolveRgb(sideColor, containerRef.current);
+    const tintScaled: [number, number, number] = [
+      tintBase[0] * fieldIntensity,
+      tintBase[1] * fieldIntensity,
+      tintBase[2] * fieldIntensity,
+    ];
     renderer.tick({
-      F,
+      F: F * fieldIntensity,
       k,
       deposits: [...colonistDeposits, ...flareDepositsGrid],
-      sideTint: resolveRgb(sideColor, containerRef.current),
+      sideTint: tintScaled,
     });
 
     const resolvedSide = resolveCssColor(sideColor, containerRef.current);
     ctx.clearRect(0, 0, size.w, size.h);
-    drawSeeds(ctx, snapshot.cells, positions);
+    if (mode !== 'ecology') drawSeeds(ctx, snapshot.cells, positions);
     drawFlares(ctx, gridState.flares);
-    drawGlyphs(ctx, snapshot.cells, positions, resolvedSide);
+    if (mode !== 'ecology')
+      drawGlyphs(ctx, snapshot.cells, positions, resolvedSide, glyphIntensity);
     drawHud(ctx, snapshot, {
       leaderName,
       sideColor: resolvedSide,
       width: size.w,
       height: size.h,
       lagTurns,
+      cells: snapshot.cells,
+      positions,
     });
+
+    // Hover ring on top of HUD so it reads as "selected".
+    if (hovered) {
+      const pos = positions.get(hovered.cell.agentId);
+      if (pos) {
+        ctx.save();
+        ctx.strokeStyle = resolvedSide;
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 1;
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, 10, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
   }, [
     gridState.tickClock,
     snapshot,
@@ -217,7 +253,40 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
     initialPopulation,
     lagTurns,
     gridState.flares,
+    mode,
+    fieldIntensity,
+    seedIntensity,
+    glyphIntensity,
+    hovered,
   ]);
+
+  const onMouseMove = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>) => {
+      if (!snapshot) return;
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const hit = hitTestGlyph(snapshot.cells, positions, x, y);
+      if (hit) {
+        setHovered({ cell: hit, x, y });
+      } else if (hovered) {
+        setHovered(null);
+      }
+    },
+    [snapshot, positions, hovered],
+  );
+  const onMouseLeave = useCallback(() => setHovered(null), []);
+  const onClick = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>) => {
+      if (!snapshot || !onSelectColonist) return;
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const hit = hitTestGlyph(snapshot.cells, positions, x, y);
+      if (hit) onSelectColonist(hit.name);
+    },
+    [snapshot, positions, onSelectColonist],
+  );
 
   return (
     <div
@@ -225,45 +294,121 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
       data-testid={`living-colony-grid-${side}`}
       style={{
         flex: 1,
-        position: 'relative',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 6,
+        padding: 8,
         minWidth: 0,
         overflow: 'hidden',
-        background: 'var(--bg-deep)',
-        border: `1px solid ${sideColor}33`,
-        borderRadius: 4,
       }}
     >
-      <canvas
-        ref={webglCanvasRef}
+      {snapshot && <GridMetricsStrip snapshot={snapshot} sideColor={sideColor} />}
+      <div
+        ref={canvasWrapRef}
         style={{
-          position: 'absolute',
-          inset: 0,
-          width: '100%',
-          height: '100%',
-          display: webglFailed ? 'none' : 'block',
-          imageRendering: 'pixelated',
+          flex: 1,
+          position: 'relative',
+          minHeight: 0,
+          overflow: 'hidden',
+          background: 'var(--bg-deep)',
+          border: `1px solid ${sideColor}33`,
+          borderRadius: 4,
         }}
-      />
-      <canvas
-        ref={overlayCanvasRef}
-        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
-      />
-      {webglFailed && (
-        <div
+      >
+        <canvas
+          ref={webglCanvasRef}
           style={{
             position: 'absolute',
             inset: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'var(--text-4)',
-            fontSize: 11,
-            fontFamily: 'var(--mono)',
+            width: '100%',
+            height: '100%',
+            display: webglFailed ? 'none' : 'block',
+            imageRendering: 'pixelated',
           }}
-        >
-          WebGL2 unavailable — fallback lands in Phase 3
-        </div>
-      )}
+        />
+        <canvas
+          ref={overlayCanvasRef}
+          onMouseMove={onMouseMove}
+          onMouseLeave={onMouseLeave}
+          onClick={onClick}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            cursor: hovered ? 'pointer' : 'default',
+          }}
+        />
+        {webglFailed && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--text-4)',
+              fontSize: 11,
+              fontFamily: 'var(--mono)',
+            }}
+          >
+            WebGL2 unavailable
+          </div>
+        )}
+        {hovered && (
+          <div
+            style={{
+              position: 'absolute',
+              left: Math.min(size.w - 200, hovered.x + 12),
+              top: Math.max(0, hovered.y - 56),
+              padding: '6px 10px',
+              background: 'var(--bg-panel)',
+              border: `1px solid ${sideColor}66`,
+              borderRadius: 4,
+              fontFamily: 'var(--mono)',
+              fontSize: 10,
+              color: 'var(--text-2)',
+              pointerEvents: 'none',
+              zIndex: 5,
+              whiteSpace: 'nowrap',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
+            }}
+          >
+            <div style={{ color: sideColor, fontWeight: 700, fontSize: 11 }}>
+              {hovered.cell.name}
+              {hovered.cell.featured && (
+                <span
+                  style={{
+                    marginLeft: 6,
+                    fontSize: 8,
+                    padding: '1px 4px',
+                    borderRadius: 2,
+                    background: `${sideColor}33`,
+                    color: sideColor,
+                  }}
+                >
+                  FEATURED
+                </span>
+              )}
+            </div>
+            <div style={{ color: 'var(--text-3)', marginTop: 2 }}>
+              {hovered.cell.department.toUpperCase()} · {hovered.cell.role}
+              {typeof hovered.cell.age === 'number' ? ` · age ${hovered.cell.age}` : ''}
+            </div>
+            <div style={{ marginTop: 2 }}>
+              mood: <span style={{ color: 'var(--text-2)' }}>{hovered.cell.mood}</span>
+              {typeof hovered.cell.psychScore === 'number'
+                ? ` · psych ${Math.round(hovered.cell.psychScore * 100)}%`
+                : ''}
+            </div>
+            {onSelectColonist && (
+              <div style={{ marginTop: 3, fontSize: 8, color: 'var(--text-4)' }}>
+                click to open chat
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
