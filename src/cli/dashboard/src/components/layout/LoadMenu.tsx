@@ -143,8 +143,16 @@ export function LoadMenu(props: LoadMenuProps) {
   // the moment the menu opens; users one step closer to "watch a prior
   // simulation" without a second click.
   const [cacheExpanded, setCacheExpanded] = useState(true);
-  const { sessions, status } = useSessions();
+  const { sessions, status, refresh } = useSessions();
   const rootRef = useRef<HTMLDivElement>(null);
+
+  // Refresh the saved-sessions list every time the menu opens so a run
+  // that completed *while the dashboard was open* shows up immediately
+  // instead of requiring a full page reload. Cheap: single GET /sessions
+  // per open, no polling.
+  useEffect(() => {
+    if (open) refresh();
+  }, [open, refresh]);
 
   const close = useCallback(() => {
     setOpen(false);
