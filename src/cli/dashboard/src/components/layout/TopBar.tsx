@@ -1,6 +1,7 @@
 import { useTheme } from '../../theme/ThemeProvider';
 import type { ScenarioClientPayload } from '../../hooks/useScenario';
 import type { GameState } from '../../hooks/useGameState';
+import { LoadMenu } from './LoadMenu';
 
 interface TopBarProps {
   scenario: ScenarioClientPayload;
@@ -265,9 +266,7 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
         {hasEvents && onCopy && (
           <button onClick={onCopy} style={toolBtnStyle} title="Copy simulation summary to clipboard" aria-label="Copy summary">Copy</button>
         )}
-        {onLoad && (
-          <button onClick={onLoad} style={toolBtnStyle} title="Load a saved simulation .json file" aria-label="Load simulation">Load</button>
-        )}
+        {onLoad && <LoadMenu onLoadFromFile={onLoad} />}
         {hasEvents && onClear && (
           <button onClick={onClear} style={{ ...toolBtnStyle, color: 'var(--rust)' }} title="Clear all data. Cannot be undone." aria-label="Clear simulation">Clear</button>
         )}
