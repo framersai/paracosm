@@ -10,3 +10,7 @@ AUDIT-*.md
 NEXT-SESSION*.md
 # SQLite session-store data — server-local, copied to Linode separately.
 /data/
+
+# Runtime SSE event buffer. The server writes this per-run so it can
+# rehydrate the dashboard after a restart. Never intended to be committed.
+.event-buffer.json

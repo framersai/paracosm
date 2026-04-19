@@ -1,1 +1,0 @@
-["event: setup\ndata: {\"leaderA\":{\"name\":\"Aria Chen\"},\"leaderB\":{\"name\":\"Dietrich Voss\"}}\n\n","event: turn_done\ndata: {\"turn\":1}\n\n","event: turn_done\ndata: {\"turn\":2}\n\n","event: turn_done\ndata: {\"turn\":3}\n\n","event: complete\ndata: {\"cost\":{\"totalCostUSD\":0.1}}\n\n"]
