@@ -150,7 +150,11 @@ Server ([tests/cli/server-app.test.ts](../../../tests/cli/server-app.test.ts)):
 
 Client:
 
-- `LoadMenu.test.tsx` [NEW] covering: file row click invokes `onLoadFromFile`; cache row expand shows cards when `ready + N > 0`; shows empty hint when `ready + N == 0`; hides cache row when status is `unavailable` or `error`; card click navigates to `/sim?replay=<id>`; `Esc` closes; outside click closes. Follow the existing Vitest + `@testing-library/react` setup in [useRetryStats.test.ts](../../../src/cli/dashboard/src/hooks/useRetryStats.test.ts). If RTL is not yet wired for component tests, add it as part of this change (minimal: one devDep, one setup file).
+Paracosm's dashboard tests run via `node:test` (see [useRetryStats.test.ts](../../../src/cli/dashboard/src/hooks/useRetryStats.test.ts)). React Testing Library is not wired up. The LoadMenu component is therefore tested by extracting pure helpers that drive render decisions:
+
+- `LoadMenu.helpers.ts` [NEW] exports: `formatExplicit(ts: number): string`, `shouldShowCacheRow(status: SessionsStatus): boolean`, `cacheExpandedBody(status: SessionsStatus, sessions: StoredSessionMeta[]): 'loading' | 'empty' | 'cards'`, `buildReplayHref(base: string, id: string): string`.
+- `LoadMenu.helpers.test.ts` [NEW] covers each helper: timestamp formatting for a known epoch; cache-row visibility across all four statuses; expanded-body branch across statuses; replay href construction includes `?replay=<id>` and lands on the sim tab.
+- Integration of the helpers with React state (popover open/close, focus management) is verified manually in the dashboard after the change. The manual verification steps are listed in the plan's final task.
 
 ## Risks
 
