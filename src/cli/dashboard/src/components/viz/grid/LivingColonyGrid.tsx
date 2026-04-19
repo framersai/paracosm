@@ -15,7 +15,7 @@ import { GridMetricsStrip } from './GridMetricsStrip.js';
 import { hitTestGlyph } from './hitTest.js';
 import type { GridMode } from './GridModePills.js';
 import { ClickPopover, type ClickPopoverPayload } from './ClickPopover.js';
-import { useMediaQuery, NARROW_QUERY } from './useMediaQuery.js';
+import { useMediaQuery, NARROW_QUERY, REDUCED_MOTION_QUERY } from './useMediaQuery.js';
 
 interface HexacoShape { O: number; C: number; E: number; A: number; Em: number; HH: number }
 
@@ -115,6 +115,7 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
   } = props;
 
   const narrow = useMediaQuery(NARROW_QUERY);
+  const reducedMotion = useMediaQuery(REDUCED_MOTION_QUERY);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasWrapRef = useRef<HTMLDivElement | null>(null);
   const webglCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -244,11 +245,15 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
       tintBase[1] * fieldIntensity,
       tintBase[2] * fieldIntensity,
     ];
+    // Reduced motion: render one tick per snapshot change (no ongoing
+    // animation), stepsPerFrame=0 stops RD evolution. Event flares still
+    // decay visually but the field itself freezes between turns.
     renderer.tick({
       F: F * fieldIntensity,
       k,
       deposits: [...colonistDeposits, ...flareDepositsGrid],
       sideTint: tintScaled,
+      stepsPerFrame: reducedMotion ? 0 : 2,
     });
 
     const resolvedSide = resolveCssColor(sideColor, containerRef.current);
@@ -310,6 +315,7 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
     glyphIntensity,
     hovered,
     divergedIds,
+    reducedMotion,
   ]);
 
   const onMouseMove = useCallback(
@@ -355,6 +361,8 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
     <div
       ref={containerRef}
       data-testid={`living-colony-grid-${side}`}
+      role="region"
+      aria-label={`${leaderName} colony viz`}
       style={{
         flex: narrow ? '0 0 auto' : 1,
         display: 'flex',
@@ -392,6 +400,12 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
         />
         <canvas
           ref={overlayCanvasRef}
+          role="img"
+          aria-label={
+            snapshot
+              ? `${leaderName} colony, turn ${snapshot.turn}. ${snapshot.cells.filter(c => c.alive).length} alive, morale ${Math.round(snapshot.morale * 100)}%, food reserve ${snapshot.foodReserve.toFixed(1)} months. ${snapshot.births} births, ${snapshot.deaths} deaths this turn. Click a colonist glyph for drilldown.`
+              : `${leaderName} colony — waiting for first turn.`
+          }
           onMouseMove={onMouseMove}
           onMouseLeave={onMouseLeave}
           onClick={onClick}
@@ -417,6 +431,36 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
             }}
           >
             WebGL2 unavailable
+          </div>
+        )}
+        {mode === 'divergence' && snapshot && (divergedIds?.size ?? 0) === 0 && (
+          <div
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: 16,
+              display: 'flex',
+              justifyContent: 'center',
+              pointerEvents: 'none',
+              zIndex: 4,
+            }}
+          >
+            <div
+              style={{
+                padding: '6px 12px',
+                background: 'rgba(10, 8, 6, 0.85)',
+                border: '1px solid var(--border)',
+                borderRadius: 4,
+                fontFamily: 'var(--mono)',
+                fontSize: 10,
+                color: 'var(--text-3)',
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+              }}
+            >
+              Both timelines identical this turn — no divergence yet
+            </div>
           </div>
         )}
         {hovered && !popover && (() => {

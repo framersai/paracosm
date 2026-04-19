@@ -1,12 +1,16 @@
 export type GridMode = 'living' | 'mood' | 'forge' | 'ecology' | 'divergence';
 
 const MODES: { key: GridMode; label: string; hint: string }[] = [
-  { key: 'living', label: 'LIVING', hint: 'Full chemistry + seeds + glyphs + HUD' },
-  { key: 'mood', label: 'MOOD', hint: 'Colonist mood cloud emphasized' },
-  { key: 'forge', label: 'FORGE', hint: 'Tool forge + reuse arcs emphasized' },
-  { key: 'ecology', label: 'ECOLOGY', hint: 'Metric tiles + crisis events' },
-  { key: 'divergence', label: 'DIVERGENCE', hint: 'A vs B diff grid overlay' },
+  { key: 'living', label: 'LIVING', hint: 'Full field + colonist seeds + family lines + all events' },
+  { key: 'mood', label: 'MOOD', hint: 'Colonist mood cloud emphasized; births / deaths / partner arcs' },
+  { key: 'forge', label: 'FORGE', hint: 'Field dimmed; tool forge attempts + reuse arcs between departments' },
+  { key: 'ecology', label: 'ECOLOGY', hint: 'Glyphs hidden; metrics strip + crisis shockwaves lead' },
+  { key: 'divergence', label: 'DIVERGENCE', hint: 'Only colonists alive here but dead on the other side' },
 ];
+
+export function gridModeHint(mode: GridMode): string {
+  return MODES.find(m => m.key === mode)?.hint ?? '';
+}
 
 /**
  * Mode pill row rendered above each leader grid. Shared state lifted

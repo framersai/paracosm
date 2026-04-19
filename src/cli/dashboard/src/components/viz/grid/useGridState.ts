@@ -8,6 +8,7 @@ import {
   type ActiveFlare,
 } from './flareQueue.js';
 import type { TurnSnapshot, GridPosition } from '../viz-types.js';
+import { useMediaQuery, REDUCED_MOTION_QUERY } from './useMediaQuery.js';
 
 export interface ForgeAttempt {
   turn: number;
@@ -74,6 +75,7 @@ export function useGridState(
   const tabVisibleRef = useRef(
     typeof document !== 'undefined' ? !document.hidden : true,
   );
+  const reducedMotion = useMediaQuery(REDUCED_MOTION_QUERY);
 
   // Births / deaths — diffed from snapshot ↔ previousSnapshot each turn.
   useEffect(() => {
@@ -210,8 +212,16 @@ export function useGridState(
     };
   }, [containerRef]);
 
-  // rAF tick — bumps tickClock, advances flares.
+  // rAF tick — bumps tickClock, advances flares. Under reduced motion
+  // the animation loop is suppressed; render still happens on snapshot
+  // change via a single bump below.
   useEffect(() => {
+    if (reducedMotion) {
+      // One render per snapshot change is enough under reduced motion;
+      // bump tickClock so the canvas paints the current state.
+      setTickClock(prev => prev + 1);
+      return;
+    }
     let raf = 0;
     let lastMs = performance.now();
     const minFrame = 1000 / 30;
@@ -232,7 +242,7 @@ export function useGridState(
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, []);
+  }, [reducedMotion]);
 
   return { flares: activeFlares(flareQueueRef.current), tickClock };
 }

@@ -28,3 +28,4 @@ export function useMediaQuery(query: string, initial = false): boolean {
  *  stay in sync about what "narrow" means. */
 export const NARROW_QUERY = '(max-width: 768px)';
 export const PHONE_QUERY = '(max-width: 480px)';
+export const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
