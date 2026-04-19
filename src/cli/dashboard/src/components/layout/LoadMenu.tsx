@@ -191,6 +191,7 @@ export function LoadMenu(props: LoadMenuProps) {
     <div ref={rootRef} style={{ position: 'relative', display: 'inline-block' }}>
       <button
         type="button"
+        data-paracosm-load-menu-trigger="true"
         style={triggerStyle}
         aria-haspopup="menu"
         aria-expanded={open}

@@ -1,16 +1,29 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { useSessions } from '../../hooks/useSessions';
 import { buildReplayHref } from '../layout/LoadMenu.helpers';
 import { resolveSetupRedirectHref } from '../../tab-routing';
 
+interface LoadPriorRunsCTAProps {
+  /** Hide entirely when the session store is unavailable (server flag
+   *  off, 503). Default true — caller can set false to keep showing the
+   *  explanatory empty state even then. */
+  hideWhenUnavailable?: boolean;
+}
+
 /**
- * Prominent call-to-action at the top of the Settings (setup) page that
- * surfaces prior saved runs. Users can watch any completed run back
- * turn-by-turn without spending API credits. Hides itself when the
- * session store is unavailable or empty so the CTA never looks stale.
+ * Prominent call-to-action at the top of the Settings (setup) page and
+ * the SIM empty state that surfaces prior saved runs. Users can watch
+ * any completed run back turn-by-turn without spending API credits.
+ *
+ * Renders three states:
+ *   - loading: skeleton / null (briefly)
+ *   - ready + has sessions: grid of 3 recent + "N more" footer
+ *   - ready + empty: explanatory copy so users know what will live here
+ *   - unavailable: hidden (unless explicitly kept)
  */
-export function LoadPriorRunsCTA() {
+export function LoadPriorRunsCTA({ hideWhenUnavailable = true }: LoadPriorRunsCTAProps = {}) {
   const { sessions, status, refresh } = useSessions();
+  const rootRef = useRef<HTMLDivElement | null>(null);
 
   const recent = useMemo(
     () =>
@@ -20,8 +33,8 @@ export function LoadPriorRunsCTA() {
     [sessions],
   );
 
-  if (status === 'loading' || status === 'unavailable') return null;
-  if (sessions.length === 0) return null;
+  if (status === 'loading') return null;
+  if (status === 'unavailable' && hideWhenUnavailable) return null;
 
   const handleOpen = (id: string) => {
     const href = buildReplayHref(window.location.href, id);
@@ -38,14 +51,17 @@ export function LoadPriorRunsCTA() {
     });
   };
 
+  const isEmpty = sessions.length === 0;
+
   return (
     <div
+      ref={rootRef}
       style={{
         marginBottom: 20,
         padding: '14px 18px',
         background: 'var(--bg-panel)',
         border: '1px solid var(--border)',
-        borderLeft: '3px solid var(--amber)',
+        borderLeft: `3px solid ${isEmpty ? 'var(--border-hl)' : 'var(--amber)'}`,
         borderRadius: 8,
         boxShadow: 'var(--card-shadow)',
         display: 'flex',
@@ -68,28 +84,45 @@ export function LoadPriorRunsCTA() {
               fontSize: 10,
               letterSpacing: '0.12em',
               textTransform: 'uppercase',
-              color: 'var(--amber)',
+              color: isEmpty ? 'var(--text-3)' : 'var(--amber)',
               fontFamily: 'var(--mono)',
               fontWeight: 800,
               marginBottom: 2,
             }}
           >
-            {'\u25B6'} Watch a prior run
+            {'\u25B6'} {isEmpty ? 'Replay from cache' : 'Watch a prior run'}
           </div>
-          <div
-            style={{
-              fontSize: 13,
-              color: 'var(--text-1)',
-              fontFamily: 'var(--sans)',
-            }}
-          >
-            Don't want to spend credits?{' '}
-            <span style={{ color: 'var(--text-3)' }}>
-              Replay any of <strong style={{ color: 'var(--amber)' }}>{sessions.length}</strong>{' '}
-              cached simulations turn-by-turn, complete with every decision,
-              tool forge, and divergence.
-            </span>
-          </div>
+          {isEmpty ? (
+            <div
+              style={{
+                fontSize: 13,
+                color: 'var(--text-2)',
+                fontFamily: 'var(--sans)',
+              }}
+            >
+              No saved runs yet.{' '}
+              <span style={{ color: 'var(--text-3)' }}>
+                Once any simulation completes it{"'"}s auto-cached here, so you can replay the
+                full turn-by-turn playback — every decision, tool forge, and divergence —
+                without re-spending credits.
+              </span>
+            </div>
+          ) : (
+            <div
+              style={{
+                fontSize: 13,
+                color: 'var(--text-1)',
+                fontFamily: 'var(--sans)',
+              }}
+            >
+              Don{"'"}t want to spend credits?{' '}
+              <span style={{ color: 'var(--text-3)' }}>
+                Replay any of <strong style={{ color: 'var(--amber)' }}>{sessions.length}</strong>{' '}
+                cached simulation{sessions.length === 1 ? '' : 's'} turn-by-turn, complete with
+                every decision, tool forge, and divergence.
+              </span>
+            </div>
+          )}
         </div>
         <button
           type="button"
@@ -113,6 +146,7 @@ export function LoadPriorRunsCTA() {
           ↻ Refresh
         </button>
       </div>
+      {!isEmpty && (
       <div
         style={{
           display: 'grid',
@@ -187,7 +221,8 @@ export function LoadPriorRunsCTA() {
           </button>
         ))}
       </div>
-      {sessions.length > 3 && (
+      )}
+      {!isEmpty && sessions.length > 3 && (
         <div style={{ fontSize: 10, color: 'var(--text-4)', fontStyle: 'italic' }}>
           + {sessions.length - 3} more — use the <strong>LOAD</strong> button in the top bar to
           browse the full list.

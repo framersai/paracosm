@@ -336,7 +336,7 @@ export function SimView({ state, sseStatus, onRun, verdict, launching: launching
           <div style={{ fontSize: '13px', color: 'var(--text-3)', maxWidth: '420px', lineHeight: 1.7, marginBottom: '20px' }}>
             Configure two commanders with different HEXACO personality profiles, choose a scenario, and launch from the Settings tab. Or load a previously saved simulation.
           </div>
-          <div style={{ display: 'flex', gap: '12px' }}>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
             {onRun && (
               <button
                 onClick={handleRun}
@@ -350,6 +350,33 @@ export function SimView({ state, sseStatus, onRun, verdict, launching: launching
                 Run Simulation
               </button>
             )}
+            <button
+              onClick={() => {
+                // Find the top-bar LOAD button and click it so the user
+                // lands directly in the saved-runs picker, matching the
+                // mental model of "load a previously saved simulation".
+                const loadBtn = document.querySelector<HTMLButtonElement>(
+                  '[data-paracosm-load-menu-trigger="true"]',
+                );
+                if (loadBtn) {
+                  loadBtn.click();
+                  loadBtn.scrollIntoView({ block: 'center' });
+                } else {
+                  // Fallback: scroll the CTA below into view if no trigger found.
+                  document
+                    .querySelector('[data-paracosm-replay-cta="true"]')
+                    ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+              }}
+              style={{
+                background: 'linear-gradient(135deg, var(--amber), #c8952e)', color: 'var(--bg-deep)',
+                border: 'none', padding: '10px 28px', borderRadius: '6px',
+                fontSize: '14px', fontWeight: 700, cursor: 'pointer',
+                boxShadow: '0 4px 16px rgba(232,180,74,.25)',
+              }}
+            >
+              Load Prior Run
+            </button>
             <button
               onClick={() => {
                 const url = new URL(window.location.href);
@@ -368,9 +395,10 @@ export function SimView({ state, sseStatus, onRun, verdict, launching: launching
           </div>
           {/* Surface saved-run replays right in the empty state so users
               who land on SIM without a running simulation can start
-              watching a prior run with one click. Auto-hides when no
-              saved runs exist. */}
+              watching a prior run with one click. Renders explanatory
+              empty state when no saved runs exist yet. */}
           <div
+            data-paracosm-replay-cta="true"
             style={{
               width: '100%',
               maxWidth: 720,
