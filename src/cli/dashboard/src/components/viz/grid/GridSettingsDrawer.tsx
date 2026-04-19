@@ -5,6 +5,16 @@ export interface GridSettings {
   animSpeed: 0.5 | 1 | 2;
   /** Whether to render the dept cluster ring outlines. */
   deptRings: boolean;
+  /**
+   * Whether to render the per-dept labeled boxes (e.g. "SCIENCE 1",
+   * "ENGINEERING 2") near each cluster's centroid. Off by default
+   * because users reported them as visually noisy — "diamond-ish
+   * boxes that make no sense" — when a dept only has 1-2 colonists,
+   * which is the norm in the demo-capped population of 30. Still
+   * available for users who want the spatial-dept readout on top
+   * of the colonist glyphs.
+   */
+  deptLabels: boolean;
   /** Whether to render partner/child connection arcs (when mode allows). */
   lines: boolean;
   /** Background star-dust pattern in empty field areas. */
@@ -22,6 +32,7 @@ export interface GridSettings {
 export const DEFAULT_GRID_SETTINGS: GridSettings = {
   animSpeed: 1,
   deptRings: true,
+  deptLabels: false,
   lines: true,
   dust: true,
   crosshair: true,
@@ -140,6 +151,11 @@ export function GridSettingsDrawer({ open, settings, onChange, onClose }: Drawer
         <Row label="Dept rings">
           <Pill active={settings.deptRings} onClick={() => toggle('deptRings', true)} label="on" />
           <Pill active={!settings.deptRings} onClick={() => toggle('deptRings', false)} label="off" />
+        </Row>
+
+        <Row label="Dept labels">
+          <Pill active={settings.deptLabels} onClick={() => toggle('deptLabels', true)} label="on" />
+          <Pill active={!settings.deptLabels} onClick={() => toggle('deptLabels', false)} label="off" />
         </Row>
 
         <Row label="Family lines">

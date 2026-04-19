@@ -22,6 +22,13 @@ export interface HudOpts {
   labelBg?: string;
   /** Theme-resolved text color for secondary HUD lines. */
   textMuted?: string;
+  /**
+   * Whether to render the per-dept labeled boxes. Off by default per
+   * user feedback ("diamond-ish boxes that make no sense" when depts
+   * have only 1-2 colonists). Users can re-enable via the settings
+   * drawer when they want the explicit spatial-dept readout.
+   */
+  deptLabels?: boolean;
 }
 
 const DEPT_COLORS: Record<string, string> = {
@@ -100,7 +107,10 @@ export function drawHud(
   // Dept cluster labels — computed from the live positions, rendered
   // near each cluster's centroid. Labels that would overlap horizontally
   // get bumped vertically in small increments so nothing stacks unread.
-  if (opts.cells && opts.positions && opts.cells.length > 0) {
+  // Gated behind `opts.deptLabels` so the default viz isn't cluttered
+  // by per-dept counts that read as random boxes when each dept only
+  // has 1-2 colonists in the demo-capped population.
+  if (opts.deptLabels && opts.cells && opts.positions && opts.cells.length > 0) {
     const byDept = new Map<string, { xs: number[]; ys: number[] }>();
     for (const c of opts.cells) {
       if (!c.alive) continue;

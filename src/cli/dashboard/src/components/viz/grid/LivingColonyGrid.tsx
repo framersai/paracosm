@@ -560,6 +560,7 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
       previousSnapshot,
       labelBg,
       textMuted,
+      deptLabels: settings.deptLabels,
     });
 
     // Hover ring on top of HUD so it reads as "selected".
