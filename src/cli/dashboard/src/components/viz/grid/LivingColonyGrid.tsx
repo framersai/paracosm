@@ -39,6 +39,10 @@ interface LivingColonyGridProps {
   forgeAttempts?: ForgeAttempt[];
   /** Cumulative reuse calls — drives reuse arcs. */
   reuseCalls?: ReuseCall[];
+  /** Colonists alive on this side but dead on the other at the same
+   *  turn. Highlighted in DIVERGENCE mode + tinted in all other modes
+   *  when non-empty. */
+  divergedIds?: Set<string>;
   /** Invoked when the user chooses "Open chat" inside the popover. */
   onOpenChat?: (colonistName: string) => void;
 }
@@ -105,6 +109,7 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
     hexacoById,
     forgeAttempts,
     reuseCalls,
+    divergedIds,
     onOpenChat,
   } = props;
 
@@ -252,7 +257,15 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
     }
     drawFlares(ctx, gridState.flares);
     if (mode !== 'ecology')
-      drawGlyphs(ctx, snapshot.cells, positions, resolvedSide, glyphIntensity);
+      drawGlyphs(
+        ctx,
+        snapshot.cells,
+        positions,
+        resolvedSide,
+        glyphIntensity,
+        divergedIds,
+        mode === 'divergence',
+      );
     drawHud(ctx, snapshot, {
       leaderName,
       sideColor: resolvedSide,
@@ -294,6 +307,7 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
     seedIntensity,
     glyphIntensity,
     hovered,
+    divergedIds,
   ]);
 
   const onMouseMove = useCallback(
