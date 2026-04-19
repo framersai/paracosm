@@ -17,6 +17,7 @@ import { hitTestGlyph } from './hitTest.js';
 import type { GridMode } from './GridModePills.js';
 import { ClickPopover, type ClickPopoverPayload } from './ClickPopover.js';
 import { useMediaQuery, NARROW_QUERY, REDUCED_MOTION_QUERY } from './useMediaQuery.js';
+import { DEFAULT_GRID_SETTINGS, type GridSettings } from './GridSettingsDrawer.js';
 
 interface HexacoShape { O: number; C: number; E: number; A: number; Em: number; HH: number }
 
@@ -57,6 +58,8 @@ interface LivingColonyGridProps {
   searchQuery?: string;
   /** Display-shader palette: 0=amber, 1=cool, 2=mono. */
   palette?: 0 | 1 | 2;
+  /** User-tunable viz settings (anim speed, rings, lines, dust, crosshair). */
+  settings?: GridSettings;
   /** Invoked when the user chooses "Open chat" inside the popover. */
   onOpenChat?: (colonistName: string) => void;
 }
@@ -128,6 +131,7 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
     onHoverChange,
     searchQuery = '',
     palette = 0,
+    settings = DEFAULT_GRID_SETTINGS,
     onOpenChat,
   } = props;
 
@@ -145,6 +149,10 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
     x: number;
     y: number;
   } | null>(null);
+  // Raw cursor position in overlay-canvas pixel space. Used to draw a
+  // dim crosshair + "nearest colonist" reading even when the cursor
+  // is between glyphs (i.e. no glyph hit but cursor is still on-canvas).
+  const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
   const [popover, setPopover] = useState<ClickPopoverPayload | null>(null);
   /** Turn-transition pulse value in [0, 1], decays per frame. Non-
    *  reactive so it doesn't force re-render on every decay step —
@@ -284,20 +292,22 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
     // Reduced motion: render one tick per snapshot change (no ongoing
     // animation), stepsPerFrame=0 stops RD evolution. Event flares still
     // decay visually but the field itself freezes between turns.
+    const baseSteps = reducedMotion ? 0 : 2;
+    const scaledSteps = Math.max(0, Math.round(baseSteps * settings.animSpeed));
     renderer.tick({
       F: F * fieldIntensity,
       k,
       deposits: [...colonistDeposits, ...flareDepositsGrid],
       sideTint: tintScaled,
-      stepsPerFrame: reducedMotion ? 0 : 2,
+      stepsPerFrame: scaledSteps,
       palette,
     });
 
     const resolvedSide = resolveCssColor(sideColor, containerRef.current);
     ctx.clearRect(0, 0, size.w, size.h);
     if (mode !== 'ecology') drawSeeds(ctx, snapshot.cells, positions);
-    if (mode !== 'ecology') drawDeptRings(ctx, snapshot.cells, positions);
-    if (mode === 'living' || mode === 'mood') {
+    if (mode !== 'ecology' && settings.deptRings) drawDeptRings(ctx, snapshot.cells, positions);
+    if (settings.lines && (mode === 'living' || mode === 'mood')) {
       drawLines(ctx, snapshot.cells, positions, resolvedSide);
     }
     drawFlares(ctx, gridState.flares);
@@ -335,6 +345,53 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
         ctx.beginPath();
         ctx.arc(pos.x, pos.y, 10, 0, Math.PI * 2);
         ctx.stroke();
+        ctx.restore();
+      }
+    }
+    // Dim crosshair following the cursor when it's over the canvas
+    // but not hovering any glyph directly. Gives the user a precise
+    // positional reference when reading the field.
+    if (cursor && !hovered && settings.crosshair) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(216, 204, 176, 0.22)';
+      ctx.lineWidth = 0.5;
+      ctx.setLineDash([3, 4]);
+      ctx.beginPath();
+      ctx.moveTo(0, cursor.y);
+      ctx.lineTo(size.w, cursor.y);
+      ctx.moveTo(cursor.x, 0);
+      ctx.lineTo(cursor.x, size.h);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+      // Nearest alive colonist within a 40px radius — show their name
+      // as a tiny ghost label so the user can orient.
+      let nearest: { id: string; name: string; dx: number; dy: number; d2: number } | null = null;
+      for (const c of snapshot.cells) {
+        if (!c.alive) continue;
+        const pos = positions.get(c.agentId);
+        if (!pos) continue;
+        const dx = pos.x - cursor.x;
+        const dy = pos.y - cursor.y;
+        const d2 = dx * dx + dy * dy;
+        if (d2 > 1600) continue; // >40px
+        if (!nearest || d2 < nearest.d2) nearest = { id: c.agentId, name: c.name, dx, dy, d2 };
+      }
+      if (nearest) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(216, 204, 176, 0.4)';
+        ctx.setLineDash([2, 3]);
+        ctx.lineWidth = 0.6;
+        ctx.beginPath();
+        ctx.moveTo(cursor.x, cursor.y);
+        ctx.lineTo(cursor.x + nearest.dx, cursor.y + nearest.dy);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = 'rgba(216, 204, 176, 0.7)';
+        ctx.font = '9px ui-monospace, monospace';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText(`\u2192 ${nearest.name.split(' ')[0]}`, cursor.x + 6, cursor.y + 6);
         ctx.restore();
       }
     }
@@ -377,6 +434,8 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
     reducedMotion,
     searchQuery,
     palette,
+    cursor,
+    settings,
   ]);
 
   const onMouseMove = useCallback(
@@ -385,6 +444,7 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
       const rect = e.currentTarget.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
+      setCursor({ x, y });
       const hit = hitTestGlyph(snapshot.cells, positions, x, y);
       if (hit) {
         setHovered(prev =>
@@ -400,6 +460,7 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
   );
   const onMouseLeave = useCallback(() => {
     setHovered(null);
+    setCursor(null);
     onHoverChange?.(null);
   }, [onHoverChange]);
   const onClick = useCallback(
@@ -452,17 +513,20 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
           overflow: 'hidden',
           // Background star dust layer: repeating radial-gradient sim-
           // ulates a very faint satellite-scan speckle so empty grid
-          // space doesn't read as flat black.
-          background:
-            `radial-gradient(1px 1px at 12% 28%, rgba(216, 204, 176, 0.12), transparent 60%), ` +
-            `radial-gradient(1px 1px at 37% 73%, rgba(216, 204, 176, 0.08), transparent 60%), ` +
-            `radial-gradient(1px 1px at 64% 14%, rgba(216, 204, 176, 0.1), transparent 60%), ` +
-            `radial-gradient(1px 1px at 82% 52%, rgba(216, 204, 176, 0.07), transparent 60%), ` +
-            `radial-gradient(1px 1px at 51% 90%, rgba(216, 204, 176, 0.09), transparent 60%), ` +
-            `radial-gradient(1px 1px at 7% 61%, rgba(216, 204, 176, 0.06), transparent 60%), ` +
-            `radial-gradient(1px 1px at 93% 84%, rgba(216, 204, 176, 0.08), transparent 60%), ` +
-            `var(--bg-deep)`,
-          backgroundSize: '140px 140px, 160px 160px, 130px 130px, 170px 170px, 150px 150px, 180px 180px, 165px 165px, auto',
+          // space doesn't read as flat black. Toggleable via settings.
+          background: settings.dust
+            ? `radial-gradient(1px 1px at 12% 28%, rgba(216, 204, 176, 0.12), transparent 60%), ` +
+              `radial-gradient(1px 1px at 37% 73%, rgba(216, 204, 176, 0.08), transparent 60%), ` +
+              `radial-gradient(1px 1px at 64% 14%, rgba(216, 204, 176, 0.1), transparent 60%), ` +
+              `radial-gradient(1px 1px at 82% 52%, rgba(216, 204, 176, 0.07), transparent 60%), ` +
+              `radial-gradient(1px 1px at 51% 90%, rgba(216, 204, 176, 0.09), transparent 60%), ` +
+              `radial-gradient(1px 1px at 7% 61%, rgba(216, 204, 176, 0.06), transparent 60%), ` +
+              `radial-gradient(1px 1px at 93% 84%, rgba(216, 204, 176, 0.08), transparent 60%), ` +
+              `var(--bg-deep)`
+            : 'var(--bg-deep)',
+          backgroundSize: settings.dust
+            ? '140px 140px, 160px 160px, 130px 130px, 170px 170px, 150px 150px, 180px 180px, 165px 165px, auto'
+            : 'auto',
           border: `1px solid ${snapshot
             ? snapshot.morale >= 0.6
               ? 'rgba(106, 173, 72, 0.55)'

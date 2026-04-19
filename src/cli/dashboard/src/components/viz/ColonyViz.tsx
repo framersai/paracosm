@@ -34,7 +34,12 @@ import { useMediaQuery, NARROW_QUERY } from './grid/useMediaQuery.js';
 import { TimelineSparkline } from './grid/TimelineSparkline.js';
 import { EventChronicle } from './grid/EventChronicle.js';
 import { TurnProgress } from './grid/TurnProgress.js';
-import { ColonistSearch } from './grid/ColonistSearch.js';
+import { ColonistSearch, type SearchMatch } from './grid/ColonistSearch.js';
+import {
+  GridSettingsDrawer,
+  DEFAULT_GRID_SETTINGS,
+  type GridSettings,
+} from './grid/GridSettingsDrawer.js';
 
 /** Tiny keyboard-shortcut chip for the footer legend. Kept local since
  *  it's only used in the viz tab footer. */
@@ -278,6 +283,28 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
   const cyclePalette = useCallback(() => {
     setPalette(palette === 'amber' ? 'cool' : palette === 'cool' ? 'mono' : 'amber');
   }, [palette, setPalette]);
+
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [gridSettings, setGridSettingsState] = useState<GridSettings>(() => {
+    try {
+      const raw = localStorage.getItem('paracosm:gridSettings');
+      if (raw) {
+        const parsed = JSON.parse(raw) as Partial<GridSettings>;
+        return { ...DEFAULT_GRID_SETTINGS, ...parsed };
+      }
+    } catch {
+      /* silent */
+    }
+    return DEFAULT_GRID_SETTINGS;
+  });
+  const setGridSettings = useCallback((next: GridSettings) => {
+    setGridSettingsState(next);
+    try {
+      localStorage.setItem('paracosm:gridSettings', JSON.stringify(next));
+    } catch {
+      /* silent */
+    }
+  }, []);
 
   // Export the current viz as a composed PNG. Rasterises TurnBanner +
   // the two canvases into an offscreen canvas at 2x for retina
@@ -532,10 +559,26 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
       ? (snapsB[currentTurn - 1] ?? snapsB[snapsB.length - 2])
       : undefined;
     const q = searchQuery.trim().toLowerCase();
-    const searchMatchCount = q
-      ? (snapA?.cells.filter(c => c.alive && c.name.toLowerCase().includes(q)).length ?? 0) +
-        (snapB?.cells.filter(c => c.alive && c.name.toLowerCase().includes(q)).length ?? 0)
-      : 0;
+    const searchMatches: SearchMatch[] = q
+      ? [
+          ...(snapA?.cells ?? [])
+            .filter(c => c.alive && c.name.toLowerCase().includes(q))
+            .map(cell => ({
+              cell,
+              side: 'a' as const,
+              leaderName: leaderA?.name ?? 'Leader A',
+              sideColor: '#e8b44a',
+            })),
+          ...(snapB?.cells ?? [])
+            .filter(c => c.alive && c.name.toLowerCase().includes(q))
+            .map(cell => ({
+              cell,
+              side: 'b' as const,
+              leaderName: leaderB?.name ?? 'Leader B',
+              sideColor: '#4ecdc4',
+            })),
+        ]
+      : [];
     return (
       <div
         ref={vizRootRef}
@@ -616,6 +659,26 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
             </button>
             <button
               type="button"
+              onClick={() => setSettingsOpen(o => !o)}
+              aria-label="Open grid settings"
+              aria-expanded={settingsOpen}
+              title="Viz settings"
+              style={{
+                padding: '0 10px',
+                background: settingsOpen ? 'var(--amber)' : 'var(--bg-card)',
+                color: settingsOpen ? 'var(--bg-deep)' : 'var(--text-3)',
+                border: '1px solid var(--border)',
+                borderRadius: 3,
+                cursor: 'pointer',
+                fontFamily: 'var(--mono)',
+                fontSize: 12,
+                fontWeight: 800,
+              }}
+            >
+              {'\u2699'}
+            </button>
+            <button
+              type="button"
               onClick={() => setHelpOpen(true)}
               aria-label="Open help overlay (shortcut: ?)"
               title="Help — what do these colors / symbols mean? (press ?)"
@@ -649,7 +712,13 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
         <ColonistSearch
           value={searchQuery}
           onChange={setSearchQuery}
-          matchCount={searchMatchCount}
+          matches={searchMatches}
+          onPick={m => {
+            // Narrow the query to exactly this colonist so the bright
+            // ring lands on a single glyph. Click the glyph for full
+            // drilldown / chat.
+            setSearchQuery(m.cell.name);
+          }}
         />
         <TurnProgress
           eventsA={state.a.events as Array<{ type: string; turn?: number; data?: Record<string, unknown> }>}
@@ -711,6 +780,7 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
             onHoverChange={setHoveredA}
             searchQuery={searchQuery}
             palette={palette === 'cool' ? 1 : palette === 'mono' ? 2 : 0}
+            settings={gridSettings}
             onOpenChat={handleOpenChat}
           />
           <LivingColonyGrid
@@ -732,6 +802,7 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
             onHoverChange={setHoveredB}
             searchQuery={searchQuery}
             palette={palette === 'cool' ? 1 : palette === 'mono' ? 2 : 0}
+            settings={gridSettings}
             onOpenChat={handleOpenChat}
           />
         </div>
@@ -791,6 +862,12 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
             : ''}
         </div>
         <GridHelpOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
+        <GridSettingsDrawer
+          open={settingsOpen}
+          settings={gridSettings}
+          onChange={setGridSettings}
+          onClose={() => setSettingsOpen(false)}
+        />
         {crisisToast && (
           <div
             key={crisisToast.key}
