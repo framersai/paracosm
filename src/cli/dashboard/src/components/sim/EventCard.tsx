@@ -203,7 +203,16 @@ export function EventCard({ event, side }: EventCardProps) {
 
     case 'dept_done': {
       const dept = String(dd.department || '');
-      const tools = (dd._filteredTools as Array<Record<string, unknown>>) || [];
+      // Dedupe: newly-forged tools this turn already appeared as live
+      // `forge_attempt` cards above in the sim log — rendering them
+      // again in the dept summary produces stylistically-inconsistent
+      // duplicate cards for the same forge. `allTools` keeps the total
+      // count (new + reused) for the "+N tools" badge so the dept
+      // header still reflects full activity; `tools` filters to only
+      // reused entries which show cross-dept reuse + first-forge
+      // back-reference that forge_attempt cards don't.
+      const allTools = (dd._filteredTools as Array<Record<string, unknown>>) || [];
+      const tools = allTools.filter(t => t?.isNew !== true);
       const risks = Array.isArray(dd.risks) ? dd.risks : [];
       const recs = Array.isArray(dd.recommendedActions) ? dd.recommendedActions.map(String) : [];
       const severity = risks.some((r: any) => r.severity === 'critical') ? 'critical' : risks.some((r: any) => r.severity === 'high') ? 'high' : '';
@@ -211,8 +220,11 @@ export function EventCard({ event, side }: EventCardProps) {
       const summary = String(dd.summary || '');
       const citeCount = Number(dd.citations) || 0;
 
-      // Don't render empty department cards with no content
-      if (!summary && risks.length === 0 && recs.length === 0 && tools.length === 0 && citeCount === 0) {
+      // Don't render empty department cards with no content. Use
+      // allTools here so we don't drop the dept card entirely when a
+      // dept only forged new tools (those still count as real work;
+      // they're just rendered above as forge_attempt cards).
+      if (!summary && risks.length === 0 && recs.length === 0 && allTools.length === 0 && citeCount === 0) {
         return null;
       }
 
@@ -230,9 +242,10 @@ export function EventCard({ event, side }: EventCardProps) {
               <span style={{ fontWeight: 800, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--teal)' }}>
                 {scenario.ui.departmentIcons[dept] || ''} {dept}
               </span>
-              {tools.length > 0 && (
+              {allTools.length > 0 && (
                 <span style={{ fontSize: '10px', color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
-                  +{tools.length} tool{tools.length === 1 ? '' : 's'}
+                  +{allTools.length} tool{allTools.length === 1 ? '' : 's'}
+                  {tools.length < allTools.length && ` (${tools.length} reused)`}
                 </span>
               )}
               {severity && (
@@ -255,12 +268,12 @@ export function EventCard({ event, side }: EventCardProps) {
               <div style={{ fontSize: '12px', color: 'var(--text-1)', lineHeight: 1.5, marginBottom: '6px' }}>
                 {summary}
               </div>
-            ) : (risks.length === 0 && recs.length === 0) && (citeCount > 0 || tools.length > 0) ? (
+            ) : (risks.length === 0 && recs.length === 0) && (citeCount > 0 || allTools.length > 0) ? (
               <div style={{ fontSize: '11px', color: 'var(--text-3)', fontStyle: 'italic', lineHeight: 1.5, marginBottom: '6px' }}>
                 Department analysis complete &mdash; no narrative summary returned, but
                 {citeCount > 0 && ` ${citeCount} source${citeCount === 1 ? '' : 's'} surveyed`}
-                {citeCount > 0 && tools.length > 0 && ' and '}
-                {tools.length > 0 && ` ${tools.length} tool${tools.length === 1 ? '' : 's'} forged`}
+                {citeCount > 0 && allTools.length > 0 && ' and '}
+                {allTools.length > 0 && ` ${allTools.length} tool${allTools.length === 1 ? '' : 's'} forged`}
                 .
               </div>
             ) : null}
