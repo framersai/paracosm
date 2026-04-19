@@ -171,30 +171,49 @@ function AppContent() {
   // historical run. Live forge_attempt events that arrive after the
   // buffer flush get a toast each.
   const seenForgeKeysRef = useRef<Set<string>>(new Set());
+  // Index of the last event we've already inspected for forge toasts.
+  // Before the fix this effect relied on a transient `sse.replayDone === false`
+  // render to seed the dedupe set, but React 18 automatic batching
+  // merged the entire SSE buffer flush plus the replay_done flip into
+  // one render, so the seeding phase never ran. Every forge in the
+  // replayed buffer then looked "new" and fired a toast. Tracking the
+  // last-processed index is framework-independent: the first effect
+  // fire after mount seeds whatever's already in events (treat as
+  // historical), and only events added later can toast.
+  const seededForgesRef = useRef<boolean>(false);
+  const lastForgeIndexRef = useRef<number>(-1);
   // `toast` must be declared before the effect below: reading it from
   // the dep array on first render would throw TDZ ("Cannot access 'toast'
   // before initialization") if the const sat below the useEffect.
   const { toast } = useToast();
   useEffect(() => {
-    if (!sse.replayDone) {
-      // Pre-replay: seed the dedupe set with every forge_attempt
-      // currently in the buffer so we don't toast them once replayDone
-      // flips. Only EVENTS THAT ARRIVE AFTER buffer flush should toast.
+    const forgeKey = (ev: typeof effectiveEvents[number]): string => {
+      const d = ev.data as Record<string, unknown>;
+      return `${ev.leader || ''}|${d?.name || ''}|${d?.timestamp || ''}|${d?.approved}`;
+    };
+
+    if (!seededForgesRef.current) {
+      // First fire after mount. Whatever is already in the events array
+      // is historical replay from the server's SSE buffer; seed the
+      // dedupe set but never toast.
       for (const ev of effectiveEvents) {
-        if (ev.type === 'forge_attempt') {
-          const d = ev.data as Record<string, unknown>;
-          const key = `${ev.leader || ''}|${d?.name || ''}|${d?.timestamp || ''}|${d?.approved}`;
-          seenForgeKeysRef.current.add(key);
-        }
+        if (ev.type !== 'forge_attempt') continue;
+        seenForgeKeysRef.current.add(forgeKey(ev));
       }
+      lastForgeIndexRef.current = effectiveEvents.length - 1;
+      seededForgesRef.current = true;
       return;
     }
-    for (const ev of effectiveEvents) {
+
+    // Subsequent fires: only events added after lastForgeIndexRef are
+    // "live" and candidates for a toast.
+    for (let i = lastForgeIndexRef.current + 1; i < effectiveEvents.length; i++) {
+      const ev = effectiveEvents[i];
       if (ev.type !== 'forge_attempt') continue;
-      const d = ev.data as Record<string, unknown>;
-      const key = `${ev.leader || ''}|${d?.name || ''}|${d?.timestamp || ''}|${d?.approved}`;
+      const key = forgeKey(ev);
       if (seenForgeKeysRef.current.has(key)) continue;
       seenForgeKeysRef.current.add(key);
+      const d = ev.data as Record<string, unknown>;
       const name = String(d?.name || 'unnamed tool');
       const dept = String(d?.department || ev.leader || '').toUpperCase();
       const approved = d?.approved === true;
@@ -215,7 +234,8 @@ function AppContent() {
         );
       }
     }
-  }, [effectiveEvents, sse.replayDone, toast]);
+    lastForgeIndexRef.current = effectiveEvents.length - 1;
+  }, [effectiveEvents, toast]);
   const citationRegistry = useCitationRegistry(gameState);
   const toolRegistry = useToolRegistry(gameState);
   const persistence = useGamePersistence(scenario.labels.shortName);
