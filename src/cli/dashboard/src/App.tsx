@@ -388,6 +388,39 @@ function AppContent() {
   // think nothing happened and click Run again.
   const [launching, setLaunching] = useState(false);
 
+  // Accumulator for /chat turn cost + tokens. Folded into the Footer's
+  // `cost` prop so users see the real run-plus-chat total spend. Prior
+  // behaviour: footer only counted simulation cost, chat turns billed
+  // invisibly. Reset to zero whenever the sim event list empties —
+  // that is the canonical "fresh session" signal (both handleClear and
+  // fresh-mount routes through it).
+  const [chatUsage, setChatUsage] = useState<{ totalTokens: number; costUSD: number; calls: number }>({
+    totalTokens: 0,
+    costUSD: 0,
+    calls: 0,
+  });
+  const handleChatUsage = useCallback((usage: { totalTokens: number; costUSD: number }) => {
+    setChatUsage(prev => ({
+      totalTokens: prev.totalTokens + (usage.totalTokens || 0),
+      costUSD: Math.round((prev.costUSD + (usage.costUSD || 0)) * 10000) / 10000,
+      calls: prev.calls + 1,
+    }));
+  }, []);
+  // Zero the chat-usage accumulator when the sim is cleared. Detecting
+  // a clear via events.length going to zero keeps this decoupled from
+  // the specific handleClear implementation — if Clear gains new side
+  // effects or a new code path empties the buffer, chatUsage still
+  // resets correctly without additional wiring.
+  const prevEventsLenRef = useRef(sse.events.length);
+  useEffect(() => {
+    const prev = prevEventsLenRef.current;
+    const curr = sse.events.length;
+    prevEventsLenRef.current = curr;
+    if (prev > 0 && curr === 0) {
+      setChatUsage({ totalTokens: 0, costUSD: 0, calls: 0 });
+    }
+  }, [sse.events.length]);
+
   // Auto-clear launching once the sim actually starts running, is
   // complete, or the connection errored. Earlier this cleared on any
   // SSE event arriving, but the server broadcasts a `status
@@ -732,7 +765,7 @@ function AppContent() {
                 (Sim, Viz, Settings, Reports, Log) have no user-generated
                 state at risk and stay on the unmount-on-switch pattern. */}
             <div style={{ display: activeTab === 'chat' ? 'flex' : 'none', flex: 1, minHeight: 0, flexDirection: 'column' }}>
-              <ChatPanel state={gameState} />
+              <ChatPanel state={gameState} onChatUsage={handleChatUsage} />
             </div>
 
             {activeTab === 'log' && (
@@ -789,7 +822,11 @@ function AppContent() {
             {/* About tab redirects to the landing page */}
           </main>
           <Footer
-            cost={gameState.cost}
+            cost={{
+              totalTokens: (gameState.cost?.totalTokens ?? 0) + chatUsage.totalTokens,
+              totalCostUSD: Math.round(((gameState.cost?.totalCostUSD ?? 0) + chatUsage.costUSD) * 10000) / 10000,
+              llmCalls: (gameState.cost?.llmCalls ?? 0) + chatUsage.calls,
+            }}
             simStatus={{
               isRunning: gameState.isRunning,
               isComplete: sse.isComplete,

@@ -35,6 +35,13 @@ interface AgentInfo {
 
 interface ChatPanelProps {
   state: GameState;
+  /**
+   * Fires after every /chat response with the per-turn usage payload
+   * the server surfaced. Lifted so App can accumulate chat spend into
+   * the global footer readout — previously chat calls billed silently
+   * while the footer only counted simulation cost.
+   */
+  onChatUsage?: (usage: { totalTokens: number; costUSD: number }) => void;
 }
 
 const moodColors: Record<string, string> = {
@@ -118,7 +125,7 @@ function EventContext({ memory, events, scenario }: { memory: AgentMemoryInfo; e
   );
 }
 
-export function ChatPanel({ state }: ChatPanelProps) {
+export function ChatPanel({ state, onChatUsage }: ChatPanelProps) {
   const scenario = useScenarioContext();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // Per-agent message threads — switching agents no longer wipes history.
@@ -270,6 +277,17 @@ export function ChatPanel({ state }: ChatPanelProps) {
       if (data.reply) {
         setMessagesFor(targetId, prev => [...prev, { role: 'agent', name: data.colonist || targetId, text: data.reply }]);
         setHistoryFor(targetId, prev => [...prev, { role: 'assistant', content: data.reply }]);
+        // Bubble the chat turn's token/cost usage up so the footer can
+        // add it to the simulation-cost total. Failure-path responses
+        // (no reply, error text) don't incur server-side LLM cost so
+        // they skip the callback.
+        const usage = data.usage as { totalTokens?: number; costUSD?: number } | undefined;
+        if (usage && onChatUsage) {
+          onChatUsage({
+            totalTokens: usage.totalTokens ?? 0,
+            costUSD: usage.costUSD ?? 0,
+          });
+        }
       } else {
         setMessagesFor(targetId, prev => [...prev, { role: 'agent', text: data.error || 'No response' }]);
       }

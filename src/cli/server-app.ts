@@ -1105,12 +1105,25 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         const result = await session.send(message);
         restoreChatEnv();
 
+        // Surface per-turn token usage + cost so the dashboard footer
+        // can fold chat spend into the run-total display. Without this,
+        // the cost readout only reflected the simulation pipeline and
+        // users racked up chat charges invisibly.
+        const usage = (result as { usage?: { totalTokens?: number; costUSD?: number; promptTokens?: number; completionTokens?: number; cacheReadTokens?: number; cacheCreationTokens?: number } }).usage ?? {};
         res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
           reply: result.text,
           colonist: profile.name,
           memorySeeded: memories.length,
           firstMessage: isNew,
+          usage: {
+            totalTokens: usage.totalTokens ?? 0,
+            costUSD: usage.costUSD ?? 0,
+            promptTokens: usage.promptTokens ?? 0,
+            completionTokens: usage.completionTokens ?? 0,
+            cacheReadTokens: usage.cacheReadTokens ?? 0,
+            cacheCreationTokens: usage.cacheCreationTokens ?? 0,
+          },
         }));
       } catch (err) {
         // Restore env on error path too — mutations happened before
