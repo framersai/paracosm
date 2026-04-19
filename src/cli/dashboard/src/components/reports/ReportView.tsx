@@ -483,7 +483,7 @@ const moodColors: Record<string, string> = {
   defiant: 'var(--rust)', hopeful: 'var(--green)', resigned: 'var(--text-3)', neutral: 'var(--text-2)',
 };
 
-function EventSide({ block, eventIndex, totalEvents, name, sideColor }: {
+function EventSide({ block, eventIndex, totalEvents, name, sideColor, sections }: {
   block: EventBlock | undefined;
   eventIndex: number;
   totalEvents: number;
