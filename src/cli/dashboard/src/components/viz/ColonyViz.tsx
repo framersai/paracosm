@@ -28,7 +28,7 @@ import { Legend } from './Legend.js';
 import { DrilldownPanel } from './DrilldownPanel.js';
 import { VizControls } from './VizControls.js';
 import { LivingColonyGrid } from './grid/LivingColonyGrid.js';
-import { GridModePills, type GridMode } from './grid/GridModePills.js';
+import { GridModePills, gridModeHint, type GridMode } from './grid/GridModePills.js';
 import { GridHelpOverlay } from './grid/GridHelpOverlay.js';
 import { useMediaQuery, NARROW_QUERY } from './grid/useMediaQuery.js';
 import {
@@ -369,36 +369,49 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
         <TurnBanner state={state} currentTurn={currentTurn} />
         <div
           style={{
-            padding: '6px 10px',
+            padding: '6px 10px 4px',
             background: 'var(--bg-deep)',
             borderBottom: '1px solid var(--border)',
             display: 'flex',
-            gap: 8,
-            alignItems: 'stretch',
+            flexDirection: 'column',
+            gap: 4,
           }}
         >
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <GridModePills mode={gridMode} onChange={setGridMode} />
+          <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <GridModePills mode={gridMode} onChange={setGridMode} />
+            </div>
+            <button
+              type="button"
+              onClick={() => setHelpOpen(true)}
+              aria-label="Open help overlay (shortcut: ?)"
+              title="Help — what do these colors / symbols mean? (press ?)"
+              style={{
+                padding: '0 10px',
+                background: 'var(--bg-card)',
+                color: 'var(--text-3)',
+                border: '1px solid var(--border)',
+                borderRadius: 3,
+                cursor: 'pointer',
+                fontFamily: 'var(--mono)',
+                fontSize: 11,
+                fontWeight: 800,
+              }}
+            >
+              ?
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => setHelpOpen(true)}
-            aria-label="Open help overlay (shortcut: ?)"
-            title="Help — what do these colors / symbols mean? (press ?)"
+          <div
             style={{
-              padding: '0 10px',
-              background: 'var(--bg-card)',
-              color: 'var(--text-3)',
-              border: '1px solid var(--border)',
-              borderRadius: 3,
-              cursor: 'pointer',
+              fontSize: 9,
+              color: 'var(--text-4)',
               fontFamily: 'var(--mono)',
-              fontSize: 11,
-              fontWeight: 800,
+              letterSpacing: '0.04em',
+              minHeight: 12,
             }}
           >
-            ?
-          </button>
+            {gridModeHint(gridMode)}
+          </div>
         </div>
         {diffLine && (
           <div style={{
@@ -467,6 +480,28 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
           onStepForward={handleStepForward}
           onSpeedChange={setSpeed}
         />
+        {/* Off-screen aria-live region announces turn deltas to
+            screen readers without visual change. Only updates when
+            the turn index changes. */}
+        <div
+          aria-live="polite"
+          aria-atomic="true"
+          style={{
+            position: 'absolute',
+            width: 1,
+            height: 1,
+            padding: 0,
+            margin: -1,
+            overflow: 'hidden',
+            clip: 'rect(0, 0, 0, 0)',
+            whiteSpace: 'nowrap',
+            border: 0,
+          }}
+        >
+          {snapA && snapB
+            ? `Turn ${Math.max(snapA.turn, snapB.turn)}. ${leaderA?.name ?? 'A'} colony: ${snapA.cells.filter(c => c.alive).length} alive, ${snapA.births} born, ${snapA.deaths} died, morale ${Math.round(snapA.morale * 100)}%. ${leaderB?.name ?? 'B'} colony: ${snapB.cells.filter(c => c.alive).length} alive, ${snapB.births} born, ${snapB.deaths} died, morale ${Math.round(snapB.morale * 100)}%.`
+            : ''}
+        </div>
         <GridHelpOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
       </div>
     );
