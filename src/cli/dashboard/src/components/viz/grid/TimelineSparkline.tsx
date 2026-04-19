@@ -115,8 +115,8 @@ export function TimelineSparkline({
         <span style={{ display: 'flex', gap: 10 }}>
           <span style={{ color: 'var(--vis)' }}>A</span>
           <span style={{ color: 'var(--eng)' }}>B</span>
-          <span style={{ color: 'var(--text-3)' }}>\u2014 morale</span>
-          <span style={{ color: 'var(--text-3)' }}>\u00B7\u00B7\u00B7 pop</span>
+          <span style={{ color: 'var(--text-3)' }}>— morale</span>
+          <span style={{ color: 'var(--text-3)' }}>··· pop</span>
           <span style={{ color: 'var(--text-3)' }}>- - food</span>
         </span>
       </div>
