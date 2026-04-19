@@ -176,6 +176,14 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
    *  the render effect reads `.current` inline. */
   const pulseRef = useRef<number>(0);
   const lastTurnRef = useRef<number>(-1);
+  // Relationship-flare: when a colonist is clicked, brighten their
+  // partner/child arcs briefly (~1s decay). Ref, not state, so the
+  // decay itself doesn't force re-render — consumed in the render
+  // effect alongside the RD pulse.
+  const relationshipFlareRef = useRef<{ id: string | null; intensity: number }>({
+    id: null,
+    intensity: 0,
+  });
 
   // Resize observer on the canvas wrapper (not the full container — the
   // container also holds the metrics strip DOM above the canvas).
@@ -352,7 +360,15 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
       );
     }
     if (settings.lines && (mode === 'living' || mode === 'mood')) {
-      drawLines(ctx, snapshot.cells, positions, resolvedSide);
+      // Decay relationship flare ~0.03/frame → ~1s total at 30fps.
+      relationshipFlareRef.current.intensity = Math.max(
+        0,
+        relationshipFlareRef.current.intensity - 0.03,
+      );
+      drawLines(ctx, snapshot.cells, positions, resolvedSide, {
+        flareAgentId: relationshipFlareRef.current.id,
+        flareIntensity: relationshipFlareRef.current.intensity,
+      });
     }
     drawFlares(ctx, gridState.flares);
     if (mode !== 'ecology')
@@ -366,6 +382,8 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
         mode === 'divergence',
         reducedMotion ? 0 : performance.now(),
         searchQuery,
+        true, // always-on labels for featured + diverged
+        textMuted,
       );
     // Resolve theme-dependent colors from CSS vars so HUD label boxes
     // and secondary text read correctly under both light + dark themes.
@@ -549,6 +567,7 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
       if (hit) {
         setPopover({ cell: hit, x, y });
         setHovered(null);
+        relationshipFlareRef.current = { id: hit.agentId, intensity: 1 };
       }
     },
     [snapshot, positions],

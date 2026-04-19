@@ -43,6 +43,7 @@ import {
 import { useSoundCues } from './grid/useSoundCues.js';
 import { RunSummaryDrawer } from './grid/RunSummaryDrawer.js';
 import { ForgeLineageModal, type ForgeLineagePayload } from './grid/ForgeLineageModal.js';
+import { ExportMenu } from './grid/ExportMenu.js';
 
 /** Tiny keyboard-shortcut chip for the footer legend. Kept local since
  *  it's only used in the viz tab footer. */
@@ -616,6 +617,36 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
   const snapATurn = snapA?.turn ?? 0;
   const snapBTurn = snapB?.turn ?? 0;
 
+  // Memoize search matches: recomputes only when the query or either
+  // snapshot changes. Previously re-ran on every parent re-render,
+  // which fires roughly per animation frame via child tickClock bumps.
+  const searchMatchesMemo = useMemo<SearchMatch[]>(() => {
+    const tokens = searchQuery.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) return [];
+    const cellMatches = (c: CellSnapshot): boolean => {
+      const hay = `${c.name} ${c.department} ${c.role} ${c.mood}`.toLowerCase();
+      return tokens.every(t => hay.includes(t));
+    };
+    return [
+      ...(snapA?.cells ?? [])
+        .filter(c => c.alive && cellMatches(c))
+        .map(cell => ({
+          cell,
+          side: 'a' as const,
+          leaderName: leaderA?.name ?? 'Leader A',
+          sideColor: '#e8b44a',
+        })),
+      ...(snapB?.cells ?? [])
+        .filter(c => c.alive && cellMatches(c))
+        .map(cell => ({
+          cell,
+          side: 'b' as const,
+          leaderName: leaderB?.name ?? 'Leader B',
+          sideColor: '#4ecdc4',
+        })),
+    ];
+  }, [searchQuery, snapA, snapB, leaderA, leaderB]);
+
   const divergenceData = useMemo(() => computeDivergence(snapA, snapB), [snapA, snapB]);
   const divergedIds = showDivergence ? divergenceData : null;
 
@@ -769,32 +800,10 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
     const prevSnapB = currentTurn > 0
       ? (snapsB[currentTurn - 1] ?? snapsB[snapsB.length - 2])
       : undefined;
-    const tokens = searchQuery.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    const cellMatches = (c: CellSnapshot): boolean => {
-      if (tokens.length === 0) return false;
-      const hay = `${c.name} ${c.department} ${c.role} ${c.mood}`.toLowerCase();
-      return tokens.every(t => hay.includes(t));
-    };
-    const searchMatches: SearchMatch[] = tokens.length
-      ? [
-          ...(snapA?.cells ?? [])
-            .filter(c => c.alive && cellMatches(c))
-            .map(cell => ({
-              cell,
-              side: 'a' as const,
-              leaderName: leaderA?.name ?? 'Leader A',
-              sideColor: '#e8b44a',
-            })),
-          ...(snapB?.cells ?? [])
-            .filter(c => c.alive && cellMatches(c))
-            .map(cell => ({
-              cell,
-              side: 'b' as const,
-              leaderName: leaderB?.name ?? 'Leader B',
-              sideColor: '#4ecdc4',
-            })),
-        ]
-      : [];
+    // Search matches are recomputed only when the query or snapshots
+    // change, not on every parent re-render (was triggering on every
+    // tickClock bump ~30x/sec before this memo).
+    const searchMatches: SearchMatch[] = searchMatchesMemo;
     return (
       <div
         ref={vizRootRef}
@@ -873,81 +882,12 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
             >
               STATS
             </button>
-            <button
-              type="button"
-              onClick={handleExportPng}
-              aria-label="Export current frame as PNG"
-              title="Export PNG"
-              style={{
-                padding: '0 10px',
-                background: 'var(--bg-card)',
-                color: 'var(--text-3)',
-                border: '1px solid var(--border)',
-                borderRadius: 3,
-                cursor: 'pointer',
-                fontFamily: 'var(--mono)',
-                fontSize: 10,
-                fontWeight: 800,
-                letterSpacing: '0.08em',
-              }}
-            >
-              PNG
-            </button>
-            <button
-              type="button"
-              onClick={recording ? stopTimelapse : startTimelapse}
-              aria-label={recording ? 'Stop timelapse recording' : 'Start timelapse recording'}
-              title={recording ? 'Stop & download webm' : 'Record timelapse to webm'}
-              style={{
-                padding: '0 10px',
-                background: recording ? 'var(--rust)' : 'var(--bg-card)',
-                color: recording ? 'var(--bg-deep)' : 'var(--text-3)',
-                border: `1px solid ${recording ? 'var(--rust)' : 'var(--border)'}`,
-                borderRadius: 3,
-                cursor: 'pointer',
-                fontFamily: 'var(--mono)',
-                fontSize: 10,
-                fontWeight: 800,
-                letterSpacing: '0.08em',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 5,
-                animation: recording
-                  ? 'paracosm-rec-pulse 1.2s ease-in-out infinite'
-                  : undefined,
-              }}
-            >
-              <span
-                style={{
-                  display: 'inline-block',
-                  width: 6,
-                  height: 6,
-                  borderRadius: 999,
-                  background: recording ? 'var(--bg-deep)' : 'var(--rust)',
-                }}
-              />
-              REC
-            </button>
-            <button
-              type="button"
-              onClick={handleExportJson}
-              aria-label="Export run snapshots + events as JSON"
-              title="Export JSON"
-              style={{
-                padding: '0 10px',
-                background: 'var(--bg-card)',
-                color: 'var(--text-3)',
-                border: '1px solid var(--border)',
-                borderRadius: 3,
-                cursor: 'pointer',
-                fontFamily: 'var(--mono)',
-                fontSize: 10,
-                fontWeight: 800,
-                letterSpacing: '0.08em',
-              }}
-            >
-              JSON
-            </button>
+            <ExportMenu
+              recording={recording}
+              onExportPng={handleExportPng}
+              onExportJson={handleExportJson}
+              onToggleRecording={recording ? stopTimelapse : startTimelapse}
+            />
             <button
               type="button"
               onClick={() => setSettingsOpen(o => !o)}
