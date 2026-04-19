@@ -55,8 +55,8 @@ export function drawHud(
   }
 
   // Dept cluster labels — computed from the live positions, rendered
-  // near each cluster's centroid so colonist blobs stop reading as
-  // unlabeled noise. Matches legacy tile-grid DeptBand section titles.
+  // near each cluster's centroid. Labels that would overlap horizontally
+  // get bumped vertically in small increments so nothing stacks unread.
   if (opts.cells && opts.positions && opts.cells.length > 0) {
     const byDept = new Map<string, { xs: number[]; ys: number[] }>();
     for (const c of opts.cells) {
@@ -72,23 +72,62 @@ export function drawHud(
     ctx.font = 'bold 9px ui-monospace, monospace';
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'center';
+
+    // Build placed labels with their ideal anchor, then resolve
+    // collisions by shifting labels vertically until their rects don't
+    // overlap any already-placed label (within the container).
+    type Placed = { dept: string; cx: number; y: number; w: number; h: number; label: string };
+    const pending: Array<Omit<Placed, 'y'> & { idealY: number }> = [];
     for (const [dept, slot] of byDept.entries()) {
       if (slot.xs.length === 0) continue;
       const cx = slot.xs.reduce((a, b) => a + b, 0) / slot.xs.length;
       const minY = Math.min(...slot.ys);
-      const labelY = Math.max(14, minY - 14);
+      const idealY = Math.max(14, minY - 14);
       const label = `${dept.toUpperCase()} ${slot.xs.length}`;
       const metrics = ctx.measureText(label);
       const padX = 4;
-      const boxW = metrics.width + padX * 2;
-      const boxH = 14;
+      pending.push({
+        dept,
+        cx,
+        w: metrics.width + padX * 2,
+        h: 14,
+        label,
+        idealY,
+      });
+    }
+    pending.sort((a, b) => a.idealY - b.idealY);
+    const placed: Placed[] = [];
+    const overlaps = (a: { cx: number; w: number; y: number; h: number }, b: Placed): boolean => {
+      return (
+        Math.abs(a.cx - b.cx) < (a.w + b.w) / 2 + 2 &&
+        Math.abs(a.y - b.y) < (a.h + b.h) / 2 + 2
+      );
+    };
+    for (const p of pending) {
+      let y = p.idealY;
+      // Try pushing up first, then down, in 16px steps.
+      for (let step = 0; step < 10; step++) {
+        const up = p.idealY - step * 16;
+        const down = p.idealY + step * 16;
+        const candY = step === 0 ? p.idealY : up >= 10 ? up : down;
+        const collided = placed.some(other =>
+          overlaps({ cx: p.cx, w: p.w, y: candY, h: p.h }, other),
+        );
+        if (!collided) {
+          y = candY;
+          break;
+        }
+      }
+      placed.push({ ...p, y });
+    }
+    for (const p of placed) {
       ctx.fillStyle = 'rgba(10, 8, 6, 0.85)';
-      ctx.fillRect(cx - boxW / 2, labelY - boxH / 2, boxW, boxH);
-      ctx.strokeStyle = deptColor(dept);
+      ctx.fillRect(p.cx - p.w / 2, p.y - p.h / 2, p.w, p.h);
+      ctx.strokeStyle = deptColor(p.dept);
       ctx.lineWidth = 1;
-      ctx.strokeRect(cx - boxW / 2 + 0.5, labelY - boxH / 2 + 0.5, boxW - 1, boxH - 1);
-      ctx.fillStyle = deptColor(dept);
-      ctx.fillText(label, cx, labelY);
+      ctx.strokeRect(p.cx - p.w / 2 + 0.5, p.y - p.h / 2 + 0.5, p.w - 1, p.h - 1);
+      ctx.fillStyle = deptColor(p.dept);
+      ctx.fillText(p.label, p.cx, p.y);
     }
   }
 

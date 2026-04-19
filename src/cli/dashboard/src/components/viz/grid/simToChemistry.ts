@@ -78,9 +78,12 @@ export function computeInjections(
     const pos = positions.get(c.agentId);
     if (!pos) continue;
     const contrib = MOOD_CONTRIB[c.mood] ?? 0;
-    const sizeMult = c.featured ? 1.8 : 1.0;
+    const sizeMult = c.featured ? 1.5 : 1.0;
     const psych = typeof c.psychScore === 'number' ? c.psychScore : 0.5;
-    const strength = 0.12 * sizeMult * psych * Math.abs(contrib);
+    // 0.04 baseline (was 0.12 — caused field saturation into solid
+    // amber blobs). Paired with Gray-Scott's native F*(1-U) feed term,
+    // the field equilibrates rather than saturating.
+    const strength = 0.04 * sizeMult * psych * Math.abs(contrib);
     if (strength <= 0) continue;
     out.push({
       agentId: c.agentId,

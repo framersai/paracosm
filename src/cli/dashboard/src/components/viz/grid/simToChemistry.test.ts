@@ -105,7 +105,7 @@ test('computeInjections: positive mood → U channel (0), negative mood → V ch
   assert.ok(pos.strength > 0 && neg.strength > 0, 'strengths positive');
 });
 
-test('computeInjections: featured colonists inject ~1.8x harder', () => {
+test('computeInjections: featured colonists inject ~1.5x harder', () => {
   const cells = [cell('plain', 'positive'), cell('featured', 'positive', { featured: true })];
   const injections = computeInjections(
     cells,
@@ -117,7 +117,7 @@ test('computeInjections: featured colonists inject ~1.8x harder', () => {
   const p = injections.find(i => i.agentId === 'plain')!;
   const f = injections.find(i => i.agentId === 'featured')!;
   assert.ok(
-    f.strength > p.strength * 1.6,
-    `featured=${f.strength} > plain=${p.strength} * 1.6`,
+    f.strength > p.strength * 1.4,
+    `featured=${f.strength} > plain=${p.strength} * 1.4`,
   );
 });

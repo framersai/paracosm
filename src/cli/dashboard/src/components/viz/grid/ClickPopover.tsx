@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import type { CellSnapshot, TurnSnapshot } from '../viz-types.js';
 import { HexacoRadar } from '../HexacoRadar.js';
+import { useMediaQuery, PHONE_QUERY } from './useMediaQuery.js';
 
 interface HexacoShape { O: number; C: number; E: number; A: number; Em: number; HH: number }
 
@@ -94,19 +95,24 @@ export function ClickPopover(props: ClickPopoverProps) {
     return out.slice(0, 3);
   }, [payload, snapshots]);
 
+  const phone = useMediaQuery(PHONE_QUERY);
   if (!payload) return null;
 
-  const POP_W = 320;
-  const POP_H_EST = 360;
+  // On phones the popover takes nearly full panel width; on desktop it
+  // floats next to the clicked glyph with smart edge-flip.
+  const POP_W = phone ? Math.min(320, containerW - 16) : 320;
+  const POP_H_EST = Math.min(360, containerH - 20);
   const margin = 10;
-  const flipRight = payload.x + POP_W + margin > containerW;
-  const flipDown = payload.y - POP_H_EST - margin < 0;
-  const left = flipRight
-    ? Math.max(margin, payload.x - POP_W - margin)
-    : Math.min(containerW - POP_W - margin, payload.x + margin);
-  const top = flipDown
-    ? Math.min(containerH - POP_H_EST - margin, payload.y + margin)
-    : Math.max(margin, payload.y - POP_H_EST - margin);
+  const left = phone
+    ? Math.max(8, (containerW - POP_W) / 2)
+    : (payload.x + POP_W + margin > containerW
+        ? Math.max(margin, payload.x - POP_W - margin)
+        : Math.min(containerW - POP_W - margin, payload.x + margin));
+  const top = phone
+    ? Math.max(8, (containerH - POP_H_EST) / 2)
+    : (payload.y - POP_H_EST - margin < 0
+        ? Math.min(containerH - POP_H_EST - margin, payload.y + margin)
+        : Math.max(margin, payload.y - POP_H_EST - margin));
 
   const cell = payload.cell;
   const morale = typeof cell.psychScore === 'number' ? Math.round(cell.psychScore * 100) : null;
