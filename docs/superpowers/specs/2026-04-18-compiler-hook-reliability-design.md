@@ -7,7 +7,7 @@ scope: paracosm compiler only (no runtime changes, no AgentOS changes, no dashbo
 
 # Paracosm Compiler Hook Reliability and Telemetry
 
-Production pm2 logs on the Linode origin ([***REMOVED***](https://paracosm.agentos.sh)) show every live compile run triggering at least one of:
+Production pm2 logs on the [paracosm.agentos.sh](https://paracosm.agentos.sh) origin show every live compile run triggering at least one of:
 
 ```
 [compiler] Fingerprint hook generation failed. Using fallback.

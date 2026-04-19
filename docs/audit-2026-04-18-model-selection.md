@@ -59,7 +59,7 @@ With prompt caching amortized across turns (runtime caches dept system blocks + 
 
 ## Judge model (the "tool forging" concern)
 
-Judge runs on haiku. Real production logs from [***REMOVED***](https://paracosm.agentos.sh) on 2026-04-18 show the judge catching legitimate defects: "Fails output schema contract due to extra `recommendations` field", "riskLevel is determined using the unclamped stressScore, while stressScore returned is clamped to 5." These are real bugs in forged tools that haiku successfully flags and feeds back into the retry loop.
+Judge runs on haiku. Real production logs from [paracosm.agentos.sh](https://paracosm.agentos.sh) on 2026-04-18 show the judge catching legitimate defects: "Fails output schema contract due to extra `recommendations` field", "riskLevel is determined using the unclamped stressScore, while stressScore returned is clamped to 5." These are real bugs in forged tools that haiku successfully flags and feeds back into the retry loop.
 
 Confidence scores on approved tools run 0.74-0.92 in the production sample. Rejections recover on attempt 2-3 with the feedback loop engaged. This matches the pattern `wrapForgeTool`'s capture records and is now visible via [sub-project C's forge telemetry rollup](../superpowers/specs/2026-04-18-forge-telemetry-rollup-design.md) in `/retry-stats`.
 

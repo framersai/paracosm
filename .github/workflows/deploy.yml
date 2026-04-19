@@ -15,8 +15,11 @@ permissions:
 
 env:
   NODE_VERSION: '22'
-  SERVER_IP: '***REMOVED***'
-  APP_DIR: /opt/paracosm
+  # SERVER_IP + APP_DIR resolved from GitHub Actions repo variables so
+  # deploy topology isn't encoded in the public workflow file. Set both
+  # at repo → Settings → Secrets and variables → Actions → Variables.
+  SERVER_IP: ${{ vars.SERVER_IP }}
+  APP_DIR: ${{ vars.APP_DIR }}
 
 jobs:
   build:
