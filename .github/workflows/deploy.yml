@@ -15,11 +15,11 @@ permissions:
 
 env:
   NODE_VERSION: '22'
-  # SERVER_IP + APP_DIR resolved from GitHub Actions repo variables so
+  # SERVER_IP + APP_DIR resolved from GitHub Actions repo secrets so
   # deploy topology isn't encoded in the public workflow file. Set both
-  # at repo → Settings → Secrets and variables → Actions → Variables.
-  SERVER_IP: ${{ vars.SERVER_IP }}
-  APP_DIR: ${{ vars.APP_DIR }}
+  # at repo → Settings → Secrets and variables → Actions → Secrets.
+  SERVER_IP: ${{ secrets.SERVER_IP }}
+  APP_DIR: ${{ secrets.APP_DIR }}
 
 jobs:
   build:
