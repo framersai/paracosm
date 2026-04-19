@@ -10,6 +10,7 @@ import { EventCard } from './EventCard';
 import { DivergenceRail } from './DivergenceRail';
 import { Timeline } from './Timeline';
 import { SimFooterBar } from './SimFooterBar';
+import { LoadPriorRunsCTA } from '../settings/LoadPriorRunsCTA';
 
 interface SimViewProps {
   state: GameState;
@@ -364,6 +365,20 @@ export function SimView({ state, sseStatus, onRun, verdict, launching: launching
             >
               Settings
             </button>
+          </div>
+          {/* Surface saved-run replays right in the empty state so users
+              who land on SIM without a running simulation can start
+              watching a prior run with one click. Auto-hides when no
+              saved runs exist. */}
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 720,
+              marginTop: 28,
+              textAlign: 'left',
+            }}
+          >
+            <LoadPriorRunsCTA />
           </div>
         </div>
       )}
