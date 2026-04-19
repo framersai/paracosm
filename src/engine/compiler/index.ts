@@ -21,6 +21,7 @@
 
 import type { ScenarioPackage, ScenarioHooks, LlmProvider } from '../types.js';
 import type { CompileOptions, GenerateTextFn } from './types.js';
+import { resolveProviderWithFallback } from '../provider-resolver.js';
 import { readCache, writeCache, readSeedBundleCache, writeSeedBundleCache, seedSignature } from './cache.js';
 import { generateProgressionHook, parseResponse as parseProgression } from './generate-progression.js';
 import { generateDirectorInstructions } from './generate-director.js';
@@ -130,12 +131,35 @@ export async function compileScenario(
   options: CompileOptions = {},
 ): Promise<ScenarioPackage> {
   const {
-    provider = 'anthropic',
-    model = 'claude-sonnet-4-6',
+    provider: requestedProvider = 'anthropic',
+    model: requestedModel,
     cache = true,
     cacheDir = '.paracosm/cache',
     onProgress,
   } = options;
+
+  // Preflight: if the requested provider has no API key in env, fall
+  // through to another supported provider that does. This turns the
+  // silent retry-forever failure mode (seen on the landing-page example
+  // when ANTHROPIC_API_KEY was not set) into either a clean fallback
+  // or a loud ProviderKeyMissingError at the top of the run.
+  const resolved = options.generateText
+    ? { provider: requestedProvider, fellBack: false, requested: requestedProvider }
+    : resolveProviderWithFallback(requestedProvider);
+  const provider = resolved.provider;
+  // When fallback kicked in, the caller's model (if any) was chosen for
+  // the requested provider and will not work on the fallback. Force the
+  // fallback provider's default model in that case and log the swap.
+  const fallbackDefaultModel = provider === 'openai' ? 'gpt-5.4-mini' : 'claude-sonnet-4-6';
+  const model = resolved.fellBack
+    ? fallbackDefaultModel
+    : (requestedModel ?? fallbackDefaultModel);
+  if (resolved.fellBack && requestedModel && requestedModel !== model) {
+    console.warn(
+      `[paracosm] Requested model '${requestedModel}' was for provider '${resolved.requested}'; ` +
+      `using '${model}' on the fallback provider '${provider}'.`,
+    );
+  }
 
   const genText = options.generateText ?? await buildDefaultGenerateText(provider, model);
   const json = scenarioJson as Record<string, any>;

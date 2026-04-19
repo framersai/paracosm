@@ -46,6 +46,7 @@ import {
   type StartingPolitics,
   type StartingResources,
 } from '../cli/sim-config.js';
+import { resolveProviderWithFallback } from '../engine/provider-resolver.js';
 import { applyCustomEventToCrisis, buildYearSchedule } from './runtime-helpers.js';
 import { classifyProviderError, shouldAbortRun, type ClassifiedProviderError } from './provider-errors.js';
 import { EffectRegistry } from '../engine/effect-registry.js';
@@ -107,7 +108,13 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   const sc = opts.scenario ?? marsScenario;
   const maxTurns = opts.maxTurns ?? 12;
   const startYear = opts.startYear ?? 2035;
-  const provider = opts.provider ?? 'openai';
+  const requestedProvider = opts.provider ?? 'openai';
+  // Preflight env check. Falls back to the other supported provider if
+  // the requested one has no key; throws ProviderKeyMissingError when
+  // neither OPENAI_API_KEY nor ANTHROPIC_API_KEY is set, rather than
+  // hanging in a retry loop during the first LLM call.
+  const resolvedProvider = resolveProviderWithFallback(requestedProvider);
+  const provider = resolvedProvider.provider;
   const sid = `${sc.labels.shortName}-v2-${leader.archetype.toLowerCase().replace(/\s+/g, '-')}`;
   const modelConfig = resolveSimulationModels(provider, opts.models);
   // Cost tracking: accumulate token usage and estimated cost across all LLM calls

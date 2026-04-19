@@ -193,7 +193,12 @@
     </div>
     <div class="code-block">
       <div class="code-header"><span>3. Compile, define leaders, run</span><button class="code-copy" onclick="copyCode(this, document.getElementById('api-code').textContent)">Copy</button></div>
-      <div class="code-body" id="api-code"><span class="kw">import</span> { compileScenario } <span class="kw">from</span> <span class="str">'paracosm/compiler'</span>;
+      <div class="code-body" id="api-code"><span class="cm">// Set one of these before running:</span>
+<span class="cm">//   export OPENAI_API_KEY=sk-...</span>
+<span class="cm">//   export ANTHROPIC_API_KEY=sk-ant-...</span>
+<span class="cm">// Paracosm auto-detects whichever key is present and falls back between providers.</span>
+
+<span class="kw">import</span> { compileScenario } <span class="kw">from</span> <span class="str">'paracosm/compiler'</span>;
 <span class="kw">import</span> { runSimulation } <span class="kw">from</span> <span class="str">'paracosm/runtime'</span>;
 <span class="kw">import</span> worldJson <span class="kw">from</span> <span class="str">'./my-world.json'</span>;
 
