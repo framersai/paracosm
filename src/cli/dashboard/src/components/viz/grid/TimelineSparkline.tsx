@@ -5,6 +5,9 @@ interface TimelineSparklineProps {
   snapsB: TurnSnapshot[];
   currentTurn: number;
   onJumpToTurn: (turn: number) => void;
+  /** Lifted hover turn so the chronicle can highlight in sync. */
+  hoveredTurn?: number | null;
+  onHoverTurnChange?: (turn: number | null) => void;
 }
 
 /**
@@ -17,6 +20,8 @@ export function TimelineSparkline({
   snapsB,
   currentTurn,
   onJumpToTurn,
+  hoveredTurn,
+  onHoverTurnChange,
 }: TimelineSparklineProps) {
   const maxTurns = Math.max(snapsA.length, snapsB.length);
   if (maxTurns < 2) return null;
@@ -41,12 +46,29 @@ export function TimelineSparkline({
   };
 
   const cursorX = padX + currentTurn * (plotW / Math.max(1, maxTurns - 1));
+  const hoverX =
+    typeof hoveredTurn === 'number'
+      ? padX + hoveredTurn * (plotW / Math.max(1, maxTurns - 1))
+      : null;
+
+  const turnFromEvent = (clientX: number, rect: DOMRect): number => {
+    const xInSvg = ((clientX - rect.left) / rect.width) * W;
+    const turn = Math.round(((xInSvg - padX) / plotW) * (maxTurns - 1));
+    return Math.max(0, Math.min(maxTurns - 1, turn));
+  };
 
   const handleClick = (e: React.MouseEvent<SVGSVGElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    const clickX = ((e.clientX - rect.left) / rect.width) * W;
-    const turn = Math.round(((clickX - padX) / plotW) * (maxTurns - 1));
-    onJumpToTurn(Math.max(0, Math.min(maxTurns - 1, turn)));
+    onJumpToTurn(turnFromEvent(e.clientX, rect));
+  };
+
+  const handleMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (!onHoverTurnChange) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    onHoverTurnChange(turnFromEvent(e.clientX, rect));
+  };
+  const handleLeave = () => {
+    onHoverTurnChange?.(null);
   };
 
   return (
@@ -79,6 +101,8 @@ export function TimelineSparkline({
         viewBox={`0 0 ${W} ${H}`}
         preserveAspectRatio="none"
         onClick={handleClick}
+        onMouseMove={handleMove}
+        onMouseLeave={handleLeave}
         style={{
           display: 'block',
           width: '100%',
@@ -100,6 +124,18 @@ export function TimelineSparkline({
         />
         <path d={buildPath(snapsA)} fill="none" stroke="var(--vis)" strokeWidth={1.2} />
         <path d={buildPath(snapsB)} fill="none" stroke="var(--eng)" strokeWidth={1.2} />
+        {hoverX !== null && hoveredTurn !== currentTurn && (
+          <line
+            x1={hoverX}
+            x2={hoverX}
+            y1={0}
+            y2={H}
+            stroke="var(--text-3)"
+            strokeWidth={0.75}
+            strokeDasharray="2 3"
+            opacity={0.7}
+          />
+        )}
         <line
           x1={cursorX}
           x2={cursorX}

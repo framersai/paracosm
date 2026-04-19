@@ -11,6 +11,8 @@ export interface HudOpts {
   cells?: CellSnapshot[];
   /** Grid positions keyed by agentId. Required for dept labels. */
   positions?: Map<string, GridPosition>;
+  /** Previous snapshot for population + morale deltas. */
+  previousSnapshot?: TurnSnapshot | undefined;
 }
 
 const DEPT_COLORS: Record<string, string> = {
@@ -149,7 +151,26 @@ export function drawHud(
   ctx.textAlign = 'left';
   ctx.textBaseline = 'bottom';
   ctx.fillStyle = opts.sideColor;
+  const popDelta = opts.previousSnapshot
+    ? snapshot.population - opts.previousSnapshot.population
+    : 0;
+  const popTrend =
+    popDelta > 0 ? '\u2191' : popDelta < 0 ? '\u2193' : '';
+  const popTrendColor =
+    popDelta > 0
+      ? 'rgba(106, 173, 72, 0.95)'
+      : popDelta < 0
+      ? 'rgba(196, 74, 30, 0.95)'
+      : 'rgba(216, 204, 176, 0.75)';
   ctx.fillText(`POP ${snapshot.population}`, 10, opts.height - 20);
+  if (popTrend) {
+    // Trend arrow rendered separately so it takes the delta color.
+    const popText = `POP ${snapshot.population}`;
+    const offset = ctx.measureText(popText).width + 6;
+    ctx.fillStyle = popTrendColor;
+    ctx.fillText(`${popTrend}${Math.abs(popDelta)}`, 10 + offset, opts.height - 20);
+    ctx.fillStyle = opts.sideColor;
+  }
   if (snapshot.deaths > 0 || snapshot.births > 0) {
     ctx.fillStyle = 'rgba(216, 204, 176, 0.65)';
     ctx.fillText(`+${snapshot.births} -${snapshot.deaths}`, 10, opts.height - 8);

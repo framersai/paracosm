@@ -33,6 +33,7 @@ import { GridHelpOverlay } from './grid/GridHelpOverlay.js';
 import { useMediaQuery, NARROW_QUERY } from './grid/useMediaQuery.js';
 import { TimelineSparkline } from './grid/TimelineSparkline.js';
 import { EventChronicle } from './grid/EventChronicle.js';
+import { TurnProgress } from './grid/TurnProgress.js';
 
 /** Tiny keyboard-shortcut chip for the footer legend. Kept local since
  *  it's only used in the viz tab footer. */
@@ -189,8 +190,24 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
   }, []);
 
   const [helpOpen, setHelpOpen] = useState(false);
+  const scenario = useScenarioContext();
   const [hoveredA, setHoveredA] = useState<string | null>(null);
   const [hoveredB, setHoveredB] = useState<string | null>(null);
+  const [hoveredTurn, setHoveredTurn] = useState<number | null>(null);
+  // Scene-transition vignette — briefly dims the whole viz when the
+  // user jumps the playhead more than 1 turn in either direction.
+  const [vignetteKey, setVignetteKey] = useState(0);
+  const lastTurnRef = useRef<number>(-1);
+  useEffect(() => {
+    if (lastTurnRef.current === -1) {
+      lastTurnRef.current = currentTurn;
+      return;
+    }
+    if (Math.abs(currentTurn - lastTurnRef.current) >= 2) {
+      setVignetteKey(k => k + 1);
+    }
+    lastTurnRef.current = currentTurn;
+  }, [currentTurn]);
   useEffect(() => {
     const useNewGridFlag = import.meta.env.VITE_NEW_GRID !== '0';
     const onKey = (e: KeyboardEvent) => {
@@ -364,7 +381,6 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
   // sim state hasn't populated them yet. Matches the SimView pattern
   // so the Viz tab surfaces Aria Chen / Dietrich Voss identities
   // rather than generic "Leader A" / "Leader B" placeholders.
-  const scenario = useScenarioContext();
   const defaultPreset = scenario.presets.find(p => p.id === 'default');
   const presetA: LeaderInfo | null = defaultPreset?.leaders?.[0]
     ? { name: defaultPreset.leaders[0].name, archetype: defaultPreset.leaders[0].archetype, colony: 'Colony Alpha', hexaco: defaultPreset.leaders[0].hexaco, instructions: defaultPreset.leaders[0].instructions, quote: '' }
@@ -392,7 +408,7 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
       ? (snapsB[currentTurn - 1] ?? snapsB[snapsB.length - 2])
       : undefined;
     return (
-      <div className="viz-content" style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+      <div className="viz-content" style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', position: 'relative' }}>
         <TurnBanner state={state} currentTurn={currentTurn} />
         <div
           style={{
@@ -451,17 +467,26 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
             {gridModeHint(gridMode)}
           </div>
         </div>
+        <TurnProgress
+          eventsA={state.a.events as Array<{ type: string; turn?: number; data?: Record<string, unknown> }>}
+          eventsB={state.b.events as Array<{ type: string; turn?: number; data?: Record<string, unknown> }>}
+          totalDepartments={scenario.departments.length}
+        />
         <EventChronicle
           eventsA={state.a.events as Array<{ type: string; turn?: number; data?: Record<string, unknown> }>}
           eventsB={state.b.events as Array<{ type: string; turn?: number; data?: Record<string, unknown> }>}
           currentTurn={currentTurn}
           onJumpToTurn={handleTurnChange}
+          hoveredTurn={hoveredTurn}
+          onHoverTurnChange={setHoveredTurn}
         />
         <TimelineSparkline
           snapsA={snapsA}
           snapsB={snapsB}
           currentTurn={currentTurn}
           onJumpToTurn={handleTurnChange}
+          hoveredTurn={hoveredTurn}
+          onHoverTurnChange={setHoveredTurn}
         />
         {diffLine && (
           <div style={{
@@ -578,6 +603,28 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
             : ''}
         </div>
         <GridHelpOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
+        {vignetteKey > 0 && (
+          <div
+            key={vignetteKey}
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              pointerEvents: 'none',
+              background:
+                'radial-gradient(circle at center, transparent 50%, rgba(0,0,0,0.55) 100%)',
+              animation: 'paracosm-vignette 450ms ease-out forwards',
+              zIndex: 50,
+            }}
+          />
+        )}
+        <style>{`
+          @keyframes paracosm-vignette {
+            0% { opacity: 0; }
+            25% { opacity: 1; }
+            100% { opacity: 0; }
+          }
+        `}</style>
       </div>
     );
   }

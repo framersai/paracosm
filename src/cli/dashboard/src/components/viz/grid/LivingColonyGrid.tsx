@@ -312,6 +312,7 @@ export function LivingColonyGrid(props: LivingColonyGridProps) {
       lagTurns,
       cells: snapshot.cells,
       positions,
+      previousSnapshot,
     });
 
     // Hover ring on top of HUD so it reads as "selected".

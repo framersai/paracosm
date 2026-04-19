@@ -12,6 +12,10 @@ interface EventChronicleProps {
   eventsB: Array<{ type: string; turn?: number; data?: Record<string, unknown> }>;
   currentTurn: number;
   onJumpToTurn: (turn: number) => void;
+  /** Lifted hover turn so sister widgets (sparkline) can render a
+   *  matching ghost cursor. 0-indexed to match currentTurn. */
+  onHoverTurnChange?: (turn: number | null) => void;
+  hoveredTurn?: number | null;
 }
 
 const KIND_COLORS: Record<ChronicleEvent['kind'], string> = {
@@ -39,6 +43,8 @@ export function EventChronicle({
   eventsB,
   currentTurn,
   onJumpToTurn,
+  onHoverTurnChange,
+  hoveredTurn,
 }: EventChronicleProps) {
   const chronicle = useMemo<ChronicleEvent[]>(() => {
     const out: ChronicleEvent[] = [];
@@ -123,12 +129,18 @@ export function EventChronicle({
         }}
       >
         {chronicle.map((ev, i) => {
-          const isCurrent = ev.turn - 1 === currentTurn || ev.turn === currentTurn + 1;
+          const evTurn0 = Math.max(0, ev.turn - 1);
+          const isCurrent = evTurn0 === currentTurn;
+          const isHovered = hoveredTurn === evTurn0;
           return (
             <button
               key={`${ev.turn}-${ev.side}-${ev.kind}-${i}`}
               type="button"
-              onClick={() => onJumpToTurn(Math.max(0, ev.turn - 1))}
+              onClick={() => onJumpToTurn(evTurn0)}
+              onMouseEnter={() => onHoverTurnChange?.(evTurn0)}
+              onMouseLeave={() => onHoverTurnChange?.(null)}
+              onFocus={() => onHoverTurnChange?.(evTurn0)}
+              onBlur={() => onHoverTurnChange?.(null)}
               title={ev.label}
               aria-label={ev.label}
               style={{
@@ -141,16 +153,15 @@ export function EventChronicle({
                 fontSize: 9,
                 fontFamily: 'var(--mono)',
                 fontWeight: 800,
-                background: 'transparent',
+                background: isHovered ? 'rgba(232, 180, 74, 0.18)' : 'transparent',
                 color: KIND_COLORS[ev.kind],
                 border: 'none',
+                borderRadius: 3,
                 cursor: 'pointer',
                 transform: ev.side === 'a' ? 'translateY(-2px)' : 'translateY(2px)',
-                opacity: isCurrent ? 1 : 0.7,
-                textShadow: isCurrent
-                  ? `0 0 6px ${KIND_COLORS[ev.kind]}`
-                  : 'none',
-                transition: 'opacity 120ms, text-shadow 120ms',
+                opacity: isCurrent || isHovered ? 1 : 0.7,
+                textShadow: isCurrent || isHovered ? `0 0 6px ${KIND_COLORS[ev.kind]}` : 'none',
+                transition: 'opacity 120ms, text-shadow 120ms, background 120ms',
               }}
             >
               {KIND_GLYPHS[ev.kind]}
