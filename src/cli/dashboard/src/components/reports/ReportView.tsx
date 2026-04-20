@@ -223,13 +223,18 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
   const stripCells = useMemo(() => collectRunStripData(turns), [turns]);
   const metricSeries = useMemo(() => collectMetricSeries(state), [state]);
   const sideNavItems = useMemo<SideNavItem[]>(() => {
-    const items: SideNavItem[] = [{ id: 'hero', label: 'Summary' }];
-    if (verdict) items.push({ id: 'verdict', label: 'Verdict' });
+    // Order now matches the new section layout: turn-by-turn content
+    // at the top (Strip → Metrics → Trajectory → individual turns →
+    // Toolbox), then the Run Summary / Verdict block, then References.
+    // Hero scoreboard + verdict are nested under the single
+    // `#summary` section so the sidenav jumps straight there.
+    const items: SideNavItem[] = [];
     if (stripCells.length > 0) items.push({ id: 'strip', label: 'Strip' });
     if (metricSeries.some(m => m.a.length > 0 || m.b.length > 0)) items.push({ id: 'sparklines', label: 'Metrics' });
     if (hasTrajectories) items.push({ id: 'trajectory', label: 'Trajectory' });
     for (const [turnNum] of turns) items.push({ id: `turn-${turnNum}`, label: `Turn ${turnNum}` });
     if (toolRegistry.list.length > 0) items.push({ id: 'toolbox', label: 'Toolbox' });
+    items.push({ id: 'summary', label: verdict ? 'Verdict' : 'Summary' });
     if (citationRegistry.list.length > 0) items.push({ id: 'references', label: 'References' });
     return items;
   }, [verdict, stripCells.length, metricSeries, hasTrajectories, turns, toolRegistry.list.length, citationRegistry.list.length]);
@@ -284,17 +289,48 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
           background: 'var(--bg-deep)',
         }}
       >
-      <h2 style={{ fontSize: '22px', color: 'var(--amber)', fontFamily: 'var(--mono)', marginBottom: '16px' }}>
-        Turn-by-Turn Report
-      </h2>
-
-      <section id="hero">
-        <HeroScoreboard
-          verdict={verdict}
-          leaderAName={nameA}
-          leaderBName={nameB}
-        />
-      </section>
+      {/* Header row: title on the left, jump-to-summary CTA on the
+          right. User asked for the verdict / winner results at the
+          bottom (just above References) with a scroll-to anchor up
+          top so they can jump there without reading the whole
+          turn-by-turn report first. */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 12,
+          marginBottom: 16,
+        }}
+      >
+        <h2 style={{ fontSize: '22px', color: 'var(--amber)', fontFamily: 'var(--mono)', margin: 0 }}>
+          Turn-by-Turn Report
+        </h2>
+        <button
+          type="button"
+          onClick={() => {
+            const el = document.getElementById('summary');
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }}
+          style={{
+            background: 'linear-gradient(135deg, var(--amber), #c8952e)',
+            color: 'var(--bg-deep)',
+            border: 'none',
+            padding: '8px 18px',
+            borderRadius: 6,
+            fontSize: 12,
+            fontWeight: 800,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            cursor: 'pointer',
+            fontFamily: 'var(--mono)',
+            boxShadow: '0 2px 10px rgba(232,180,74,0.25)',
+          }}
+        >
+          {verdict ? '↓ See verdict + full summary' : '↓ Jump to summary'}
+        </button>
+      </div>
 
       <section id="strip">
         <RunStrip turns={stripCells} leaderAName={nameA} leaderBName={nameB} />
@@ -302,10 +338,6 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
 
       <section id="sparklines">
         <MetricSparklines metrics={metricSeries} leaderAName={nameA} leaderBName={nameB} />
-      </section>
-
-      <section id="verdict">
-        {verdict && <VerdictPanel verdict={verdict} />}
       </section>
 
       {/* Commander personality arcs. Shown once per side once there's at
@@ -450,6 +482,40 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
             defaultOpen={toolsOpen}
             onToggle={setToolsOpen}
           />
+        )}
+      </section>
+
+      {/* Full run summary lives at the bottom of the report so users
+          can scroll down at their own pace after reading the
+          turn-by-turn breakdown. The top-of-page CTA jumps here via
+          the `#summary` anchor. Hosts both the hero scoreboard
+          (winner + key deltas) and the full verdict panel (LLM
+          judgement reasoning). */}
+      <section id="summary" style={{ marginTop: 24 }}>
+        <div
+          style={{
+            fontSize: 12,
+            fontFamily: 'var(--mono)',
+            fontWeight: 800,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            color: 'var(--amber)',
+            marginBottom: 8,
+            paddingBottom: 6,
+            borderBottom: '1px solid var(--border)',
+          }}
+        >
+          Run Summary · Verdict · Winner
+        </div>
+        <HeroScoreboard
+          verdict={verdict}
+          leaderAName={nameA}
+          leaderBName={nameB}
+        />
+        {verdict && (
+          <div style={{ marginTop: 16 }}>
+            <VerdictPanel verdict={verdict} />
+          </div>
         )}
       </section>
 
