@@ -33,7 +33,14 @@ export const DEFAULT_GRID_SETTINGS: GridSettings = {
   animSpeed: 1,
   deptRings: true,
   deptLabels: false,
-  lines: true,
+  // Family lines default OFF. When on, partner arcs (curved) and
+  // parent-child lines (dashed) draw between every related colonist
+  // on the grid — with 14-30 colonists that's ~15-40 crossing
+  // diagonals. Users consistently reported the network of arcs as
+  // "weird diamond animations" that appeared on tab open. Keep the
+  // setting so users who want to see the relationship graph can
+  // enable it from the drawer, but don't fire it by default.
+  lines: false,
   dust: true,
   crosshair: true,
   ghostTrail: false,
