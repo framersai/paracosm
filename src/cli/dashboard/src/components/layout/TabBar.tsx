@@ -40,7 +40,12 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'about', label: 'ABOUT' },
 ];
 
-const MOBILE_BREAKPOINT = 640;
+// Labels collapse to icons below this width. Raised from 640 so the
+// tab row never wraps onto two lines at common tablet + narrow-laptop
+// viewports (768-900px) where labels + 7 tabs don't fit horizontally
+// and used to force wrap, pushing the viz content down. Icons alone
+// comfortably fit 7 tabs in one row at 300px+.
+const MOBILE_BREAKPOINT = 900;
 
 export function TabBar({ active, onTabChange, scenario }: TabBarProps) {
   const tabs = TABS.filter(t => t.id !== 'chat' || scenario.policies.characterChat);

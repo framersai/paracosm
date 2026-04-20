@@ -31,7 +31,11 @@ export interface GridSettings {
 
 export const DEFAULT_GRID_SETTINGS: GridSettings = {
   animSpeed: 1,
-  deptRings: true,
+  // Dept rings default OFF. Dashed arcs at large radii (small colonies
+  // give large centroid-to-edge distances) tile together into saw-tooth
+  // diagonals that users read as render artifacts. Same rationale as
+  // `lines` and `ghostTrail` below: opt-in, not default.
+  deptRings: false,
   deptLabels: false,
   // Family lines default OFF. When on, partner arcs (curved) and
   // parent-child lines (dashed) draw between every related colonist

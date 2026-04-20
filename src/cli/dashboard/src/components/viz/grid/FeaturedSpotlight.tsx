@@ -64,7 +64,7 @@ export function FeaturedSpotlight({
       aria-live="polite"
       style={{
         position: 'absolute',
-        top: 36,
+        top: 60,
         left: 8,
         right: 8,
         display: 'flex',

@@ -41,18 +41,36 @@ export interface GolConfig {
 }
 
 export const DEFAULT_GOL_CONFIG: GolConfig = {
-  cols: 32,
-  rows: 16,
+  // 64x32 chosen so a 3-4 colonist colony produces ~12-20 live cells
+  // — enough that distinct patterns (blocks, blinkers, gliders) read
+  // as separate glyphs rather than collapsing into a single blob at
+  // 32x16. Cell tiles land at ~8-12px on a typical laptop viewport,
+  // still touch-legible without drowning glyph markers on top.
+  cols: 64,
+  rows: 32,
   seedRadius: 2,
 };
 
 /**
- * Classic Conway starter patterns seeded into the grid on turn
- * changes. Each pattern is a list of (x, y) offsets relative to a
- * chosen anchor. Gliders produce moving cells, blinkers produce
- * period-2 oscillators, beehives are still lifes. Mixing them keeps
- * the panel interesting across many generations without needing
- * random injection.
+ * Classic Conway starter patterns. Each is a list of (x, y) offsets
+ * relative to a chosen anchor.
+ *
+ * Pattern choice is NOT random — it is driven by the seeding
+ * colonist's mood. That maps emotional state directly to the Conway
+ * semantics the viewer already intuits:
+ *
+ *   BLOCK    — still-life, never moves. Calm/settled colonist.
+ *   BEEHIVE  — larger still-life. Stable, enduring.
+ *   BLINKER  — period-2 oscillator, stays in place. Restless but contained.
+ *   TOAD     — period-2 oscillator, slower cadence. Uneasy.
+ *   GLIDER   — moves diagonally across the grid. Agitated, active.
+ *   R_PENTOMINO — chaotic, spawns gliders + debris for hundreds of
+ *              generations. A colonist whose personality breaks the colony.
+ *
+ * This turns a formerly-meaningless Conway field into a direct
+ * read of "what is the mood of this colony". A viewer scanning the
+ * two panels can tell at a glance which side is calm (mostly
+ * still-lifes) vs restless (oscillators/gliders everywhere).
  */
 const GLIDER: Array<[number, number]> = [
   [1, 0], [2, 1], [0, 2], [1, 2], [2, 2],
@@ -63,11 +81,34 @@ const BLINKER: Array<[number, number]> = [
 const BLOCK: Array<[number, number]> = [
   [0, 0], [1, 0], [0, 1], [1, 1],
 ];
+const BEEHIVE: Array<[number, number]> = [
+  [1, 0], [2, 0], [0, 1], [3, 1], [1, 2], [2, 2],
+];
+const TOAD: Array<[number, number]> = [
+  [1, 0], [2, 0], [3, 0], [0, 1], [1, 1], [2, 1],
+];
 const R_PENTOMINO: Array<[number, number]> = [
   [1, 0], [2, 0], [0, 1], [1, 1], [1, 2],
 ];
 
-const STARTER_PATTERNS = [GLIDER, BLINKER, BLOCK, R_PENTOMINO];
+function patternForMood(mood: string): Array<[number, number]> {
+  switch (mood) {
+    case 'positive':
+    case 'hopeful':
+      return BLOCK;
+    case 'neutral':
+      return BEEHIVE;
+    case 'anxious':
+      return BLINKER;
+    case 'resigned':
+      return TOAD;
+    case 'defiant':
+    case 'negative':
+      return GLIDER;
+    default:
+      return BLINKER;
+  }
+}
 
 /**
  * Persistent state between frames — owned by the caller (normally a
@@ -168,13 +209,7 @@ export function seedFromColonists(
     if (!p) continue;
     const cx = Math.floor((p.x / Math.max(1, overlayWidth)) * cols);
     const cy = Math.floor((p.y / Math.max(1, overlayHeight)) * rows);
-    // Pick starter pattern deterministically from the agentId hash
-    // so scrubbing to the same turn reproduces the same pattern.
-    let hash = 0;
-    for (let j = 0; j < c.agentId.length; j += 1) {
-      hash = (hash * 31 + c.agentId.charCodeAt(j)) | 0;
-    }
-    const pattern = STARTER_PATTERNS[Math.abs(hash) % STARTER_PATTERNS.length];
+    const pattern = patternForMood(c.mood);
     for (const [dx, dy] of pattern) {
       const x = cx + dx - 1;
       const y = cy + dy - 1;

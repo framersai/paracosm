@@ -30,7 +30,7 @@ import { VizControls } from './VizControls.js';
 import { LivingSwarmGrid } from './grid/LivingSwarmGrid.js';
 import { GridModePills, gridModeHint, type GridMode } from './grid/GridModePills.js';
 import { GridHelpOverlay } from './grid/GridHelpOverlay.js';
-import { useMediaQuery, NARROW_QUERY } from './grid/useMediaQuery.js';
+import { useMediaQuery, NARROW_QUERY, PHONE_QUERY } from './grid/useMediaQuery.js';
 import { TimelineSparkline } from './grid/TimelineSparkline.js';
 import { EventChronicle, type ChronicleFilter, type ChronicleEvent } from './grid/EventChronicle.js';
 import { TurnProgress } from './grid/TurnProgress.js';
@@ -256,12 +256,12 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
   const [gridSettings, setGridSettingsState] = useState<GridSettings>(() => {
     // Schema version tagged into localStorage so default-changes
     // propagate to users with older stored settings. Bumping when a
-    // default flips (most recently: `lines` true → false, `deptLabels`
-    // default off) forces a clean reset for existing localStorage
-    // entries instead of letting the stored `true` override the new
-    // `false`. Users who customized get reset once; they can re-toggle
-    // from the drawer after.
-    const SETTINGS_VERSION = 2;
+    // default flips (v2: `lines` true → false, `deptLabels` off; v3:
+    // `deptRings` true → false) forces a clean reset for existing
+    // localStorage entries instead of letting the stored `true`
+    // override the new `false`. Users who customized get reset once;
+    // they can re-toggle from the drawer after.
+    const SETTINGS_VERSION = 3;
     try {
       const raw = localStorage.getItem('paracosm:gridSettings');
       if (raw) {
@@ -282,7 +282,7 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
   const setGridSettings = useCallback((next: GridSettings) => {
     setGridSettingsState(next);
     try {
-      localStorage.setItem('paracosm:gridSettings', JSON.stringify({ ...next, __v: 2 }));
+      localStorage.setItem('paracosm:gridSettings', JSON.stringify({ ...next, __v: 3 }));
     } catch {
       /* silent */
     }
@@ -479,6 +479,12 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
+  // Overflow reveal: collapses palette / STATS / Export / Settings
+  // behind a single "⋯" toggle so the top strip defaults to
+  // {mode pills + more + help}. Expanded state is not persisted —
+  // the default collapsed state is the intended look; opening it
+  // is a short-lived "I need a tool" gesture.
+  const [overflowOpen, setOverflowOpen] = useState(false);
   const [forgeLineage, setForgeLineage] = useState<ForgeLineagePayload | null>(null);
   const [focusedSide, setFocusedSide] = useState<'a' | 'b' | null>(null);
   const toggleFocus = useCallback((side: 'a' | 'b') => {
@@ -915,6 +921,12 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
   // SwarmPanel tile grid.
   const useNewGrid = import.meta.env.VITE_NEW_GRID !== '0';
   const narrow = useMediaQuery(NARROW_QUERY);
+  const phone = useMediaQuery(PHONE_QUERY);
+  // Phone: force single-panel view. Side-by-side at 380-400px makes
+  // each panel too small to read glyphs and the Conway field; stacked
+  // vertically it doubles scroll length. A/B toggle above gives the
+  // user deliberate control without giving up deliberate design.
+  const effectiveFocusedSide: 'a' | 'b' | null = phone ? (focusedSide ?? 'a') : focusedSide;
   if (useNewGrid) {
     const prevSnapA = currentTurn > 0
       ? (snapsA[currentTurn - 1] ?? snapsA[snapsA.length - 2])
@@ -943,7 +955,7 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
             gap: 4,
           }}
         >
-          <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'stretch', flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <GridModePills
                 mode={gridMode}
@@ -961,75 +973,25 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
             </div>
             <button
               type="button"
-              onClick={cyclePalette}
-              aria-label={`Palette: ${palette}. Click to cycle.`}
-              title={`Palette: ${palette.toUpperCase()} (click to cycle)`}
+              onClick={() => setOverflowOpen(o => !o)}
+              aria-label={overflowOpen ? 'Hide advanced tools' : 'Show advanced tools (palette, stats, export, settings)'}
+              aria-expanded={overflowOpen}
+              title={overflowOpen ? 'Hide tools' : 'Palette · Stats · Export · Settings'}
               style={{
-                padding: '0 8px',
-                background:
-                  palette === 'amber'
-                    ? 'linear-gradient(135deg, #e8b44a 0 40%, #c44a1e 100%)'
-                    : palette === 'cool'
-                    ? 'linear-gradient(135deg, #4ecdc4 0 40%, #9b6bd8 100%)'
-                    : 'linear-gradient(135deg, #f5f0e4 0 40%, #6b5f50 100%)',
-                color: 'var(--text-contrast)',
+                padding: '0 12px',
+                background: overflowOpen ? 'var(--amber)' : 'var(--bg-card)',
+                color: overflowOpen ? 'var(--bg-deep)' : 'var(--text-3)',
                 border: '1px solid var(--border)',
                 borderRadius: 3,
                 cursor: 'pointer',
                 fontFamily: 'var(--mono)',
-                fontSize: 9,
+                fontSize: 14,
                 fontWeight: 800,
                 letterSpacing: '0.08em',
-                textTransform: 'uppercase',
+                lineHeight: 1,
               }}
             >
-              {palette}
-            </button>
-            <button
-              type="button"
-              onClick={() => setSummaryOpen(true)}
-              aria-label="Open run summary"
-              title="Run summary (cumulative totals)"
-              style={{
-                padding: '0 10px',
-                background: 'var(--bg-card)',
-                color: 'var(--text-3)',
-                border: '1px solid var(--border)',
-                borderRadius: 3,
-                cursor: 'pointer',
-                fontFamily: 'var(--mono)',
-                fontSize: 10,
-                fontWeight: 800,
-                letterSpacing: '0.08em',
-              }}
-            >
-              STATS
-            </button>
-            <ExportMenu
-              recording={recording}
-              onExportPng={handleExportPng}
-              onExportJson={handleExportJson}
-              onToggleRecording={recording ? stopTimelapse : startTimelapse}
-            />
-            <button
-              type="button"
-              onClick={() => setSettingsOpen(o => !o)}
-              aria-label="Open grid settings"
-              aria-expanded={settingsOpen}
-              title="Viz settings"
-              style={{
-                padding: '0 10px',
-                background: settingsOpen ? 'var(--amber)' : 'var(--bg-card)',
-                color: settingsOpen ? 'var(--bg-deep)' : 'var(--text-3)',
-                border: '1px solid var(--border)',
-                borderRadius: 3,
-                cursor: 'pointer',
-                fontFamily: 'var(--mono)',
-                fontSize: 12,
-                fontWeight: 800,
-              }}
-            >
-              {'\u2699'}
+              {'\u22ef'}
             </button>
             <button
               type="button"
@@ -1054,6 +1016,94 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
             >
               ? Help
             </button>
+            {overflowOpen && (
+              <div
+                role="toolbar"
+                aria-label="Viz tools"
+                style={{
+                  display: 'flex',
+                  gap: 6,
+                  alignItems: 'stretch',
+                  width: '100%',
+                  flexWrap: 'wrap',
+                  paddingTop: 4,
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={cyclePalette}
+                  aria-label={`Palette: ${palette}. Click to cycle.`}
+                  title={`Palette: ${palette.toUpperCase()} (click to cycle)`}
+                  style={{
+                    padding: '0 10px',
+                    background:
+                      palette === 'amber'
+                        ? 'linear-gradient(135deg, #e8b44a 0 40%, #c44a1e 100%)'
+                        : palette === 'cool'
+                        ? 'linear-gradient(135deg, #4ecdc4 0 40%, #9b6bd8 100%)'
+                        : 'linear-gradient(135deg, #f5f0e4 0 40%, #6b5f50 100%)',
+                    color: 'var(--text-contrast)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 3,
+                    cursor: 'pointer',
+                    fontFamily: 'var(--mono)',
+                    fontSize: 10,
+                    fontWeight: 800,
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  {palette}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSummaryOpen(true)}
+                  aria-label="Open run summary"
+                  title="Run summary (cumulative totals)"
+                  style={{
+                    padding: '0 10px',
+                    background: 'var(--bg-card)',
+                    color: 'var(--text-3)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 3,
+                    cursor: 'pointer',
+                    fontFamily: 'var(--mono)',
+                    fontSize: 10,
+                    fontWeight: 800,
+                    letterSpacing: '0.08em',
+                  }}
+                >
+                  STATS
+                </button>
+                <ExportMenu
+                  recording={recording}
+                  onExportPng={handleExportPng}
+                  onExportJson={handleExportJson}
+                  onToggleRecording={recording ? stopTimelapse : startTimelapse}
+                />
+                <button
+                  type="button"
+                  onClick={() => setSettingsOpen(o => !o)}
+                  aria-label="Open grid settings"
+                  aria-expanded={settingsOpen}
+                  title="Viz settings"
+                  style={{
+                    padding: '0 12px',
+                    background: settingsOpen ? 'var(--amber)' : 'var(--bg-card)',
+                    color: settingsOpen ? 'var(--bg-deep)' : 'var(--text-3)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 3,
+                    cursor: 'pointer',
+                    fontFamily: 'var(--mono)',
+                    fontSize: 14,
+                    fontWeight: 800,
+                    lineHeight: 1,
+                  }}
+                >
+                  {'\u2699'}
+                </button>
+              </div>
+            )}
           </div>
           <div
             style={{
@@ -1119,6 +1169,54 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
             {diffLine}
           </div>
         )}
+        {phone && (
+          <div
+            role="tablist"
+            aria-label="Leader panel selector"
+            style={{
+              display: 'flex',
+              gap: 4,
+              padding: '4px 8px',
+              background: 'var(--bg-panel)',
+              borderBottom: '1px solid var(--border)',
+            }}
+          >
+            {(['a', 'b'] as const).map(s => {
+              const label = s === 'a' ? (leaderA?.name ?? 'Leader A') : (leaderB?.name ?? 'Leader B');
+              const color = s === 'a' ? 'var(--vis)' : 'var(--eng)';
+              const active = effectiveFocusedSide === s;
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setFocusedSide(s)}
+                  style={{
+                    flex: 1,
+                    padding: '8px 10px',
+                    background: active ? color : 'var(--bg-card)',
+                    color: active ? 'var(--bg-deep)' : 'var(--text-3)',
+                    border: `1px solid ${active ? color : 'var(--border)'}`,
+                    borderRadius: 3,
+                    cursor: 'pointer',
+                    fontFamily: 'var(--mono)',
+                    fontSize: 11,
+                    fontWeight: 800,
+                    letterSpacing: '0.04em',
+                    textTransform: 'uppercase',
+                    minWidth: 0,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        )}
         <div
           className="leaders-row"
           style={{
@@ -1132,7 +1230,7 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
         >
           <div
             style={{
-              display: focusedSide === 'b' ? 'none' : 'flex',
+              display: effectiveFocusedSide === 'b' ? 'none' : 'flex',
               flex: 1,
               minWidth: 0,
               minHeight: 0,
@@ -1167,8 +1265,8 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
             palette={palette === 'cool' ? 1 : palette === 'mono' ? 2 : 0}
             settings={gridSettings}
             startYear={scenario.setup?.defaultStartYear}
-            focusedSide={focusedSide}
-            onToggleFocus={toggleFocus}
+            focusedSide={effectiveFocusedSide}
+            onToggleFocus={phone ? undefined : toggleFocus}
             onOpenChat={handleOpenChat}
             eventFilter={chronicleFilter}
             chronicleHover={hoveredChronicleEvent}
@@ -1176,7 +1274,7 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
           </div>
           <div
             style={{
-              display: focusedSide === 'a' ? 'none' : 'flex',
+              display: effectiveFocusedSide === 'a' ? 'none' : 'flex',
               flex: 1,
               minWidth: 0,
               minHeight: 0,
@@ -1211,8 +1309,8 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
             palette={palette === 'cool' ? 1 : palette === 'mono' ? 2 : 0}
             settings={gridSettings}
             startYear={scenario.setup?.defaultStartYear}
-            focusedSide={focusedSide}
-            onToggleFocus={toggleFocus}
+            focusedSide={effectiveFocusedSide}
+            onToggleFocus={phone ? undefined : toggleFocus}
             onOpenChat={handleOpenChat}
             eventFilter={chronicleFilter}
             chronicleHover={hoveredChronicleEvent}

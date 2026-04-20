@@ -549,11 +549,12 @@
        widths where the set almost fit produced a jarring layout. */
     .stats-bar { overflow-x: auto !important; justify-content: flex-start !important; -webkit-overflow-scrolling: touch; }
 
-    /* TabBar wraps rather than scrolling for the same reason. Tabs
-       stay full-height and tappable; they just fold onto a second
-       row when the row runs out of space. */
-    .tab-bar { flex-wrap: wrap !important; }
-    .tab-bar button { flex-shrink: 0 !important; min-width: 60px !important; }
+    /* TabBar stays a single row at every width now that labels switch
+       to icons below 900px in TabBar.tsx. Icons are narrow enough that
+       7 tabs fit even on phone-width screens without wrapping, so we
+       keep flex-nowrap and lean on min-width for tap target size. */
+    .tab-bar { flex-wrap: nowrap !important; }
+    .tab-bar button { flex-shrink: 1 !important; min-width: 40px !important; }
   }
 
   /* Phone */

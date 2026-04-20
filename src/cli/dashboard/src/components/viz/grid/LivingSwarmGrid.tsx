@@ -1056,37 +1056,6 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
             zIndex: 2,
           }}
         />
-        {/* Legend caption — bottom-right of each panel. Explains the
-            two visual layers users are seeing so hovering specific
-            Conway cells doesn't feel like a broken UI. Clicking
-            opens a fuller explanation in the help overlay. Kept
-            small + faint so it reads as a hint, not content.
-            Without this, users correctly called out that hovering
-            the discrete tiles felt broken ("hovering makes no sense
-            no tooltips"). Now the caption proactively tells them
-            which surfaces ARE interactive (glyphs) and which are
-            ambient (the Conway tiles + RD biome). */}
-        <div
-          style={{
-            position: 'absolute',
-            bottom: 8,
-            right: 8,
-            padding: '4px 8px',
-            background: 'rgba(10, 8, 6, 0.6)',
-            border: '1px solid var(--border)',
-            borderRadius: 4,
-            fontSize: 9,
-            fontFamily: 'var(--mono)',
-            color: 'var(--text-3)',
-            lineHeight: 1.4,
-            pointerEvents: 'none',
-            maxWidth: 180,
-            letterSpacing: '0.02em',
-          }}
-          aria-hidden="true"
-        >
-          Conway tiles + RD biome are ambient. Click a {scenarioLabels.person} glyph for drilldown.
-        </div>
         <button
           type="button"
           onClick={() => setRosterOpen(v => !v)}
