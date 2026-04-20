@@ -19,6 +19,7 @@ import {
   seedFromColonists,
   tickGol,
   drawGol,
+  hashSeedLayout,
   DEFAULT_GOL_CONFIG,
   type GolState,
 } from './GameOfLifeLayer.js';
@@ -253,6 +254,13 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
   // same effect). Sharing one ref caused turnChanged to always read
   // false by the time GoL ran → grid never seeded → empty canvas.
   const lastGolTurnRef = useRef<number>(-1);
+  // Content-addressed cache of stabilized GoL grids keyed by the
+  // seed-layout hash. Turn-scrubbing back to a previously-visited
+  // turn short-circuits the seed + 5 ticks work (~20k cell ops) and
+  // pastes the cached grid directly. Capped at 64 entries via LRU-ish
+  // eviction so rapid scrubs across many unique layouts can't balloon
+  // memory (each entry is ~512 bytes of Uint8Array).
+  const golCacheRef = useRef<Map<string, Uint8Array>>(new Map());
   // Relationship-flare: when a colonist is clicked, brighten their
   // partner/child arcs briefly (~1s decay). Ref, not state, so the
   // decay itself doesn't force re-render — consumed in the render
@@ -571,14 +579,38 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
     }
     if (turnChanged || gridEmpty) {
       lastGolTurnRef.current = snapshot.turn;
-      seedFromColonists(gol, snapshot.cells, positions, size.w, size.h);
-      // Shorter warmup — just enough for the seed patterns to bloom
-      // into recognizable oscillators without evolving into a late-
-      // stage random soup. 5 ticks preserves blinkers / gliders /
-      // still-lifes near their initial placement, so the pattern
-      // reads as "seeded by the turn state" not "random chaos".
-      const warmup = reducedMotion ? 3 : 5;
-      for (let i = 0; i < warmup; i += 1) tickGol(gol);
+      // Cache lookup: same turn + same alive-colonist layout on this
+      // side should always produce the same stabilized Conway grid.
+      // Skip the seed + warmup entirely when we've computed it
+      // before — makes rapid turn scrubbing feel instant.
+      const cacheKey = hashSeedLayout(
+        snapshot.turn,
+        snapshot.cells,
+        positions,
+        gol.cols,
+        gol.rows,
+      );
+      const cached = golCacheRef.current.get(cacheKey);
+      if (cached && cached.length === gol.grid.length) {
+        gol.grid.set(cached);
+      } else {
+        seedFromColonists(gol, snapshot.cells, positions, size.w, size.h);
+        // Shorter warmup — just enough for the seed patterns to bloom
+        // into recognizable oscillators without evolving into a late-
+        // stage random soup. 5 ticks preserves blinkers / gliders /
+        // still-lifes near their initial placement, so the pattern
+        // reads as "seeded by the turn state" not "random chaos".
+        const warmup = reducedMotion ? 3 : 5;
+        for (let i = 0; i < warmup; i += 1) tickGol(gol);
+        // Cache the stabilized grid. LRU-ish cap at 64 entries so a
+        // long scrub session can't balloon memory. Map iteration is
+        // insertion-ordered so delete-first-entry = delete-oldest.
+        golCacheRef.current.set(cacheKey, new Uint8Array(gol.grid));
+        if (golCacheRef.current.size > 64) {
+          const firstKey = golCacheRef.current.keys().next().value;
+          if (firstKey) golCacheRef.current.delete(firstKey);
+        }
+      }
     }
     // No per-frame ticking. The pattern is drawn once per render but
     // does not evolve until the turn changes again.

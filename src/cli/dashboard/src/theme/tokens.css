@@ -247,26 +247,46 @@
     text-decoration: underline;
   }
 
-  /* === FOCUS STYLES (a11y) === */
+  /* === FOCUS STYLES (a11y) ===
+     All interactive elements share a consistent amber ring so
+     keyboard users can track focus across pills, chronicle dots,
+     LoadMenu cards, settings-drawer toggles, etc. The box-shadow
+     variant is a fallback for elements inside `overflow: hidden`
+     containers that would otherwise clip the outline — setting
+     both means one of them lands regardless of ancestor layout. */
   *:focus-visible {
     outline: 2px solid var(--amber);
     outline-offset: 2px;
+    box-shadow: 0 0 0 2px rgba(232, 180, 74, 0.35);
   }
 
   button:focus-visible {
     outline: 2px solid var(--amber);
     outline-offset: 2px;
+    box-shadow: 0 0 0 2px rgba(232, 180, 74, 0.35);
   }
 
   a:focus-visible {
     outline: 2px solid var(--amber);
     outline-offset: 2px;
     border-radius: var(--radius-sm);
+    box-shadow: 0 0 0 2px rgba(232, 180, 74, 0.35);
   }
 
   input:focus-visible, textarea:focus-visible, select:focus-visible {
     outline: 2px solid var(--amber);
     outline-offset: 1px;
+    box-shadow: 0 0 0 2px rgba(232, 180, 74, 0.25);
+  }
+
+  /* Canvas elements that act as interactive surfaces (the per-leader
+     swarm grid) need their own ring since they receive focus via
+     keyboard tab-nav but don't match a selector above (they already
+     default to outline:none via the canvas UA style). */
+  canvas:focus-visible {
+    outline: 2px solid var(--amber);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 2px rgba(232, 180, 74, 0.35);
   }
 
   /* === SCROLLBAR === */
@@ -493,9 +513,13 @@
     .sim-columns { flex-direction: column !important; }
     .sim-columns > div { min-height: 200px; }
 
-    /* Leaders stack into two rows, each full width */
+    /* Leaders stack into two rows, each full width. Give each panel
+       a minimum height so the Conway grid / RD field / glyphs have
+       enough room to render meaningfully. Without this, the
+       flex:1-of-remaining-height allocation on short viewports
+       produced ~100px panels that rendered as unreadable slivers. */
     .leaders-row { flex-direction: column !important; }
-    .leaders-row > div { width: 100% !important; }
+    .leaders-row > div { width: 100% !important; min-height: 280px !important; }
 
     /* Chat sidebar collapses */
     .chat-layout { flex-direction: column !important; }

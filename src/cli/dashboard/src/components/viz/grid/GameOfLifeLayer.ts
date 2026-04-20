@@ -98,6 +98,38 @@ export function createGolState(cols: number, rows: number): GolState {
   };
 }
 
+/**
+ * Cheap content-addressed hash for a list of colonist positions at a
+ * given turn. Used as the cache key for stabilized GoL grids so the
+ * same turn + same positions always resolves to the same cached
+ * pattern. Not cryptographic — just a fast deterministic fingerprint.
+ */
+export function hashSeedLayout(
+  turn: number,
+  cells: CellSnapshot[],
+  positions: Map<string, GridPosition>,
+  cols: number,
+  rows: number,
+): string {
+  let h = turn * 2654435761;
+  for (const c of cells) {
+    if (!c.alive) continue;
+    const p = positions.get(c.agentId);
+    if (!p) continue;
+    const cx = Math.floor((p.x / Math.max(1, cols)) * cols);
+    const cy = Math.floor((p.y / Math.max(1, rows)) * rows);
+    // Mix agentId char codes (pattern selection hashes off this) +
+    // cx/cy so both position AND starter-pattern choice participate.
+    let idH = 0;
+    for (let j = 0; j < c.agentId.length; j += 1) {
+      idH = (idH * 31 + c.agentId.charCodeAt(j)) | 0;
+    }
+    h = (h * 33) ^ idH ^ ((cx * 73856093) ^ (cy * 19349663));
+    h |= 0;
+  }
+  return `${cols}x${rows}:${h >>> 0}`;
+}
+
 /** Reset the grid to all-dead. Useful on sim clear. */
 export function clearGol(state: GolState): void {
   state.grid.fill(0);

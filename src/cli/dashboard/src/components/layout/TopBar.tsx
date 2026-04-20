@@ -21,6 +21,11 @@ interface TopBarProps {
   onRun?: () => void;
   onTour?: () => void;
   onCopy?: () => void;
+  /** True while the /setup request is in flight but the first SSE
+   *  event hasn't yet arrived. Hides the RUN button so users can't
+   *  double-launch. `gameState.isRunning` already hides it after
+   *  the sim starts emitting events; this covers the gap. */
+  launching?: boolean;
 }
 
 /**
@@ -55,7 +60,7 @@ const toolBtnStyle: React.CSSProperties = {
   fontFamily: 'var(--mono)',
 };
 
-export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRun, onTour, onCopy }: TopBarProps) {
+export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRun, onTour, onCopy, launching = false }: TopBarProps) {
   const { resolved, setTheme } = useTheme();
   const hasEvents = gameState.a.events.length > 0 || gameState.b.events.length > 0;
 
@@ -251,8 +256,12 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
             <span className="topbar-tour-icon" aria-hidden="true" style={{ display: 'none' }}>{'\u003F'}</span>
           </button>
         )}
-        {/* Run button */}
-        {onRun && !gameState.isRunning && (
+        {/* Run button. Hidden while isRunning OR launching so users
+            can't double-fire /setup (which would race against the
+            in-flight launch). Swaps to a disabled 'LAUNCHING...' chip
+            during the launching window so the UI doesn't appear
+            frozen — prior behaviour silently showed nothing. */}
+        {onRun && !gameState.isRunning && !launching && (
           <button
             onClick={onRun}
             style={{
@@ -266,6 +275,22 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
           >
             RUN
           </button>
+        )}
+        {launching && !gameState.isRunning && (
+          <span
+            style={{
+              padding: '3px 14px', borderRadius: '4px',
+              background: 'var(--bg-card)', color: 'var(--text-3)',
+              border: '1px solid var(--border)',
+              fontSize: '11px', fontWeight: 700, fontFamily: 'var(--mono)',
+              letterSpacing: '0.5px',
+              cursor: 'wait',
+            }}
+            role="status"
+            aria-live="polite"
+          >
+            LAUNCHING…
+          </span>
         )}
         {/* Save/Load/Clear */}
         {hasEvents && onSave && (

@@ -345,14 +345,22 @@ export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: l
             {onRun && (
               <button
                 onClick={handleRun}
+                disabled={launching}
                 style={{
-                  background: 'linear-gradient(135deg, var(--rust), #c44a1e)', color: '#fff',
-                  border: 'none', padding: '10px 28px', borderRadius: '6px',
-                  fontSize: '14px', fontWeight: 700, cursor: 'pointer',
-                  boxShadow: '0 4px 16px rgba(224,101,48,.25)',
+                  background: launching
+                    ? 'var(--bg-card)'
+                    : 'linear-gradient(135deg, var(--rust), #c44a1e)',
+                  color: launching ? 'var(--text-3)' : '#fff',
+                  border: launching ? '1px solid var(--border)' : 'none',
+                  padding: '10px 28px',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  fontWeight: 700,
+                  cursor: launching ? 'wait' : 'pointer',
+                  boxShadow: launching ? 'none' : '0 4px 16px rgba(224,101,48,.25)',
                 }}
               >
-                Run Simulation
+                {launching ? 'Launching…' : 'Run Simulation'}
               </button>
             )}
             <button
