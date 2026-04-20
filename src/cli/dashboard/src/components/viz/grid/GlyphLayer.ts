@@ -57,10 +57,15 @@ export function drawGlyphs(
     const searchAlphaMult = searchDim ? 0.25 : 1;
 
     if (c.featured && !searchDim) {
-      // Pulsing outer halo — radius breathes ~5→10px over ~2s so
-      // featured colonists call out rhythmically without moving.
-      const haloR = r + 4 + pulse * 4;
-      const haloAlpha = (0.2 + pulse * 0.35) * intensity;
+      // Static outer ring around featured colonists. Previously
+      // pulsed with a sinusoid ("breathing" halo that expanded
+      // ~5→10px over 2s), but users consistently misread the
+      // animation as a moving ball on the canvas — the pulse was a
+      // stylistic flourish that read as meaningful signal. Keep a
+      // solid ring so featured colonists still stand out without
+      // the distracting motion.
+      const haloR = r + 6;
+      const haloAlpha = 0.42 * intensity;
       ctx.strokeStyle = sideColor;
       ctx.lineWidth = 1;
       ctx.globalAlpha = haloAlpha;
