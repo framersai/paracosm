@@ -1,14 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { TurnSnapshot, ClusterMode, CellSnapshot } from '../viz-types.js';
 import { computeGridPositions } from './gridPositions.js';
-import { computeChemistryParams, computeInjections } from './simToChemistry.js';
-import { drawSeeds } from './SeedLayer.js';
 import { drawGlyphs } from './GlyphLayer.js';
 import { drawFlares } from './FlareLayer.js';
 import { drawHud } from './HudLayer.js';
-import { drawLines } from './LinesLayer.js';
-import { drawDeptRings } from './DeptRingsLayer.js';
-import { drawGhostTrail } from './GhostTrailLayer.js';
 import {
   drawForgeHeatmap,
   drawEcologyResourceMap,
@@ -16,8 +11,6 @@ import {
 } from './ModeOverlayLayer.js';
 import { useGridState, type ForgeAttempt, type ReuseCall } from './useGridState.js';
 import { computeDeptCenters } from './deptCenters.js';
-import { GridRenderer } from '../../../lib/webgl/gridRenderer.js';
-import { flaresToDeposits } from '../../../lib/webgl/events.js';
 import { GridMetricsStrip } from './GridMetricsStrip.js';
 import { hitTestGlyph } from './hitTest.js';
 import type { GridMode } from './GridModePills.js';
@@ -106,35 +99,6 @@ interface LivingSwarmGridProps {
   chronicleHover?: { kind: 'birth' | 'death' | 'forge' | 'crisis'; side: 'a' | 'b'; turn: number } | null;
 }
 
-function resolveRgb(color: string, element: HTMLElement | null): [number, number, number] {
-  let hex = color.trim();
-  if (hex.startsWith('var(') && element) {
-    const varName = hex.slice(4, -1).trim();
-    const computed = getComputedStyle(element).getPropertyValue(varName).trim();
-    if (computed) hex = computed;
-  }
-  if (hex.startsWith('#')) {
-    const n = parseInt(hex.slice(1), 16);
-    if (hex.length === 7) {
-      return [((n >> 16) & 0xff) / 255, ((n >> 8) & 0xff) / 255, (n & 0xff) / 255];
-    }
-    if (hex.length === 4) {
-      const r = (n >> 8) & 0xf;
-      const g = (n >> 4) & 0xf;
-      const b = n & 0xf;
-      return [(r * 17) / 255, (g * 17) / 255, (b * 17) / 255];
-    }
-  }
-  const rgbMatch = hex.match(/rgba?\(([^)]+)\)/);
-  if (rgbMatch) {
-    const parts = rgbMatch[1].split(',').map(s => parseFloat(s.trim()));
-    if (parts.length >= 3) {
-      return [parts[0] / 255, parts[1] / 255, parts[2] / 255];
-    }
-  }
-  return [0.35, 0.28, 0.2];
-}
-
 function resolveCssColor(color: string, element: HTMLElement | null): string {
   if (color.startsWith('var(') && element) {
     const varName = color.slice(4, -1).trim();
@@ -144,17 +108,14 @@ function resolveCssColor(color: string, element: HTMLElement | null): string {
   return color;
 }
 
-const GRID_W = 384;
-const GRID_H = 240;
-
 /**
- * Per-leader living swarm grid. WebGL2 Gray-Scott field in back,
- * Canvas2D overlay in front (seeds, glyphs, flares, dept labels, HUD),
- * GridMetricsStrip DOM layer above. Hover tooltip tracks the nearest
- * agent under cursor. Named "swarm" rather than "colony" so the
- * component reads cleanly for non-Mars scenarios (corporate org,
- * military unit, research lab, etc.) — the underlying semantics are
- * scenario-agnostic; only the `scenarioLabels` hook localizes the
+ * Per-leader living swarm grid. Canvas2D overlay renders colonist
+ * glyphs, event flares, hover + click interactions, and a HUD corner
+ * readout on top of a static morale-tinted CSS gradient background.
+ * GridMetricsStrip DOM layer sits above the canvas; FeaturedSpotlight
+ * pill stack sits bottom-right. Named "swarm" rather than "colony" so
+ * the component reads cleanly for non-Mars scenarios — the semantics
+ * are scenario-agnostic; only the `scenarioLabels` hook localizes the
  * population-noun ("colonist" / "employee" / "soldier" / ...).
  */
 export function LivingSwarmGrid(props: LivingSwarmGridProps) {
@@ -194,11 +155,8 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
   const scenarioLabels = useScenarioLabels();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasWrapRef = useRef<HTMLDivElement | null>(null);
-  const webglCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const rendererRef = useRef<GridRenderer | null>(null);
   const [size, setSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
-  const [webglFailed, setWebglFailed] = useState(false);
   const [hovered, setHovered] = useState<{
     cell: CellSnapshot;
     x: number;
@@ -210,11 +168,6 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
   const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
   const [popover, setPopover] = useState<ClickPopoverPayload | null>(null);
   const [rosterOpen, setRosterOpen] = useState(false);
-  /** Turn-transition pulse value in [0, 1], decays per frame. Non-
-   *  reactive so it doesn't force re-render on every decay step —
-   *  the render effect reads `.current` inline. */
-  const pulseRef = useRef<number>(0);
-  const lastTurnRef = useRef<number>(-1);
   /**
    * Mount-time staged reveal. Uses a CSS-driven cover-div approach
    * rather than canvas globalAlpha because the canvas layers mutate
@@ -261,23 +214,6 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
   }, []);
 
   useEffect(() => {
-    const canvas = webglCanvasRef.current;
-    if (!canvas || size.w === 0 || size.h === 0 || rendererRef.current) return;
-    canvas.width = GRID_W;
-    canvas.height = GRID_H;
-    try {
-      rendererRef.current = new GridRenderer({ canvas, width: GRID_W, height: GRID_H });
-    } catch (err) {
-      console.warn('[LivingSwarmGrid] WebGL2 init failed', err);
-      setWebglFailed(true);
-    }
-    return () => {
-      rendererRef.current?.destroy();
-      rendererRef.current = null;
-    };
-  }, [size.w, size.h]);
-
-  useEffect(() => {
     const c = overlayCanvasRef.current;
     if (!c || size.w === 0 || size.h === 0) return;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -293,11 +229,6 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
     if (!snapshot || size.w === 0) return new Map<string, { x: number; y: number }>();
     return computeGridPositions(snapshot.cells, clusterMode, size.w, size.h);
   }, [snapshot, clusterMode, size.w, size.h]);
-
-  const gridPositions = useMemo(() => {
-    if (!snapshot) return new Map<string, { x: number; y: number }>();
-    return computeGridPositions(snapshot.cells, clusterMode, GRID_W, GRID_H);
-  }, [snapshot, clusterMode]);
 
   const deptCentersOverlay = useMemo(() => {
     if (!snapshot) return new Map<string, { x: number; y: number }>();
@@ -317,49 +248,10 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
     () => deptCentersOverlay,
   );
 
-  // Mode-driven rendering. Prior behaviour only nudged fieldIntensity
-  // by ~0.45 between modes, so pressing LIVING / MOOD / FORGE / ECOLOGY
-  // / DIVERGENCE produced near-identical visual output — the mode
-  // switcher read as a no-op to users. Each mode now drives a much
-  // stronger delta across fieldIntensity + seedIntensity + glyph
-  // visibility + palette + sideTint source so the canvas clearly
-  // reconfigures on each pill press:
-  //
-  //   LIVING     : full field + glyphs + lines, default palette. The
-  //                "default dashboard" view.
-  //   MOOD       : cool (teal/violet) palette, sideTint re-derived
-  //                from dominant alive-colonist mood. Seeds still
-  //                visible; lines visible. Reads as emotional-state
-  //                field rather than side-affiliation.
-  //   FORGE      : field dimmed hard (0.2×), palette flipped to mono.
-  //                Glyphs also dimmed so forge-flare pulses dominate.
-  //                Reads as "where in the colony is forging happening".
-  //   ECOLOGY    : field very dim (0.25×), glyphs hidden entirely.
-  //                Lets the metrics strip + crisis shockwaves carry
-  //                the story. Reads as pure resource / event stream.
-  //   DIVERGENCE : field medium-dim, palette default, glyphs fully
-  //                bright so the diverged-only highlight rings pop.
-  //                Reads as "who died / survived that the other side
-  //                did the opposite of".
-  const modeConfig = (() => {
-    switch (mode) {
-      case 'mood':
-        return { fieldIntensity: 0.9, seedIntensity: 1.1, glyphIntensity: 1.0, palette: 1 as 0 | 1 | 2 };
-      case 'forge':
-        return { fieldIntensity: 0.2, seedIntensity: 0.4, glyphIntensity: 0.7, palette: 2 as 0 | 1 | 2 };
-      case 'ecology':
-        return { fieldIntensity: 0.25, seedIntensity: 0.0, glyphIntensity: 0.0, palette: 0 as 0 | 1 | 2 };
-      case 'divergence':
-        return { fieldIntensity: 0.7, seedIntensity: 1.0, glyphIntensity: 1.0, palette: palette };
-      case 'living':
-      default:
-        return { fieldIntensity: 1.0, seedIntensity: 1.0, glyphIntensity: 1.0, palette: palette };
-    }
-  })();
-  const fieldIntensity = modeConfig.fieldIntensity;
-  const seedIntensity = modeConfig.seedIntensity;
-  const glyphIntensity = modeConfig.glyphIntensity;
-  const effectivePalette = modeConfig.palette;
+  // Mode-driven glyph intensity. Forge dims glyphs slightly so forge
+  // flare pulses dominate visually; ecology hides them so the metrics
+  // strip + event flares carry the story alone.
+  const glyphIntensity = mode === 'forge' ? 0.7 : mode === 'ecology' ? 0 : 1;
 
   // MOOD mode re-derives the field tint from the dominant alive-cell
   // mood rather than side affiliation. Both leader panels end up
@@ -394,51 +286,14 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
   }, [mode, snapshot, sideColor]);
 
   useEffect(() => {
-    const renderer = rendererRef.current;
     const overlay = overlayCanvasRef.current;
-    if (!renderer || !overlay || !snapshot) return;
+    if (!overlay || !snapshot) return;
     const ctx = overlay.getContext('2d');
     if (!ctx) return;
 
-    // Turn transition pulse: spike the pulse value on turn change, then
-    // decay by ~0.05/frame (≈600ms at 30fps) back to 0. Used to brighten
-    // the field tint and thicken the panel glow briefly.
-    if (snapshot.turn !== lastTurnRef.current) {
-      lastTurnRef.current = snapshot.turn;
-      if (!reducedMotion) pulseRef.current = 1.0;
-    } else {
-      pulseRef.current = Math.max(0, pulseRef.current - 0.05);
-    }
-    const pulse = pulseRef.current;
-
-    // Thread the leader's HEXACO into the chemistry resolver so the
-    // Gray-Scott F/k lands in a personality-shifted spot within its
-    // safe band. This is the visible fix for "both sides look
-    // identical on turn 1" — the morale/food/pop inputs are the same
-    // at launch, but Visionary (high O+E) and Engineer (high C, low
-    // E) leaders now compute different F/k targets from the start.
-    const leaderPersonality = leaderHexaco
-      ? {
-          openness: leaderHexaco.O,
-          conscientiousness: leaderHexaco.C,
-          extraversion: leaderHexaco.E,
-          agreeableness: leaderHexaco.A,
-          emotionality: leaderHexaco.Em,
-          honestyHumility: leaderHexaco.HH,
-        }
-      : undefined;
-    const { F, k } = computeChemistryParams(snapshot, initialPopulation, leaderPersonality);
-    const injections = computeInjections(snapshot.cells, gridPositions);
-    const colonistDeposits = injections.map(i => ({
-      x: i.x,
-      y: i.y,
-      channel: i.channel,
-      strength: i.strength * seedIntensity,
-      radius: 1,
-    } as const));
     // Apply the chronicle-strip filter here so the user's "show me
     // only forges" / "only crises" choice propagates through to the
-    // main canvas. The flare `.kind` vocabulary is broader than the
+    // canvas. The flare `.kind` vocabulary is broader than the
     // chronicle's — forge covers approved, rejected, AND reuse calls
     // so a "forges" filter keeps the whole forge narrative intact.
     const flareMatchesFilter = (f: { kind: string }): boolean => {
@@ -452,55 +307,8 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
       return true;
     };
     const visibleFlares = gridState.flares.filter(flareMatchesFilter);
-    // Flares are stored in overlay-space pixels; rescale to grid-space
-    // for WebGL deposits. Overlay continues to render with the original
-    // pixel coords so flare rings land under the cursor correctly.
-    const scaleX = GRID_W / Math.max(1, size.w);
-    const scaleY = GRID_H / Math.max(1, size.h);
-    const flaresGridSpace = visibleFlares.map(f => ({
-      ...f,
-      x: f.x * scaleX,
-      y: f.y * scaleY,
-      endX: typeof f.endX === 'number' ? f.endX * scaleX : undefined,
-      endY: typeof f.endY === 'number' ? f.endY * scaleY : undefined,
-    }));
-    const flareDepositsGrid = flaresToDeposits(flaresGridSpace, GRID_W, GRID_H);
-
-    // MOOD mode swaps the field tint from side-affiliation color to
-    // the dominant-mood color resolved above. All other modes keep
-    // their configured sideColor so the left/right split reads as
-    // leader A vs leader B.
-    const tintSource = mode === 'mood' ? moodTintedSideColor : sideColor;
-    const tintBase = resolveRgb(tintSource, containerRef.current);
-    // Pulse boosts tint briefly on each new turn so the field "breathes"
-    // when fresh data lands.
-    const pulseBoost = 1 + pulse * 0.7;
-    const tintScaled: [number, number, number] = [
-      Math.min(1, tintBase[0] * fieldIntensity * pulseBoost),
-      Math.min(1, tintBase[1] * fieldIntensity * pulseBoost),
-      Math.min(1, tintBase[2] * fieldIntensity * pulseBoost),
-    ];
-    // Reduced motion: render one tick per snapshot change (no ongoing
-    // animation), stepsPerFrame=0 stops RD evolution. Event flares still
-    // decay visually but the field itself freezes between turns.
-    const baseSteps = reducedMotion ? 0 : 2;
-    const scaledSteps = Math.max(0, Math.round(baseSteps * settings.animSpeed));
-    renderer.tick({
-      F: F * fieldIntensity,
-      k,
-      deposits: [...colonistDeposits, ...flareDepositsGrid],
-      sideTint: tintScaled,
-      stepsPerFrame: scaledSteps,
-      palette: effectivePalette,
-    });
 
     const resolvedSide = resolveCssColor(sideColor, containerRef.current);
-    // Resolve theme-dependent colors from CSS vars FIRST. The ghost-trail
-    // block below consumes `cs` + `hexToRgba`, and `drawGlyphs` consumes
-    // `textMuted` — both were previously declared lower in this function,
-    // which became a TDZ ("Cannot access 'wn' before initialization") the
-    // moment Vite's prod minifier reordered statements around them. Keep
-    // this block ABOVE every draw call that uses its outputs.
     const cs = containerRef.current ? getComputedStyle(containerRef.current) : null;
     const hexToRgba = (hex: string, alpha: number): string | null => {
       if (!hex.startsWith('#') || hex.length !== 7) return null;
@@ -519,9 +327,6 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
     const crosshairStroke =
       (cs && hexToRgba(cs.getPropertyValue('--text-2').trim(), 0.22)) ||
       'rgba(216, 204, 176, 0.22)';
-    // "→ Name" tracer values tuned for readability over the RD field
-    // wash. Stroke + fill alpha high enough to cut through the tinted
-    // backdrop at normal cursor speeds.
     const crosshairTracerStroke =
       (cs && hexToRgba(cs.getPropertyValue('--text-2').trim(), 0.7)) ||
       'rgba(216, 204, 176, 0.7)';
@@ -529,69 +334,6 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
       (cs && hexToRgba(cs.getPropertyValue('--text-2').trim(), 0.95)) ||
       'rgba(216, 204, 176, 0.95)';
     ctx.clearRect(0, 0, size.w, size.h);
-    if (mode !== 'ecology') drawSeeds(ctx, snapshot.cells, positions);
-    if (mode !== 'ecology' && settings.deptRings) drawDeptRings(ctx, snapshot.cells, positions);
-    if (settings.ghostTrail && previousSnapshot) {
-      const prevPositions = computeGridPositions(
-        previousSnapshot.cells,
-        clusterMode,
-        size.w,
-        size.h,
-      );
-      const ghostColors = {
-        outline:
-          (cs && hexToRgba(cs.getPropertyValue('--text-2').trim(), 0.32)) ||
-          'rgba(216, 204, 176, 0.32)',
-        arrowLine:
-          (cs && hexToRgba(cs.getPropertyValue('--text-2').trim(), 0.25)) ||
-          'rgba(216, 204, 176, 0.25)',
-        arrowHead:
-          (cs && hexToRgba(cs.getPropertyValue('--text-2').trim(), 0.5)) ||
-          'rgba(216, 204, 176, 0.5)',
-      };
-      drawGhostTrail(
-        ctx,
-        snapshot.cells,
-        positions,
-        previousSnapshot.cells,
-        prevPositions,
-        ghostColors,
-      );
-    }
-    // Relationship lines render in two distinct modes:
-    //
-    //  - `settings.lines` ON: full relationship graph (every partner
-    //    arc + every parent/child line on the grid).
-    //  - `settings.lines` OFF (default): only draw the focused
-    //    network for a recently-clicked colonist, via the
-    //    relationshipFlare ref. Users who click a glyph get to see
-    //    just THAT colonist's partners/children highlighted in
-    //    side-color for ~1s, with zero background clutter from
-    //    unrelated colonists. Addresses the pattern where the
-    //    always-on relationship graph read as "weird diamond
-    //    animations" over a dense grid.
-    if (mode === 'living' || mode === 'mood') {
-      // Decay relationship flare ~0.03/frame → ~1s total at 30fps.
-      relationshipFlareRef.current.intensity = Math.max(
-        0,
-        relationshipFlareRef.current.intensity - 0.03,
-      );
-      const flareActive =
-        !settings.lines &&
-        relationshipFlareRef.current.id !== null &&
-        relationshipFlareRef.current.intensity > 0.05;
-      if (settings.lines || flareActive) {
-        drawLines(ctx, snapshot.cells, positions, resolvedSide, {
-          flareAgentId: relationshipFlareRef.current.id,
-          flareIntensity: relationshipFlareRef.current.intensity,
-          focusOnly: !settings.lines,
-        });
-      }
-    }
-    // Draw the filtered flare subset on the overlay. Using the
-    // pre-filtered `visibleFlares` keeps the main canvas in lock-step
-    // with what the chronicle strip is showing — hiding a kind in one
-    // widget hides it in both.
     drawFlares(ctx, visibleFlares);
     if (mode !== 'ecology')
       drawGlyphs(
@@ -734,28 +476,25 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
     gridState.tickClock,
     snapshot,
     positions,
-    gridPositions,
     size.w,
     size.h,
     sideColor,
     leaderName,
-    initialPopulation,
     lagTurns,
     gridState.flares,
     mode,
-    fieldIntensity,
-    seedIntensity,
     glyphIntensity,
     hovered,
     divergedIds,
     siblingHoveredId,
     reducedMotion,
     searchQuery,
-    palette,
     cursor,
     settings,
     leaderArchetype,
     startYear,
+    forgeAttempts,
+    eventFilter,
   ]);
 
   const onMouseMove = useCallback(
@@ -874,22 +613,10 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
           position: 'relative',
           minHeight: 0,
           overflow: 'hidden',
-          // Background star dust layer: repeating radial-gradient sim-
-          // ulates a very faint satellite-scan speckle so empty grid
-          // space doesn't read as flat black. Toggleable via settings.
-          background: settings.dust
-            ? `radial-gradient(1px 1px at 12% 28%, rgba(216, 204, 176, 0.12), transparent 60%), ` +
-              `radial-gradient(1px 1px at 37% 73%, rgba(216, 204, 176, 0.08), transparent 60%), ` +
-              `radial-gradient(1px 1px at 64% 14%, rgba(216, 204, 176, 0.1), transparent 60%), ` +
-              `radial-gradient(1px 1px at 82% 52%, rgba(216, 204, 176, 0.07), transparent 60%), ` +
-              `radial-gradient(1px 1px at 51% 90%, rgba(216, 204, 176, 0.09), transparent 60%), ` +
-              `radial-gradient(1px 1px at 7% 61%, rgba(216, 204, 176, 0.06), transparent 60%), ` +
-              `radial-gradient(1px 1px at 93% 84%, rgba(216, 204, 176, 0.08), transparent 60%), ` +
-              `var(--bg-deep)`
-            : 'var(--bg-deep)',
-          backgroundSize: settings.dust
-            ? '140px 140px, 160px 160px, 130px 130px, 170px 170px, 150px 150px, 180px 180px, 165px 165px, auto'
-            : 'auto',
+          // Soft morale-tinted radial wash centered on the canvas. In
+          // mood-mode the tint is the dominant mood color; otherwise
+          // it follows side. No WebGL, no simulation, no pattern noise.
+          background: `radial-gradient(ellipse at 50% 55%, ${resolveCssColor(mode === 'mood' ? moodTintedSideColor : sideColor, containerRef.current)}18 0%, ${resolveCssColor(mode === 'mood' ? moodTintedSideColor : sideColor, containerRef.current)}08 45%, var(--bg-deep) 85%)`,
           // Border + boxShadow cycle between the morale-derived
           // default and a chronicle-hover override. When the user
           // hovers a chronicle pill that belongs to THIS side, the
@@ -932,16 +659,6 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
         }}
       >
         <canvas
-          ref={webglCanvasRef}
-          style={{
-            position: 'absolute',
-            inset: 0,
-            width: '100%',
-            height: '100%',
-            display: webglFailed ? 'none' : 'block',
-          }}
-        />
-        <canvas
           ref={overlayCanvasRef}
           role="img"
           aria-label={
@@ -961,22 +678,6 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
             cursor: hovered ? 'pointer' : 'default',
           }}
         />
-        {webglFailed && (
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--text-4)',
-              fontSize: 11,
-              fontFamily: 'var(--mono)',
-            }}
-          >
-            WebGL2 unavailable
-          </div>
-        )}
         {/* Staged fade-in cover. Starts opaque on mount, transitions
             to transparent so the canvas emerges over 400ms with a
             slight radial reveal — feels intentional instead of
