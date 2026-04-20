@@ -514,16 +514,18 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
     // the seeds / glyphs / HUD so the colonist markers still read as
     // the primary foreground.
     //
-    // Re-seed on turn change OR when the grid is empty (first mount
-    // on an already-completed sim, after scrub to the same turn from
-    // an empty state, etc.). Seeding only on turn-change meant users
-    // loading the Viz tab AFTER a sim finished saw an empty canvas
-    // because `lastGolTurnRef` started at -1 but the pulse-update
-    // logic higher in this effect had already synced it elsewhere.
+    // Strategy: on turn change (or first mount), seed the grid from
+    // colonist positions AND run a burst of ~12 generations
+    // synchronously to let the Conway pattern stabilize into its
+    // period-2 oscillators, gliders, and still-lifes. Then STOP
+    // ticking — the rendered pattern stays static until the next
+    // turn change. This addresses user feedback that per-frame
+    // evolution looked like "weird animations" on tab open, and that
+    // a completed run should present a static final pattern rather
+    // than an indefinitely-running simulation inside a simulation.
     //
-    // Evolve one generation every third frame (~20 Hz at 60fps).
-    // Slower than the RD field's ~30 Hz so the discrete tiles give
-    // the eye time to track oscillators and gliders.
+    // Reduced-motion users get a shorter warmup (6 generations) for
+    // the same static result but at lower CPU cost.
     const gol = golStateRef.current;
     const turnChanged = snapshot.turn !== lastGolTurnRef.current;
     let gridEmpty = true;
@@ -533,12 +535,11 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
     if (turnChanged || gridEmpty) {
       lastGolTurnRef.current = snapshot.turn;
       seedFromColonists(gol, snapshot.cells, positions, size.w, size.h);
+      const warmup = reducedMotion ? 6 : 12;
+      for (let i = 0; i < warmup; i += 1) tickGol(gol);
     }
-    if (!reducedMotion && gol.frame % 3 === 0) {
-      tickGol(gol);
-    } else {
-      gol.frame += 1;
-    }
+    // No per-frame ticking. The pattern is drawn once per render but
+    // does not evolve until the turn changes again.
     // GoL layer dims with the same mode-config as the RD field so
     // ecology / forge don't drown the strip / forge-flare overlays.
     // Canvas 2D's ctx.fillStyle does NOT resolve `var(--x)` CSS
