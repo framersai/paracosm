@@ -510,19 +510,25 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
     ctx.clearRect(0, 0, size.w, size.h);
     // Conway Game of Life pass — discrete-cell pattern layered UNDER
     // the seeds / glyphs / HUD so the colonist markers still read as
-    // the primary foreground. Re-seed every ~6 frames so sparse
-    // populations don't extinguish the pattern; evolve every other
-    // frame so the Conway animation is visible but doesn't burn
-    // 60fps of CPU on the double-buffer copy.
+    // the primary foreground.
+    //
+    // Re-seed ONLY when the turn changes (not every 6 frames). This
+    // lets the classic Conway patterns (blinker / glider / R-pent)
+    // evolve uninterrupted for ~20-60 generations per turn instead of
+    // being wiped continuously — which was what made the prior pass
+    // read as random chaos instead of recognizable cellular automata.
+    //
+    // Evolve one generation every third frame (~20 Hz at 60fps).
+    // Slower than the RD field's ~30 Hz so the discrete tiles give
+    // the eye time to track oscillators and gliders.
     const gol = golStateRef.current;
-    if (snapshot.turn !== lastTurnRef.current || gol.frame % 6 === 0) {
+    const turnChanged = snapshot.turn !== lastTurnRef.current;
+    if (turnChanged) {
       seedFromColonists(gol, snapshot.cells, positions, size.w, size.h);
     }
-    if (!reducedMotion && gol.frame % 2 === 0) {
+    if (!reducedMotion && gol.frame % 3 === 0) {
       tickGol(gol);
     } else {
-      // Still bump the frame counter under reduced-motion so the
-      // re-seed cadence above keeps firing.
       gol.frame += 1;
     }
     // GoL layer dims with the same mode-config as the RD field so

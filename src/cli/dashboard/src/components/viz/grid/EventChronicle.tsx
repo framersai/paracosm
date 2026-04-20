@@ -150,18 +150,19 @@ export function EventChronicle({
     >
       <span
         style={{
-          fontSize: 8,
+          fontSize: 10,
           fontFamily: 'var(--mono)',
-          color: 'var(--text-4)',
+          color: 'var(--text-3)',
           letterSpacing: '0.1em',
           textTransform: 'uppercase',
           whiteSpace: 'nowrap',
+          fontWeight: 700,
         }}
       >
         Events ({filtered.length}
         {filter !== 'all' ? `/${chronicle.length}` : ''})
       </span>
-      <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
+      <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
         {FILTER_CHIPS.map(chip => {
           const active = filter === chip.key;
           return (
@@ -170,18 +171,28 @@ export function EventChronicle({
               type="button"
               onClick={() => setFilter(chip.key)}
               aria-pressed={active}
+              // Bigger + higher-contrast per user feedback — the
+              // prior 8px / 1×6 padding rendered as unreadable
+              // specks on the dashboard density. Now 11px / 4×10
+              // padding with brighter active state so the pills
+              // read as real buttons and the filter state is
+              // obvious at a glance.
               style={{
-                padding: '1px 6px',
-                fontSize: 8,
+                padding: '4px 10px',
+                fontSize: 11,
                 fontFamily: 'var(--mono)',
                 fontWeight: 800,
                 letterSpacing: '0.08em',
                 textTransform: 'uppercase',
-                background: active ? 'var(--amber)' : 'var(--bg-card)',
-                color: active ? 'var(--bg-deep)' : 'var(--text-3)',
-                border: '1px solid var(--border)',
-                borderRadius: 2,
+                background: active
+                  ? 'linear-gradient(135deg, var(--amber), #c8952e)'
+                  : 'var(--bg-card)',
+                color: active ? 'var(--bg-deep)' : 'var(--text-2)',
+                border: active ? '1px solid var(--amber)' : '1px solid var(--border)',
+                borderRadius: 4,
                 cursor: 'pointer',
+                boxShadow: active ? '0 0 0 2px rgba(232,180,74,0.2)' : 'none',
+                transition: 'background 120ms, color 120ms, border-color 120ms',
               }}
             >
               {chip.label}
