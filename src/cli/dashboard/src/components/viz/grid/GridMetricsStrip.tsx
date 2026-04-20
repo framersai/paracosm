@@ -5,7 +5,7 @@ import { DeptDonut } from './DeptDonut.js';
 /**
  * Full colony metrics strip rendered above the living grid. Same
  * morale bar + mood-mix histogram + age distribution + family counts
- * the legacy ColonyPanel exposed — kept as a standalone component so
+ * the legacy SwarmPanel exposed — kept as a standalone component so
  * both viz modes render it consistently. Collapses to 2 columns on
  * narrow screens so nothing overflows on phone widths.
  */

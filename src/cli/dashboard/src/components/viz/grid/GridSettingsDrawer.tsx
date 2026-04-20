@@ -57,7 +57,7 @@ interface DrawerProps {
 
 /** Floating settings drawer anchored near the trigger button. Small
  *  set of tweaks — keeps the UI skimmable, persistence lives at the
- *  ColonyViz level via localStorage. */
+ *  SwarmViz level via localStorage. */
 export function GridSettingsDrawer({ open, settings, onChange, onClose }: DrawerProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {

@@ -15,7 +15,7 @@ import { VerdictDetails } from './components/sim/VerdictCard';
 import { SettingsPanel } from './components/settings/SettingsPanel';
 import { ReportView } from './components/reports/ReportView';
 import { ChatPanel } from './components/chat/ChatPanel';
-import { ColonyViz } from './components/viz/ColonyViz';
+import { SwarmViz } from './components/viz/SwarmViz';
 // AboutPage consolidated into landing page at /
 import { Footer } from './components/layout/Footer';
 import { ToastProvider, useToast } from './components/shared/Toast';
@@ -751,7 +751,7 @@ function AppContent() {
           <main id="main-content" className="flex-1 overflow-hidden" role="main" aria-label={`${activeTab} view`} style={{ background: 'var(--bg-deep)', display: 'flex', flexDirection: 'column' }}>
             {activeTab === 'sim' && <SimView state={gameState} sseStatus={sse.status} onRun={handleRun} verdict={sse.verdict} launching={launching} />}
 
-            {activeTab === 'viz' && <ColonyViz state={gameState} onNavigateToChat={navigateToChat} />}
+            {activeTab === 'viz' && <SwarmViz state={gameState} onNavigateToChat={navigateToChat} />}
 
             {activeTab === 'settings' && <SettingsPanel />}
 
@@ -826,6 +826,12 @@ function AppContent() {
               totalTokens: (gameState.cost?.totalTokens ?? 0) + chatUsage.totalTokens,
               totalCostUSD: Math.round(((gameState.cost?.totalCostUSD ?? 0) + chatUsage.costUSD) * 10000) / 10000,
               llmCalls: (gameState.cost?.llmCalls ?? 0) + chatUsage.calls,
+            }}
+            costBreakdown={{
+              simUSD: gameState.cost?.totalCostUSD ?? 0,
+              simCalls: gameState.cost?.llmCalls ?? 0,
+              chatUSD: chatUsage.costUSD,
+              chatCalls: chatUsage.calls,
             }}
             simStatus={{
               isRunning: gameState.isRunning,

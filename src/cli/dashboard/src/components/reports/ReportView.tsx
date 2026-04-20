@@ -289,6 +289,97 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
           background: 'var(--bg-deep)',
         }}
       >
+      {/* Key Insight tile — the TL;DR card at the very top so users
+          who aren't going to scroll the full report still see the
+          verdict headline + the three most important stat deltas.
+          Computed from the same verdict payload the Summary section
+          below consumes; renders null when no verdict is available
+          yet (still-running runs skip the block). */}
+      {(() => {
+        const v = verdict as { winnerName?: string; winner?: 'A' | 'B' | 'tie'; headline?: string; summary?: string } | null;
+        const winnerName = v?.winnerName || '';
+        const headline = v?.headline || v?.summary || '';
+        if (!verdict && turns.length === 0) return null;
+        const turnCount = turns.length;
+        const lastTurn = turns[turns.length - 1];
+        const firstTurn = turns[0];
+        const pick = (colony: Record<string, unknown> | undefined, key: string): number => {
+          const v = colony?.[key];
+          return typeof v === 'number' ? v : 0;
+        };
+        const finalPopA = pick(lastTurn?.[1]?.a?.colony, 'population');
+        const finalPopB = pick(lastTurn?.[1]?.b?.colony, 'population');
+        const finalMoraleA = pick(lastTurn?.[1]?.a?.colony, 'morale');
+        const finalMoraleB = pick(lastTurn?.[1]?.b?.colony, 'morale');
+        const initialPopA = pick(firstTurn?.[1]?.a?.colony, 'population') || finalPopA;
+        const initialPopB = pick(firstTurn?.[1]?.b?.colony, 'population') || finalPopB;
+        const totalToolsA = state.a.events.filter(e => e.type === 'forge_attempt' && e.data?.approved === true).length;
+        const totalToolsB = state.b.events.filter(e => e.type === 'forge_attempt' && e.data?.approved === true).length;
+        const stats: Array<{ label: string; value: string; tone?: 'pos' | 'neg' | 'neutral' }> = [
+          { label: 'Turns', value: String(turnCount) },
+          {
+            label: 'Final pop',
+            value: `A ${finalPopA}${finalPopA < initialPopA ? ` (↓${initialPopA - finalPopA})` : ''} · B ${finalPopB}${finalPopB < initialPopB ? ` (↓${initialPopB - finalPopB})` : ''}`,
+            tone: finalPopA + finalPopB < initialPopA + initialPopB ? 'neg' : 'neutral',
+          },
+          {
+            label: 'Final morale',
+            value: `A ${Math.round(finalMoraleA * 100)}% · B ${Math.round(finalMoraleB * 100)}%`,
+            tone: Math.min(finalMoraleA, finalMoraleB) < 0.3 ? 'neg' : Math.min(finalMoraleA, finalMoraleB) >= 0.6 ? 'pos' : 'neutral',
+          },
+          { label: 'Tools forged', value: `A ${totalToolsA} · B ${totalToolsB}` },
+        ];
+        return (
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+              padding: '12px 14px',
+              marginBottom: 12,
+              background: 'linear-gradient(135deg, rgba(232,180,74,0.08), rgba(224,101,48,0.04))',
+              border: '1px solid rgba(232,180,74,0.35)',
+              borderRadius: 6,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 10, fontFamily: 'var(--mono)', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--amber)' }}>
+                TL;DR
+              </span>
+              {winnerName ? (
+                <span style={{ fontSize: 14, fontFamily: 'var(--sans)', fontWeight: 800, color: 'var(--text-1)' }}>
+                  {winnerName} wins
+                </span>
+              ) : turnCount > 0 ? (
+                <span style={{ fontSize: 14, fontFamily: 'var(--sans)', fontWeight: 800, color: 'var(--text-1)' }}>
+                  Run {turnCount} turn{turnCount === 1 ? '' : 's'} — verdict pending
+                </span>
+              ) : null}
+              {headline && (
+                <span style={{ fontSize: 12, color: 'var(--text-2)', flex: 1, minWidth: 200 }}>
+                  {headline}
+                </span>
+              )}
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, fontSize: 11, fontFamily: 'var(--mono)', color: 'var(--text-2)' }}>
+              {stats.map(s => (
+                <span key={s.label}>
+                  <span style={{ color: 'var(--text-3)', marginRight: 4 }}>{s.label}:</span>
+                  <span
+                    style={{
+                      color: s.tone === 'pos' ? 'var(--green)' : s.tone === 'neg' ? 'var(--rust)' : 'var(--text-1)',
+                      fontWeight: 700,
+                    }}
+                  >
+                    {s.value}
+                  </span>
+                </span>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Header row: title on the left, jump-to-summary CTA on the
           right. User asked for the verdict / winner results at the
           bottom (just above References) with a scroll-to anchor up

@@ -31,7 +31,7 @@ export function gridModeHint(
 
 /**
  * Mode pill row rendered above each leader grid. Shared state lifted
- * to ColonyViz so toggling on one leader also toggles the other —
+ * to SwarmViz so toggling on one leader also toggles the other —
  * panels stay visually comparable across mode switches.
  * Optional counts render as a "· N" suffix — typically used for FORGE
  * (total approved forges across both leaders) and DIVERGENCE (total

@@ -10,6 +10,11 @@ import { drawLines } from './LinesLayer.js';
 import { drawDeptRings } from './DeptRingsLayer.js';
 import { drawGhostTrail } from './GhostTrailLayer.js';
 import {
+  drawForgeHeatmap,
+  drawEcologyResourceMap,
+  drawDivergenceHighlight,
+} from './ModeOverlayLayer.js';
+import {
   createGolState,
   seedFromColonists,
   tickGol,
@@ -532,12 +537,15 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
     const crosshairStroke =
       (cs && hexToRgba(cs.getPropertyValue('--text-2').trim(), 0.22)) ||
       'rgba(216, 204, 176, 0.22)';
+    // Bumped from 0.4/0.7 → 0.7/0.95 so the "→ Name" tracer reads at
+    // a glance over dense Conway tiles. Prior values were correct for
+    // a near-empty canvas but lost against the new GoL-tile backdrop.
     const crosshairTracerStroke =
-      (cs && hexToRgba(cs.getPropertyValue('--text-2').trim(), 0.4)) ||
-      'rgba(216, 204, 176, 0.4)';
-    const crosshairTracerFill =
       (cs && hexToRgba(cs.getPropertyValue('--text-2').trim(), 0.7)) ||
       'rgba(216, 204, 176, 0.7)';
+    const crosshairTracerFill =
+      (cs && hexToRgba(cs.getPropertyValue('--text-2').trim(), 0.95)) ||
+      'rgba(216, 204, 176, 0.95)';
     ctx.clearRect(0, 0, size.w, size.h);
     // Conway Game of Life pass — discrete-cell pattern layered UNDER
     // the seeds / glyphs / HUD so the colonist markers still read as
@@ -669,6 +677,35 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
         true, // always-on labels for featured + diverged
         textMuted,
       );
+    // Mode-specific overlays. Each runs AFTER the base layers so its
+    // own visual signature rides on top of the RD/GoL backdrop, and
+    // BEFORE the HUD so the corner readouts stay readable.
+    if (mode === 'forge' && forgeAttempts && forgeAttempts.length > 0) {
+      drawForgeHeatmap(
+        ctx,
+        snapshot.cells,
+        positions,
+        forgeAttempts.map(f => ({
+          department: f.department,
+          turn: f.turn,
+          approved: f.approved,
+        })),
+        resolvedSide,
+      );
+    }
+    if (mode === 'ecology') {
+      drawEcologyResourceMap(ctx, snapshot, size.w, size.h);
+    }
+    if (mode === 'divergence') {
+      drawDivergenceHighlight(
+        ctx,
+        snapshot.cells,
+        positions,
+        divergedIds,
+        reducedMotion ? 0 : performance.now(),
+        resolvedSide,
+      );
+    }
     drawHud(ctx, snapshot, {
       leaderName,
       leaderArchetype,
@@ -739,7 +776,7 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
         ctx.stroke();
         ctx.setLineDash([]);
         ctx.fillStyle = crosshairTracerFill;
-        ctx.font = '9px ui-monospace, monospace';
+        ctx.font = 'bold 11px ui-monospace, monospace';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
         ctx.fillText(`\u2192 ${nearest.name.split(' ')[0]}`, cursor.x + 6, cursor.y + 6);

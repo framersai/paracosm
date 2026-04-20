@@ -21,7 +21,7 @@ function readStoredCollapsed(): boolean {
   catch { return false; }
 }
 import { useVizSnapshots } from './useVizSnapshots.js';
-import { ColonyPanel } from './ColonyPanel.js';
+import { SwarmPanel } from './SwarmPanel.js';
 import { TurnBanner } from './TurnBanner.js';
 import { ClusterToggleRow } from './ClusterToggleRow.js';
 import { Legend } from './Legend.js';
@@ -77,7 +77,7 @@ import {
 
 interface HexacoShape { O: number; C: number; E: number; A: number; Em: number; HH: number }
 
-interface ColonyVizProps {
+interface SwarmVizProps {
   state: GameState;
   onNavigateToChat?: (colonistName: string) => void;
 }
@@ -87,9 +87,9 @@ const CLUSTER_MODES: ClusterMode[] = ['families', 'departments', 'mood', 'age'];
 /**
  * VIZ tab composition root. Owns playhead state, cluster mode,
  * selected colonist, divergence tint toggle. Delegates everything
- * visual to ColonyPanel, DrilldownPanel, TurnBanner, Legend.
+ * visual to SwarmPanel, DrilldownPanel, TurnBanner, Legend.
  */
-export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
+export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
   const { a: snapsA, b: snapsB } = useVizSnapshots(state);
   const maxTurn = Math.max(snapsA.length, snapsB.length);
   const [currentTurn, setCurrentTurn] = useState(0);
@@ -208,7 +208,7 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
   const [hoveredTurn, setHoveredTurn] = useState<number | null>(null);
   // Event-kind filter shared between EventChronicle (strip above the
   // viz panels) and each LivingSwarmGrid (main canvas). Prior to
-  // lifting this to ColonyViz, clicking BIRTHS / DEATHS / FORGES /
+  // lifting this to SwarmViz, clicking BIRTHS / DEATHS / FORGES /
   // CRISES only hid entries in the chronicle strip — the canvas
   // flares continued to fire for every event regardless. Controlled
   // pattern keeps a single source of truth for both widgets.
@@ -897,7 +897,7 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
 
   // Feature flag: VITE_NEW_GRID controls which viz renders. Default is
   // the living-colony grid. Set VITE_NEW_GRID=0 to opt back to the legacy
-  // ColonyPanel tile grid.
+  // SwarmPanel tile grid.
   const useNewGrid = import.meta.env.VITE_NEW_GRID !== '0';
   const narrow = useMediaQuery(NARROW_QUERY);
   if (useNewGrid) {
@@ -1020,20 +1020,24 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
               type="button"
               onClick={() => setHelpOpen(true)}
               aria-label="Open help overlay (shortcut: ?)"
-              title="Help — what do these colors / symbols mean? (press ?)"
+              title="What do these colors / symbols / modes mean? (press ?)"
               style={{
-                padding: '0 10px',
+                padding: '4px 12px',
                 background: 'var(--bg-card)',
-                color: 'var(--text-3)',
-                border: '1px solid var(--border)',
-                borderRadius: 3,
+                color: 'var(--amber)',
+                border: '1px solid var(--amber)',
+                borderRadius: 4,
                 cursor: 'pointer',
                 fontFamily: 'var(--mono)',
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: 800,
+                letterSpacing: '0.04em',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
               }}
             >
-              ?
+              ? Help
             </button>
           </div>
           <div
@@ -1484,7 +1488,7 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
         </div>
       )}
       <div className="leaders-row" style={{ display: 'flex', flex: 1, minHeight: 0, gap: 4, overflow: 'hidden' }}>
-        <ColonyPanel
+        <SwarmPanel
           snapshot={snapA}
           leaderName={leaderA?.name ?? 'Leader A'}
           leaderArchetype={leaderA?.archetype ?? ''}
@@ -1508,7 +1512,7 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
           automatonMaximized={automatonMaximized}
           onAutomatonMaximizedChange={setAutomatonMaximized}
         />
-        <ColonyPanel
+        <SwarmPanel
           snapshot={snapB}
           leaderName={leaderB?.name ?? 'Leader B'}
           leaderArchetype={leaderB?.archetype ?? ''}

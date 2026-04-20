@@ -49,7 +49,7 @@ import type { AutomatonMode } from './automaton/shared.js';
 interface HexacoShape { O: number; C: number; E: number; A: number; Em: number; HH: number }
 
 /**
- * Compact metrics strip rendered at the top of every ColonyPanel. Gives
+ * Compact metrics strip rendered at the top of every SwarmPanel. Gives
  * the user per-leader views of morale, mood mix, age distribution, and
  * family structure that complement the per-tile detail below. Both
  * panels always render this with matching structure so the two sides
@@ -181,7 +181,7 @@ function ColonyMetricsStrip({ snapshot, sideColor }: { snapshot: TurnSnapshot; s
   );
 }
 
-interface ColonyPanelProps {
+interface SwarmPanelProps {
   snapshot: TurnSnapshot | undefined;
   leaderName: string;
   leaderArchetype: string;
@@ -204,7 +204,7 @@ interface ColonyPanelProps {
   /** HEXACO profiles keyed by agent id. Drives per-cell empathy gating
    *  in the mood propagation automaton. */
   hexacoById?: Map<string, HexacoShape>;
-  /** Shared automaton mode. Lifted to ColonyViz so both leader panels
+  /** Shared automaton mode. Lifted to SwarmViz so both leader panels
    *  always render the same lens. */
   automatonMode: AutomatonMode;
   /** Shared collapsed flag. Same lifting rationale. */
@@ -217,7 +217,7 @@ interface ColonyPanelProps {
   /** Department ids from the scenario — used by the ecology hex grid. */
   scenarioDepartments?: string[];
   /** When true, the automaton band fills the panel and tile sections
-   *  hide. Lifted to ColonyViz so both sides maximize together. */
+   *  hide. Lifted to SwarmViz so both sides maximize together. */
   automatonMaximized?: boolean;
   onAutomatonMaximizedChange?: (next: boolean) => void;
   /**
@@ -235,7 +235,7 @@ interface ColonyPanelProps {
  * bands, ghost layer. Uses the pure layout function so identical
  * snapshots render identically across turn scrubs.
  */
-export function ColonyPanel(props: ColonyPanelProps) {
+export function SwarmPanel(props: SwarmPanelProps) {
   const {
     snapshot, leaderName, leaderArchetype, leaderColony = '', leaderBio = '',
     sideColor, mode, selectedId, divergedIds, onSelect, lagTurns = 0,

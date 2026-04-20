@@ -10,6 +10,19 @@ interface FooterProviderError {
 interface FooterProps {
   cost?: { totalTokens: number; totalCostUSD: number; llmCalls: number };
   /**
+   * Optional per-source split of the cost total. When provided, the
+   * Footer's cost span gains a hover tooltip that breaks down the
+   * number into sim vs chat components so users can debug where
+   * spend is coming from. Keys are USD; any key <= 0 is omitted
+   * from the tooltip line.
+   */
+  costBreakdown?: {
+    simUSD?: number;
+    simCalls?: number;
+    chatUSD?: number;
+    chatCalls?: number;
+  };
+  /**
    * Mirrors the TopBar status pill so the user sees the run state at
    * the bottom of the page too. Driven by the same three booleans the
    * TopBar reads (isComplete, isAborted, connection status) so the
@@ -105,7 +118,28 @@ function StatusChip({ s }: { s: NonNullable<FooterProps['simStatus']> }) {
   );
 }
 
-export function Footer({ cost, simStatus }: FooterProps) {
+function formatUsdShort(u: number): string {
+  if (u < 0.01) return `$${u.toFixed(4)}`;
+  return `$${u.toFixed(2)}`;
+}
+
+function buildCostTooltip(
+  cost: NonNullable<FooterProps['cost']>,
+  breakdown: FooterProps['costBreakdown'],
+): string {
+  const lines: string[] = [
+    `Total: ${formatUsdShort(cost.totalCostUSD)} · ${cost.totalTokens.toLocaleString()} tokens · ${cost.llmCalls} calls`,
+  ];
+  if (breakdown) {
+    const sim = breakdown.simUSD ?? 0;
+    const chat = breakdown.chatUSD ?? 0;
+    if (sim > 0) lines.push(`• Simulation: ${formatUsdShort(sim)}${breakdown.simCalls != null ? ` (${breakdown.simCalls} calls)` : ''}`);
+    if (chat > 0) lines.push(`• Chat: ${formatUsdShort(chat)}${breakdown.chatCalls != null ? ` (${breakdown.chatCalls} calls)` : ''}`);
+  }
+  return lines.join('\n');
+}
+
+export function Footer({ cost, costBreakdown, simStatus }: FooterProps) {
   return (
     <footer
       className="shrink-0"
@@ -134,7 +168,10 @@ export function Footer({ cost, simStatus }: FooterProps) {
       {simStatus && <StatusChip s={simStatus} />}
 
       {cost && (cost.totalTokens > 0 || cost.llmCalls > 0) && (
-        <span style={{ display: 'flex', alignItems: 'baseline', gap: '6px', fontFamily: 'var(--mono)', fontSize: '10px' }}>
+        <span
+          style={{ display: 'flex', alignItems: 'baseline', gap: '6px', fontFamily: 'var(--mono)', fontSize: '10px', cursor: 'help' }}
+          title={buildCostTooltip(cost, costBreakdown)}
+        >
           <span style={{ color: 'var(--green)', fontWeight: 800, fontSize: '11px' }}>
             ${cost.totalCostUSD < 0.01 ? cost.totalCostUSD.toFixed(4) : cost.totalCostUSD.toFixed(2)}
           </span>
