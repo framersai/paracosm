@@ -271,7 +271,7 @@ export function ForgeLineageModal({
                     T{r.turn}
                   </button>
                   <span style={{ color: 'var(--text-3)', textTransform: 'uppercase', fontSize: 9 }}>
-                    {r.originDept} \u2192 {r.callingDept}
+                    {r.originDept} → {r.callingDept}
                   </span>
                 </li>
               ))}

@@ -1191,7 +1191,7 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
         >
           <Kbd k="?" v="help" />
           <Kbd k="1-5" v="mode" />
-          <Kbd k="\u2190 \u2192" v="scrub turn" />
+          <Kbd k="← →" v="scrub turn" />
           <Kbd k="space" v="play / pause" />
           <Kbd k="click" v={`${scenarioLabels.person} drilldown`} />
           <Kbd k="esc" v="close popover" />
@@ -1382,7 +1382,7 @@ export function ColonyViz({ state, onNavigateToChat }: ColonyVizProps) {
                 marginBottom: 2,
               }}
             >
-              <span>\u26A1 Crisis</span>
+              <span>⚡ Crisis</span>
               <span style={{ color: 'var(--text-3)' }}>
                 {crisisToast.side.toUpperCase()} · T{crisisToast.turn} · {crisisToast.category}
               </span>

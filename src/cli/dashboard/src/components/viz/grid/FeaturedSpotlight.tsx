@@ -108,7 +108,7 @@ export function FeaturedSpotlight({
               marginBottom: 2,
             }}
           >
-            <span>\u2605 Featured</span>
+            <span>★ Featured</span>
             <span style={{ color: 'var(--text-4)' }}>T{sp.turn}</span>
           </div>
           <div style={{ fontSize: 13, color: 'var(--text-1)', fontFamily: 'var(--sans)', fontWeight: 700 }}>

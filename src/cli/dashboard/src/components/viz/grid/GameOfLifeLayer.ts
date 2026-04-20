@@ -41,10 +41,17 @@ export interface GolConfig {
 }
 
 export const DEFAULT_GOL_CONFIG: GolConfig = {
-  cols: 48,
-  rows: 24,
+  // 32×16 reads clearly at ~700×400 overlay sizes — ~22×25px cells.
+  // Larger than the prior 48×24 so each Conway cell lands as a
+  // visibly discrete tile rather than a barely-perceptible speck.
+  cols: 32,
+  rows: 16,
   seedRadius: 2,
-  ambientAlive: 0.0008,
+  // Higher ambient spawn so sparse panels always have visible Conway
+  // activity even between re-seeds. 0.005/cell/frame produces ~2-3
+  // new cells per frame on a 32×16 grid — readable motion without
+  // flooding.
+  ambientAlive: 0.005,
 };
 
 /**
@@ -176,21 +183,24 @@ export function drawGol(
   if (intensity <= 0) return;
   const cw = overlayWidth / cols;
   const ch = overlayHeight / rows;
-  // Render each live cell as a filled square. Sub-pixel gaps are
-  // intentional — a 1px inset on each cell reads as discrete tiles
-  // rather than a continuous blob, which is the Conway aesthetic.
+  // Render each live cell as a bright filled square with a glowing
+  // inner highlight. 2px gap between cells gives the classic Conway
+  // tile grid look rather than a continuous blob. Fresh cells (age=8)
+  // fill at near-full opacity; aging cells (age=1..7) fade linearly
+  // so the pattern leaves a visible trail of recent life history.
   ctx.save();
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
       const age = grid[y * cols + x];
       if (age === 0) continue;
-      // Alpha = age/8 * base so newly-born cells peak at ~0.55 alpha
-      // and aging cells fade linearly. Multiplied by intensity for
-      // per-mode dimming.
-      const alpha = (age / 8) * 0.55 * intensity;
+      // Alpha ramps from 0.35 (aging) to 0.95 (fresh birth). Prior
+      // scaling at 0.55 peak rendered the overlay as barely-visible
+      // shadows; bumping hard so Conway cells actually read as
+      // Conway cells.
+      const alpha = Math.min(1, (age / 8) * 0.95 * intensity);
       ctx.fillStyle = sideColor;
       ctx.globalAlpha = alpha;
-      ctx.fillRect(x * cw + 1, y * ch + 1, cw - 2, ch - 2);
+      ctx.fillRect(x * cw + 2, y * ch + 2, Math.max(1, cw - 4), Math.max(1, ch - 4));
     }
   }
   ctx.restore();

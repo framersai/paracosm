@@ -527,15 +527,20 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
     }
     // GoL layer dims with the same mode-config as the RD field so
     // ecology / forge don't drown the strip / forge-flare overlays.
-    // 0.7x the resolved fieldIntensity gives the pattern enough
-    // contrast to read against the RD biome without washing it out.
+    // Canvas 2D's ctx.fillStyle does NOT resolve `var(--x)` CSS
+    // variables — assigning an unresolved value silently drops the
+    // fill (this was the bug that made the GoL overlay invisible).
+    // Always pass a concrete rgb/hex string resolved upfront.
+    const golColor = mode === 'mood'
+      ? resolveCssColor(moodTintedSideColor, containerRef.current)
+      : resolvedSide;
     drawGol(
       ctx,
       gol,
       size.w,
       size.h,
-      mode === 'mood' ? moodTintedSideColor : sideColor,
-      fieldIntensity * 0.7,
+      golColor,
+      fieldIntensity * 0.9,
     );
     if (mode !== 'ecology') drawSeeds(ctx, snapshot.cells, positions);
     if (mode !== 'ecology' && settings.deptRings) drawDeptRings(ctx, snapshot.cells, positions);
