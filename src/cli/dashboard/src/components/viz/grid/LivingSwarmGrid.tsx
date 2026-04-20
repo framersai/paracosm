@@ -1041,7 +1041,6 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
             width: '100%',
             height: '100%',
             display: webglFailed ? 'none' : 'block',
-            imageRendering: 'pixelated',
           }}
         />
         <canvas
