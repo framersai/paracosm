@@ -811,6 +811,14 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
     onNavigateToChat?.(name);
   }, [onNavigateToChat]);
 
+  // Media-query hooks MUST be called unconditionally before any
+  // early return. A previous iteration had them below the
+  // `maxTurn === 0` guard — that broke the Rules of Hooks whenever
+  // the user switched from a running sim (hooks fire) to the empty
+  // state (hooks don't fire), producing React error #310.
+  const narrow = useMediaQuery(NARROW_QUERY);
+  const phone = useMediaQuery(PHONE_QUERY);
+
   if (maxTurn === 0) {
     return (
       <div className="viz-content" style={{
@@ -828,8 +836,6 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
     ? `A vs B: ${snapB.population - snapA.population >= 0 ? '+' : ''}${snapB.population - snapA.population} pop, ${Math.round((snapB.morale - snapA.morale) * 100)}% morale, ${snapB.foodReserve - snapA.foodReserve > 0 ? '+' : ''}${(snapB.foodReserve - snapA.foodReserve).toFixed(1)}mo food`
     : '';
 
-  const narrow = useMediaQuery(NARROW_QUERY);
-  const phone = useMediaQuery(PHONE_QUERY);
   // Phone: force single-panel view. Side-by-side at 380-400px makes
   // each panel too small to read glyphs and the Conway field; stacked
   // vertically it doubles scroll length. A/B toggle above gives the
