@@ -12,6 +12,14 @@ import {
 import { useGridState, type ForgeAttempt, type ReuseCall } from './useGridState.js';
 import { computeDeptCenters } from './deptCenters.js';
 import { GridMetricsStrip } from './GridMetricsStrip.js';
+import {
+  createGolState,
+  seedFromColonists,
+  tickGol,
+  drawGol,
+  DEFAULT_GOL_CONFIG,
+  type GolState,
+} from './GameOfLifeLayer.js';
 import { hitTestGlyph } from './hitTest.js';
 import type { GridMode } from './GridModePills.js';
 import { ClickPopover, type ClickPopoverPayload } from './ClickPopover.js';
@@ -188,6 +196,15 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
     const raf = requestAnimationFrame(() => setRevealed(true));
     return () => cancelAnimationFrame(raf);
   }, [reducedMotion]);
+  // Conway Game of Life ambient overlay. Persistent across renders so
+  // the pattern evolves turn-by-turn instead of resetting every frame.
+  // Seeded from colonist mood+position on turn change, 5 warmup ticks
+  // to stabilize into recognizable Conway patterns, then STATIC until
+  // the next turn. Drawn with low alpha as ambient texture underneath
+  // the glyphs — not a competing visualization.
+  const golStateRef = useRef<GolState>(createGolState(DEFAULT_GOL_CONFIG.cols, DEFAULT_GOL_CONFIG.rows));
+  const lastGolTurnRef = useRef<number>(-1);
+
   // Relationship-flare: when a colonist is clicked, brighten their
   // partner/child arcs briefly (~1s decay). Ref, not state, so the
   // decay itself doesn't force re-render — consumed in the render
@@ -334,6 +351,22 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
       (cs && hexToRgba(cs.getPropertyValue('--text-2').trim(), 0.95)) ||
       'rgba(216, 204, 176, 0.95)';
     ctx.clearRect(0, 0, size.w, size.h);
+    // Conway Game of Life ambient layer. Seeded once per turn (no
+    // per-frame evolution — that reads as "weird animations"), then
+    // rendered statically underneath everything else with low alpha
+    // so it's texture, not foreground. The pattern encodes colony
+    // mood: mood-driven starter patterns reflect the dominant
+    // emotional state of the seeding colonists.
+    const gol = golStateRef.current;
+    if (snapshot.turn !== lastGolTurnRef.current) {
+      lastGolTurnRef.current = snapshot.turn;
+      seedFromColonists(gol, snapshot.cells, positions, size.w, size.h);
+      const warmup = reducedMotion ? 3 : 5;
+      for (let i = 0; i < warmup; i += 1) tickGol(gol);
+    }
+    // Low alpha (0.25) so tiles read as ambient texture, not competing
+    // with the glyphs. Color follows the resolved side tint.
+    drawGol(ctx, gol, size.w, size.h, resolvedSide, 0.25);
     drawFlares(ctx, visibleFlares);
     if (mode !== 'ecology')
       drawGlyphs(

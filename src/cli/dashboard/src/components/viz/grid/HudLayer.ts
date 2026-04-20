@@ -184,21 +184,14 @@ export function drawHud(
     }
   }
 
-  // Corner readouts.
-  ctx.font = '10px ui-monospace, monospace';
-  ctx.textAlign = 'right';
-  ctx.textBaseline = 'top';
-  const morale = Math.round(snapshot.morale * 100);
-  ctx.fillStyle =
-    morale >= 50
-      ? 'rgba(106, 173, 72, 0.9)'
-      : morale >= 25
-      ? 'rgba(232, 180, 74, 0.9)'
-      : 'rgba(196, 74, 30, 0.9)';
-  ctx.fillText(`MORALE ${morale}%`, opts.width - 10, 10);
-  ctx.fillStyle = opts.textMuted ?? 'rgba(216, 204, 176, 0.75)';
-  ctx.fillText(`FOOD ${snapshot.foodReserve.toFixed(1)}mo`, opts.width - 10, 24);
+  // Top-right corner intentionally empty. MORALE + FOOD values live in
+  // the DOM GridMetricsStrip above the canvas (single source of truth)
+  // and the canvas top-right holds the roster + focus-toggle buttons.
+  // A previous iteration drew MORALE + FOOD here right-aligned, which
+  // collided with both the metrics strip (redundant readout) and the
+  // corner buttons (visual overlap).
 
+  ctx.font = '10px ui-monospace, monospace';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'bottom';
   ctx.fillStyle = opts.sideColor;
