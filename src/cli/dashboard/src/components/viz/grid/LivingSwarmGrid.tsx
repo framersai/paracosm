@@ -211,12 +211,14 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
   const lastTurnRef = useRef<number>(-1);
   // Conway Game of Life overlay state. Persistent across renders so
   // the discrete-cell pattern evolves continuously rather than
-  // resetting every frame. Re-seeded when the turn changes (new
-  // colonist positions) and every N frames thereafter to keep sparse
-  // populations from extinguishing the grid. User feedback that the
-  // canvas felt "not like Game of Life" prompted adding an actual
-  // discrete-cell CA on top of the continuous RD field.
+  // resetting every frame. Re-seeded on turn change or when the
+  // grid is empty; evolves via classic B3/S23 in between.
   const golStateRef = useRef<GolState>(createGolState(DEFAULT_GOL_CONFIG.cols, DEFAULT_GOL_CONFIG.rows));
+  // Separate last-seen-turn ref for GoL so the GoL re-seed logic is
+  // independent of the RD pulse ref (which updates earlier in the
+  // same effect). Sharing one ref caused turnChanged to always read
+  // false by the time GoL ran → grid never seeded → empty canvas.
+  const lastGolTurnRef = useRef<number>(-1);
   // Relationship-flare: when a colonist is clicked, brighten their
   // partner/child arcs briefly (~1s decay). Ref, not state, so the
   // decay itself doesn't force re-render — consumed in the render
@@ -512,18 +514,24 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
     // the seeds / glyphs / HUD so the colonist markers still read as
     // the primary foreground.
     //
-    // Re-seed ONLY when the turn changes (not every 6 frames). This
-    // lets the classic Conway patterns (blinker / glider / R-pent)
-    // evolve uninterrupted for ~20-60 generations per turn instead of
-    // being wiped continuously — which was what made the prior pass
-    // read as random chaos instead of recognizable cellular automata.
+    // Re-seed on turn change OR when the grid is empty (first mount
+    // on an already-completed sim, after scrub to the same turn from
+    // an empty state, etc.). Seeding only on turn-change meant users
+    // loading the Viz tab AFTER a sim finished saw an empty canvas
+    // because `lastGolTurnRef` started at -1 but the pulse-update
+    // logic higher in this effect had already synced it elsewhere.
     //
     // Evolve one generation every third frame (~20 Hz at 60fps).
     // Slower than the RD field's ~30 Hz so the discrete tiles give
     // the eye time to track oscillators and gliders.
     const gol = golStateRef.current;
-    const turnChanged = snapshot.turn !== lastTurnRef.current;
-    if (turnChanged) {
+    const turnChanged = snapshot.turn !== lastGolTurnRef.current;
+    let gridEmpty = true;
+    for (let i = 0; i < gol.grid.length; i += 1) {
+      if (gol.grid[i] > 0) { gridEmpty = false; break; }
+    }
+    if (turnChanged || gridEmpty) {
+      lastGolTurnRef.current = snapshot.turn;
       seedFromColonists(gol, snapshot.cells, positions, size.w, size.h);
     }
     if (!reducedMotion && gol.frame % 3 === 0) {
