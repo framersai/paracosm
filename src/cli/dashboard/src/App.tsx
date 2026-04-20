@@ -166,22 +166,37 @@ function AppContent() {
   // judge's reasoning. Without this, forge events are visible only in
   // the dense viz / event log and users miss the reliability signal.
   //
-  // Suppressed during the initial buffer replay (replayDone=false) so
-  // a fresh page load doesn't fire 50 toasts at once for a long
-  // historical run. Live forge_attempt events that arrive after the
-  // buffer flush get a toast each.
-  const seenForgeKeysRef = useRef<Set<string>>(new Set());
-  // Index of the last event we've already inspected for forge toasts.
-  // Before the fix this effect relied on a transient `sse.replayDone === false`
-  // render to seed the dedupe set, but React 18 automatic batching
-  // merged the entire SSE buffer flush plus the replay_done flip into
-  // one render, so the seeding phase never ran. Every forge in the
-  // replayed buffer then looked "new" and fired a toast. Tracking the
-  // last-processed index is framework-independent: the first effect
-  // fire after mount seeds whatever's already in events (treat as
-  // historical), and only events added later can toast.
-  const seededForgesRef = useRef<boolean>(false);
-  const lastForgeIndexRef = useRef<number>(-1);
+  // Dedup via sessionStorage (keyed per forge) so a page reload in
+  // the same tab does NOT replay every historical forge as a fresh
+  // toast — which was the user-reported bug where reloading a
+  // completed run produced a pile of "Judge approved" toasts for
+  // tools forged hours ago. sessionStorage survives reloads but
+  // clears when the tab closes, which is the right scope: forges
+  // seen in this tab session shouldn't re-toast; forges from a
+  // different tab session are fresh from the user's POV.
+  //
+  // Additionally gated on `sse.replayDone`: the SSE `replay_done`
+  // event fires after the server finishes streaming buffered events.
+  // Anything added before that flag flips is historical; we seed
+  // those into seen-set without toasting. Only forges that arrive
+  // after replay_done get a toast.
+  const forgeSeenStorageKey = 'paracosm:seenForgeToasts';
+  const readSeenForges = useCallback((): Set<string> => {
+    try {
+      const raw = sessionStorage.getItem(forgeSeenStorageKey);
+      if (!raw) return new Set();
+      return new Set(JSON.parse(raw) as string[]);
+    } catch {
+      return new Set();
+    }
+  }, []);
+  const writeSeenForges = useCallback((s: Set<string>) => {
+    try {
+      sessionStorage.setItem(forgeSeenStorageKey, JSON.stringify([...s].slice(-500)));
+    } catch {
+      /* silent */
+    }
+  }, []);
   // `toast` must be declared before the effect below: reading it from
   // the dep array on first render would throw TDZ ("Cannot access 'toast'
   // before initialization") if the const sat below the useEffect.
@@ -191,28 +206,21 @@ function AppContent() {
       const d = ev.data as Record<string, unknown>;
       return `${ev.leader || ''}|${d?.name || ''}|${d?.timestamp || ''}|${d?.approved}`;
     };
-
-    if (!seededForgesRef.current) {
-      // First fire after mount. Whatever is already in the events array
-      // is historical replay from the server's SSE buffer; seed the
-      // dedupe set but never toast.
-      for (const ev of effectiveEvents) {
-        if (ev.type !== 'forge_attempt') continue;
-        seenForgeKeysRef.current.add(forgeKey(ev));
-      }
-      lastForgeIndexRef.current = effectiveEvents.length - 1;
-      seededForgesRef.current = true;
-      return;
-    }
-
-    // Subsequent fires: only events added after lastForgeIndexRef are
-    // "live" and candidates for a toast.
-    for (let i = lastForgeIndexRef.current + 1; i < effectiveEvents.length; i++) {
-      const ev = effectiveEvents[i];
+    const seen = readSeenForges();
+    // While the server is still replaying the buffered events, treat
+    // everything as historical — seed the seen-set silently. After
+    // replayDone flips true, only NEW events (those not in
+    // sessionStorage from a prior tab visit) get toasts.
+    const replayDone = tourActive ? true : sse.replayDone;
+    for (const ev of effectiveEvents) {
       if (ev.type !== 'forge_attempt') continue;
       const key = forgeKey(ev);
-      if (seenForgeKeysRef.current.has(key)) continue;
-      seenForgeKeysRef.current.add(key);
+      if (seen.has(key)) continue;
+      if (!replayDone) {
+        seen.add(key);
+        continue;
+      }
+      seen.add(key);
       const d = ev.data as Record<string, unknown>;
       const name = String(d?.name || 'unnamed tool');
       const dept = String(d?.department || ev.leader || '').toUpperCase();
@@ -234,8 +242,8 @@ function AppContent() {
         );
       }
     }
-    lastForgeIndexRef.current = effectiveEvents.length - 1;
-  }, [effectiveEvents, toast]);
+    writeSeenForges(seen);
+  }, [effectiveEvents, toast, sse.replayDone, tourActive, readSeenForges, writeSeenForges]);
   const citationRegistry = useCitationRegistry(gameState);
   const toolRegistry = useToolRegistry(gameState);
   const persistence = useGamePersistence(scenario.labels.shortName);
