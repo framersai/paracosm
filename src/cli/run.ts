@@ -1,13 +1,18 @@
+#!/usr/bin/env node
 /**
  * Mars Genesis: General-purpose standalone simulation runner.
  *
- * Reads leader configs from leaders.json. CLI flags override any field.
+ * Reads leader configs via `resolveLeaders` which walks a priority
+ * chain: --leaders flag, $CWD/leaders.json, $CWD/config/leaders.json,
+ * bundled config/leaders.json, bundled config/leaders.example.json.
+ * CLI flags on top of that override individual leader fields.
  *
  * Usage:
- *   npx tsx src/run.ts --leader 0           # Leader A from leaders.json
- *   npx tsx src/run.ts --leader 1 5         # Leader B, 5 turns
- *   npx tsx src/run.ts --leader 0 --live    # Leader A with live web search
- *   npx tsx src/run.ts --name "Custom" --openness 0.8 3  # Override fields
+ *   npx tsx src/run.ts --leader 0                         # Leader A
+ *   npx tsx src/run.ts --leader 1 5                       # Leader B, 5 turns
+ *   npx tsx src/run.ts --leader 0 --live                  # live web search
+ *   npx tsx src/run.ts --name "Custom" --openness 0.8 3   # Override fields
+ *   npx tsx src/run.ts --leaders ./my-leaders.json        # Custom config file
  */
 
 import { readFileSync, existsSync } from 'node:fs';
@@ -17,6 +22,7 @@ import { runSimulation } from '../runtime/orchestrator.js';
 import { parseCliRunOptions } from './cli-run-options.js';
 import { DEFAULT_KEY_PERSONNEL } from './sim-config.js';
 import { marsScenario } from '../engine/mars/index.js';
+import { resolveLeaders, parseLeadersFlag } from './leaders-resolver.js';
 import type { LeaderConfig } from './types.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -31,14 +37,21 @@ function loadEnv() {
   }
 }
 
-function loadLeaders(): LeaderConfig[] {
-  const jsonPath = resolve(__dirname, '..', '..', 'leaders.json');
-  if (!existsSync(jsonPath)) {
-    console.error(`  leaders.json not found at ${jsonPath}`);
+function loadLeaders(argv: readonly string[]): LeaderConfig[] {
+  const explicitPath = parseLeadersFlag(argv);
+  try {
+    const resolved = resolveLeaders({ explicitPath });
+    if (resolved.isExample) {
+      console.log(`  Using bundled example leaders at ${resolved.sourcePath}`);
+      console.log('  Create config/leaders.json in your project to customize.\n');
+    } else {
+      console.log(`  Loaded ${resolved.leaders.length} leaders from ${resolved.sourcePath}`);
+    }
+    return resolved.leaders;
+  } catch (err) {
+    console.error(`  ${err instanceof Error ? err.message : String(err)}`);
     process.exit(1);
   }
-  const data = JSON.parse(readFileSync(jsonPath, 'utf-8'));
-  return data.leaders || [];
 }
 
 function parseLeaderFromArgs(args: string[]): Partial<LeaderConfig> {
@@ -74,7 +87,7 @@ const cliOptions = parseCliRunOptions(args);
 const leaderIdx = getLeaderIndex(args);
 const cliLeader = parseLeaderFromArgs(args);
 
-const leaders = loadLeaders();
+const leaders = loadLeaders(args);
 if (!leaders.length) {
   console.error('  No leaders defined in leaders.json');
   process.exit(1);

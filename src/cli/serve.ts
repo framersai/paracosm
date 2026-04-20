@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /**
  * SSE server for the Mars Genesis dashboard.
  *
@@ -12,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { createMarsServer } from './server-app.js';
 import { normalizeSimulationConfig } from './sim-config.js';
 import { parseCliRunOptions } from './cli-run-options.js';
+import { resolveLeaders, parseLeadersFlag } from './leaders-resolver.js';
 import type { LeaderConfig } from './types.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -39,18 +41,24 @@ server.listen(PORT, async () => {
     return;
   }
 
-  // Load leaders from leaders.json
-  const leadersPath = resolve(__dirname, '..', '..', 'leaders.json');
+  // Resolve leaders via the shared lookup chain (CLI flag → CWD
+  // leaders.json → CWD config/leaders.json → package-bundled config
+  // → example). Falls back gracefully so `npx paracosm-dashboard`
+  // runs from a bare install.
+  const explicitPath = parseLeadersFlag(process.argv.slice(2));
   let leaders: LeaderConfig[];
-  if (existsSync(leadersPath)) {
-    leaders = JSON.parse(readFileSync(leadersPath, 'utf-8')).leaders;
-    console.log(`  Loaded ${leaders.length} leaders from leaders.json`);
-  } else {
-    console.log('  leaders.json not found, using defaults');
-    leaders = [
-      { name: 'Aria Chen', archetype: 'The Visionary', colony: 'Ares Horizon', hexaco: { openness: 0.95, conscientiousness: 0.35, extraversion: 0.85, agreeableness: 0.55, emotionality: 0.3, honestyHumility: 0.65 }, instructions: 'You are Commander Aria Chen. Bold expansion, calculated risks. Favor higher upside. Respond with JSON.' },
-      { name: 'Dietrich Voss', archetype: 'The Engineer', colony: 'Meridian Base', hexaco: { openness: 0.25, conscientiousness: 0.97, extraversion: 0.3, agreeableness: 0.45, emotionality: 0.7, honestyHumility: 0.9 }, instructions: 'You are Commander Dietrich Voss. Engineering discipline, safety margins. Favor lower risk. Respond with JSON.' },
-    ];
+  try {
+    const resolved = resolveLeaders({ explicitPath });
+    leaders = resolved.leaders;
+    if (resolved.isExample) {
+      console.log(`  Using bundled example leaders at ${resolved.sourcePath}`);
+      console.log('  Create config/leaders.json in your project to customize.');
+    } else {
+      console.log(`  Loaded ${leaders.length} leaders from ${resolved.sourcePath}`);
+    }
+  } catch (err) {
+    console.error(`  ${err instanceof Error ? err.message : String(err)}`);
+    process.exit(1);
   }
 
   const simConfig = normalizeSimulationConfig({

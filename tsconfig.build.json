@@ -2,11 +2,18 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "dist",
+    "rootDir": "src",
     "noEmit": false,
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true
   },
-  "include": ["src/engine/**/*.ts", "src/engine/**/*.json", "src/runtime/**/*.ts"],
-  "exclude": ["**/*.test.ts"]
+  "include": [
+    "src/engine/**/*.ts",
+    "src/engine/**/*.json",
+    "src/runtime/**/*.ts",
+    "src/cli/*.ts",
+    "src/cli/server/**/*.ts"
+  ],
+  "exclude": ["**/*.test.ts", "src/cli/dashboard/**"]
 }

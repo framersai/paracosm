@@ -5,6 +5,10 @@
   "type": "module",
   "main": "dist/engine/index.js",
   "types": "dist/engine/index.d.ts",
+  "bin": {
+    "paracosm": "./dist/cli/run.js",
+    "paracosm-dashboard": "./dist/cli/serve.js"
+  },
   "exports": {
     ".": {
       "import": "./dist/engine/index.js",
@@ -33,11 +37,13 @@
   },
   "files": [
     "dist/",
+    "config/leaders.example.json",
+    "config/leaders.json",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && chmod +x dist/cli/run.js dist/cli/serve.js 2>/dev/null || true",
     "run": "npx tsx src/cli/run.ts",
     "run:a": "npx tsx src/cli/run-a.ts",
     "run:b": "npx tsx src/cli/run-b.ts",

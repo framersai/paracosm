@@ -177,6 +177,34 @@ npm run dashboard      # opens http://localhost:3456
 
 The dashboard includes a scenario editor where you can write, import, compile, and run custom worlds from the browser.
 
+### 4. Or run the standalone CLI
+
+After `npm install paracosm` you get two binaries:
+
+```bash
+paracosm                # run one leader once; prints turn-by-turn narrative
+paracosm-dashboard 6    # start the web dashboard and run a 6-turn sim
+```
+
+Both CLIs look for `leaders.json` in this order:
+
+1. `--leaders <path>` flag (explicit)
+2. `./leaders.json` in your current directory
+3. `./config/leaders.json` in your current directory
+4. A bundled `config/leaders.example.json` (so commands work out of the box)
+
+Copy the example to start customizing:
+
+```bash
+# Option 1: in your project root
+cp node_modules/paracosm/config/leaders.example.json leaders.json
+
+# Option 2: organized in a config/ folder
+mkdir -p config && cp node_modules/paracosm/config/leaders.example.json config/leaders.json
+```
+
+Then edit the HEXACO sliders and `instructions` fields to describe your own leaders — the simulation picks up the file on the next run.
+
 ## Scenario Compiler
 
 The compiler turns your JSON into a runnable scenario by generating TypeScript hooks via LLM calls:
