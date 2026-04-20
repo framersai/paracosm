@@ -113,6 +113,23 @@ function patternForMood(mood: string): Array<[number, number]> {
 }
 
 /**
+ * When the EventChronicle filter pill is active (not 'all'), the
+ * Conway seed uses a filter-specific pattern so the visualization
+ * tracks the user's narrow: BIRTHS reads as stable blocks, DEATHS
+ * as mostly empty, FORGES as moving gliders, CRISES as long-lived
+ * chaotic debris. Returning null means "fall back to mood-driven".
+ */
+function patternForFilter(filter: string): Array<[number, number]> | null {
+  switch (filter) {
+    case 'birth': return BLOCK;
+    case 'forge': return GLIDER;
+    case 'crisis': return R_PENTOMINO;
+    case 'death': return []; // Explicit empty — death filter kills cells.
+    default: return null;
+  }
+}
+
+/**
  * Persistent state between frames — owned by the caller (normally a
  * React ref) so React remounts don't reset the evolving pattern.
  */
@@ -197,6 +214,7 @@ export function seedFromColonists(
   positions: Map<string, GridPosition>,
   overlayWidth: number,
   overlayHeight: number,
+  eventFilter: string = 'all',
 ): void {
   const { cols, rows, grid } = state;
   // Full reset before seeding so re-seed doesn't accumulate fossil
@@ -204,6 +222,11 @@ export function seedFromColonists(
   // clean slate — layering old-turn patterns under new ones
   // produces the chaotic behaviour the user correctly called out.
   grid.fill(0);
+  // Death filter = no seed at all. The grid reads as mostly-empty,
+  // which is the right visual for "show me only deaths" when no
+  // deaths have fired recently.
+  if (eventFilter === 'death') return;
+  const filterPattern = patternForFilter(eventFilter);
   for (let i = 0; i < cells.length; i += 1) {
     const c = cells[i];
     if (!c.alive) continue;
@@ -211,7 +234,9 @@ export function seedFromColonists(
     if (!p) continue;
     const cx = Math.floor((p.x / Math.max(1, overlayWidth)) * cols);
     const cy = Math.floor((p.y / Math.max(1, overlayHeight)) * rows);
-    const pattern = patternForMood(c.mood);
+    // Filter overrides mood when active; 'all' falls back to mood-
+    // driven pattern selection.
+    const pattern = filterPattern ?? patternForMood(c.mood);
     for (const [dx, dy] of pattern) {
       const x = cx + dx - 1;
       const y = cy + dy - 1;
