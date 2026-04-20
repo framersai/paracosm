@@ -4,6 +4,7 @@ import type { ScenarioClientPayload } from '../../hooks/useScenario';
 import type { GameState } from '../../hooks/useGameState';
 import type { useSSE } from '../../hooks/useSSE';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { Tooltip } from '../shared/Tooltip';
 import { LoadMenu } from './LoadMenu';
 
 /**
@@ -185,22 +186,76 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
       <div className="flex items-center gap-3 flex-1 justify-center" style={{ minWidth: 0 }}>
         {gameState.turn > 0 && (
           <div className="topbar-meta flex items-center gap-2 shrink-0" style={{ fontSize: '11px', fontFamily: 'var(--mono)', color: 'var(--text-2)', minWidth: 0 }}>
-            {/* Compact short labels with hover tooltips for full meaning.
-                Previous "Turn 5/6 Yr 2067 Seed 950" pushed the block wide
-                enough to collide with the scenario name at ~1200-1400px. */}
-            <span title={`Turn ${gameState.turn} of ${gameState.maxTurns}`}>
-              <span style={{ color: 'var(--text-3)' }}>T</span>
-              <strong style={{ color: 'var(--text-1)' }}>{gameState.turn}</strong>
-              <span style={{ color: 'var(--text-3)' }}>/{gameState.maxTurns}</span>
-            </span>
-            <span title={`Year ${gameState.year}`}>
-              <span style={{ color: 'var(--text-3)' }}>Y</span>
-              <strong style={{ color: 'var(--text-1)' }}>{gameState.year}</strong>
-            </span>
-            <span title={`Seed ${gameState.seed} — same seed produces the same deterministic kernel outcomes`}>
-              <span style={{ color: 'var(--text-3)' }}>S</span>
-              <strong style={{ color: 'var(--text-1)' }}>{gameState.seed}</strong>
-            </span>
+            {/* Compact T / Y / S tokens wrapped in Tooltip portal so
+                viewers can hover for the full meaning. The token stays
+                short so the whole topbar meta row fits at mid-laptop
+                widths (1024-1440px); the rich explanation lives in the
+                popover. */}
+            <Tooltip
+              content={
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--amber)', marginBottom: 6 }}>
+                    Turn {gameState.turn} / {gameState.maxTurns}
+                  </div>
+                  <div>
+                    One decision cycle per turn. Departments analyze the
+                    situation, the commander picks a policy, the kernel
+                    advances in-sim time, colonists age. At turn
+                    {' '}{gameState.maxTurns}{' '}the run finishes and the
+                    verdict judge compares the two commanders.
+                  </div>
+                </div>
+              }
+            >
+              <span style={{ display: 'inline-flex', alignItems: 'baseline' }}>
+                <span style={{ color: 'var(--text-3)' }}>T</span>
+                <strong style={{ color: 'var(--text-1)' }}>{gameState.turn}</strong>
+                <span style={{ color: 'var(--text-3)' }}>/{gameState.maxTurns}</span>
+              </span>
+            </Tooltip>
+            <Tooltip
+              content={
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--amber)', marginBottom: 6 }}>
+                    In-sim year {gameState.year}
+                  </div>
+                  <div>
+                    The year the colony thinks it's living in. Advances by
+                    the scenario's <code>yearsPerTurn</code> (usually 5-10)
+                    each decision cycle. Drives aging, childbirth,
+                    retirement, and long-arc narrative. Real wall-clock
+                    time doesn't matter — only the in-sim year.
+                  </div>
+                </div>
+              }
+            >
+              <span style={{ display: 'inline-flex', alignItems: 'baseline' }}>
+                <span style={{ color: 'var(--text-3)' }}>Y</span>
+                <strong style={{ color: 'var(--text-1)' }}>{gameState.year}</strong>
+              </span>
+            </Tooltip>
+            <Tooltip
+              content={
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--amber)', marginBottom: 6 }}>
+                    Random seed {gameState.seed}
+                  </div>
+                  <div>
+                    All kernel-side randomness (colonist generation, mood
+                    drift, crisis selection) derives from this seed. Same
+                    seed + same leaders + same scenario produces identical
+                    rosters and identical kernel outcomes — so Leader A
+                    and Leader B start from the same colony and diverge
+                    only by their personalities, not by luck.
+                  </div>
+                </div>
+              }
+            >
+              <span style={{ display: 'inline-flex', alignItems: 'baseline' }}>
+                <span style={{ color: 'var(--text-3)' }}>S</span>
+                <strong style={{ color: 'var(--text-1)' }}>{gameState.seed}</strong>
+              </span>
+            </Tooltip>
             <div className="topbar-progress w-20 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--border)' }} role="progressbar" aria-valuenow={gameState.turn} aria-valuemin={0} aria-valuemax={gameState.maxTurns} aria-label={`Simulation progress, turn ${gameState.turn} of ${gameState.maxTurns}`}>
               <div className="h-full rounded-full transition-all" style={{ width: `${Math.round((gameState.turn / gameState.maxTurns) * 100)}%`, background: 'linear-gradient(90deg, var(--side-a), var(--side-b))' }} />
             </div>

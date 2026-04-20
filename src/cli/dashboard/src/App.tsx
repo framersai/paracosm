@@ -762,56 +762,107 @@ function AppContent() {
             if (verdictDismissedKey === winnerKey) return null;
             const winner = vraw.winner as 'A' | 'B' | 'tie';
             const winColor = winner === 'A' ? 'var(--vis)' : winner === 'B' ? 'var(--eng)' : 'var(--amber)';
-            const winnerLabel = winner === 'tie' ? 'Tie' : `${String(vraw.winnerName || 'Winner')} wins`;
+            const winnerLabel = winner === 'tie'
+              ? 'Tie'
+              : `${String(vraw.winnerName || 'Winner')} wins`;
+            const turnLabel = `Turn ${gameState.turn}/${gameState.maxTurns} · verdict by gpt-4o`;
             return (
               <div
                 role="region"
                 aria-label="Simulation verdict"
                 style={{
-                  display: 'flex', alignItems: 'center', gap: 12,
-                  padding: '6px 16px',
-                  background: `linear-gradient(90deg, ${winColor}22, transparent 55%)`,
-                  borderTop: `2px solid ${winColor}`,
-                  borderBottom: '1px solid var(--border)',
+                  margin: '8px 16px 4px',
+                  padding: '14px 18px',
+                  background: `linear-gradient(135deg, ${winColor}22 0%, var(--bg-panel) 55%, var(--bg-panel) 100%)`,
+                  border: `1px solid ${winColor}`,
+                  borderLeft: `4px solid ${winColor}`,
+                  borderRadius: 8,
+                  boxShadow: `0 6px 22px rgba(0, 0, 0, 0.35), 0 0 0 1px ${winColor}33 inset`,
                   fontFamily: 'var(--sans)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 16,
+                  animation: 'fadeUp 0.28s ease-out',
                 }}
               >
-                <span style={{ fontSize: 9, fontFamily: 'var(--mono)', fontWeight: 800, letterSpacing: '0.12em', color: 'var(--text-3)', textTransform: 'uppercase' }}>
-                  Verdict
-                </span>
-                <span style={{ fontSize: 13, fontWeight: 800, color: winColor, whiteSpace: 'nowrap' }}>
-                  {winnerLabel}
-                </span>
+                <div style={{ flex: '0 0 auto', minWidth: 0 }}>
+                  <div style={{
+                    fontSize: 9, fontWeight: 800, color: 'var(--text-3)',
+                    letterSpacing: '0.15em', textTransform: 'uppercase',
+                    fontFamily: 'var(--mono)', marginBottom: 3,
+                  }}>
+                    ★ Run Complete
+                  </div>
+                  <div style={{
+                    fontSize: 20, fontWeight: 800, color: winColor,
+                    lineHeight: 1.1, letterSpacing: '0.01em',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {winnerLabel}
+                  </div>
+                </div>
+                <div style={{
+                  flex: 1, minWidth: 0,
+                  borderLeft: `1px solid ${winColor}55`,
+                  paddingLeft: 16,
+                }}>
+                  <button
+                    onClick={() => setVerdictModalOpen(true)}
+                    style={{
+                      background: 'transparent', border: 'none', padding: 0, margin: 0,
+                      fontSize: 13, color: 'var(--text-1)', cursor: 'pointer',
+                      textAlign: 'left', lineHeight: 1.4, fontFamily: 'var(--sans)',
+                      display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden', marginBottom: 4, width: '100%',
+                    }}
+                    title="Click to open the full verdict breakdown"
+                  >
+                    {headline || 'Verdict delivered — click to see full breakdown.'}
+                  </button>
+                  <div style={{
+                    fontSize: 10, color: 'var(--text-3)',
+                    fontFamily: 'var(--mono)', letterSpacing: '0.04em',
+                  }}>
+                    {turnLabel}
+                  </div>
+                </div>
                 <button
                   onClick={() => setVerdictModalOpen(true)}
                   style={{
-                    flex: 1, minWidth: 0, textAlign: 'left',
-                    background: 'transparent', border: 'none', padding: 0,
-                    fontSize: 12, color: 'var(--text-2)', cursor: 'pointer',
-                    overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+                    fontSize: 11, fontFamily: 'var(--mono)', fontWeight: 800,
+                    color: 'var(--bg-deep)', background: winColor,
+                    letterSpacing: '0.08em',
+                    padding: '8px 16px', borderRadius: 4,
+                    border: 'none', cursor: 'pointer',
+                    whiteSpace: 'nowrap', flexShrink: 0,
+                    boxShadow: `0 2px 8px ${winColor}66`,
+                    textTransform: 'uppercase',
                   }}
                 >
-                  {headline}
+                  View Full Verdict →
                 </button>
                 <button
-                  onClick={() => setVerdictModalOpen(true)}
+                  onClick={() => setActiveTab('reports')}
                   style={{
                     fontSize: 10, fontFamily: 'var(--mono)', fontWeight: 700,
-                    color: 'var(--amber)', letterSpacing: '0.06em',
-                    padding: '3px 10px', borderRadius: 3,
-                    border: '1px solid var(--amber)',
-                    background: 'rgba(232,180,74,0.06)',
-                    cursor: 'pointer',
+                    color: 'var(--text-2)', letterSpacing: '0.06em',
+                    padding: '7px 12px', borderRadius: 4,
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg-card)',
+                    cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+                    textTransform: 'uppercase',
                   }}
+                  title="Open the Reports tab for the full run breakdown"
                 >
-                  VIEW FULL →
+                  Reports
                 </button>
                 <button
                   onClick={() => setVerdictDismissedKey(winnerKey)}
                   aria-label="Dismiss verdict banner"
                   style={{
                     background: 'none', border: 'none', color: 'var(--text-3)',
-                    cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: 4,
+                    cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: 4,
+                    flexShrink: 0,
                   }}
                 >
                   ×
