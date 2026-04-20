@@ -580,6 +580,15 @@ function AppContent() {
   }, [launching, toast, sse.events.length, sse.isComplete, gameState.isRunning]);
 
   const handleRun = useCallback(async () => {
+    // Guard against double-fire. The RUN button is also hidden
+    // visually when launching / isRunning (TopBar + SimView both
+    // check the flags) but a fast-click on the empty-state button
+    // between render ticks, or a kbd shortcut, could still slip
+    // through. An early return here is the authoritative gate.
+    if (launching || gameState.isRunning) {
+      toast('info', 'Already running', 'A simulation is in progress — wait for it to finish or hit Clear to reset.');
+      return;
+    }
     const defaultPreset = scenario.presets.find(p => p.id === 'default');
     const leaders = defaultPreset?.leaders?.slice(0, 2).map((l, i) => ({
       ...l,
@@ -631,7 +640,7 @@ function AppContent() {
       setLaunching(false);
       toast('error', 'Launch Failed', String(err));
     }
-  }, [scenario, toast, setActiveTab]);
+  }, [scenario, toast, setActiveTab, launching, gameState.isRunning, sse]);
 
   return (
     <DashboardNavigationContext.Provider value={setActiveTab}>
@@ -737,7 +746,7 @@ function AppContent() {
               </button>
             </div>
           ) : null}
-          <TopBar scenario={scenario} sse={sse} gameState={gameState} onSave={handleSave} onLoad={handleLoad} onClear={handleClear} onRun={handleRun} onTour={handleTourStart} onCopy={handleCopySummary} />
+          <TopBar scenario={scenario} sse={sse} gameState={gameState} onSave={handleSave} onLoad={handleLoad} onClear={handleClear} onRun={handleRun} onTour={handleTourStart} onCopy={handleCopySummary} launching={launching} />
           <TabBar active={activeTab} onTabChange={setActiveTab} scenario={scenario} />
           {/* Global verdict banner. Visible on every tab as soon as the
               verdict LLM returns, closable per-verdict (a new run's
