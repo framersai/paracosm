@@ -1349,6 +1349,34 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       return;
     }
 
+    // Session metadata-only probe — `GET /sessions/:id` (no `/replay`
+    // suffix) returns the session meta without the full event stream
+    // so the client can validate a replay id before opening an
+    // EventSource. Without this, a bogus ?replay=X URL produced an
+    // invisible 404-retry loop on the SSE layer with no user signal.
+    if (req.url?.startsWith('/sessions/') && !req.url.endsWith('/replay') && req.method === 'GET') {
+      if (!sessionStore) {
+        res.writeHead(503, { 'Content-Type': 'application/json', ...corsHeaders });
+        res.end(JSON.stringify({ error: 'session store unavailable' }));
+        return;
+      }
+      const id = req.url.replace(/^\/sessions\//, '').split('?')[0];
+      if (!id || id.includes('/')) {
+        res.writeHead(400, { 'Content-Type': 'application/json', ...corsHeaders });
+        res.end(JSON.stringify({ error: 'invalid session id' }));
+        return;
+      }
+      const session = sessionStore.getSession(id);
+      if (!session) {
+        res.writeHead(404, { 'Content-Type': 'application/json', ...corsHeaders });
+        res.end(JSON.stringify({ error: 'session not found', id }));
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders });
+      res.end(JSON.stringify({ meta: session.meta }));
+      return;
+    }
+
     if (req.url?.startsWith('/sessions/') && req.url.endsWith('/replay') && req.method === 'GET') {
       if (!sessionStore) {
         res.writeHead(503, { 'Content-Type': 'application/json', ...corsHeaders });

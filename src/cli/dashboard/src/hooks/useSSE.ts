@@ -56,7 +56,7 @@ export interface ValidationFallbackBucket {
 }
 
 interface SSEState {
-  status: 'connecting' | 'connected' | 'error';
+  status: 'connecting' | 'connected' | 'error' | 'replay_not_found';
   events: SimEvent[];
   results: Array<{ leader: string; summary: Record<string, unknown>; fingerprint: Record<string, string> | null }>;
   verdict: Record<string, unknown> | null;
@@ -280,8 +280,32 @@ function rollupValidationFallbacks(events: SimEvent[]): ValidationFallbackBucket
       return `${e.type}|${e.leader || ''}|${turnId}|${eventIndex}|${department}|${title}|${forgeName}`;
     };
 
-    const open = () => {
+    const open = async () => {
       if (cancelled) return;
+      // For replay mode, pre-check that the session exists via a
+      // lightweight GET /sessions/:id. A bogus ?replay=X URL would
+      // otherwise enter an invisible SSE reconnect loop as the
+      // server returned 404s the EventSource layer can't expose.
+      if (replaySessionId) {
+        try {
+          const probe = await fetch(`/sessions/${encodeURIComponent(replaySessionId)}`);
+          if (cancelled) return;
+          if (probe.status === 404) {
+            setState(prev => ({ ...prev, status: 'replay_not_found' }));
+            return;
+          }
+          if (!probe.ok) {
+            setState(prev => ({ ...prev, status: 'error' }));
+            attempt += 1;
+            const delay = Math.min(10_000, 500 * Math.pow(2, attempt - 1));
+            reconnectTimer = setTimeout(() => { void open(); }, delay);
+            return;
+          }
+        } catch {
+          // Network-level failure (offline / CORS). Fall through to
+          // EventSource open which will retry with backoff.
+        }
+      }
       // Switch the EventSource between live (/events) and replay
       // (/sessions/:id/replay) based on whether a replay session was
       // requested. Replay mode uses the same event format so the rest
@@ -495,11 +519,11 @@ function rollupValidationFallbacks(events: SimEvent[]): ValidationFallbackBucket
         if (cancelled) return;
         attempt += 1;
         const delay = Math.min(10_000, 500 * Math.pow(2, attempt - 1));
-        reconnectTimer = setTimeout(open, delay);
+        reconnectTimer = setTimeout(() => { void open(); }, delay);
       };
     };
 
-    open();
+    void open();
 
     return () => {
       cancelled = true;

@@ -54,6 +54,25 @@ export function ColonistSearch({ value, onChange, matches, onPick }: ColonistSea
       }}
     >
       <span
+        aria-hidden="true"
+        style={{
+          fontSize: 14,
+          color: 'var(--text-3)',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: 18,
+          height: 18,
+        }}
+        title="Search agents"
+      >
+        {/* Magnifying-glass glyph so the search row reads as a search
+            affordance at a glance instead of just a plain "Find" label.
+            Uses a unicode loupe rather than an SVG to keep the single
+            glyph cheap to render + color-variable via font `color`. */}
+        🔍
+      </span>
+      <span
         style={{
           fontSize: 9,
           fontFamily: 'var(--mono)',

@@ -19,15 +19,21 @@ export function formatExplicit(ts: number): string {
 
 /** Hide the cache row when the server ring is unavailable or errored. */
 export function shouldShowCacheRow(status: SessionsStatus): boolean {
-  return status === 'loading' || status === 'ready';
+  // Also show error / unavailable so the user gets a clear hint
+  // instead of just seeing an empty-ish menu. Previously these
+  // states hid the row entirely, making it impossible to
+  // distinguish "no saved runs" from "server is down."
+  return status === 'loading' || status === 'ready' || status === 'error' || status === 'unavailable';
 }
 
 /** Which body to render when the cache row is expanded. */
 export function cacheExpandedBody(
   status: SessionsStatus,
   sessions: readonly StoredSessionMeta[],
-): 'loading' | 'empty' | 'cards' {
+): 'loading' | 'empty' | 'cards' | 'error' | 'unavailable' {
   if (status === 'loading') return 'loading';
+  if (status === 'error') return 'error';
+  if (status === 'unavailable') return 'unavailable';
   if (sessions.length === 0) return 'empty';
   return 'cards';
 }
