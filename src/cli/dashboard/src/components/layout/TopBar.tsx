@@ -1,7 +1,9 @@
+import { useEffect, useRef, useState } from 'react';
 import { useTheme } from '../../theme/ThemeProvider';
 import type { ScenarioClientPayload } from '../../hooks/useScenario';
 import type { GameState } from '../../hooks/useGameState';
 import type { useSSE } from '../../hooks/useSSE';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { LoadMenu } from './LoadMenu';
 
 /**
@@ -63,6 +65,34 @@ const toolBtnStyle: React.CSSProperties = {
 export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRun, onTour, onCopy, launching = false }: TopBarProps) {
   const { resolved, setTheme } = useTheme();
   const hasEvents = gameState.a.events.length > 0 || gameState.b.events.length > 0;
+
+  // Secondary run actions (Save / Copy / Clear) consolidate behind a
+  // single overflow trigger so the right cluster does not carry 9+
+  // items at mid-laptop widths. Visible only once a run has events,
+  // matching the previous gating on each individual button.
+  const [overflowOpen, setOverflowOpen] = useState(false);
+  const overflowRootRef = useRef<HTMLDivElement | null>(null);
+  const overflowMenuRef = useFocusTrap<HTMLDivElement>(overflowOpen);
+  useEffect(() => {
+    if (!overflowOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setOverflowOpen(false);
+      }
+    };
+    const onClickOutside = (e: MouseEvent) => {
+      const root = overflowRootRef.current;
+      if (!root) return;
+      if (!root.contains(e.target as Node)) setOverflowOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('mousedown', onClickOutside);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('mousedown', onClickOutside);
+    };
+  }, [overflowOpen]);
 
   // Status pill priority (highest first):
   //   1. Interrupted — sim was cancelled (user navigated away, server
@@ -292,16 +322,125 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
             LAUNCHING…
           </span>
         )}
-        {/* Save/Load/Clear */}
-        {hasEvents && onSave && (
-          <button onClick={onSave} style={toolBtnStyle} title="Export simulation data as .json" aria-label="Save simulation">Save</button>
-        )}
-        {hasEvents && onCopy && (
-          <button onClick={onCopy} style={toolBtnStyle} title="Copy simulation summary to clipboard" aria-label="Copy summary">Copy</button>
-        )}
+        {/* LOAD stays inline — it's already a dropdown for past-runs UX. */}
         {onLoad && <LoadMenu onLoadFromFile={onLoad} />}
-        {hasEvents && onClear && (
-          <button onClick={onClear} style={{ ...toolBtnStyle, color: 'var(--rust)' }} title="Clear all data. Cannot be undone." aria-label="Clear simulation">Clear</button>
+        {/* Save / Copy / Clear consolidated behind a single overflow
+            menu so they don't fight for horizontal space with RUN /
+            GITHUB / TOUR / status / theme. Visible only when a run
+            has emitted events (same gating the 3 separate buttons
+            had before). */}
+        {hasEvents && (onSave || onCopy || onClear) && (
+          <div ref={overflowRootRef} style={{ position: 'relative' }}>
+            <button
+              type="button"
+              onClick={() => setOverflowOpen(o => !o)}
+              aria-haspopup="menu"
+              aria-expanded={overflowOpen}
+              aria-label={overflowOpen ? 'Close run actions' : 'Open run actions menu'}
+              title="Save · Copy · Clear"
+              style={{
+                ...toolBtnStyle,
+                width: 28,
+                padding: '2px 0',
+                lineHeight: 1,
+                fontSize: 14,
+                fontWeight: 800,
+                letterSpacing: '0.08em',
+              }}
+            >
+              {'\u22ef'}
+            </button>
+            {overflowOpen && (
+              <div
+                ref={overflowMenuRef}
+                role="menu"
+                tabIndex={-1}
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 6px)',
+                  right: 0,
+                  minWidth: 160,
+                  padding: 4,
+                  background: 'var(--bg-panel)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 4,
+                  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)',
+                  zIndex: 60,
+                  outline: 'none',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 2,
+                }}
+              >
+                {onSave && (
+                  <button
+                    role="menuitem"
+                    type="button"
+                    onClick={() => { setOverflowOpen(false); onSave(); }}
+                    style={{
+                      textAlign: 'left',
+                      padding: '6px 10px',
+                      background: 'transparent',
+                      color: 'var(--text-2)',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontFamily: 'var(--mono)',
+                      fontSize: 11,
+                      fontWeight: 600,
+                      borderRadius: 3,
+                    }}
+                    title="Export simulation data as .json"
+                  >
+                    Save
+                  </button>
+                )}
+                {onCopy && (
+                  <button
+                    role="menuitem"
+                    type="button"
+                    onClick={() => { setOverflowOpen(false); onCopy(); }}
+                    style={{
+                      textAlign: 'left',
+                      padding: '6px 10px',
+                      background: 'transparent',
+                      color: 'var(--text-2)',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontFamily: 'var(--mono)',
+                      fontSize: 11,
+                      fontWeight: 600,
+                      borderRadius: 3,
+                    }}
+                    title="Copy simulation summary to clipboard"
+                  >
+                    Copy
+                  </button>
+                )}
+                {onClear && (
+                  <button
+                    role="menuitem"
+                    type="button"
+                    onClick={() => { setOverflowOpen(false); onClear(); }}
+                    style={{
+                      textAlign: 'left',
+                      padding: '6px 10px',
+                      background: 'transparent',
+                      color: 'var(--rust)',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontFamily: 'var(--mono)',
+                      fontSize: 11,
+                      fontWeight: 600,
+                      borderRadius: 3,
+                    }}
+                    title="Clear all data. Cannot be undone."
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         )}
 
         <span style={{ color: 'var(--border)', fontSize: '12px' }} aria-hidden="true">|</span>
