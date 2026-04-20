@@ -205,6 +205,7 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
   const golStateRef = useRef<GolState>(createGolState(DEFAULT_GOL_CONFIG.cols, DEFAULT_GOL_CONFIG.rows));
   const lastGolTurnRef = useRef<number>(-1);
   const lastGolModeRef = useRef<string>('');
+  const lastGolFilterRef = useRef<string>('');
   const lastFlareSignatureRef = useRef<string | null>(null);
 
   // Relationship-flare: when a colonist is clicked, brighten their
@@ -364,10 +365,12 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
     const gol = golStateRef.current;
     const modeChanged = mode !== lastGolModeRef.current;
     const turnChanged = snapshot.turn !== lastGolTurnRef.current;
-    if (turnChanged || modeChanged) {
+    const filterChanged = eventFilter !== lastGolFilterRef.current;
+    if (turnChanged || modeChanged || filterChanged) {
       lastGolTurnRef.current = snapshot.turn;
       lastGolModeRef.current = mode;
-      seedFromColonists(gol, snapshot.cells, positions, size.w, size.h);
+      lastGolFilterRef.current = eventFilter;
+      seedFromColonists(gol, snapshot.cells, positions, size.w, size.h, eventFilter);
       // Mode determines warmup depth so clicking a mode pill produces
       // a visibly different CA state: LIVING = stabilized (5 ticks),
       // MOOD = fresh seed (0 ticks, patterns sit unstabilized), FORGE
