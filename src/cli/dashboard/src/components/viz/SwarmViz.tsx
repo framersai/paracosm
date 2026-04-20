@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GameState, LeaderInfo } from '../../hooks/useGameState.js';
-import { useScenarioContext } from '../../App';
+import { useScenarioContext, useDashboardNavigation } from '../../App';
 import { useToast } from '../shared/Toast';
 import type { AutomatonMode } from './automaton/shared.js';
 
@@ -199,6 +199,21 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
     setPlaying(false);
     setCurrentTurn(turn);
   }, []);
+
+  // Cross-tab nav: switch to Reports and scroll to the given turn's
+  // detail section. Fired by the chronicle strip on shift+click so
+  // users can jump from "I saw this event happened" to "show me the
+  // full breakdown of that turn" without manually changing tabs.
+  const navigateTab = useDashboardNavigation();
+  const handleJumpToReports = useCallback((turn: number) => {
+    navigateTab('reports');
+    // Let the Reports tab render before attempting to scroll — the
+    // section element doesn't exist until ReportView mounts.
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`turn-${turn}`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }, [navigateTab]);
 
   const [helpOpen, setHelpOpen] = useState(false);
   const scenario = useScenarioContext();
@@ -1078,6 +1093,7 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
           filter={chronicleFilter}
           onFilterChange={setChronicleFilter}
           onHoverEventChange={setHoveredChronicleEvent}
+          onJumpToReports={handleJumpToReports}
           onForgeSelect={(toolName, side) =>
             setForgeLineage({
               toolName,

@@ -234,6 +234,33 @@ export function LoadMenu(props: LoadMenuProps) {
                   No cached runs yet. Completed runs appear here automatically.
                 </div>
               )}
+              {cacheExpanded && body === 'error' && (
+                <div style={{ padding: '8px 10px', fontSize: 11, color: 'var(--rust)', fontFamily: 'var(--mono)' }}>
+                  Server unreachable. Check that the paracosm server is running, then hit refresh.
+                  <button
+                    type="button"
+                    onClick={() => refresh()}
+                    style={{
+                      marginLeft: 8,
+                      padding: '2px 8px',
+                      background: 'var(--bg-card)',
+                      color: 'var(--text-1)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 3,
+                      cursor: 'pointer',
+                      fontFamily: 'var(--mono)',
+                      fontSize: 10,
+                    }}
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
+              {cacheExpanded && body === 'unavailable' && (
+                <div style={{ padding: '8px 10px', fontSize: 11, color: 'var(--amber)', fontFamily: 'var(--mono)' }}>
+                  Session store not initialized on the server. Cached runs won't appear until the server restarts with a writable data directory.
+                </div>
+              )}
               {/*
                 Cards list caps at roughly 5 cards of visible height and
                 scrolls the rest. Each card is ~70px tall (3 text lines +

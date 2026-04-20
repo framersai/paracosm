@@ -16,6 +16,11 @@ interface SimViewProps {
   state: GameState;
   sseStatus?: string;
   onRun?: () => void;
+  /** Optional — opens the guided tour (demo replay) from the empty
+   *  state CTA. Without this, first-time users land on a dense
+   *  empty page with no affordance to learn what the dashboard
+   *  does before spending LLM credits on their own run. */
+  onTour?: () => void;
   verdict?: Record<string, unknown> | null;
   /** App-level launching flag — survives tab navigation so users can
    *  switch to viz/chat/etc. and come back to a still-loading sim. */
@@ -152,7 +157,7 @@ function IntroBar({ onDismiss }: { onDismiss: () => void }) {
   );
 }
 
-export function SimView({ state, sseStatus, onRun, verdict, launching: launchingProp }: SimViewProps) {
+export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: launchingProp }: SimViewProps) {
   const scenario = useScenarioContext();
   const citationRegistry = useCitationContext();
   const toolRegistry = useToolContext();
@@ -401,6 +406,32 @@ export function SimView({ state, sseStatus, onRun, verdict, launching: launching
               Settings
             </button>
           </div>
+          {onTour && (
+            <div style={{ marginTop: 16, fontSize: 12, color: 'var(--text-3)' }}>
+              First time here?{' '}
+              <button
+                type="button"
+                onClick={onTour}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--amber)',
+                  fontFamily: 'var(--mono)',
+                  fontWeight: 700,
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  padding: 0,
+                  textDecoration: 'underline',
+                  textUnderlineOffset: 3,
+                }}
+              >
+                Take the guided tour →
+              </button>
+              <span style={{ marginLeft: 6, color: 'var(--text-4)' }}>
+                (canned demo, no LLM cost)
+              </span>
+            </div>
+          )}
           {/* Surface saved-run replays right in the empty state so users
               who land on SIM without a running simulation can start
               watching a prior run with one click. Renders explanatory

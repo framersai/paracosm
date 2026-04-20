@@ -463,6 +463,13 @@ function AppContent() {
   useEffect(() => {
     if (tourActive) return;
     if (!sse.isComplete && !sse.isAborted) return;
+    // Only toast terminal events that happen LIVE — i.e. the
+    // replayDone flag has already flipped so we're past buffer
+    // replay. Terminal states observed before replay_done are
+    // historical (user is viewing a completed run, not watching it
+    // finish), and firing a toast for them reads as spam. Mirrors
+    // the forge-toast gate.
+    if (!sse.replayDone) return;
     const fingerprint = sse.isAborted
       ? `aborted:${sse.abortReason?.reason ?? 'unknown'}:${sse.abortReason?.leader ?? ''}:${sse.abortReason?.turn ?? ''}`
       : `complete:${sse.results.length}:${sse.verdict ? 'v' : 'nv'}`;
@@ -484,6 +491,7 @@ function AppContent() {
     sse.abortReason,
     sse.results.length,
     sse.verdict,
+    sse.replayDone,
     tourActive,
     toast,
   ]);
@@ -637,7 +645,52 @@ function AppContent() {
               onDismiss={() => setBannerDismissed(true)}
             />
           ) : null}
-          {replaySessionId ? (
+          {replaySessionId && sse.status === 'replay_not_found' ? (
+            <div
+              role="alert"
+              style={{
+                background: 'rgba(196, 74, 30, 0.15)',
+                color: 'var(--text-1)',
+                padding: '12px 16px',
+                fontFamily: 'var(--mono)',
+                fontSize: 12,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12,
+                borderBottom: '1px solid var(--rust)',
+              }}
+            >
+              <span>
+                <strong style={{ color: 'var(--rust)' }}>REPLAY NOT FOUND</strong>{' '}
+                · The saved run <code>{replaySessionId}</code> no longer exists. It may have been evicted from the 10-run cache, or the URL was mistyped.
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  const url = new URL(window.location.href);
+                  url.searchParams.delete('replay');
+                  window.history.replaceState({}, '', url.toString());
+                  window.location.reload();
+                }}
+                style={{
+                  background: 'var(--bg-card)',
+                  color: 'var(--text-1)',
+                  border: '1px solid var(--border)',
+                  padding: '6px 14px',
+                  fontFamily: 'var(--mono)',
+                  fontSize: 11,
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  borderRadius: 4,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                ← Back to live mode
+              </button>
+            </div>
+          ) : null}
+          {replaySessionId && sse.status !== 'replay_not_found' ? (
             <div
               role="status"
               style={{
@@ -757,7 +810,7 @@ function AppContent() {
           })()}
 
           <main id="main-content" className="flex-1 overflow-hidden" role="main" aria-label={`${activeTab} view`} style={{ background: 'var(--bg-deep)', display: 'flex', flexDirection: 'column' }}>
-            {activeTab === 'sim' && <SimView state={gameState} sseStatus={sse.status} onRun={handleRun} verdict={sse.verdict} launching={launching} />}
+            {activeTab === 'sim' && <SimView state={gameState} sseStatus={sse.status} onRun={handleRun} onTour={handleTourStart} verdict={sse.verdict} launching={launching} />}
 
             {activeTab === 'viz' && <SwarmViz state={gameState} onNavigateToChat={navigateToChat} />}
 

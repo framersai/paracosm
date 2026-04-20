@@ -44,6 +44,13 @@ interface EventChronicleProps {
    * pill. Makes the chronicle row feel connected to the canvas.
    */
   onHoverEventChange?: (ev: { kind: ChronicleEvent['kind']; side: 'a' | 'b'; turn: number } | null) => void;
+  /**
+   * Fires on shift+click of a chronicle event pill. The parent
+   * navigates to the Reports tab and scrolls to that turn's detail
+   * section. Shift is the standard "open in alternate view" modifier.
+   * Normal click still scrubs the viz playhead (primary action).
+   */
+  onJumpToReports?: (turn: number) => void;
 }
 
 export type { ChronicleFilter, ChronicleEvent };
@@ -79,6 +86,7 @@ export function EventChronicle({
   filter: controlledFilter,
   onFilterChange,
   onHoverEventChange,
+  onJumpToReports,
 }: EventChronicleProps) {
   const chronicle = useMemo<ChronicleEvent[]>(() => {
     const out: ChronicleEvent[] = [];
@@ -225,7 +233,15 @@ export function EventChronicle({
             <button
               key={`${ev.turn}-${ev.side}-${ev.kind}-${i}`}
               type="button"
-              onClick={() => {
+              onClick={(e) => {
+                // Shift+click → open the turn's full breakdown in the
+                // Reports tab. Normal click keeps the existing viz
+                // behaviour (scrub playhead or open forge lineage).
+                if (e.shiftKey && onJumpToReports) {
+                  e.preventDefault();
+                  onJumpToReports(ev.turn);
+                  return;
+                }
                 if (ev.kind === 'forge' && ev.toolName && onForgeSelect) {
                   onForgeSelect(ev.toolName, ev.side);
                 } else {
@@ -248,7 +264,7 @@ export function EventChronicle({
                 onHoverTurnChange?.(null);
                 onHoverEventChange?.(null);
               }}
-              title={ev.label}
+              title={`${ev.label}${onJumpToReports ? ' · Shift+click to open in Reports' : ''}`}
               aria-label={ev.label}
               style={{
                 display: 'inline-flex',

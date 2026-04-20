@@ -37,7 +37,7 @@ interface FooterProps {
     isRunning: boolean;
     isComplete: boolean;
     isAborted: boolean;
-    connectionStatus: 'connecting' | 'connected' | 'error';
+    connectionStatus: 'connecting' | 'connected' | 'error' | 'replay_not_found';
     abortReason?: FooterAbortReason | null;
     providerError?: FooterProviderError | null;
   };
