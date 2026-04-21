@@ -179,7 +179,7 @@ export function updateRelationshipsFromReactions(
  * Build memory context lines for a agent's reaction prompt.
  * Returns a string block that gets injected into the prompt.
  *
- * @param colonist - The agent whose memory to render
+ * @param agent - The agent whose memory to render
  * @param allColonists - Optional full agent list for resolving relationship names
  */
 export function buildMemoryContext(agent: Agent, allColonists?: Agent[]): string {
