@@ -38,8 +38,10 @@ Same seed, same starting conditions, different leaders, different civilizations.
 ## Quickstart
 
 ```bash
-npm install paracosm
+npm install paracosm      # also works: pnpm add paracosm / bun add paracosm
 ```
+
+Paracosm ships as pure ESM with subpath exports (`paracosm/compiler`, `paracosm/runtime`, `paracosm/mars`, `paracosm/lunar`, `paracosm/core`). Node 20+, Bun 1.x, and any TypeScript runner with ESM + import-attributes support (`tsx`, `ts-node --esm`) resolve them out of the box. If `import ... from 'paracosm/compiler'` fails with a module-not-found error, the dependency was never installed in that project — `cd` into the right directory and run one of the commands above.
 
 ### 1. Define your world
 
@@ -118,7 +120,7 @@ bounded collective under a leader's decisions.
 ```typescript
 import { compileScenario } from 'paracosm/compiler';
 import { runSimulation } from 'paracosm/runtime';
-import worldJson from './my-world.json';
+import worldJson from './my-world.json' with { type: 'json' };
 
 // Compile JSON into a runnable scenario (~$0.10, cached to disk)
 const scenario = await compileScenario(worldJson, {
@@ -162,6 +164,19 @@ const results = await Promise.all(
     })
   )
 );
+
+// The return value is a full run artifact. A few of the fields most
+// consumers want right away:
+for (const r of results) {
+  console.log(r.leader.name, '→', r.fingerprint);
+  console.log('  cost   $', r.cost.totalCostUSD.toFixed(2), `(${r.cost.llmCalls} LLM calls)`);
+  console.log('  final    ', r.finalState.colony);        // population, morale, foodMonthsReserve, powerKw, …
+  console.log('  tools    ', r.forgedToolbox.length,      // deduped forge ledger
+               'citations', r.citationCatalog.length);     // DOI-linked references
+  if (r.providerError) {
+    console.error('  provider error:', r.providerError.kind, r.providerError.message);
+  }
+}
 ```
 
 Each call to `runSimulation` takes one leader. Run one, two, or twenty. The dashboard runs two side-by-side for comparison, but the API has no limit. Leaders don't need to be people. They can model competing strategies, policy frameworks, organizational philosophies, or autonomous systems responding to the same events with different decision profiles.
@@ -217,6 +232,30 @@ npm run compile -- scenarios/submarine.json \
 
 Options: `--seed-text`, `--seed-url`, `--no-web-search`, `--max-searches`. Compiled scenarios appear in the dashboard selector. Cost is roughly $0.10 per compile, cached to disk after first generation.
 
+### Programmatic compiler options
+
+Every CLI flag has a matching programmatic option on `compileScenario`. The compiler caches per-hook on the scenario hash + model + schema version, and separately caches the seed bundle on the seed signature (text/URL + `webSearch` + `maxSearches`), so re-running the same call is free after the first hit.
+
+```typescript
+import { compileScenario } from 'paracosm/compiler';
+
+const scenario = await compileScenario(worldJson, {
+  provider: 'anthropic',             // 'openai' (default) or 'anthropic'
+  model: 'claude-sonnet-4-6',        // omit → provider default (gpt-5.4-mini / claude-sonnet-4-6)
+  cache: true,                       // default. Set false to force regeneration.
+  cacheDir: '.paracosm/cache',       // default. Change per project / per CI run.
+  seedUrl: 'https://ntrs.nasa.gov/citations/20210018970',  // or: seedText: '…inline markdown…'
+  webSearch: true,                   // fan out to Firecrawl/Tavily/Serper/Brave
+  maxSearches: 5,
+  onProgress(hookName, status) {
+    // 'generating' | 'cached' | 'done' | 'fallback'
+    console.log(`  [${status.padEnd(10)}] ${hookName}`);
+  },
+});
+```
+
+Cache hits show up as `cached` in the progress callback. First-run cost is roughly $0.10; cached re-runs are free. If neither `OPENAI_API_KEY` nor `ANTHROPIC_API_KEY` is set, the compiler throws `ProviderKeyMissingError` before making any calls — see [Error handling](#error-handling).
+
 ## Cost Envelope
 
 Running a simulation calls real LLM APIs against your key. Typical spend per run on provider defaults (6 turns, 5 departments, 100 agents, up to 3 events per turn):
@@ -229,6 +268,111 @@ Running a simulation calls real LLM APIs against your key. Typical spend per run
 The single biggest lever is the judge model — it runs once per forge attempt (easily 60+ calls per 6-turn run) so keeping it on the cheap tier is what makes the run affordable. Running the judge on a flagship model triples the total.
 
 The orchestrator's `runSimulation()` returns a `cost` field with token counts, LLM call counts, and USD spend aggregated from every tracked call (director, departments, commander, judge, agent reactions). The dashboard StatsBar shows this live.
+
+### Prompt caching
+
+Every LLM call site on both providers routes its stable system prefix through a `cacheBreakpoint: true` block (director instructions, department prompts, reaction batches, compile-time hook generators). On Anthropic, turn 2+ of every run serves the shared prefix from the provider's prompt cache at 0.1× input cost. On OpenAI, any prompt ≥ 1024 tokens auto-caches. The `cost.caches` field reports read / creation tokens and USD saved per run, and `/retry-stats` rolls the numbers up across the last 100 runs so you can verify the cache is actually hitting. No configuration required — the `system: Array<{ text; cacheBreakpoint }>` shape is built into the validated-call wrappers in `src/engine/compiler/llm-invocations/` and `src/runtime/llm-invocations/`.
+
+## Programmatic API
+
+Everything the dashboard does is also available as library calls. The exports fall into five buckets:
+
+| Import | Surface |
+|--------|---------|
+| `paracosm/compiler` | `compileScenario`, `ingestSeed`, `ingestFromUrl`, type `CompileOptions` |
+| `paracosm/runtime`  | `runSimulation`, `runBatch`, `EventDirector`, `generateAgentReactions`, memory helpers |
+| `paracosm`          | `ProviderKeyMissingError`, `SeededRng`, `SimulationKernel`, all `Scenario*` types |
+| `paracosm/core`     | Kernel state types (`Agent`, `WorldState`, `HexacoProfile`, …) |
+| `paracosm/mars`, `paracosm/lunar` | Pre-built `ScenarioPackage` constants to use or fork |
+
+### Batch runner — N scenarios × M leaders
+
+```typescript
+import { runBatch } from 'paracosm/runtime';
+import { marsScenario, lunarScenario } from 'paracosm';
+
+const manifest = await runBatch({
+  scenarios: [marsScenario, lunarScenario],
+  leaders,                // LeaderConfig[] — same shape as runSimulation
+  turns: 6,
+  seed: 950,
+  maxConcurrency: 2,      // how many sims to run in parallel
+  provider: 'anthropic',
+});
+
+// manifest.results[i] carries { scenarioId, leader, fingerprint, output, duration }
+// manifest.timestamp + manifest.config is a reproducible audit trail
+```
+
+### Seed ingestion from a URL or inline text
+
+The compiler grounds agents in real sources. Pass `seedText` for inline markdown / PDFs you already have, or `seedUrl` to let Firecrawl extract clean markdown from any public page. The bundle is cached separately from the hook cache, keyed on the seed signature, so the same URL never re-extracts.
+
+```typescript
+const scenario = await compileScenario(worldJson, {
+  seedUrl: 'https://ntrs.nasa.gov/citations/20210018970',
+  webSearch: true,        // also fan out to Tavily/Serper/Brave for more citations
+  maxSearches: 5,
+});
+// Every department prompt, Event Director batch, and report.citations[] entry
+// at runtime will draw from this bundle.
+```
+
+### Cancellation via AbortSignal
+
+The server wires this to a cancel-on-disconnect watchdog; any programmatic consumer can do the same. When `.aborted` flips to true, the turn loop short-circuits at the next turn boundary, emits a `sim_aborted` event, and returns the partial result accumulated so far with `output.aborted === true`.
+
+```typescript
+const ctrl = new AbortController();
+setTimeout(() => ctrl.abort(), 60_000);            // kill after 60s wall time
+
+const output = await runSimulation(leader, [], {
+  scenario, maxTurns: 8, seed: 42,
+  signal: ctrl.signal,
+});
+
+if (output.aborted) console.log('partial result; turns completed:', output.turnArtifacts.length);
+```
+
+### Custom events injected at specific turns
+
+When you want a scripted event at a fixed turn (smoke tests, pedagogical demos, reproducing a scenario from a paper), supply `customEvents`:
+
+```typescript
+await runSimulation(leader, [], {
+  scenario, maxTurns: 8, seed: 42,
+  customEvents: [
+    { turn: 3, title: 'Dust storm', description: 'A 72-hour planetary dust storm cuts solar output by 80%.' },
+    { turn: 6, title: 'Supply drop', description: 'Earth relief mission delivers 3 months of food reserves.' },
+  ],
+});
+```
+
+### Error handling
+
+```typescript
+import { runSimulation, ProviderKeyMissingError } from 'paracosm';
+
+try {
+  const output = await runSimulation(leader, [], { scenario, maxTurns: 8, seed: 42 });
+  if (output.providerError) {
+    // Terminal provider failure (invalid key, quota exhausted) — the run
+    // aborted mid-way. turnArtifacts / finalState are partial.
+    console.error(output.providerError.kind,        // 'auth' | 'quota' | 'rate_limit' | 'network' | 'unknown'
+                  output.providerError.provider,
+                  output.providerError.message,
+                  output.providerError.actionUrl);
+  }
+} catch (err) {
+  if (err instanceof ProviderKeyMissingError) {
+    console.error('set OPENAI_API_KEY or ANTHROPIC_API_KEY before running');
+    process.exit(1);
+  }
+  throw err;
+}
+```
+
+The resolver inspects `process.env` once up front, so a missing key fails loudly at the top of the run instead of retrying silently on every LLM call.
 
 ## Seed Enrichment & Citation Flow
 
@@ -362,12 +506,12 @@ src/
 
 | Import | What |
 |--------|------|
-| `paracosm` | Engine types, registries, kernel |
-| `paracosm/compiler` | `compileScenario()` |
-| `paracosm/runtime` | `runSimulation()`, `runBatch()` |
-| `paracosm/mars` | Mars Genesis scenario |
-| `paracosm/lunar` | Lunar Outpost scenario |
-| `paracosm/core` | Kernel state types |
+| `paracosm` | Engine types, registries, `SimulationKernel`, `SeededRng`, scenario packages, `ProviderKeyMissingError` |
+| `paracosm/compiler` | `compileScenario()`, `ingestSeed()`, `ingestFromUrl()` |
+| `paracosm/runtime` | `runSimulation()`, `runBatch()`, `EventDirector`, `generateAgentReactions()`, memory helpers |
+| `paracosm/mars` | Mars Genesis `ScenarioPackage` |
+| `paracosm/lunar` | Lunar Outpost `ScenarioPackage` |
+| `paracosm/core` | Kernel state types (`Agent`, `WorldState`, `HexacoProfile`) |
 
 ## Built on AgentOS
 

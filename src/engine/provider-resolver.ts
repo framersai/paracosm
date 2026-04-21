@@ -53,7 +53,8 @@ export class ProviderKeyMissingError extends Error {
       `No provider API key found in the environment. ` +
       `You requested provider '${requested}'. ` +
       `Set ${envList} and retry. ` +
-      `(Pass { apiKey } on the options object to bypass env inspection.)`,
+      `(To bypass env inspection entirely, pass your own { generateText } on CompileOptions, ` +
+      `or construct your own AgentOS session and wire it through.)`,
     );
     this.name = 'ProviderKeyMissingError';
     this.requested = requested;
