@@ -340,6 +340,34 @@ function AppContent() {
     setActiveTab('sim');
   }, [setActiveTab]);
 
+  // Auto-start the GuidedTour on the user's FIRST visit to the sim
+  // page so new viewers get oriented without having to find the
+  // HOW IT WORKS button. Gated on a localStorage flag
+  // (`paracosm:tourSeen`) so returning users don't get the tour
+  // replayed every time they open the app. The flag gets set both
+  // when they finish the tour and when they skip it — so either
+  // way, one exposure is enough.
+  useEffect(() => {
+    try {
+      if (localStorage.getItem('paracosm:tourSeen') === '1') return;
+    } catch {
+      // Privacy mode / quota error: skip autostart to avoid looping
+      // a tour every page load when we can't persist the seen flag.
+      return;
+    }
+    // Defer one tick so the initial layout (tab bar, topbar, sim
+    // columns) paints before the highlight ring lands on the first
+    // step. The tour's getBoundingClientRect reads will otherwise
+    // measure zero-height shells on cold mount.
+    const timer = setTimeout(() => {
+      setTourActive(true);
+      setActiveTab('sim');
+    }, 600);
+    return () => clearTimeout(timer);
+    // Run exactly once on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Chat handoff from the VIZ drilldown. Sets the URL hash so
   // ChatPanel can read it on mount or on hashchange, then switches
   // tabs. Hash survives the tab switch so preselection works even
@@ -352,6 +380,15 @@ function AppContent() {
   const handleTourEnd = useCallback(() => {
     setTourActive(false);
     setActiveTab('sim');
+    // Mark the tour as seen so the auto-start useEffect above
+    // stops re-firing on every mount. Fires on both finish-flow
+    // and skip — either path means the user has been exposed to
+    // the walkthrough once.
+    try {
+      localStorage.setItem('paracosm:tourSeen', '1');
+    } catch {
+      /* silent — privacy mode or quota error, nothing we can do */
+    }
   }, [setActiveTab]);
 
   const handleCopySummary = useCallback(() => {

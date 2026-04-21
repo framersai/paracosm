@@ -154,6 +154,7 @@ export function EventChronicle({
 
   return (
     <div
+      aria-label="Event filter"
       style={{
         padding: '4px 10px',
         background: 'var(--bg-panel)',
