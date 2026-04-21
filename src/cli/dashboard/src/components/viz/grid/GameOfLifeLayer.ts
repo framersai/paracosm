@@ -113,6 +113,31 @@ function patternForMood(mood: string): Array<[number, number]> {
 }
 
 /**
+ * Drop a Conway starter pattern onto the grid at the overlay-space
+ * position `p`. Used by seedFromColonists for filter-specific
+ * per-event seeding (deaths, births, etc.) where each event's
+ * position gets its own pattern instead of a shared mood-driven one.
+ */
+function plantPattern(
+  grid: Uint8Array,
+  cols: number,
+  rows: number,
+  p: GridPosition,
+  overlayWidth: number,
+  overlayHeight: number,
+  pattern: Array<[number, number]>,
+): void {
+  const cx = Math.floor((p.x / Math.max(1, overlayWidth)) * cols);
+  const cy = Math.floor((p.y / Math.max(1, overlayHeight)) * rows);
+  for (const [dx, dy] of pattern) {
+    const x = cx + dx - 1;
+    const y = cy + dy - 1;
+    if (x < 0 || x >= cols || y < 0 || y >= rows) continue;
+    grid[y * cols + x] = 8;
+  }
+}
+
+/**
  * When the EventChronicle filter pill is active (not 'all'), the
  * Conway seed uses a filter-specific pattern so the visualization
  * tracks the user's narrow: BIRTHS reads as stable blocks, DEATHS
@@ -222,10 +247,32 @@ export function seedFromColonists(
   // clean slate — layering old-turn patterns under new ones
   // produces the chaotic behaviour the user correctly called out.
   grid.fill(0);
-  // Death filter = no seed at all. The grid reads as mostly-empty,
-  // which is the right visual for "show me only deaths" when no
-  // deaths have fired recently.
-  if (eventFilter === 'death') return;
+
+  // Filter-specific seeding: only plant patterns where the filter's
+  // event actually happened. DEATHS seeds TOAD at every dead cell,
+  // BIRTHS seeds BLOCK at every native-born cell (generation > 0),
+  // and so on. This answers "show me the deaths" with "here's where
+  // each death happened" instead of an empty canvas.
+  if (eventFilter === 'death') {
+    for (const c of cells) {
+      if (c.alive) continue;
+      const p = positions.get(c.agentId);
+      if (!p) continue;
+      plantPattern(grid, cols, rows, p, overlayWidth, overlayHeight, TOAD);
+    }
+    return;
+  }
+  if (eventFilter === 'birth') {
+    for (const c of cells) {
+      if (!c.alive) continue;
+      if ((c.generation ?? 0) === 0) continue; // skip earth-born starters
+      const p = positions.get(c.agentId);
+      if (!p) continue;
+      plantPattern(grid, cols, rows, p, overlayWidth, overlayHeight, BLOCK);
+    }
+    return;
+  }
+
   const filterPattern = patternForFilter(eventFilter);
   for (let i = 0; i < cells.length; i += 1) {
     const c = cells[i];
