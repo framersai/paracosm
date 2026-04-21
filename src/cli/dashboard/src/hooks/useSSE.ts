@@ -1,7 +1,38 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
+/**
+ * Event type strings the dashboard consumes.
+ *
+ * Superset of `SimEventType` from `paracosm/runtime` (the discriminated
+ * payload map defined in `src/runtime/orchestrator.ts`) plus two
+ * server-synthetic types the HTTP+SSE layer folds into the same stream:
+ *
+ * - `status`: run-level metadata (effective maxTurns, phase, leaders).
+ *   Emitted by server-app.ts at simulation start so the dashboard can
+ *   render `T3/6` correctly on demo-capped runs where the post-cap
+ *   maxTurns differs from what RunOptions carried.
+ * - `sim_saved`: outcome of the server's autoSaveOnComplete pass
+ *   (status = saved | skipped | failed, plus id / reason / error).
+ *
+ * Kept as a literal union rather than `string` so typos fail at
+ * compile time. `data` stays loose because dashboard code reads events
+ * generically (fingerprinting, filtering, persistence); the narrow
+ * per-event payload shapes live in the published `paracosm/runtime`
+ * types for direct API consumers who want full intellisense. If the
+ * runtime adds a new event type, add it here too so the dashboard
+ * type-check acknowledges it.
+ */
+export type SimEventType =
+  // Mirror of runtime SimEventType (src/runtime/orchestrator.ts):
+  | 'turn_start' | 'event_start' | 'dept_start' | 'dept_done' | 'forge_attempt'
+  | 'commander_deciding' | 'commander_decided' | 'outcome' | 'drift'
+  | 'agent_reactions' | 'bulletin' | 'turn_done' | 'promotion'
+  | 'colony_snapshot' | 'provider_error' | 'validation_fallback' | 'sim_aborted'
+  // Server-synthetic (not emitted by the runtime itself):
+  | 'status' | 'sim_saved';
+
 export interface SimEvent {
-  type: string;
+  type: SimEventType;
   leader: string;
   turn?: number;
   year?: number;
