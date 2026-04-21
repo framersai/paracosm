@@ -17,6 +17,7 @@ import {
   seedFromColonists,
   tickGol,
   drawGol,
+  drawDeadMarkers,
   injectFlareIntoGol,
   DEFAULT_GOL_CONFIG,
   type GolState,
@@ -437,6 +438,21 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
     // visual texture. Color follows side tint — amber for A, teal
     // for B — so the two panels stay distinguishable at a glance.
     drawGol(ctx, gol, size.w, size.h, resolvedSide, 0.65);
+    // DEATHS filter: overlay hollow tombstone markers at each dead
+    // cell's position. Distinct from live Conway tiles (filled squares
+    // in side color) so the viewer can tell death events from live
+    // cells at a glance.
+    if (eventFilter === 'death') {
+      drawDeadMarkers(
+        ctx,
+        snapshot.cells,
+        positions,
+        size.w,
+        size.h,
+        DEFAULT_GOL_CONFIG.cols,
+        DEFAULT_GOL_CONFIG.rows,
+      );
+    }
     drawFlares(ctx, visibleFlares);
     if (mode !== 'ecology')
       drawGlyphs(

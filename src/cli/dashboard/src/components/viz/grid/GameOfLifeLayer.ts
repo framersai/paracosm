@@ -113,6 +113,52 @@ function patternForMood(mood: string): Array<[number, number]> {
 }
 
 /**
+ * Draw dead-colonist death markers as gray hollow squares with a
+ * diagonal X slash through each one. Read as "tombstone tiles" —
+ * clearly distinct from the filled-square live Conway cells, so
+ * when the DEATHS filter is active the viewer sees death events,
+ * not more live cells. Called as a separate canvas pass alongside
+ * (or instead of) drawGol when the filter is active.
+ */
+export function drawDeadMarkers(
+  ctx: CanvasRenderingContext2D,
+  cells: CellSnapshot[],
+  positions: Map<string, GridPosition>,
+  overlayWidth: number,
+  overlayHeight: number,
+  cols: number,
+  rows: number,
+): void {
+  const cw = overlayWidth / cols;
+  const ch = overlayHeight / rows;
+  const tile = Math.max(1, Math.min(cw, ch) - 2);
+  ctx.save();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = 'rgba(168, 152, 120, 0.85)';
+  ctx.fillStyle = 'rgba(168, 152, 120, 0.08)';
+  for (const c of cells) {
+    if (c.alive) continue;
+    const p = positions.get(c.agentId);
+    if (!p) continue;
+    const col = Math.floor((p.x / Math.max(1, overlayWidth)) * cols);
+    const row = Math.floor((p.y / Math.max(1, overlayHeight)) * rows);
+    const offX = (cw - tile) / 2;
+    const offY = (ch - tile) / 2;
+    const x = col * cw + offX;
+    const y = row * ch + offY;
+    ctx.fillRect(x, y, tile, tile);
+    ctx.strokeRect(x + 0.5, y + 0.5, tile - 1, tile - 1);
+    ctx.beginPath();
+    ctx.moveTo(x + 4, y + 4);
+    ctx.lineTo(x + tile - 4, y + tile - 4);
+    ctx.moveTo(x + tile - 4, y + 4);
+    ctx.lineTo(x + 4, y + tile - 4);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/**
  * Drop a Conway starter pattern onto the grid at the overlay-space
  * position `p`. Used by seedFromColonists for filter-specific
  * per-event seeding (deaths, births, etc.) where each event's
@@ -253,15 +299,12 @@ export function seedFromColonists(
   // BIRTHS seeds BLOCK at every native-born cell (generation > 0),
   // and so on. This answers "show me the deaths" with "here's where
   // each death happened" instead of an empty canvas.
-  if (eventFilter === 'death') {
-    for (const c of cells) {
-      if (c.alive) continue;
-      const p = positions.get(c.agentId);
-      if (!p) continue;
-      plantPattern(grid, cols, rows, p, overlayWidth, overlayHeight, TOAD);
-    }
-    return;
-  }
+  // Death filter: leave Conway grid empty here — dead markers render
+  // as a separate canvas pass (drawDeadMarkers) with distinct hollow
+  // tombstone squares instead of the filled-square live Conway tiles.
+  // Keeping them in separate layers means the viewer immediately
+  // distinguishes "live cell here" vs "someone died here".
+  if (eventFilter === 'death') return;
   if (eventFilter === 'birth') {
     for (const c of cells) {
       if (!c.alive) continue;
