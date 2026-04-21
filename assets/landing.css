@@ -711,8 +711,15 @@ footer { padding: 28px 24px; border-top: 1px solid var(--border); background: va
 @media (max-width: 900px) {
   .feat-grid { grid-template-columns: 1fr 1fr; }
   .scenarios { grid-template-columns: 1fr; }
-  .flow { flex-direction: column; align-items: center; gap: 24px; }
+  .flow { flex-direction: column; align-items: stretch; gap: 28px; }
   .flow-line { display: none; }
+  /* Desktop keeps each node at width:22% so four fit across the row. On
+     mobile the flex direction flips to column, but without widening the
+     node the 22% cap turns every stacked block into a narrow centered
+     strip with huge empty gutters. Let each node take the full column
+     width and the description paragraph read at a natural line length. */
+  .flow-node { width: 100%; max-width: 520px; margin: 0 auto; }
+  .flow-node p { max-width: none; font-size: 13px; line-height: 1.6; }
   .diverge { flex-direction: column; }
   .contact-grid { grid-template-columns: 1fr; }
   .hero-chips { gap: 6px; }
