@@ -453,7 +453,12 @@ a:hover { text-decoration: underline; }
 
 .flow-wrap { position: relative; margin: 48px 0; padding: 40px 0; }
 
-.flow-line { position: absolute; top: 50%; left: 60px; right: 60px; height: 2px; background: var(--border); z-index: 0; }
+/* Pin the connector to the vertical center of the icon-ring row.
+   padding-top (40px) + half the ring height (64 / 2 = 32px) = 72px.
+   Was `top: 50%`, which scaled with the tallest node's paragraph and
+   started cutting through the title/description text as soon as the
+   copy got long enough. */
+.flow-line { position: absolute; top: 72px; left: 60px; right: 60px; height: 2px; background: var(--border); z-index: 0; }
 .flow-line-fill { height: 100%; width: 0; background: var(--grad); transition: width 1.5s ease; }
 .flow-line-fill.active { width: 100%; }
 

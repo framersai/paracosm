@@ -168,20 +168,32 @@ function AppContent() {
   // judge's reasoning. Without this, forge events are visible only in
   // the dense viz / event log and users miss the reliability signal.
   //
-  // Dedup via sessionStorage (keyed per forge) so a page reload in
-  // the same tab does NOT replay every historical forge as a fresh
-  // toast — which was the user-reported bug where reloading a
-  // completed run produced a pile of "Judge approved" toasts for
-  // tools forged hours ago. sessionStorage survives reloads but
-  // clears when the tab closes, which is the right scope: forges
-  // seen in this tab session shouldn't re-toast; forges from a
-  // different tab session are fresh from the user's POV.
+  // Three layers of gating keep toasts from flashing all at once when
+  // the user launches a new sim, loads a saved run, or opens a replay:
   //
-  // Additionally gated on `sse.replayDone`: the SSE `replay_done`
-  // event fires after the server finishes streaming buffered events.
-  // Anything added before that flag flips is historical; we seed
-  // those into seen-set without toasting. Only forges that arrive
-  // after replay_done get a toast.
+  // 1. sessionStorage (`paracosm:seenForgeToasts`): per-tab key-set so a
+  //    page reload does not replay every historical forge as a fresh
+  //    toast. Keys are `leader|name|timestamp|approved` — stable per
+  //    forge event across reconnects and buffer replays.
+  //
+  // 2. In-memory watermark (`liveStartIndexRef`): records the index in
+  //    the events array at the moment the run transitioned to live
+  //    (replayDone flipped true). Any forge at a position < watermark
+  //    is historical — seed into the seen-set silently, never toast.
+  //    This is the critical fix for the "all toasts flash at once" bug:
+  //    when the server flushes its buffered SSE events, React 18
+  //    batches the N sim setStates and the trailing replay_done
+  //    setState into ONE commit. Without this watermark the forge
+  //    effect would run once with events=[N forges] AND replayDone=true
+  //    and fire N toasts simultaneously. Same pathology hits
+  //    loadEvents(): it sets replayDone:true synchronously with the
+  //    populated events array. The watermark captures the length at
+  //    that instant so those events are treated as historical.
+  //
+  // 3. In-memory toasted key set (`toastedForgeKeysRef`): prevents the
+  //    same forge from toasting twice within one tab session, even if
+  //    sessionStorage gets cleared or a re-render re-enters the effect
+  //    with an already-processed event.
   const forgeSeenStorageKey = 'paracosm:seenForgeToasts';
   const readSeenForges = useCallback((): Set<string> => {
     try {
@@ -203,46 +215,82 @@ function AppContent() {
   // the dep array on first render would throw TDZ ("Cannot access 'toast'
   // before initialization") if the const sat below the useEffect.
   const { toast } = useToast();
+
+  // Watermark: the index at which the currently-streamed run became
+  // live. Events at positions before this index are historical (buffer
+  // replay, loaded file, replay session, or post-reset backfill) and
+  // must never toast. Null while we are still in the replay phase.
+  const liveStartIndexRef = useRef<number | null>(null);
+  // Every forge we have already toasted in this tab session. Belt on
+  // top of the sessionStorage seen-set so a re-entry of the effect
+  // (new commit, HMR, StrictMode double-invoke in dev) can't double-fire
+  // a toast we already surfaced moments ago.
+  const toastedForgeKeysRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const replayDone = tourActive ? true : sse.replayDone;
+    if (!replayDone) return;
+    // `reset()` shrinks events back to zero. Realign the watermark so
+    // the next stream of events is treated as live — without this the
+    // watermark could stay at, say, 120 from the prior run and suppress
+    // every new forge coming in on the new run.
+    if (
+      liveStartIndexRef.current === null ||
+      liveStartIndexRef.current > effectiveEvents.length
+    ) {
+      liveStartIndexRef.current = effectiveEvents.length;
+    }
+  }, [sse.replayDone, effectiveEvents.length, tourActive]);
+
   useEffect(() => {
     const forgeKey = (ev: typeof effectiveEvents[number]): string => {
       const d = ev.data as Record<string, unknown>;
       return `${ev.leader || ''}|${d?.name || ''}|${d?.timestamp || ''}|${d?.approved}`;
     };
     const seen = readSeenForges();
-    // While the server is still replaying the buffered events, treat
-    // everything as historical — seed the seen-set silently. After
-    // replayDone flips true, only NEW events (those not in
-    // sessionStorage from a prior tab visit) get toasts.
+    const alreadyToasted = toastedForgeKeysRef.current;
     const replayDone = tourActive ? true : sse.replayDone;
-    for (const ev of effectiveEvents) {
+    // If replay hasn't finished yet OR the live-start watermark is
+    // still unset, ALL current events are historical. Otherwise, only
+    // events at index >= watermark count as live.
+    const liveStart = replayDone ? (liveStartIndexRef.current ?? Infinity) : Infinity;
+
+    // Stagger live toasts so a burst of forges landing in one commit
+    // doesn't flash simultaneously. 450ms between pops reads as a
+    // sequence without feeling sluggish.
+    let stagger = 0;
+    for (let i = 0; i < effectiveEvents.length; i++) {
+      const ev = effectiveEvents[i];
       if (ev.type !== 'forge_attempt') continue;
       const key = forgeKey(ev);
-      if (seen.has(key)) continue;
-      if (!replayDone) {
-        seen.add(key);
-        continue;
-      }
+      if (seen.has(key) || alreadyToasted.has(key)) continue;
       seen.add(key);
+      const isHistorical = i < liveStart;
+      if (isHistorical) continue;
+      alreadyToasted.add(key);
       const d = ev.data as Record<string, unknown>;
       const name = String(d?.name || 'unnamed tool');
       const dept = String(d?.department || ev.leader || '').toUpperCase();
       const approved = d?.approved === true;
       const confidence = typeof d?.confidence === 'number' ? d.confidence : null;
       const reason = String(d?.errorReason || '').slice(0, 220);
-      if (approved) {
-        const confStr = confidence != null ? ` · conf ${confidence.toFixed(2)}` : '';
-        toast(
-          'success',
-          `${dept ? `${dept} · ` : ''}forged ${name}`,
-          `Judge approved${confStr}`,
-        );
-      } else {
-        toast(
-          'error',
-          `${dept ? `${dept} · ` : ''}rejected ${name}`,
-          reason || 'Judge rejected (no reason provided)',
-        );
-      }
+      const delay = stagger;
+      stagger += 450;
+      setTimeout(() => {
+        if (approved) {
+          const confStr = confidence != null ? ` · conf ${confidence.toFixed(2)}` : '';
+          toast(
+            'success',
+            `${dept ? `${dept} · ` : ''}forged ${name}`,
+            `Judge approved${confStr}`,
+          );
+        } else {
+          toast(
+            'error',
+            `${dept ? `${dept} · ` : ''}rejected ${name}`,
+            reason || 'Judge rejected (no reason provided)',
+          );
+        }
+      }, delay);
     }
     writeSeenForges(seen);
   }, [effectiveEvents, toast, sse.replayDone, tourActive, readSeenForges, writeSeenForges]);
