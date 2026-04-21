@@ -19,6 +19,8 @@ import {
   drawGol,
   drawDeadMarkers,
   drawBirthMarkers,
+  hitTestGol,
+  cellToTile,
   injectFlareIntoGol,
   DEFAULT_GOL_CONFIG,
   type GolState,
@@ -179,6 +181,18 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
   const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
   const [popover, setPopover] = useState<ClickPopoverPayload | null>(null);
   const [rosterOpen, setRosterOpen] = useState(false);
+  // Conway tile hover: populated when the cursor is over a live GoL
+  // cell or a birth/death marker but NOT over a colonist glyph. Drives
+  // the compact tile-info tooltip so users can decode what a pattern
+  // means instead of staring at it trying to guess.
+  const [hoveredTile, setHoveredTile] = useState<{
+    col: number;
+    row: number;
+    x: number;
+    y: number;
+    kind: 'life' | 'birth' | 'death';
+    nearest: CellSnapshot | null;
+  } | null>(null);
   /**
    * Mount-time staged reveal. Uses a CSS-driven cover-div approach
    * rather than canvas globalAlpha because the canvas layers mutate
@@ -640,16 +654,69 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
         setHovered(prev =>
           prev && prev.cell.agentId === hit.agentId ? prev : { cell: hit, x, y },
         );
+        setHoveredTile(null);
         onHoverChange?.(hit.agentId);
-      } else if (hovered) {
+        return;
+      }
+      if (hovered) {
         setHovered(null);
         onHoverChange?.(null);
       }
+      // Glyph missed — try hit-testing the Conway / marker layers so
+      // hovering a visible tile surfaces what it represents.
+      const cols = DEFAULT_GOL_CONFIG.cols;
+      const rows = DEFAULT_GOL_CONFIG.rows;
+      const targetTile =
+        eventFilter === 'death' || eventFilter === 'birth'
+          ? (() => {
+              const col = Math.floor((x / Math.max(1, size.w)) * cols);
+              const row = Math.floor((y / Math.max(1, size.h)) * rows);
+              if (col < 0 || col >= cols || row < 0 || row >= rows) return null;
+              for (const c of snapshot.cells) {
+                if (eventFilter === 'death' && c.alive) continue;
+                if (eventFilter === 'birth' && (!c.alive || (c.generation ?? 0) === 0)) continue;
+                const p = positions.get(c.agentId);
+                if (!p) continue;
+                const tile = cellToTile(p, size.w, size.h, cols, rows);
+                if (tile.col === col && tile.row === row) {
+                  return {
+                    col, row,
+                    kind: eventFilter === 'death' ? ('death' as const) : ('birth' as const),
+                    nearest: c,
+                  };
+                }
+              }
+              return null;
+            })()
+          : (() => {
+              const golHit = hitTestGol(golStateRef.current, x, y, size.w, size.h);
+              if (!golHit) return null;
+              // Attribute the live tile to the closest colonist whose
+              // seed could have produced it. Captures both the "mood-
+              // pattern at position" (ALL) and "filter pattern" cases.
+              let nearest: CellSnapshot | null = null;
+              let bestDist = Infinity;
+              for (const c of snapshot.cells) {
+                if (!c.alive) continue;
+                const p = positions.get(c.agentId);
+                if (!p) continue;
+                const tile = cellToTile(p, size.w, size.h, cols, rows);
+                const d = (tile.col - golHit.col) ** 2 + (tile.row - golHit.row) ** 2;
+                if (d < bestDist) { bestDist = d; nearest = c; }
+              }
+              return { col: golHit.col, row: golHit.row, kind: 'life' as const, nearest };
+            })();
+      if (targetTile) {
+        setHoveredTile({ x, y, ...targetTile });
+      } else if (hoveredTile) {
+        setHoveredTile(null);
+      }
     },
-    [snapshot, positions, hovered, onHoverChange],
+    [snapshot, positions, hovered, onHoverChange, eventFilter, size.w, size.h, hoveredTile],
   );
   const onMouseLeave = useCallback(() => {
     setHovered(null);
+    setHoveredTile(null);
     setCursor(null);
     onHoverChange?.(null);
   }, [onHoverChange]);
@@ -663,10 +730,22 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
       if (hit) {
         setPopover({ cell: hit, x, y });
         setHovered(null);
+        setHoveredTile(null);
         relationshipFlareRef.current = { id: hit.agentId, intensity: 1 };
+        return;
+      }
+      // Tile-layer click: open the drilldown for the colonist the
+      // hovered tile is attributed to (live CA cell → nearest seeder;
+      // birth / death marker → the colonist the marker represents).
+      // Gives users a way to "drill into" a tile without needing a
+      // nearby glyph under the cursor.
+      if (hoveredTile?.nearest) {
+        setPopover({ cell: hoveredTile.nearest, x, y });
+        setHovered(null);
+        setHoveredTile(null);
       }
     },
-    [snapshot, positions],
+    [snapshot, positions, hoveredTile],
   );
 
   // Touch: first tap on a glyph shows the hover tooltip, second tap on
@@ -952,6 +1031,80 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
             </div>
           </div>
         )}
+        {hoveredTile && !hovered && !popover && (() => {
+          const ttW = 220;
+          const margin = 8;
+          const left = Math.min(
+            Math.max(margin, hoveredTile.x + 12),
+            Math.max(margin, size.w - ttW - margin),
+          );
+          const top = Math.max(margin, hoveredTile.y - 84);
+          const kindLabel =
+            hoveredTile.kind === 'birth' ? '+ BIRTH MARKER'
+            : hoveredTile.kind === 'death' ? '× DEATH MARKER'
+            : '◼ CONWAY CELL';
+          const kindColor =
+            hoveredTile.kind === 'birth' ? 'rgba(154, 205, 96, 0.95)'
+            : hoveredTile.kind === 'death' ? 'rgba(168, 152, 120, 0.95)'
+            : sideColor;
+          return (
+            <div
+              style={{
+                position: 'absolute',
+                left,
+                top,
+                padding: '8px 12px',
+                background: 'var(--bg-panel)',
+                border: `1px solid ${kindColor}66`,
+                borderLeft: `3px solid ${kindColor}`,
+                borderRadius: 4,
+                fontFamily: 'var(--mono)',
+                fontSize: 10,
+                color: 'var(--text-2)',
+                pointerEvents: 'none',
+                zIndex: 5,
+                maxWidth: ttW,
+                lineHeight: 1.4,
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
+              }}
+            >
+              <div style={{
+                color: kindColor, fontWeight: 800,
+                letterSpacing: '0.08em', fontSize: 9, marginBottom: 3,
+              }}>
+                {kindLabel}
+              </div>
+              <div style={{ fontSize: 9, color: 'var(--text-3)', marginBottom: 4 }}>
+                tile ({hoveredTile.col}, {hoveredTile.row})
+              </div>
+              {hoveredTile.nearest ? (
+                <>
+                  <div style={{ color: 'var(--text-1)', fontWeight: 700 }}>
+                    {hoveredTile.nearest.name}
+                  </div>
+                  <div style={{ fontSize: 9, color: 'var(--text-3)', marginTop: 2 }}>
+                    {hoveredTile.nearest.role} · {hoveredTile.nearest.department.toUpperCase()}
+                  </div>
+                  {hoveredTile.kind === 'death' ? (
+                    <div style={{ fontSize: 9, color: 'var(--rust)', marginTop: 3 }}>
+                      deceased · mood at death: {hoveredTile.nearest.mood}
+                    </div>
+                  ) : hoveredTile.kind === 'birth' ? (
+                    <div style={{ fontSize: 9, color: 'var(--green)', marginTop: 3 }}>
+                      native-born · generation {hoveredTile.nearest.generation ?? 0}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 9, color: 'var(--text-3)', marginTop: 3 }}>
+                      pattern seeded by nearest colonist's mood: {hoveredTile.nearest.mood}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div style={{ color: 'var(--text-3)' }}>ambient CA cell</div>
+              )}
+            </div>
+          );
+        })()}
         {hovered && !popover && (() => {
           const ttW = 200;
           const ttH = 80;

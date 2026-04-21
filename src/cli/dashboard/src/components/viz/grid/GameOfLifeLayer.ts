@@ -209,6 +209,48 @@ export function drawDeadMarkers(
 }
 
 /**
+ * Hit-test a cursor position against the GoL grid. Returns the
+ * { col, row } of the alive cell under the cursor, or null when
+ * the cursor is over an empty tile or off-grid. Used to back
+ * tooltip + click interactions on the cellular-automata layer so
+ * viewers can inspect what a Conway tile represents.
+ */
+export function hitTestGol(
+  state: GolState,
+  cursorX: number,
+  cursorY: number,
+  overlayWidth: number,
+  overlayHeight: number,
+): { col: number; row: number } | null {
+  const { cols, rows, grid } = state;
+  const col = Math.floor((cursorX / Math.max(1, overlayWidth)) * cols);
+  const row = Math.floor((cursorY / Math.max(1, overlayHeight)) * rows);
+  if (col < 0 || col >= cols || row < 0 || row >= rows) return null;
+  if (grid[row * cols + col] > 0) return { col, row };
+  return null;
+}
+
+/**
+ * Which grid cell does a colonist live in? Thin inverse of the
+ * plantPattern position math — used by hover tooltips so we can
+ * attribute an alive Conway tile back to the colonist whose seed
+ * produced it (or to the nearest neighbor when the glider has
+ * drifted away from its seed).
+ */
+export function cellToTile(
+  p: GridPosition,
+  overlayWidth: number,
+  overlayHeight: number,
+  cols: number,
+  rows: number,
+): { col: number; row: number } {
+  return {
+    col: Math.floor((p.x / Math.max(1, overlayWidth)) * cols),
+    row: Math.floor((p.y / Math.max(1, overlayHeight)) * rows),
+  };
+}
+
+/**
  * Drop a Conway starter pattern onto the grid at the overlay-space
  * position `p`. Used by seedFromColonists for filter-specific
  * per-event seeding (deaths, births, etc.) where each event's
