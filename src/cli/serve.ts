@@ -8,23 +8,31 @@
  */
 
 import { readFileSync, existsSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import { createMarsServer } from './server-app.js';
 import { normalizeSimulationConfig } from './sim-config.js';
 import { parseCliRunOptions } from './cli-run-options.js';
 import { resolveLeaders, parseLeadersFlag } from './leaders-resolver.js';
 import type { LeaderConfig } from './types.js';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = parseInt(process.env.PORT || '3456', 10);
 
-const envPath = resolve(__dirname, '..', '..', '.env');
+// Load `.env` from the current working directory (not the paracosm
+// package root). See `src/cli/run.ts::loadEnv` for the full rationale
+// — CWD-scoped is auditable, matches normal CLI-tool convention, and
+// stops a stray `.env` landing inside `node_modules/paracosm/` from
+// quietly overriding the user's environment.
+const envPath = resolve(process.cwd(), '.env');
 if (existsSync(envPath)) {
+  let loaded = 0;
   for (const line of readFileSync(envPath, 'utf-8').split('\n')) {
     const match = line.match(/^\s*([^#=]+?)\s*=\s*(.+?)\s*$/);
-    if (match && !process.env[match[1]]) process.env[match[1]] = match[2];
+    if (match && !process.env[match[1]]) {
+      process.env[match[1]] = match[2];
+      loaded += 1;
+    }
   }
+  if (loaded > 0) console.log(`  [env] loaded ${loaded} var${loaded === 1 ? '' : 's'} from ${envPath}`);
 }
 
 const server = createMarsServer({ env: process.env });

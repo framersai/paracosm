@@ -16,8 +16,7 @@
  */
 
 import { readFileSync, existsSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import { runSimulation } from '../runtime/orchestrator.js';
 import { parseCliRunOptions } from './cli-run-options.js';
 import { DEFAULT_KEY_PERSONNEL } from './sim-config.js';
@@ -25,16 +24,46 @@ import { marsScenario } from '../engine/mars/index.js';
 import { resolveLeaders, parseLeadersFlag } from './leaders-resolver.js';
 import type { LeaderConfig } from './types.js';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
+/**
+ * Load `.env` from the current working directory if one exists.
+ *
+ * The previous implementation resolved the path relative to this
+ * module's own location (`__dirname/../..`), which meant:
+ *
+ *   - Paracosm devs cloning the repo: loaded `<repo>/.env` — desired.
+ *   - npm consumers: searched `node_modules/paracosm/.env`, which is
+ *     not shipped in the tarball and so never matched — fine in the
+ *     normal case, but surprising if a rogue file (manual copy, dirty
+ *     postinstall, tampered registry mirror) ever landed there.
+ *
+ * CWD-scoped is the more honest default:
+ *
+ *   - `paracosm-dashboard` from a project root: loads `<project>/.env`.
+ *   - `paracosm-dashboard` from the paracosm repo root (dev mode):
+ *     loads `<repo>/.env` because CWD matches. Same outcome as before.
+ *   - `paracosm-dashboard` from anywhere else (e.g. `~/`): loads
+ *     whatever `.env` sits there, which matches every other Node CLI
+ *     tool's behavior and stops being silently-wrong-but-dev-friendly.
+ *
+ * Existing `process.env` values always win over `.env` entries so a
+ * shell-exported key doesn't get clobbered by a stale file.
+ *
+ * Logs the source path when a file was loaded so users can audit where
+ * their keys came from — addresses the "I deleted my .env but the sim
+ * still runs, where is the key coming from?" surprise.
+ */
 function loadEnv() {
-  const envPath = resolve(__dirname, '..', '..', '.env');
-  if (existsSync(envPath)) {
-    for (const line of readFileSync(envPath, 'utf-8').split('\n')) {
-      const match = line.match(/^\s*([^#=]+?)\s*=\s*(.+?)\s*$/);
-      if (match && !process.env[match[1]]) process.env[match[1]] = match[2];
+  const envPath = resolve(process.cwd(), '.env');
+  if (!existsSync(envPath)) return;
+  let loaded = 0;
+  for (const line of readFileSync(envPath, 'utf-8').split('\n')) {
+    const match = line.match(/^\s*([^#=]+?)\s*=\s*(.+?)\s*$/);
+    if (match && !process.env[match[1]]) {
+      process.env[match[1]] = match[2];
+      loaded += 1;
     }
   }
+  if (loaded > 0) console.log(`  [env] loaded ${loaded} var${loaded === 1 ? '' : 's'} from ${envPath}`);
 }
 
 function loadLeaders(argv: readonly string[]): LeaderConfig[] {
