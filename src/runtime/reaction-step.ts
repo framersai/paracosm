@@ -32,7 +32,7 @@ import type {
 } from '../engine/types.js';
 import type { TurnOutcome } from '../engine/core/state.js';
 import type { CallUsage } from './cost-tracker.js';
-import type { SimEvent } from './orchestrator.js';
+import type { SimEventType } from './orchestrator.js';
 
 /**
  * Context snapshot passed to generateAgentReactions so each agent's
@@ -67,7 +67,7 @@ export interface RunReactionStepArgs {
   reportProviderError: (err: unknown, site: string) => void;
   /** Record schema retry attempts for the reactions batch. */
   recordSchemaAttempt?: (schemaName: string, attempts: number, fellBack: boolean) => void;
-  emit: (type: SimEvent['type'], data?: Record<string, unknown>) => void;
+  emit: (type: SimEventType, data?: Record<string, unknown>) => void;
 }
 
 export interface ReactionStepResult {

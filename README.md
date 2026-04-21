@@ -160,17 +160,16 @@ const results = await Promise.all(
       scenario,
       maxTurns: 8,
       seed: 42,
-      // ~15 event types fire per turn (dept_start, forge_attempt, drift…).
-      // Filter to the ones that tell the story end-to-end so the console
-      // stays readable. See the SimEvent type for the full list.
+      // SimEvent is a discriminated union on `e.type`, so narrowing
+      // gives you the exact data shape per event with full intellisense —
+      // no optional chaining, no guessing which fields exist where.
       onEvent(e) {
-        const turn = e.turn ?? (e.data?.turn as number | undefined);
         if (e.type === 'event_start')
-          console.log(leader.name, `T${turn}`, 'event:', e.data?.title);
+          console.log(leader.name, `T${e.turn}`, 'event:', e.data.title);
         else if (e.type === 'outcome')
-          console.log(leader.name, `T${turn}`, e.data?.outcome, `(${e.data?.category})`);
+          console.log(leader.name, `T${e.turn}`, e.data.outcome, `(${e.data.category})`);
         else if (e.type === 'turn_done')
-          console.log(leader.name, `T${turn}`, 'complete');
+          console.log(leader.name, `T${e.turn}`, 'complete');
       },
     })
   )

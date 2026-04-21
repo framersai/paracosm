@@ -1,6 +1,11 @@
 {
   "$schema": "https://typedoc.org/schema.json",
-  "entryPoints": ["src/engine/index.ts"],
+  "entryPoints": [
+    "src/engine/index.ts",
+    "src/engine/compiler/index.ts",
+    "src/runtime/index.ts"
+  ],
+  "entryPointStrategy": "resolve",
   "out": "docs/api",
   "tsconfig": "tsconfig.build.json",
   "exclude": ["**/*.test.ts"],

@@ -58,20 +58,179 @@ export type { LeaderConfig };
 
 
 // ---------------------------------------------------------------------------
-// Main
+// SimEvent — public type for the `onEvent` callback
 // ---------------------------------------------------------------------------
 
+/**
+ * Per-turn cost + cache payload spread onto every emitted event. Lets
+ * dashboards show a live cost counter without needing a separate stream.
+ * Typed as optional-unknown here because it's internal book-keeping;
+ * consumers that need the breakdown should read it off `result.cost`
+ * instead.
+ */
+export interface SimEventCostPayload {
+  _cost?: unknown;
+}
+
+/**
+ * Per-event-type data shapes. The discriminated `SimEvent` union below
+ * maps each `type` to its payload so `onEvent` handlers get proper
+ * type-narrowing: `if (e.type === 'event_start') e.data.title` compiles
+ * without `as any` or optional chaining through `unknown`.
+ *
+ * Each payload documents the fields the runtime actually writes; fields
+ * marked optional are conditionally populated (milestone vs emergent
+ * events, degraded vs healthy paths, etc.). Adding a new field to a
+ * payload is non-breaking; removing or renaming one is.
+ */
+export interface SimEventPayloadMap {
+  /** Fires once at the start of every turn. Title/crisis carry the first event's headline when `totalEvents > 0`. */
+  turn_start: {
+    title: string;
+    crisis?: string;
+    category?: string;
+    births?: number;
+    deaths?: number;
+    colony?: Record<string, number>;
+    emergent?: boolean;
+    turnSummary?: string;
+    totalEvents?: number;
+    pacing?: unknown;
+  };
+  /** Fires before each event within a turn. One turn can carry multiple events (up to `maxEventsPerTurn`). */
+  event_start: {
+    eventIndex: number;
+    totalEvents: number;
+    title: string;
+    description?: string;
+    category: string;
+    emergent?: boolean;
+    turnSummary?: string;
+    pacing?: unknown;
+  };
+  /** Department agent starts analyzing an event. `department` is the scenario-defined id. */
+  dept_start: { department: string; eventIndex: number };
+  /** Department finished analyzing. `citationList` is truncated to 5; full list lives on the returned report. */
+  dept_done: {
+    department: string;
+    summary: string;
+    eventIndex: number;
+    citations: number;
+    citationList: Array<{ text: string; url: string; doi?: string }>;
+    risks: string[];
+    forgedTools: unknown[];
+    recommendedActions?: string[];
+  };
+  /** A department tried to forge a runtime tool. `approved` reflects the LLM-judge verdict. */
+  forge_attempt: {
+    department: string;
+    name: string;
+    description?: string;
+    mode?: string;
+    approved: boolean;
+    confidence: number;
+    inputFields: string[];
+    outputFields: string[];
+    errorReason?: string;
+    timestamp: string;
+    eventIndex?: number;
+  };
+  /** Commander is about to read department reports and pick an option. */
+  commander_deciding: { eventIndex: number };
+  /** Commander picked. `reasoning` is the full CoT; `rationale` is the compressed version. */
+  commander_decided: {
+    decision: string;
+    rationale: string;
+    reasoning: string;
+    selectedPolicies: unknown[];
+    selectedOptionId?: string;
+    eventIndex: number;
+  };
+  /** Outcome classification + numerical deltas applied to colony state. */
+  outcome: {
+    outcome: 'risky_success' | 'risky_failure' | 'conservative_success' | 'conservative_failure' | string;
+    category: string;
+    emergent: boolean;
+    colonyDeltas: Record<string, number>;
+    eventIndex: number;
+  };
+  /** Per-turn HEXACO drift for promoted agents + the commander. */
+  drift: { agents: Record<string, { name: string; hexaco: Record<string, number> }>; commander: unknown };
+  /** Rollup of ~100 agent reactions for the turn (sliced preview only; full list on result). */
+  agent_reactions: { reactions: unknown[]; moodSummary?: unknown };
+  /** Social-media-style per-turn posts from featured agents. */
+  bulletin: { posts: unknown[] };
+  /** End of turn. Carries applied deltas + cumulative tool count + death-cause breakdown when relevant. */
+  turn_done: {
+    colony: Record<string, number>;
+    toolsForged: number;
+    totalEvents?: number;
+    deathCauses?: Record<string, number>;
+    error?: string;
+  };
+  /** Department-head promotion at turn 0. One per department. */
+  promotion: { agentId: string; department: string; role: string; reason?: string };
+  /** Full roster snapshot used by the dashboard cellular-automata viz. */
+  colony_snapshot: {
+    agents: unknown[];
+    population: number;
+    morale: number;
+    foodReserve: number;
+    births: number;
+    deaths: number;
+  };
+  /** Terminal provider failure (invalid key, quota, classified auth error). The run aborts at the next turn. */
+  provider_error: {
+    kind: 'auth' | 'quota' | 'rate_limit' | 'network' | 'unknown';
+    provider?: string;
+    message: string;
+    actionUrl?: string;
+    site: string;
+  };
+  /** Non-terminal: a schema-validated call exhausted retries and returned the fallback skeleton. Run continues degraded. */
+  validation_fallback: { site: string; schemaName?: string; rawTextPreview: string; error: string };
+  /** Run was cancelled via `signal.abort()` (or the server's disconnect watchdog). Partial results preserved. */
+  sim_aborted: {
+    reason: string;
+    completedTurns: number;
+    colony: Record<string, number>;
+    toolsForged: number;
+  };
+}
+
+/** Union of all event type strings emitted by `runSimulation`. */
+export type SimEventType = keyof SimEventPayloadMap;
+
+/**
+ * A single event delivered to the `onEvent` callback during a simulation.
+ *
+ * Discriminated on `type`: `if (e.type === 'event_start') { e.data.title }`
+ * compiles with full field-level intellisense. The runtime also spreads a
+ * `_cost` book-keeping payload onto every event for the live-cost counter;
+ * treat that as internal and read cost from the returned `result.cost`
+ * instead.
+ *
+ * @example
+ * ```typescript
+ * const output = await runSimulation(leader, [], {
+ *   scenario, maxTurns: 8, seed: 42,
+ *   onEvent(e) {
+ *     if (e.type === 'event_start') console.log('crisis:', e.data.title, e.data.category);
+ *     if (e.type === 'outcome')     console.log('resolved:', e.data.outcome);
+ *     if (e.type === 'turn_done')   console.log('T' + e.turn, 'complete');
+ *   },
+ * });
+ * ```
+ */
 export type SimEvent = {
-  type:
-    | 'turn_start' | 'event_start' | 'dept_start' | 'dept_done' | 'forge_attempt'
-    | 'commander_deciding' | 'commander_decided' | 'outcome' | 'drift'
-    | 'agent_reactions' | 'bulletin' | 'turn_done' | 'promotion'
-    | 'colony_snapshot' | 'provider_error' | 'validation_fallback' | 'sim_aborted';
-  leader: string;
-  turn?: number;
-  year?: number;
-  data?: Record<string, unknown>;
-};
+  [K in SimEventType]: {
+    type: K;
+    leader: string;
+    turn?: number;
+    year?: number;
+    data: SimEventPayloadMap[K] & SimEventCostPayload;
+  };
+}[SimEventType];
 
 export interface RunOptions {
   maxTurns?: number;
@@ -127,7 +286,13 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   const trackUsage = costTracker.trackUsage;
   const recordSchemaAttempt = costTracker.recordSchemaAttempt;
 
-  const emit = (type: SimEvent['type'], data?: Record<string, unknown>) => {
+  // Internal emit is deliberately loose on the `data` shape (Record<string,
+  // unknown>) because the orchestrator builds payloads by spreading partial
+  // objects and adding a `_cost` book-keeping field. The public `SimEvent`
+  // type is narrow per `type`; we cast once here at the boundary so the
+  // onEvent consumer gets full per-event intellisense without the emit
+  // call-sites having to match the narrow interfaces field-for-field.
+  const emit = (type: SimEventType, data?: Record<string, unknown>) => {
     opts.onEvent?.({
       type,
       leader: leader.name,
@@ -135,7 +300,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
         ...data,
         _cost: costTracker.buildCostPayload(),
       },
-    });
+    } as SimEvent);
   };
 
   /**
