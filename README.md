@@ -305,10 +305,70 @@ Everything the dashboard does is also available as library calls. The exports fa
 | Import | Surface |
 |--------|---------|
 | `paracosm/compiler` | `compileScenario`, `ingestSeed`, `ingestFromUrl`, type `CompileOptions` |
-| `paracosm/runtime`  | `runSimulation`, `runBatch`, `EventDirector`, `generateAgentReactions`, `buildEventSummary`, memory helpers, type `CostPreset` |
-| `paracosm`          | `ProviderKeyMissingError`, `SeededRng`, `SimulationKernel`, all `Scenario*` types |
+| `paracosm/runtime`  | `runSimulation`, `runBatch`, `EventDirector`, `generateAgentReactions`, `buildEventSummary`, `createParacosmClient`, memory helpers, type `CostPreset` |
+| `paracosm`          | `createParacosmClient`, `ProviderKeyMissingError`, `SeededRng`, `SimulationKernel`, all `Scenario*` types |
 | `paracosm/core`     | Kernel state types (`Agent`, `WorldState`, `HexacoProfile`, …) |
 | `paracosm/mars`, `paracosm/lunar` | Pre-built `ScenarioPackage` constants to use or fork |
+
+### Client — global defaults + env-var config
+
+`createParacosmClient` pins `provider`, `costPreset`, per-role `models`, and compile-time options once, then hands back `runSimulation` / `runBatch` / `compileScenario` methods that inherit those defaults. Per-call overrides still win, merged at the per-role level so `models: { departments: 'gpt-5.4' }` at the client and `models: { judge: 'gpt-5.4' }` at the call combine to pin both roles instead of one replacing the other.
+
+```typescript
+import { createParacosmClient } from 'paracosm';
+
+const client = createParacosmClient({
+  provider: 'openai',
+  costPreset: 'economy',               // cheap default for iteration
+  models: { departments: 'gpt-5.4' },  // but pin departments to flagship
+  compilerProvider: 'anthropic',       // compile on a different provider if you want
+  compilerModel: 'claude-sonnet-4-6',
+});
+
+const scenario = await client.compileScenario(worldJson);
+const out = await client.runSimulation(leader, [], { maxTurns: 6, seed: 42 });
+
+// Promote one specific run to quality without touching the client:
+const gold = await client.runSimulation(leader, [], {
+  maxTurns: 8, seed: 42, costPreset: 'quality',
+});
+
+// Batch 20 ablations with shared config:
+const manifest = await client.runBatch({
+  scenarios: [scenarioA, scenarioB], leaders, turns: 6, seed: 42, maxConcurrency: 4,
+});
+```
+
+Env vars feed the same defaults and are read once at `createParacosmClient` construction. Explicit args win over env; env wins over the built-in library defaults.
+
+| Env var | Maps to | Valid values |
+|---------|---------|--------------|
+| `PARACOSM_PROVIDER` | `provider` | `openai` / `anthropic` |
+| `PARACOSM_COST_PRESET` | `costPreset` | `quality` / `economy` |
+| `PARACOSM_MODEL_COMMANDER` | `models.commander` | any provider-valid model id |
+| `PARACOSM_MODEL_DEPARTMENTS` | `models.departments` | any provider-valid model id |
+| `PARACOSM_MODEL_JUDGE` | `models.judge` | any provider-valid model id |
+| `PARACOSM_MODEL_DIRECTOR` | `models.director` | any provider-valid model id |
+| `PARACOSM_MODEL_AGENT_REACTIONS` | `models.agentReactions` | any provider-valid model id |
+| `PARACOSM_COMPILER_PROVIDER` | `compilerProvider` | `openai` / `anthropic` |
+| `PARACOSM_COMPILER_MODEL` | `compilerModel` | any provider-valid model id |
+
+Invalid values (typos, unknown providers) are silently ignored so bad env state can't crash boot — the client falls back to the next layer. Empty or whitespace-only env values are treated as unset.
+
+```bash
+# Zero-code config for hosting / CI:
+PARACOSM_PROVIDER=anthropic \
+PARACOSM_COST_PRESET=economy \
+PARACOSM_MODEL_DEPARTMENTS=claude-sonnet-4-6 \
+  node my-runner.js
+```
+
+```typescript
+// my-runner.js reads them all implicitly:
+const client = createParacosmClient();   // no args, pulls from env
+```
+
+Direct `runSimulation(...)` / `runBatch(...)` / `compileScenario(...)` calls without a client are still fully supported — the client is purely additive for multi-run workflows.
 
 ### Batch runner — N scenarios × M leaders
 

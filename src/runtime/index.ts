@@ -14,6 +14,8 @@ export type {
   LeaderConfig,
 } from './orchestrator.js';
 export type { CostPreset } from '../cli/sim-config.js';
+export { createParacosmClient } from './client.js';
+export type { ParacosmClient, ParacosmClientOptions } from './client.js';
 export { EventDirector } from './director.js';
 export type { DirectorEvent, DirectorCrisis, DirectorContext, EventCategory, CrisisCategory } from './director.js';
 export type { DepartmentReport, CommanderDecision, TurnArtifact, CrisisResearchPacket } from './contracts.js';
