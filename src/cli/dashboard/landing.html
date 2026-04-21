@@ -149,8 +149,11 @@
 
   <div class="code-sec">
     <div class="code-block">
-      <div class="code-header"><span>1. Install</span><button class="code-copy" onclick="copyCode(this,'npm install paracosm')">Copy</button></div>
-      <div class="code-body">npm install paracosm</div>
+      <div class="code-header"><span>1. Install (npm, pnpm, or bun)</span><button class="code-copy" onclick="copyCode(this,'npm install paracosm')">Copy</button></div>
+      <div class="code-body" id="install-code"><span class="cm"># Any of these work — paracosm ships ESM + subpath exports</span>
+npm  install paracosm
+pnpm add     paracosm
+bun  add     paracosm</div>
     </div>
     <div class="code-block">
       <div class="code-header"><span>2. Define your world as JSON</span><button class="code-copy" onclick="copyCode(this, document.getElementById('json-code').textContent)">Copy</button></div>
@@ -193,14 +196,15 @@
     </div>
     <div class="code-block">
       <div class="code-header"><span>3. Compile, define leaders, run</span><button class="code-copy" onclick="copyCode(this, document.getElementById('api-code').textContent)">Copy</button></div>
-      <div class="code-body" id="api-code"><span class="cm">// Set one of these before running:</span>
-<span class="cm">//   export OPENAI_API_KEY=sk-...</span>
-<span class="cm">//   export ANTHROPIC_API_KEY=sk-ant-...</span>
+      <div class="code-body" id="api-code"><span class="cm">// Save as index.ts next to my-world.json, then:</span>
+<span class="cm">//   npm install paracosm   (or: pnpm add paracosm / bun add paracosm)</span>
+<span class="cm">//   export OPENAI_API_KEY=sk-...          # or ANTHROPIC_API_KEY=sk-ant-...</span>
+<span class="cm">//   npx tsx index.ts       (or: bun index.ts)</span>
 <span class="cm">// Paracosm auto-detects whichever key is present and falls back between providers.</span>
 
 <span class="kw">import</span> { compileScenario } <span class="kw">from</span> <span class="str">'paracosm/compiler'</span>;
 <span class="kw">import</span> { runSimulation } <span class="kw">from</span> <span class="str">'paracosm/runtime'</span>;
-<span class="kw">import</span> worldJson <span class="kw">from</span> <span class="str">'./my-world.json'</span>;
+<span class="kw">import</span> worldJson <span class="kw">from</span> <span class="str">'./my-world.json'</span> <span class="kw">with</span> { type: <span class="str">'json'</span> };
 
 <span class="cm">// 1. Compile JSON into a runnable ScenarioPackage (~$0.10, cached to disk)</span>
 <span class="cm">//    Defaults to OpenAI (gpt-5.4-mini). Pass provider: 'anthropic' to switch.</span>
@@ -241,7 +245,18 @@
       <span class="fn">onEvent</span>(e) { console.<span class="fn">log</span>(leader.name, e.type, e.data?.title); },
     })
   )
-);</div>
+);
+
+<span class="cm">// 4. Compare the two timelines. Each result is a full artifact:</span>
+<span class="cm">//    cost, fingerprint, finalState, forgedToolbox, citationCatalog.</span>
+<span class="kw">for</span> (<span class="kw">const</span> r <span class="kw">of</span> results) {
+  console.<span class="fn">log</span>(r.leader.name, <span class="str">'→'</span>, r.fingerprint,
+              <span class="str">'cost $'</span> + r.cost.totalCostUSD.<span class="fn">toFixed</span>(<span class="num">2</span>),
+              <span class="str">'('</span> + r.cost.llmCalls + <span class="str">' LLM calls)'</span>,
+              <span class="str">'tools'</span>, r.forgedToolbox.length,
+              <span class="str">'citations'</span>, r.citationCatalog.length);
+  <span class="kw">if</span> (r.providerError) console.<span class="fn">error</span>(<span class="str">'provider error:'</span>, r.providerError.message);
+}</div>
     </div>
     <div class="code-block">
       <div class="code-header"><span>Or: quick start with the dashboard</span><button class="code-copy" onclick="copyCode(this, document.getElementById('dash-code').textContent)">Copy</button></div>

@@ -63,3 +63,10 @@ export type { OutcomeModifiers } from './effect-registry.js';
 // Scenario packages
 export { marsScenario } from './mars/index.js';
 export { lunarScenario } from './lunar/index.js';
+
+// Provider resolution — lets programmatic consumers catch the
+// missing-key failure mode by class instead of string-matching, and
+// lets tools/tests drive the resolver without importing from internal
+// paths.
+export { ProviderKeyMissingError, resolveProviderWithFallback } from './provider-resolver.js';
+export type { ResolvedProviderChoice, ResolveProviderOptions } from './provider-resolver.js';
