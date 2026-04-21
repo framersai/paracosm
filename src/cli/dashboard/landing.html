@@ -240,8 +240,9 @@ bun  add     paracosm</div>
   leaders.<span class="fn">map</span>(leader =>
     <span class="fn">runSimulation</span>(leader, [], {
       scenario,
-      maxTurns: <span class="num">8</span>,
+      maxTurns: <span class="num">6</span>,
       seed: <span class="num">42</span>,
+      <span class="cm">// costPreset: 'economy',  // uncomment for ~5-10× cheaper iteration</span>
       <span class="cm">// Every event carries a one-liner `summary` field — prints cleanly</span>
       <span class="cm">// for all 17 event types. Narrow on `e.type` for exact payloads.</span>
       <span class="fn">onEvent</span>(e) { console.<span class="fn">log</span>(leader.name, e.type, e.data.summary); },

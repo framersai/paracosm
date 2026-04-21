@@ -42,6 +42,7 @@ import type { LlmProvider, SimulationModelConfig } from '../engine/types.js';
 import {
   DEFAULT_EXECUTION,
   resolveSimulationModels,
+  type CostPreset,
   type SimulationExecutionConfig,
   type StartingPolitics,
   type StartingResources,
@@ -343,6 +344,24 @@ export interface RunOptions {
   onEvent?: (event: SimEvent) => void;
   customEvents?: Array<{ turn: number; title: string; description: string }>;
   models?: Partial<SimulationModelConfig>;
+  /**
+   * Cost-vs-quality switch for model routing. Defaults to `'quality'`
+   * which keeps department agents on the flagship tier (gpt-5.4 /
+   * claude-sonnet-4-6) for reliable tool forging — ~$1-3 per 6-turn run
+   * on OpenAI. Set to `'economy'` to drop every role to mid/cheap
+   * (gpt-4o departments, gpt-5.4-nano everything else; haiku on
+   * Anthropic) — ~$0.20-0.60 per 6-turn run on OpenAI, ~5-10× cheaper.
+   *
+   * Economy mode drops forge approval rate by roughly 10-20pp because
+   * the mid-tier model occasionally violates structured-output schemas
+   * the judge rejects. Use it for quick iteration / debugging / CI;
+   * use `'quality'` (default) for publishable or production runs.
+   *
+   * Explicit `models` entries always win over the preset, so you can
+   * mix and match: `{ costPreset: 'economy', models: { departments:
+   * 'gpt-5.4' } }` gives you cheap everything except departments.
+   */
+  costPreset?: CostPreset;
   economics?: ResolvedEconomicsProfile;
   initialPopulation?: number;
   startingResources?: StartingResources;
@@ -375,7 +394,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   const resolvedProvider = resolveProviderWithFallback(requestedProvider);
   const provider = resolvedProvider.provider;
   const sid = `${sc.labels.shortName}-v2-${leader.archetype.toLowerCase().replace(/\s+/g, '-')}`;
-  const modelConfig = resolveSimulationModels(provider, opts.models);
+  const modelConfig = resolveSimulationModels(provider, opts.models, opts.costPreset);
   // Cost tracking: accumulate token usage and estimated cost across all LLM calls
   // Cost tracker: per-site buckets + cache-aware fallback estimation.
   // Lives in cost-tracker.ts so the math has one home and the turn loop

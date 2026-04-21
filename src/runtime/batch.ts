@@ -4,6 +4,7 @@
 
 import type { ScenarioPackage, LeaderConfig, LlmProvider, SimulationModelConfig } from '../engine/types.js';
 import type { KeyPersonnel } from '../engine/core/agent-generator.js';
+import type { CostPreset } from '../cli/sim-config.js';
 
 export interface BatchConfig {
   scenarios: ScenarioPackage[];
@@ -14,6 +15,13 @@ export interface BatchConfig {
   startYear?: number;
   provider?: LlmProvider;
   models?: Partial<SimulationModelConfig>;
+  /**
+   * Cost-vs-quality preset forwarded to each simulation in the batch.
+   * See `RunOptions.costPreset` for the full semantic. Defaults to
+   * `'quality'`; set `'economy'` to drop the whole batch to the
+   * cheaper tier.
+   */
+  costPreset?: CostPreset;
   maxConcurrency?: number;
 }
 
@@ -88,6 +96,7 @@ export async function runBatch(config: BatchConfig): Promise<BatchManifest> {
         startYear: config.startYear,
         provider: config.provider,
         models: config.models,
+        costPreset: config.costPreset,
         scenario,
       });
 
