@@ -184,7 +184,10 @@ export function RunMenu({ onRun, onLoadFromFile }: RunMenuProps) {
             zIndex: 60,
           }}
         >
-          {/* Run New Simulation — primary action, loudest styling. */}
+          {/* Run New Simulation — primary action, loudest styling.
+              Hardcoded near-black text on the rust gradient so the
+              label stays high-contrast in both dark and light
+              themes regardless of which --text-* token we pick. */}
           <button
             type="button"
             role="menuitem"
@@ -193,11 +196,12 @@ export function RunMenu({ onRun, onLoadFromFile }: RunMenuProps) {
               display: 'flex', width: '100%',
               justifyContent: 'space-between', alignItems: 'center',
               gap: 10, padding: '10px 12px', marginBottom: 6,
-              fontSize: 12, fontFamily: 'var(--mono)', fontWeight: 700,
-              color: 'var(--bg-canvas)',
+              fontSize: 12, fontFamily: 'var(--mono)', fontWeight: 800,
+              color: '#1a0d08',
               background: 'linear-gradient(135deg, var(--rust), #c44a1e)',
               border: 'none', borderRadius: 4,
               cursor: 'pointer', letterSpacing: '0.04em',
+              textShadow: '0 1px 0 rgba(255, 230, 210, 0.35)',
             }}
           >
             <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -205,16 +209,19 @@ export function RunMenu({ onRun, onLoadFromFile }: RunMenuProps) {
               <span>Run New Simulation</span>
             </span>
             <span style={{
-              fontSize: 9, fontWeight: 600,
-              padding: '1px 6px', borderRadius: 3,
-              background: 'rgba(0,0,0,0.25)', color: '#fff',
-              letterSpacing: '0.06em', textTransform: 'uppercase',
+              fontSize: 9, fontWeight: 800,
+              padding: '2px 7px', borderRadius: 3,
+              background: 'rgba(26, 13, 8, 0.85)', color: '#fff7ec',
+              letterSpacing: '0.08em', textTransform: 'uppercase',
+              textShadow: 'none',
             }}>
               spends credits
             </span>
           </button>
 
-          {/* Run Saved Simulation — expandable row, disabled when empty. */}
+          {/* Run Saved Simulation — expandable row, disabled when empty.
+              Same near-black-on-amber treatment so contrast holds in
+              both themes. */}
           <button
             type="button"
             role="menuitem"
@@ -224,16 +231,17 @@ export function RunMenu({ onRun, onLoadFromFile }: RunMenuProps) {
               display: 'flex', width: '100%',
               justifyContent: 'space-between', alignItems: 'center',
               gap: 10, padding: '10px 12px', marginBottom: 6,
-              fontSize: 12, fontFamily: 'var(--mono)', fontWeight: 700,
-              color: cacheAvailable ? 'var(--bg-canvas)' : 'var(--text-4)',
+              fontSize: 12, fontFamily: 'var(--mono)', fontWeight: 800,
+              color: cacheAvailable ? '#1a0d08' : 'var(--text-3)',
               background: cacheAvailable
                 ? 'linear-gradient(135deg, var(--amber), #b88a1f)'
                 : 'var(--bg-card)',
               border: cacheAvailable ? 'none' : '1px solid var(--border)',
               borderRadius: 4,
               cursor: cacheAvailable ? 'pointer' : 'not-allowed',
-              opacity: cacheAvailable ? 1 : 0.65,
+              opacity: cacheAvailable ? 1 : 0.75,
               letterSpacing: '0.04em',
+              textShadow: cacheAvailable ? '0 1px 0 rgba(255, 240, 215, 0.4)' : 'none',
             }}
           >
             <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -241,11 +249,13 @@ export function RunMenu({ onRun, onLoadFromFile }: RunMenuProps) {
               <span>Run Saved Simulation</span>
             </span>
             <span style={{
-              fontSize: 9, fontWeight: 600,
-              padding: '1px 6px', borderRadius: 3,
-              background: cacheAvailable ? 'rgba(0,0,0,0.25)' : 'var(--bg-deep)',
-              color: cacheAvailable ? '#fff' : 'var(--text-3)',
-              letterSpacing: '0.06em', textTransform: 'uppercase',
+              fontSize: 9, fontWeight: 800,
+              padding: '2px 7px', borderRadius: 3,
+              background: cacheAvailable ? 'rgba(26, 13, 8, 0.85)' : 'var(--bg-deep)',
+              color: cacheAvailable ? '#fff7ec' : 'var(--text-3)',
+              letterSpacing: '0.08em', textTransform: 'uppercase',
+              textShadow: 'none',
+              border: cacheAvailable ? 'none' : '1px solid var(--border)',
             }}>
               {cacheAvailable
                 ? `${sessions.length} cached · ${savedExpanded ? 'hide' : 'pick'}`
@@ -278,7 +288,9 @@ export function RunMenu({ onRun, onLoadFromFile }: RunMenuProps) {
             </div>
           )}
 
-          {/* Load from file — tertiary action, muted styling. */}
+          {/* Load from file — tertiary action, muted but still
+              high-contrast. Uses text-1 so the label reads clearly
+              against bg-card in both themes. */}
           {onLoadFromFile && (
             <button
               type="button"
@@ -289,7 +301,7 @@ export function RunMenu({ onRun, onLoadFromFile }: RunMenuProps) {
                 justifyContent: 'space-between', alignItems: 'center',
                 gap: 10, padding: '10px 12px',
                 fontSize: 12, fontFamily: 'var(--mono)', fontWeight: 700,
-                color: 'var(--text-2)',
+                color: 'var(--text-1)',
                 background: 'var(--bg-card)',
                 border: '1px solid var(--border)', borderRadius: 4,
                 cursor: 'pointer', letterSpacing: '0.04em',
@@ -300,8 +312,10 @@ export function RunMenu({ onRun, onLoadFromFile }: RunMenuProps) {
                 <span>Load from file…</span>
               </span>
               <span style={{
-                fontSize: 9, fontWeight: 600, color: 'var(--text-3)',
-                letterSpacing: '0.06em', textTransform: 'uppercase',
+                fontSize: 9, fontWeight: 700, color: 'var(--text-3)',
+                letterSpacing: '0.08em', textTransform: 'uppercase',
+                padding: '2px 7px', borderRadius: 3,
+                border: '1px solid var(--border)',
               }}>
                 json export
               </span>
