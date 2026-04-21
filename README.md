@@ -160,7 +160,18 @@ const results = await Promise.all(
       scenario,
       maxTurns: 8,
       seed: 42,
-      onEvent(e) { console.log(leader.name, e.type, e.data?.title); },
+      // ~15 event types fire per turn (dept_start, forge_attempt, drift…).
+      // Filter to the ones that tell the story end-to-end so the console
+      // stays readable. See the SimEvent type for the full list.
+      onEvent(e) {
+        const turn = e.turn ?? (e.data?.turn as number | undefined);
+        if (e.type === 'event_start')
+          console.log(leader.name, `T${turn}`, 'event:', e.data?.title);
+        else if (e.type === 'outcome')
+          console.log(leader.name, `T${turn}`, e.data?.outcome, `(${e.data?.category})`);
+        else if (e.type === 'turn_done')
+          console.log(leader.name, `T${turn}`, 'complete');
+      },
     })
   )
 );
@@ -373,6 +384,18 @@ try {
 ```
 
 The resolver inspects `process.env` once up front, so a missing key fails loudly at the top of the run instead of retrying silently on every LLM call.
+
+### Where run output lands
+
+Every finished run writes a JSON snapshot to `<cwd>/output/v3-<archetype>-<timestamp>.json` — the same payload `runSimulation` returns, persisted so you can diff runs, reload them into the dashboard, or feed them into downstream tooling. Set `PARACOSM_OUTPUT_DIR` to redirect (absolute path, or relative to cwd). The directory is created on first write if it doesn't exist.
+
+```bash
+# Default: ./output/v3-the-pragmatist-2026-04-21T16-02-41-550Z.json
+bun src/index.ts
+
+# Custom location
+PARACOSM_OUTPUT_DIR=./artifacts/run-001 bun src/index.ts
+```
 
 ## Seed Enrichment & Citation Flow
 

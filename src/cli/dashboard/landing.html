@@ -242,7 +242,17 @@ bun  add     paracosm</div>
       scenario,
       maxTurns: <span class="num">8</span>,
       seed: <span class="num">42</span>,
-      <span class="fn">onEvent</span>(e) { console.<span class="fn">log</span>(leader.name, e.type, e.data?.title); },
+      <span class="cm">// ~15 event types fire per turn (dept_start, forge_attempt, drift…).</span>
+      <span class="cm">// Filter to the ones that tell the story end-to-end:</span>
+      <span class="fn">onEvent</span>(e) {
+        <span class="kw">const</span> turn = e.turn ?? e.data?.turn;
+        <span class="kw">if</span> (e.type === <span class="str">'event_start'</span>)
+          console.<span class="fn">log</span>(leader.name, <span class="str">`T${turn}`</span>, <span class="str">'event:'</span>, e.data?.title);
+        <span class="kw">else if</span> (e.type === <span class="str">'outcome'</span>)
+          console.<span class="fn">log</span>(leader.name, <span class="str">`T${turn}`</span>, e.data?.outcome, <span class="str">`(${e.data?.category})`</span>);
+        <span class="kw">else if</span> (e.type === <span class="str">'turn_done'</span>)
+          console.<span class="fn">log</span>(leader.name, <span class="str">`T${turn}`</span>, <span class="str">'complete'</span>);
+      },
     })
   )
 );

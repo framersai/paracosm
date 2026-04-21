@@ -10,15 +10,42 @@
  */
 
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
+import { resolve } from 'node:path';
 
 /**
- * Write a simulation result payload to `<repo>/output/v3-<tag>-<ts>.json`
- * and log a one-screen summary to stdout. Ensures the output dir exists
- * before writing. Returns the absolute path of the written file.
+ * Resolve the output directory to write run snapshots into.
+ *
+ * Priority order:
+ *   1. `PARACOSM_OUTPUT_DIR` env var — absolute or cwd-relative, lets
+ *      hosting / CI write outside the project tree without a code change.
+ *   2. `<cwd>/output` — the user's current working directory when they
+ *      invoked the process. This is the right default both for the
+ *      in-repo CLI (`npm run smoke` from the paracosm repo root writes
+ *      to `<repo>/output`) AND for library consumers (`bun src/index.ts`
+ *      from their project root writes to `<their project>/output`).
+ *
+ * The previous default resolved `output/` relative to the installed
+ * module location (`__dirname/../..`). That landed inside the package
+ * install directory — fine during local development of paracosm itself,
+ * but on any downstream consumer it wrote to
+ * `node_modules/paracosm/output/` (or worse, a pnpm virtual-store path
+ * like `node_modules/.pnpm/paracosm@x.y.z_hash/node_modules/paracosm/output/`),
+ * which is impossible to find, invisible to git, and gets nuked on
+ * `rm -rf node_modules`.
+ */
+function resolveOutputDir(): string {
+  const override = process.env.PARACOSM_OUTPUT_DIR;
+  if (override && override.trim().length > 0) {
+    return resolve(process.cwd(), override);
+  }
+  return resolve(process.cwd(), 'output');
+}
+
+/**
+ * Write a simulation result payload to `<cwd>/output/v3-<tag>-<ts>.json`
+ * (or `$PARACOSM_OUTPUT_DIR/...`) and log a one-screen summary to stdout.
+ * Ensures the output dir exists before writing. Returns the absolute
+ * path of the written file.
  *
  * The tag slot comes from the leader's archetype so side-by-side runs
  * get distinguishable filenames even when they start in the same
@@ -37,7 +64,7 @@ export function writeRunOutput(
     toolRegs: Record<string, string[]>;
   },
 ): string {
-  const outDir = resolve(__dirname, '..', '..', 'output');
+  const outDir = resolveOutputDir();
   mkdirSync(outDir, { recursive: true });
   const ts = new Date().toISOString().replace(/[:.]/g, '-');
   const tag = args.leaderArchetype.toLowerCase().replace(/\s+/g, '-');
