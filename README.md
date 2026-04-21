@@ -202,7 +202,7 @@ The dashboard includes a scenario editor where you can write, import, compile, a
 
 ### 4. Or run the standalone CLI
 
-After `npm install paracosm` you get two binaries:
+After `npm install paracosm -g` you get two binaries:
 
 ```bash
 paracosm                # run one leader once; prints turn-by-turn narrative
