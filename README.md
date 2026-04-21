@@ -160,17 +160,15 @@ const results = await Promise.all(
       scenario,
       maxTurns: 8,
       seed: 42,
-      // SimEvent is a discriminated union on `e.type`, so narrowing
-      // gives you the exact data shape per event with full intellisense —
-      // no optional chaining, no guessing which fields exist where.
-      onEvent(e) {
-        if (e.type === 'event_start')
-          console.log(leader.name, `T${e.turn}`, 'event:', e.data.title);
-        else if (e.type === 'outcome')
-          console.log(leader.name, `T${e.turn}`, e.data.outcome, `(${e.data.category})`);
-        else if (e.type === 'turn_done')
-          console.log(leader.name, `T${e.turn}`, 'complete');
-      },
+      // Every event carries a universal `e.data.summary` one-liner the
+      // runtime populates for you — prints cleanly for all 17 event
+      // types without guessing which fields exist where.
+      //
+      // For full intellisense on per-event data, narrow via e.type:
+      //   if (e.type === 'event_start') e.data.title          // string
+      //   if (e.type === 'outcome')     e.data.colonyDeltas   // Record<string,number>
+      //   if (e.type === 'forge_attempt') e.data.approved     // boolean
+      onEvent(e) { console.log(leader.name, e.type, e.data.summary); },
     })
   )
 );
@@ -290,7 +288,7 @@ Everything the dashboard does is also available as library calls. The exports fa
 | Import | Surface |
 |--------|---------|
 | `paracosm/compiler` | `compileScenario`, `ingestSeed`, `ingestFromUrl`, type `CompileOptions` |
-| `paracosm/runtime`  | `runSimulation`, `runBatch`, `EventDirector`, `generateAgentReactions`, memory helpers |
+| `paracosm/runtime`  | `runSimulation`, `runBatch`, `EventDirector`, `generateAgentReactions`, `buildEventSummary`, memory helpers |
 | `paracosm`          | `ProviderKeyMissingError`, `SeededRng`, `SimulationKernel`, all `Scenario*` types |
 | `paracosm/core`     | Kernel state types (`Agent`, `WorldState`, `HexacoProfile`, …) |
 | `paracosm/mars`, `paracosm/lunar` | Pre-built `ScenarioPackage` constants to use or fork |
@@ -530,7 +528,7 @@ src/
 |--------|------|
 | `paracosm` | Engine types, registries, `SimulationKernel`, `SeededRng`, scenario packages, `ProviderKeyMissingError` |
 | `paracosm/compiler` | `compileScenario()`, `ingestSeed()`, `ingestFromUrl()` |
-| `paracosm/runtime` | `runSimulation()`, `runBatch()`, `EventDirector`, `generateAgentReactions()`, memory helpers |
+| `paracosm/runtime` | `runSimulation()`, `runBatch()`, `EventDirector`, `generateAgentReactions()`, `buildEventSummary()`, memory helpers |
 | `paracosm/mars` | Mars Genesis `ScenarioPackage` |
 | `paracosm/lunar` | Lunar Outpost `ScenarioPackage` |
 | `paracosm/core` | Kernel state types (`Agent`, `WorldState`, `HexacoProfile`) |

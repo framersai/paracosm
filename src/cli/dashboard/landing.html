@@ -242,16 +242,9 @@ bun  add     paracosm</div>
       scenario,
       maxTurns: <span class="num">8</span>,
       seed: <span class="num">42</span>,
-      <span class="cm">// SimEvent is a discriminated union on `e.type`, so narrowing</span>
-      <span class="cm">// gives you the exact data shape per event — no guesswork.</span>
-      <span class="fn">onEvent</span>(e) {
-        <span class="kw">if</span> (e.type === <span class="str">'event_start'</span>)
-          console.<span class="fn">log</span>(leader.name, <span class="str">`T${e.turn}`</span>, <span class="str">'event:'</span>, e.data.title);
-        <span class="kw">else if</span> (e.type === <span class="str">'outcome'</span>)
-          console.<span class="fn">log</span>(leader.name, <span class="str">`T${e.turn}`</span>, e.data.outcome, <span class="str">`(${e.data.category})`</span>);
-        <span class="kw">else if</span> (e.type === <span class="str">'turn_done'</span>)
-          console.<span class="fn">log</span>(leader.name, <span class="str">`T${e.turn}`</span>, <span class="str">'complete'</span>);
-      },
+      <span class="cm">// Every event carries a one-liner `summary` field — prints cleanly</span>
+      <span class="cm">// for all 17 event types. Narrow on `e.type` for exact payloads.</span>
+      <span class="fn">onEvent</span>(e) { console.<span class="fn">log</span>(leader.name, e.type, e.data.summary); },
     })
   )
 );

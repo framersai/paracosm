@@ -4,7 +4,7 @@
  * Run simulations with AI agents, crisis directors, and department analysis.
  */
 
-export { runSimulation } from './orchestrator.js';
+export { runSimulation, buildEventSummary } from './orchestrator.js';
 export type {
   RunOptions,
   SimEvent,

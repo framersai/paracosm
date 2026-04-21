@@ -62,13 +62,22 @@ export type { LeaderConfig };
 // ---------------------------------------------------------------------------
 
 /**
- * Per-turn cost + cache payload spread onto every emitted event. Lets
- * dashboards show a live cost counter without needing a separate stream.
- * Typed as optional-unknown here because it's internal book-keeping;
- * consumers that need the breakdown should read it off `result.cost`
- * instead.
+ * Universal fields spread onto every emitted event's `data` payload,
+ * regardless of event type. `summary` is the "just works" one-liner for
+ * casual logging (`console.log(e.type, e.data.summary)` always yields
+ * something readable). `_cost` is internal book-keeping the dashboard
+ * uses for a live cost counter; consumers that need the breakdown should
+ * read it off the returned `result.cost` instead.
  */
 export interface SimEventCostPayload {
+  /**
+   * Short human-readable one-liner describing what this event represents
+   * (e.g. `"dust storm (natural_disaster)"` for event_start,
+   * `"medical: forged radiation_calc"` for forge_attempt). Populated by
+   * the runtime on every emit — consumers can rely on it being present.
+   * Prefer this over per-type field access when you just want a log line.
+   */
+  summary: string;
   _cost?: unknown;
 }
 
@@ -232,6 +241,97 @@ export type SimEvent = {
   };
 }[SimEventType];
 
+/**
+ * Build a human-readable one-liner for an event, used as the universal
+ * `summary` field on every emitted event's `data`. Centralized here so
+ * all 17 event types render a consistent shape and casual consumers can
+ * rely on `e.data.summary` being present and informative.
+ *
+ * Kept intentionally short (< ~120 chars) so it fits in a log line
+ * without forcing a wrap. Longer detail is still available on the
+ * type-narrowed per-event payload fields (`e.data.description`,
+ * `e.data.reasoning`, etc.).
+ */
+export function buildEventSummary(type: SimEventType, data: Record<string, unknown>): string {
+  const trunc = (s: unknown, n = 80): string => {
+    const str = String(s ?? '');
+    return str.length > n ? str.slice(0, n - 1) + '…' : str;
+  };
+  const d = data;
+  switch (type) {
+    case 'turn_start': {
+      const title = trunc(d.title, 60);
+      return title ? `turn starting: ${title}` : 'turn starting';
+    }
+    case 'event_start': {
+      const title = trunc(d.title, 60);
+      const cat = d.category ? ` (${d.category})` : '';
+      return `event: ${title}${cat}`;
+    }
+    case 'dept_start':
+      return `${d.department ?? 'department'} analyzing`;
+    case 'dept_done': {
+      const s = trunc(d.summary, 80);
+      return `${d.department ?? 'department'} report: ${s}`;
+    }
+    case 'forge_attempt': {
+      const verb = d.approved === true ? 'forged' : 'rejected';
+      return `${d.department ?? 'department'} ${verb} ${d.name ?? 'tool'}`;
+    }
+    case 'commander_deciding':
+      return 'commander deciding';
+    case 'commander_decided':
+      return `commander decided: ${trunc(d.decision, 80)}`;
+    case 'outcome': {
+      const cat = d.category ? ` (${d.category})` : '';
+      return `outcome: ${d.outcome ?? 'unknown'}${cat}`;
+    }
+    case 'drift':
+      return 'hexaco drift';
+    case 'agent_reactions': {
+      const n = Array.isArray(d.reactions) ? d.reactions.length : 0;
+      return `${n} agent reaction${n === 1 ? '' : 's'}`;
+    }
+    case 'bulletin': {
+      const n = Array.isArray(d.posts) ? d.posts.length : 0;
+      return `bulletin: ${n} post${n === 1 ? '' : 's'}`;
+    }
+    case 'turn_done': {
+      const colony = d.colony as { population?: number; morale?: number } | undefined;
+      const pop = colony?.population;
+      const mor = colony?.morale;
+      if (pop != null && mor != null) {
+        return `turn complete — pop ${pop}, morale ${Math.round(Number(mor) * 100)}%`;
+      }
+      if (d.error) return `turn complete (error: ${trunc(d.error, 60)})`;
+      return 'turn complete';
+    }
+    case 'promotion':
+      return `promoted: ${d.role ?? 'role'} (${d.department ?? 'dept'})`;
+    case 'colony_snapshot': {
+      const pop = d.population;
+      const mor = d.morale != null ? Math.round(Number(d.morale) * 100) : null;
+      return pop != null && mor != null
+        ? `snapshot: pop ${pop}, morale ${mor}%`
+        : 'snapshot';
+    }
+    case 'provider_error':
+      return `provider error (${d.kind ?? 'unknown'}): ${trunc(d.message, 80)}`;
+    case 'validation_fallback':
+      return `schema fallback: ${d.schemaName ?? 'unknown'}`;
+    case 'sim_aborted':
+      return `aborted: ${d.reason ?? 'unknown'}`;
+    default: {
+      // Exhaustiveness guard: if a new SimEventType is added above without
+      // a case here, TypeScript will flag `type` as not assignable to
+      // `never` in strict mode. The runtime fallback keeps casual logging
+      // readable even if the compile-time check is bypassed.
+      const _exhaustive: never = type;
+      return String(_exhaustive);
+    }
+  }
+}
+
 export interface RunOptions {
   maxTurns?: number;
   seed?: number;
@@ -292,15 +392,28 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   // type is narrow per `type`; we cast once here at the boundary so the
   // onEvent consumer gets full per-event intellisense without the emit
   // call-sites having to match the narrow interfaces field-for-field.
+  //
+  // Every emit also gets a universal `summary` string computed from the
+  // payload. Consumers that just want to log an event (`console.log(e.type,
+  // e.data.summary)`) get a readable line for every event type without
+  // having to type-narrow or know which fields carry a title — the
+  // exact pain point that produced the "undefined" spam in casual
+  // examples before this was wired up.
   const emit = (type: SimEventType, data?: Record<string, unknown>) => {
+    const merged: Record<string, unknown> = {
+      ...data,
+      _cost: costTracker.buildCostPayload(),
+    };
+    merged.summary = buildEventSummary(type, merged);
+    // Go through `unknown` because the internal emit builds a
+    // Record-typed data bag that doesn't structurally match the narrow
+    // per-event payload interfaces; we guarantee the shape via the
+    // emit() call-sites in the orchestrator, so the double-cast is safe.
     opts.onEvent?.({
       type,
       leader: leader.name,
-      data: {
-        ...data,
-        _cost: costTracker.buildCostPayload(),
-      },
-    } as SimEvent);
+      data: merged,
+    } as unknown as SimEvent);
   };
 
   /**
