@@ -113,6 +113,56 @@ function patternForMood(mood: string): Array<[number, number]> {
 }
 
 /**
+ * Draw birth markers as green filled squares with a bold "+" glyph
+ * through each one at native-born colonist positions. Clearly
+ * distinct from the side-tinted live Conway tiles and the gray
+ * tombstone death markers. Green (new-life color) + plus glyph
+ * (universal "addition") reads unmistakably as a birth event.
+ */
+export function drawBirthMarkers(
+  ctx: CanvasRenderingContext2D,
+  cells: CellSnapshot[],
+  positions: Map<string, GridPosition>,
+  overlayWidth: number,
+  overlayHeight: number,
+  cols: number,
+  rows: number,
+): void {
+  const cw = overlayWidth / cols;
+  const ch = overlayHeight / rows;
+  const tile = Math.max(1, Math.min(cw, ch) - 2);
+  ctx.save();
+  ctx.fillStyle = 'rgba(106, 173, 72, 0.25)';
+  ctx.strokeStyle = 'rgba(154, 205, 96, 0.95)';
+  ctx.lineWidth = 2;
+  for (const c of cells) {
+    if (!c.alive) continue;
+    if ((c.generation ?? 0) === 0) continue;
+    const p = positions.get(c.agentId);
+    if (!p) continue;
+    const col = Math.floor((p.x / Math.max(1, overlayWidth)) * cols);
+    const row = Math.floor((p.y / Math.max(1, overlayHeight)) * rows);
+    const offX = (cw - tile) / 2;
+    const offY = (ch - tile) / 2;
+    const x = col * cw + offX;
+    const y = row * ch + offY;
+    ctx.fillRect(x, y, tile, tile);
+    ctx.strokeRect(x + 0.5, y + 0.5, tile - 1, tile - 1);
+    // "+" glyph — horizontal and vertical bars across the center.
+    const midX = x + tile / 2;
+    const midY = y + tile / 2;
+    const barLen = tile * 0.4;
+    ctx.beginPath();
+    ctx.moveTo(midX - barLen, midY);
+    ctx.lineTo(midX + barLen, midY);
+    ctx.moveTo(midX, midY - barLen);
+    ctx.lineTo(midX, midY + barLen);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/**
  * Draw dead-colonist death markers as gray hollow squares with a
  * diagonal X slash through each one. Read as "tombstone tiles" —
  * clearly distinct from the filled-square live Conway cells, so
@@ -305,16 +355,11 @@ export function seedFromColonists(
   // Keeping them in separate layers means the viewer immediately
   // distinguishes "live cell here" vs "someone died here".
   if (eventFilter === 'death') return;
-  if (eventFilter === 'birth') {
-    for (const c of cells) {
-      if (!c.alive) continue;
-      if ((c.generation ?? 0) === 0) continue; // skip earth-born starters
-      const p = positions.get(c.agentId);
-      if (!p) continue;
-      plantPattern(grid, cols, rows, p, overlayWidth, overlayHeight, BLOCK);
-    }
-    return;
-  }
+  // Birth filter: same pattern as death — render distinct markers
+  // in a separate canvas pass (drawBirthMarkers) rather than Conway
+  // tiles. Leaves the Conway grid empty so only the green "+" birth
+  // markers show.
+  if (eventFilter === 'birth') return;
 
   const filterPattern = patternForFilter(eventFilter);
   for (let i = 0; i < cells.length; i += 1) {
