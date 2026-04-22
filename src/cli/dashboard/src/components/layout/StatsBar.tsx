@@ -1,13 +1,13 @@
 import { useMemo, useRef, useEffect } from 'react';
-import type { ColonyState } from '../../hooks/useGameState';
+import type { SystemsState } from '../../hooks/useGameState';
 import type { ToolRegistry } from '../../hooks/useToolRegistry';
 import { useScenarioContext } from '../../App';
 
 interface StatsBarProps {
-  colonyA: ColonyState | null;
-  colonyB: ColonyState | null;
-  prevColonyA: ColonyState | null;
-  prevColonyB: ColonyState | null;
+  systemsA: SystemsState | null;
+  systemsB: SystemsState | null;
+  prevSystemsA: SystemsState | null;
+  prevSystemsB: SystemsState | null;
   deathsA: number;
   deathsB: number;
   /** Cumulative death-cause breakdown per side. Lets the DEATHS pill
@@ -109,7 +109,7 @@ function formatCauses(causes: Record<string, number> | undefined): string {
 }
 
 export function StatsBar({
-  colonyA, colonyB, prevColonyA, prevColonyB,
+  systemsA, systemsB, prevSystemsA, prevSystemsB,
   deathsA, deathsB, deathCausesA, deathCausesB, toolsA, toolsB, citationsA, citationsB,
   crisisText, toolRegistry,
 }: StatsBarProps) {
@@ -149,7 +149,7 @@ export function StatsBar({
     prevCountersRef.current = { toolsA, toolsB, reuseA, reuseB, citationsA, citationsB, deathsA, deathsB };
   }, [toolsA, toolsB, reuseA, reuseB, citationsA, citationsB, deathsA, deathsB]);
 
-  if (!colonyA && !colonyB) {
+  if (!systemsA && !systemsB) {
     return null;
   }
 
@@ -185,10 +185,10 @@ export function StatsBar({
           word (.pill-label-full) and a single-char icon (.pill-label-short)
           swapped at phone width via tokens.css media queries. */}
       {metrics.map(metric => {
-        const valA = colonyA?.[metric.id] ?? 0;
-        const valB = colonyB?.[metric.id] ?? 0;
-        const dA = delta(valA, prevColonyA?.[metric.id]);
-        const dB = delta(valB, prevColonyB?.[metric.id]);
+        const valA = systemsA?.[metric.id] ?? 0;
+        const valB = systemsB?.[metric.id] ?? 0;
+        const dA = delta(valA, prevSystemsA?.[metric.id]);
+        const dB = delta(valB, prevSystemsB?.[metric.id]);
         const fA = fmtVal(valA, metric.format);
         const fB = fmtVal(valB, metric.format);
         const suffix = fmtSuffix(metric.id);

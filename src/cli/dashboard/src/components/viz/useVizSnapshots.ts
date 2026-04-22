@@ -5,7 +5,7 @@ import type { TurnSnapshot, CellSnapshot } from './viz-types';
 /**
  * Extract per-turn TurnSnapshot arrays from GameState for each side.
  *
- * Pulls colony_snapshot events for the spatial cells data and joins
+ * Pulls systems_snapshot events for the spatial cells data and joins
  * event_start events to surface category flashes per turn. Population,
  * morale, food and birth/death deltas come from the snapshot payload.
  */
@@ -32,7 +32,7 @@ export function useVizSnapshots(state: GameState): { a: TurnSnapshot[]; b: TurnS
       for (let i = 0; i < s.agentSnapshots.length; i++) {
         const agents = s.agentSnapshots[i];
         const turnEvent = s.events.find(
-          e => e.type === 'colony_snapshot' && e.data?.turn === i + 1
+          e => e.type === 'systems_snapshot' && e.data?.turn === i + 1
         );
         const dd = turnEvent?.data || {};
         const turnNum = (dd.turn as number) || i + 1;

@@ -208,7 +208,14 @@ export interface TurnEvent {
 
 export interface SimulationState {
   metadata: SimulationMetadata;
-  colony: WorldSystems;
+  /**
+   * Numerical world state. The `WorldSystems` fields below
+   * (`population`, `morale`, `foodMonthsReserve`, `powerKw`, etc.) are
+   * Mars/space heritage conveniences — any scenario extends the bag
+   * via the `[key: string]: number` index signature without touching
+   * these defaults. Was `colony` pre-0.5.0.
+   */
+  systems: WorldSystems;
   agents: Agent[];
   politics: WorldPolitics;
   eventLog: TurnEvent[];

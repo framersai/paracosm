@@ -18,15 +18,15 @@ export function marsDepartmentPromptLines(dept: string, state: SimulationState):
       break;
     }
     case 'engineering':
-      lines.push('INFRASTRUCTURE:', `Modules: ${state.colony.infrastructureModules} | Power: ${state.colony.powerKw}kW | Life support: ${state.colony.lifeSupportCapacity}/${state.colony.population} | Volume: ${state.colony.pressurizedVolumeM3}m³ | Water: ${state.colony.waterLitersPerDay}L/day`);
+      lines.push('INFRASTRUCTURE:', `Modules: ${state.systems.infrastructureModules} | Power: ${state.systems.powerKw}kW | Life support: ${state.systems.lifeSupportCapacity}/${state.systems.population} | Volume: ${state.systems.pressurizedVolumeM3}m³ | Water: ${state.systems.waterLitersPerDay}L/day`);
       break;
     case 'agriculture':
-      lines.push('FOOD:', `Reserves: ${state.colony.foodMonthsReserve.toFixed(1)}mo | Pop to feed: ${state.colony.population} | Farm modules: ${Math.floor(state.colony.infrastructureModules * 0.3)}`);
+      lines.push('FOOD:', `Reserves: ${state.systems.foodMonthsReserve.toFixed(1)}mo | Pop to feed: ${state.systems.population} | Farm modules: ${Math.floor(state.systems.infrastructureModules * 0.3)}`);
       break;
     case 'psychology': {
       const avgPsych = alive.length ? alive.reduce((s, c) => s + c.health.psychScore, 0) / alive.length : 0;
       const depressed = alive.filter(c => c.health.psychScore < 0.5).length;
-      lines.push('PSYCH:', `Morale: ${Math.round(state.colony.morale * 100)}% | Avg psych: ${avgPsych.toFixed(2)} | Depressed: ${depressed}/${alive.length} | Mars-born: ${alive.filter(c => c.core.marsborn).length}`);
+      lines.push('PSYCH:', `Morale: ${Math.round(state.systems.morale * 100)}% | Avg psych: ${avgPsych.toFixed(2)} | Depressed: ${depressed}/${alive.length} | Mars-born: ${alive.filter(c => c.core.marsborn).length}`);
       lines.push('', 'SOCIAL:', ...featured.slice(0, 4).map(c => `- ${c.core.name}: psych ${c.health.psychScore.toFixed(2)} partner:${c.social.partnerId ? 'y' : 'n'} children:${c.social.childrenIds.length} earthContacts:${c.social.earthContacts}`));
       break;
     }

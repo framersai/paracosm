@@ -1,5 +1,5 @@
 import type { Department, Agent } from '../engine/core/state.js';
-import type { ColonyPatch } from '../engine/core/kernel.js';
+import type { SystemsPatch } from '../engine/core/kernel.js';
 
 export interface CrisisOption {
   id: string;
@@ -49,7 +49,7 @@ export interface DepartmentReport {
   risks: Risk[];
   opportunities: Opportunity[];
   recommendedActions: string[];
-  proposedPatches: Partial<ColonyPatch>;
+  proposedPatches: Partial<SystemsPatch>;
   forgedToolsUsed: ForgedToolUsage[];
   featuredAgentUpdates: FeaturedAgentUpdate[];
   confidence: number;
@@ -123,7 +123,7 @@ export interface TypedPolicyEffect {
   id: string;
   type: PolicyEffectType;
   description: string;
-  colonyDelta?: Partial<{
+  systemDelta?: Partial<{
     powerKw: number;
     foodMonthsReserve: number;
     waterLitersPerDay: number;

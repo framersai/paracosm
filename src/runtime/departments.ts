@@ -117,7 +117,7 @@ export function buildDepartmentContext(
     ...(researchPacket.counterpoints.length ? ['COUNTERPOINTS:', ...researchPacket.counterpoints.map(c => `- ${c.claim} [${c.source}](${c.url})`)] : []),
     ...(deptNote ? [`NOTE: ${deptNote}`] : []),
     '',
-    `COLONY: Pop ${state.colony.population} | Morale ${Math.round(state.colony.morale * 100)}% | Food ${state.colony.foodMonthsReserve.toFixed(1)}mo | Water ${state.colony.waterLitersPerDay} L/day | Power ${state.colony.powerKw} kW | Modules ${state.colony.infrastructureModules} | Life support ${state.colony.lifeSupportCapacity}`,
+    `STATE: Pop ${state.systems.population} | Morale ${Math.round(state.systems.morale * 100)}% | Food ${state.systems.foodMonthsReserve.toFixed(1)}mo | Water ${state.systems.waterLitersPerDay} L/day | Power ${state.systems.powerKw} kW | Modules ${state.systems.infrastructureModules} | Life support ${state.systems.lifeSupportCapacity}`,
     '',
   ];
 

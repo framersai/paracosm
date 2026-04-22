@@ -27,8 +27,12 @@ const DEFAULT_CACHE_DIR = '.paracosm/cache';
  * - v2 (2026-04-18): milestones prompt switched from [founding, legacy]
  *   array shape to { founding, legacy } object shape for OpenAI
  *   response_format:json_object compatibility.
+ * - v3 (2026-04-21): state access path renamed from ctx.state.colony
+ *   to ctx.state.systems as part of the 0.5.0 domain-agnostic schema
+ *   rename. Every cached progression / reactions / politics hook from
+ *   v2 references the old path and must regenerate.
  */
-export const COMPILE_SCHEMA_VERSION = 2;
+export const COMPILE_SCHEMA_VERSION = 3;
 
 /** SHA-256 hash of the scenario JSON, used for cache invalidation. */
 export function hashScenario(scenarioJson: Record<string, unknown>): string {

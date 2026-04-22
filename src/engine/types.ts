@@ -324,7 +324,14 @@ export interface Scenario {
 export interface LeaderConfig {
   name: string;
   archetype: string;
-  colony: string;
+  /**
+   * The organizational unit / faction / org / team this leader
+   * commands (e.g. "Station Alpha", "Engineering Org", "Player Faction").
+   * Was `colony` pre-0.5.0; renamed for domain-agnostic semantics so
+   * non-space scenarios (markets, game worlds, incident response) read
+   * naturally instead of being named after a Mars heritage concept.
+   */
+  unit: string;
   hexaco: HexacoProfile;
   instructions: string;
 }

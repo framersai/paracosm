@@ -27,7 +27,7 @@ export type SimEventType =
   | 'turn_start' | 'event_start' | 'dept_start' | 'dept_done' | 'forge_attempt'
   | 'commander_deciding' | 'commander_decided' | 'outcome' | 'drift'
   | 'agent_reactions' | 'bulletin' | 'turn_done' | 'promotion'
-  | 'colony_snapshot' | 'provider_error' | 'validation_fallback' | 'sim_aborted'
+  | 'systems_snapshot' | 'provider_error' | 'validation_fallback' | 'sim_aborted'
   // Server-synthetic (not emitted by the runtime itself):
   | 'status' | 'sim_saved';
 
@@ -290,11 +290,11 @@ function rollupValidationFallbacks(events: SimEvent[]): ValidationFallbackBucket
     // and relied on eventIndex/department/title as the real
     // discriminators. That silently ate every turn after turn 1 for
     // event types that have no other discriminator in their payload:
-    // colony_snapshot, turn_done, drift, bulletin, agent_reactions.
+    // systems_snapshot, turn_done, drift, bulletin, agent_reactions.
     //
     // The user-visible symptom was the viz tab stuck showing T1 while
     // the sim tab correctly counted up to T3+ (because the only
-    // replacement colony_snapshot events for T2/T3 were filtered as
+    // replacement systems_snapshot events for T2/T3 were filtered as
     // "already seen"). Falling back to `e.data?.turn` when the top-level
     // field is missing restores a monotonic key across turns for every
     // emit path.

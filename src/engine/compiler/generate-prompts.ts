@@ -23,7 +23,7 @@ ${depts}
 Function signature: (ctx) => string[]
 ctx shape:
 - ctx.department: string (department ID)
-- ctx.state: { agents, colony, politics, metadata: { currentYear } }
+- ctx.state: { agents, systems, politics, metadata: { currentYear } }
 - ctx.scenario: any
 - ctx.researchPacket: { canonicalFacts[], counterpoints[], departmentNotes }
 
@@ -31,7 +31,7 @@ For each department, compute and return 2-4 lines of scenario-relevant stats fro
 
 Rules:
 1. Switch on ctx.department with a case per department ID listed above.
-2. Access ctx.state.agents (filter alive), ctx.state.colony, ctx.state.politics.
+2. Access ctx.state.agents (filter alive), ctx.state.systems, ctx.state.politics.
 3. Return string[]; empty array for unknown departments.
 4. NO external imports.`;
 }
@@ -57,7 +57,7 @@ function buildSmokeTest(scenarioJson: Record<string, any>): (fn: DepartmentPromp
       department: deptId,
       state: {
         agents: [{ core: { name: 'Test' }, health: { alive: true, boneDensityPct: 90, cumulativeRadiationMsv: 100, psychScore: 0.7 } }],
-        colony: { morale: 0.6, population: 80, foodMonthsReserve: 6, powerKw: 300, infrastructureModules: 10, scienceOutput: 5, lifeSupportCapacity: 100 },
+        systems: { morale: 0.6, population: 80, foodMonthsReserve: 6, powerKw: 300, infrastructureModules: 10, scienceOutput: 5, lifeSupportCapacity: 100 },
         politics: { earthDependencyPct: 50, governanceStatus: 'colonial' },
         metadata: { currentYear: 2045 },
       },

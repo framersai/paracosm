@@ -101,7 +101,7 @@ export interface SimEventPayloadMap {
     category?: string;
     births?: number;
     deaths?: number;
-    colony?: Record<string, number>;
+    systems?: Record<string, number>;
     emergent?: boolean;
     turnSummary?: string;
     totalEvents?: number;
@@ -156,12 +156,12 @@ export interface SimEventPayloadMap {
     selectedOptionId?: string;
     eventIndex: number;
   };
-  /** Outcome classification + numerical deltas applied to colony state. */
+  /** Outcome classification + numerical deltas applied to the systems state bag. */
   outcome: {
     outcome: 'risky_success' | 'risky_failure' | 'conservative_success' | 'conservative_failure' | string;
     category: string;
     emergent: boolean;
-    colonyDeltas: Record<string, number>;
+    systemDeltas: Record<string, number>;
     eventIndex: number;
   };
   /** Per-turn HEXACO drift for promoted agents + the commander. */
@@ -172,7 +172,7 @@ export interface SimEventPayloadMap {
   bulletin: { posts: unknown[] };
   /** End of turn. Carries applied deltas + cumulative tool count + death-cause breakdown when relevant. */
   turn_done: {
-    colony: Record<string, number>;
+    systems: Record<string, number>;
     toolsForged: number;
     totalEvents?: number;
     deathCauses?: Record<string, number>;
@@ -181,7 +181,7 @@ export interface SimEventPayloadMap {
   /** Department-head promotion at turn 0. One per department. */
   promotion: { agentId: string; department: string; role: string; reason?: string };
   /** Full roster snapshot used by the dashboard cellular-automata viz. */
-  colony_snapshot: {
+  systems_snapshot: {
     agents: unknown[];
     population: number;
     morale: number;
@@ -203,7 +203,7 @@ export interface SimEventPayloadMap {
   sim_aborted: {
     reason: string;
     completedTurns: number;
-    colony: Record<string, number>;
+    systems: Record<string, number>;
     toolsForged: number;
   };
 }
@@ -298,9 +298,9 @@ export function buildEventSummary(type: SimEventType, data: Record<string, unkno
       return `bulletin: ${n} post${n === 1 ? '' : 's'}`;
     }
     case 'turn_done': {
-      const colony = d.colony as { population?: number; morale?: number } | undefined;
-      const pop = colony?.population;
-      const mor = colony?.morale;
+      const systems = d.systems as { population?: number; morale?: number } | undefined;
+      const pop = systems?.population;
+      const mor = systems?.morale;
       if (pop != null && mor != null) {
         return `turn complete — pop ${pop}, morale ${Math.round(Number(mor) * 100)}%`;
       }
@@ -309,7 +309,7 @@ export function buildEventSummary(type: SimEventType, data: Record<string, unkno
     }
     case 'promotion':
       return `promoted: ${d.role ?? 'role'} (${d.department ?? 'dept'})`;
-    case 'colony_snapshot': {
+    case 'systems_snapshot': {
       const pop = d.population;
       const mor = d.morale != null ? Math.round(Number(d.morale) * 100) : null;
       return pop != null && mor != null
@@ -760,11 +760,11 @@ Your implementation's return statement MUST contain EXACTLY the keys listed in o
 
 Match the full worked example below exactly; do not emit placeholder/schema-skeleton forms.
 
-ROBUSTNESS RULES (the judge enforces these — failed forges hurt the colony):
+ROBUSTNESS RULES (the judge enforces these — failed forges hurt the simulation state):
 1. Validate every numeric input. If a field is missing/null/undefined or NaN, default it to a safe value or return a conservative result. Never let the function throw or return NaN/Infinity.
 2. Wrap the body in a try/catch and return a defined object on error: { "score": 0, "warnings": ["missing input X"] }.
 3. Use Number.isFinite() before using any input in arithmetic. Avoid division — multiply by reciprocals or guard with (denominator || 1).
-4. ARRAYS: never call .includes(), .map(), .filter(), .some(), .find(), .length, etc. on an input without first checking Array.isArray(x). Default missing arrays to []: const arr = Array.isArray(input.items) ? input.items : []. A single "Cannot read properties of undefined (reading 'includes')" TypeError fails the whole tool and costs the colony morale + power.
+4. ARRAYS: never call .includes(), .map(), .filter(), .some(), .find(), .length, etc. on an input without first checking Array.isArray(x). Default missing arrays to []: const arr = Array.isArray(input.items) ? input.items : []. A single "Cannot read properties of undefined (reading 'includes')" TypeError fails the whole tool and costs the simulation morale + power.
 5. STRINGS: same rule — guard with typeof x === 'string' before .includes()/.split()/.toLowerCase(). Default to '' when missing.
 6. Provide AT LEAST 3 testCases:
    - one happy path with realistic numbers
@@ -820,7 +820,7 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
   "opportunities": [{"impact": "low|medium|high", "description": "..."}],
   "recommendedActions": ["..."],
   "forgedToolsUsed": [{"name": "tool_name", "mode": "sandbox", "description": "what it does", "output": {...}, "confidence": 0.9}],
-  "recommendedEffects": [{"id": "effect_1", "type": "resource_shift|capacity_expansion|risk_mitigation|social_investment|research_bet", "description": "...", "colonyDelta": {"morale": 0.05}}],
+  "recommendedEffects": [{"id": "effect_1", "type": "resource_shift|capacity_expansion|risk_mitigation|social_investment|research_bet", "description": "...", "systemDelta": {"morale": 0.05}}],
   "confidence": 0.85,
   "openQuestions": [],
   "featuredAgentUpdates": [],
@@ -902,7 +902,7 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
         turn, year,
         reason: 'client_disconnected',
         completedTurns: turn - 1,
-        colony: kernel.getState().colony,
+        systems: kernel.getState().systems,
         toolsForged: Object.values(toolRegs).flat().length,
       });
       break;
@@ -923,7 +923,7 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
       const pe = providerErrorState as ClassifiedProviderError | null;
       emit('turn_done', {
         turn, year,
-        colony: kernel.getState().colony,
+        systems: kernel.getState().systems,
         toolsForged: Object.values(toolRegs).flat().length,
         aborted: true,
         providerError: pe
@@ -951,9 +951,9 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
         turn, year,
         leaderName: leader.name, leaderArchetype: leader.archetype, leaderHexaco: commanderHexacoLive,
         leaderHexacoHistory: commanderHexacoHistory,
-        state: preState.colony as unknown as Record<string, number>,
+        state: preState.systems as unknown as Record<string, number>,
         politics: preState.politics as unknown as Record<string, number | string | boolean>,
-        colony: preState.colony as unknown as Record<string, number>,
+        systems: preState.systems as unknown as Record<string, number>,
         aliveCount: alive.length,
         nativeBornCount: alive.filter(c => c.core.marsborn).length,
         marsBornCount: alive.filter(c => c.core.marsborn).length,
@@ -971,7 +971,7 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
         knowledgeTopics: Object.keys(sc.knowledge?.topics ?? {}),
         knowledgeCategories: Object.keys(sc.knowledge?.categoryMapping ?? {}),
       };
-      emit('turn_start', { turn, year, title: 'Director generating...', crisis: '', births: 0, deaths: 0, colony: preState.colony });
+      emit('turn_start', { turn, year, title: 'Director generating...', crisis: '', births: 0, deaths: 0, systems: preState.systems });
       // Abort gate: if the client already left during the gap between
       // the kernel advance and the director call, skip the director's
       // flagship LLM call. The inner event loop then has nothing to
@@ -1007,13 +1007,13 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
     const state = kernel.advanceTurn(turn, year, sc.hooks.progressionHook);
     const births = state.eventLog.filter(e => e.turn === turn && e.type === 'birth').length;
     const deaths = state.eventLog.filter(e => e.turn === turn && e.type === 'death').length;
-    console.log(`  Kernel: +${births} births, -${deaths} deaths → pop ${state.colony.population}`);
+    console.log(`  Kernel: +${births} births, -${deaths} deaths → pop ${state.systems.population}`);
 
     console.log(`\n${'─'.repeat(50)}`);
     console.log(`  Turn ${turn}/${maxTurns} — Year ${year}: ${turnEvents.length} event(s) [${milestone ? 'MILESTONE' : 'EMERGENT'}]`);
     console.log(`${'─'.repeat(50)}`);
 
-    emit('turn_start', { turn, year, title: turnEvents[0]?.title || '', crisis: turnEvents[0]?.description?.slice(0, 200) || '', category: turnEvents[0]?.category || '', births, deaths, colony: state.colony, emergent: !milestone, turnSummary: turnEvents[0]?.turnSummary || '', totalEvents: turnEvents.length, pacing: batchPacing });
+    emit('turn_start', { turn, year, title: turnEvents[0]?.title || '', crisis: turnEvents[0]?.description?.slice(0, 200) || '', category: turnEvents[0]?.category || '', births, deaths, systems: state.systems, emergent: !milestone, turnSummary: turnEvents[0]?.turnSummary || '', totalEvents: turnEvents.length, pacing: batchPacing });
 
     // ── Inner event loop ──────────────────────────────────────────────
     let reactions: import('./agent-reactions.js').AgentReaction[] = [];
@@ -1119,7 +1119,7 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
         // personality asymmetry (Visionary reuses more, Engineer
         // rebuilds more) can actually play out in turns 2-6.
         const bootstrapDirective = turn === 1
-          ? '\n\nTURN 1 IS A BOOTSTRAP TURN. You MUST call forge_tool at least once this turn to contribute a reusable computational tool to the shared toolbox. Later turns will reuse what you forge here. Pick a quantifiable aspect of THIS event (e.g. a risk score, a capacity calculator, a resource allocator) and forge a tool that computes it. Do not skip the forge — the colony depends on building a toolbox the whole run can draw from.\n'
+          ? '\n\nTURN 1 IS A BOOTSTRAP TURN. You MUST call forge_tool at least once this turn to contribute a reusable computational tool to the shared toolbox. Later turns will reuse what you forge here. Pick a quantifiable aspect of THIS event (e.g. a risk score, a capacity calculator, a resource allocator) and forge a tool that computes it. Do not skip the forge — the whole run depends on building a toolbox every turn can draw from.\n'
           : '';
         const ctx = baseCtx + bootstrapDirective + availableToolsBlock;
         emit('dept_start', { turn, year, department: dept, eventIndex: ei });
@@ -1401,7 +1401,7 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
         return `## ${r.department.toUpperCase()} (conf: ${r.confidence})\n${r.summary}\nRisks: ${risksLine}\nRecs: ${recsLine}`;
       }).join('\n\n');
       const optionText = event.options.length ? '\n\nOPTIONS:\n' + event.options.map(o => `- ${o.id}: ${o.label} — ${o.description}${o.isRisky ? ' [RISKY]' : ''}`).join('\n') + '\n\nYou MUST include "selectedOptionId" in your JSON response.' : '';
-      const effectsList = reports.flatMap(r => (r.recommendedEffects || []).map(e => `  - ${e.id} (${e.type}): ${e.description}${e.colonyDelta ? ' | Delta: ' + JSON.stringify(e.colonyDelta) : ''}`));
+      const effectsList = reports.flatMap(r => (r.recommendedEffects || []).map(e => `  - ${e.id} (${e.type}): ${e.description}${e.systemDelta ? ' | Delta: ' + JSON.stringify(e.systemDelta) : ''}`));
       const effectsText = effectsList.length ? '\n\nAVAILABLE POLICY EFFECTS:\n' + effectsList.join('\n') : '';
       // Expose the current forged toolbox to the commander so their
       // rationale can cite specific tool outputs (e.g. "per Medical's
@@ -1428,7 +1428,7 @@ ${trajectoryCue ? `\n${trajectoryCue}\n` : ''}
 DEPARTMENT REPORTS:
 ${summaries}
 ${commanderToolboxBlock}
-Colony: Pop ${kernel.getState().colony.population} | Morale ${Math.round(kernel.getState().colony.morale * 100)}% | Food ${kernel.getState().colony.foodMonthsReserve.toFixed(1)}mo${optionText}${effectsText}
+State: Pop ${kernel.getState().systems.population} | Morale ${Math.round(kernel.getState().systems.morale * 100)}% | Food ${kernel.getState().systems.foodMonthsReserve.toFixed(1)}mo${optionText}${effectsText}
 
 REASONING — populate the "reasoning" field of your JSON response BEFORE committing to selectedOptionId. Numbered list, one point per line:
   (1) What does my personality profile push me toward on this call? Name the specific trait poles at play.
@@ -1487,13 +1487,13 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
       let resolvedOptionId = decision.selectedOptionId;
       if (!resolvedOptionId && event.options.length) { const decLower = (decision.decision || '').toLowerCase(); for (const opt of event.options) { if (decLower.includes(opt.id) || decLower.includes(opt.label.toLowerCase())) { resolvedOptionId = opt.id; break; } } }
       const outcome = resolvedOptionId
-        ? classifyOutcomeById(resolvedOptionId, event.options, event.riskSuccessProbability, kernel.getState().colony, outcomeRng)
-        : classifyOutcome(decision.decision, scenario.riskyOption, event.riskSuccessProbability, kernel.getState().colony, outcomeRng);
+        ? classifyOutcomeById(resolvedOptionId, event.options, event.riskSuccessProbability, kernel.getState().systems, outcomeRng)
+        : classifyOutcome(decision.decision, scenario.riskyOption, event.riskSuccessProbability, kernel.getState().systems, outcomeRng);
 
       const outcomeEffectRng = new SeededRng(seed).turnSeed(turn * 100 + ei + 50);
       // Personality bonus shapes outcome magnitude. Two extreme leaders
       // (e.g. Visionary openness=0.95 vs Engineer openness=0.25) should
-      // produce visibly different colony trajectories. Prior coefficients
+      // produce visibly different world trajectories. Prior coefficients
       // (0.08/0.04) yielded ~3-5% effect spread which got lost in noise;
       // bumped to 0.20/0.12 plus an alignment term so picking a risky
       // option with high openness or a safe option with high conscientiousness
@@ -1542,12 +1542,12 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
         };
       })();
 
-      const colonyDeltas = effectRegistry.applyOutcome(event.category, outcome, {
+      const systemDeltas = effectRegistry.applyOutcome(event.category, outcome, {
         personalityBonus,
         noise: outcomeEffectRng.next() * 0.2 - 0.1,
         toolModifiers: eventForges,
       });
-      kernel.applyColonyDeltas(colonyDeltas as any, [{ turn, year, type: 'system', description: `Outcome effect (${outcome}): ${Object.entries(colonyDeltas).map(([k, v]) => `${k} ${v >= 0 ? '+' : ''}${v}`).join(', ')}` }]);
+      kernel.applySystemDeltas(systemDeltas as any, [{ turn, year, type: 'system', description: `Outcome effect (${outcome}): ${Object.entries(systemDeltas).map(([k, v]) => `${k} ${v >= 0 ? '+' : ''}${v}`).join(', ')}` }]);
 
       const polDelta = sc.hooks.politicsHook?.(event.category, outcome);
       if (polDelta) kernel.applyPoliticsDeltas(polDelta);
@@ -1565,8 +1565,8 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
       lastOutcome = outcome;
       lastEventCategory = event.category;
 
-      console.log(`  [outcome] ${outcome} (${event.category}) effects: ${JSON.stringify(colonyDeltas)}`);
-      emit('outcome', { turn, year, outcome, category: event.category, emergent: !milestone, colonyDeltas, eventIndex: ei });
+      console.log(`  [outcome] ${outcome} (${event.category}) effects: ${JSON.stringify(systemDeltas)}`);
+      emit('outcome', { turn, year, outcome, category: event.category, emergent: !milestone, systemDeltas, eventIndex: ei });
       } catch (err) {
         // Classify event-loop errors. If the commander call threw a
         // quota/auth error, this is where it lands. `reportProviderError`
@@ -1664,12 +1664,12 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
       commanderDecision: mergedDecision,
       policyEffectsApplied: turnPolicyEffects.slice(),
       stateSnapshotAfter: {
-        population: after.colony.population, morale: after.colony.morale,
-        foodMonthsReserve: after.colony.foodMonthsReserve, infrastructureModules: after.colony.infrastructureModules,
-        scienceOutput: after.colony.scienceOutput, births, deaths,
+        population: after.systems.population, morale: after.systems.morale,
+        foodMonthsReserve: after.systems.foodMonthsReserve, infrastructureModules: after.systems.infrastructureModules,
+        scienceOutput: after.systems.scienceOutput, births, deaths,
       },
     });
-    console.log(`  State: Pop ${after.colony.population} | Morale ${Math.round(after.colony.morale * 100)}% | Food ${after.colony.foodMonthsReserve.toFixed(1)}mo`);
+    console.log(`  State: Pop ${after.systems.population} | Morale ${Math.round(after.systems.morale * 100)}% | Food ${after.systems.foodMonthsReserve.toFixed(1)}mo`);
     // Death cause breakdown for this turn: maps attributed causes from
     // the kernel (natural causes, radiation cancer, starvation, despair,
     // fatal fracture, accident: X) to counts so the dashboard can
@@ -1686,13 +1686,13 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
     }
     emit('turn_done', {
       turn, year,
-      colony: after.colony,
+      systems: after.systems,
       toolsForged: Object.values(toolRegs).flat().length,
       totalEvents: turnEvents.length,
       deathCauses: Object.keys(deathCauses).length > 0 ? deathCauses : undefined,
     });
 
-    // Emit full agent roster for colony visualization.
+    // Emit full agent roster for swarm visualization.
     //
     // Generation depth: 0 = earth-born ancestor, N = N levels of native-born descent.
     // Mars-born agents get gen >= 1. Computed by walking parent chain when possible,
@@ -1738,12 +1738,12 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
       mood: reactions.find(r => r.agentId === a.core.id)?.mood || 'neutral',
       shortTermMemory: (a.memory?.shortTerm || []).slice(-2).map(m => m.content),
     }));
-    emit('colony_snapshot', {
+    emit('systems_snapshot', {
       turn, year,
       agents: snapshotAgents,
-      population: after.colony.population,
-      morale: after.colony.morale,
-      foodReserve: after.colony.foodMonthsReserve,
+      population: after.systems.population,
+      morale: after.systems.morale,
+      foodReserve: after.systems.foodMonthsReserve,
       births, deaths,
     });
     } catch (err) {
@@ -1752,7 +1752,7 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
       // the isAborted() gate instead of falling into this degraded path.
       reportProviderError(err, `turn${turn}:fatal`);
       console.error(`  [turn ${turn}] FATAL: ${err}`);
-      // Emit a degraded colony_snapshot so the dashboard doesn't get stuck
+      // Emit a degraded systems_snapshot so the dashboard doesn't get stuck
       const fallbackAgents = kernel.getState().agents.map(a => ({
         agentId: a.core.id, name: a.core.name, department: a.core.department, role: a.core.role,
         rank: a.career.rank, alive: a.health.alive, marsborn: a.core.marsborn,
@@ -1763,14 +1763,14 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
         childrenIds: a.social.childrenIds, featured: a.narrative.featured,
         mood: 'neutral', shortTermMemory: [],
       }));
-      emit('colony_snapshot', {
+      emit('systems_snapshot', {
         turn, year, agents: fallbackAgents,
-        population: kernel.getState().colony.population,
-        morale: kernel.getState().colony.morale,
-        foodReserve: kernel.getState().colony.foodMonthsReserve,
+        population: kernel.getState().systems.population,
+        morale: kernel.getState().systems.morale,
+        foodReserve: kernel.getState().systems.foodMonthsReserve,
         births: 0, deaths: 0,
       });
-      emit('turn_done', { turn, year, colony: kernel.getState().colony, toolsForged: Object.values(toolRegs).flat().length, error: String(err) });
+      emit('turn_done', { turn, year, systems: kernel.getState().systems, toolsForged: Object.values(toolRegs).flat().length, error: String(err) });
     }
   }
 
@@ -1816,7 +1816,7 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
     leader: {
       name: leader.name,
       archetype: leader.archetype,
-      colony: leader.colony,
+      unit: leader.unit,
       /** Drifted current profile — matches the Agent type convention where hexaco is the live value. */
       hexaco: commanderHexacoLive,
       /** Original config the caller passed in — immutable baseline for trajectory comparison. */

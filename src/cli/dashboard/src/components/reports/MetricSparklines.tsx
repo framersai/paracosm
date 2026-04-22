@@ -1,5 +1,5 @@
 /**
- * Six compact SVG sparklines, one per ColonyState metric, overlaying
+ * Six compact SVG sparklines, one per SystemsState metric, overlaying
  * A and B so the user sees where the curves cross across the run.
  * No chart library; same inline-SVG pattern as CommanderTrajectoryCard.
  *

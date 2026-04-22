@@ -484,7 +484,7 @@ export function EventCard({ event, side }: EventCardProps) {
       const rationale = String(dd._rationale || '');
       const reasoning = String(dd._reasoning || '');
       const policies = (dd._policies as string[]) || [];
-      const colonyDeltas = dd.colonyDeltas as Record<string, number> | undefined;
+      const systemDeltas = dd.systemDeltas as Record<string, number> | undefined;
       const turnNum = String(dd.turn || '');
       const toolCount = Number(dd._toolCount ?? 0);
       const citeCount = Number(dd._citeCount ?? 0);
@@ -514,10 +514,10 @@ export function EventCard({ event, side }: EventCardProps) {
           <div style={{ color: 'var(--text-1)', lineHeight: 1.5, fontSize: '13px' }}>
             {decision}
           </div>
-          {/* Colony deltas in teal mono */}
-          {colonyDeltas && Object.keys(colonyDeltas).length > 0 && (
+          {/* System deltas in teal mono */}
+          {systemDeltas && Object.keys(systemDeltas).length > 0 && (
             <div style={{ marginTop: '4px', fontFamily: 'var(--mono)', fontSize: '11px', color: 'var(--teal)' }}>
-              {Object.entries(colonyDeltas).map(([k, v]) => (
+              {Object.entries(systemDeltas).map(([k, v]) => (
                 <span key={k} style={{ marginRight: '4px' }}>
                   {k} {v > 0 ? '+' : ''}{typeof v === 'number' ? (Number.isInteger(v) ? v : v.toFixed(2)) : v}
                   {'\u00b7'}

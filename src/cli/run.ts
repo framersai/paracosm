@@ -90,7 +90,7 @@ function parseLeaderFromArgs(args: string[]): Partial<LeaderConfig> {
     const arg = args[i], next = args[i + 1];
     if (arg === '--name' && next) { leader.name = next; i++; }
     else if (arg === '--archetype' && next) { leader.archetype = next; i++; }
-    else if (arg === '--colony' && next) { leader.colony = next; i++; }
+    else if (arg === '--unit' && next) { leader.unit = next; i++; }
     else if (arg === '--instructions' && next) { leader.instructions = next; i++; }
     else if (arg === '--openness' && next) { hexaco.openness = parseFloat(next); i++; }
     else if (arg === '--conscientiousness' && next) { hexaco.conscientiousness = parseFloat(next); i++; }
@@ -133,7 +133,7 @@ if (cliLeader.name && !cliLeader.instructions) {
   leader.instructions = `You are Commander ${leader.name}. ${leader.archetype}. Respond with JSON.`;
 }
 
-console.log(`\n  Leader: ${leader.name} (${leader.archetype}) — ${leader.colony}`);
+console.log(`\n  Leader: ${leader.name} (${leader.archetype}) — ${leader.unit}`);
 console.log(`  HEXACO: O=${leader.hexaco.openness} C=${leader.hexaco.conscientiousness} E=${leader.hexaco.extraversion}`);
 
 runSimulation(leader, DEFAULT_KEY_PERSONNEL, { seed: 950, ...cliOptions, scenario: marsScenario }).catch((err) => {

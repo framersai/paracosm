@@ -55,7 +55,7 @@ export function writeRunOutput(
   output: {
     totalCitations: number;
     totalToolsForged: number;
-    finalState: { colony: { population: number; morale: number } };
+    finalState: { systems: { population: number; morale: number } };
   } & Record<string, unknown>,
   args: {
     leaderName: string;
@@ -75,7 +75,7 @@ export function writeRunOutput(
   console.log(`  COMPLETE — ${args.leaderName}`);
   console.log(`  Output: ${path}`);
   console.log(`  Turns: ${args.turns} | Citations: ${output.totalCitations} | Tools: ${output.totalToolsForged}`);
-  console.log(`  Final: Pop ${output.finalState.colony.population} | Morale ${Math.round(output.finalState.colony.morale * 100)}%`);
+  console.log(`  Final: Pop ${output.finalState.systems.population} | Morale ${Math.round(output.finalState.systems.morale * 100)}%`);
   console.log(`  Registries: ${JSON.stringify(args.toolRegs)}`);
   console.log(`${'═'.repeat(60)}\n`);
 

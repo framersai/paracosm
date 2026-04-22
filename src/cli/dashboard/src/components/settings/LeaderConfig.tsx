@@ -3,7 +3,7 @@ import { HexacoSlider } from './HexacoSlider';
 export interface LeaderFormData {
   name: string;
   archetype: string;
-  colony: string;
+  unit: string;
   instructions: string;
   hexaco: Record<string, number>;
 }
@@ -73,8 +73,8 @@ export function LeaderConfig({ label, sideColor, data, onChange }: LeaderConfigP
           <input value={data.archetype} onChange={e => update('archetype', e.target.value)} style={fieldInput} />
         </div>
         <div style={{ flex: 1 }}>
-          <label style={fieldLabel}>Colony</label>
-          <input value={data.colony} onChange={e => update('colony', e.target.value)} style={fieldInput} />
+          <label style={fieldLabel}>Unit</label>
+          <input value={data.unit} onChange={e => update('unit', e.target.value)} style={fieldInput} />
         </div>
       </div>
       <div style={{ marginBottom: '10px' }}>

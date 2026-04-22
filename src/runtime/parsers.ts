@@ -56,7 +56,7 @@ export function decisionToPolicy(
 
   // Apply legacy proposedPatches (backward compat).
   for (const r of reports) {
-    if (r.proposedPatches.colony) patches.colony = { ...patches.colony, ...r.proposedPatches.colony };
+    if (r.proposedPatches.systems) patches.systems = { ...patches.systems, ...r.proposedPatches.systems };
     if (r.proposedPatches.politics) patches.politics = { ...patches.politics, ...r.proposedPatches.politics };
     if (r.proposedPatches.agentUpdates) patches.agentUpdates = [...(patches.agentUpdates || []), ...r.proposedPatches.agentUpdates];
   }
@@ -67,11 +67,11 @@ export function decisionToPolicy(
     for (const effectId of decision.selectedEffectIds) {
       const effect = allEffects.find(e => e.id === effectId);
       if (!effect) continue;
-      if (effect.colonyDelta) {
-        patches.colony = patches.colony || {};
-        for (const [key, delta] of Object.entries(effect.colonyDelta)) {
-          const current = (patches.colony as any)[key] ?? 0;
-          (patches.colony as any)[key] = current + (delta as number);
+      if (effect.systemDelta) {
+        patches.systems = patches.systems || {};
+        for (const [key, delta] of Object.entries(effect.systemDelta)) {
+          const current = (patches.systems as any)[key] ?? 0;
+          (patches.systems as any)[key] = current + (delta as number);
         }
       }
       if (effect.politicsDelta) {
