@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import type { SimEvent } from './useSSE';
+import { migrateLegacyEventShape } from './migrateLegacyEventShape';
 
 function storageKey(scenarioShortName: string, key: string) {
   return `${scenarioShortName}-${key}`;
@@ -49,7 +50,17 @@ export function useGamePersistence(scenarioShortName: string) {
           try {
             const data = JSON.parse(reader.result as string);
             if (!data.events?.length) { resolve(null); return; }
-            resolve(data);
+            // Migrate pre-0.5.0 saved runs: alias leader.colony → .unit,
+            // event data.colony → .systems, data.colonyDeltas → .systemDeltas,
+            // rewrite 'colony_snapshot' event type. New-key values always
+            // win when both are present so already-migrated saves are a
+            // no-op through this path.
+            const migrated = migrateLegacyEventShape(data.events, data.results);
+            resolve({
+              ...data,
+              events: migrated.events as SimEvent[],
+              results: migrated.results ?? data.results ?? [],
+            });
           } catch { resolve(null); }
         };
         reader.readAsText(file);
@@ -73,7 +84,14 @@ export function useGamePersistence(scenarioShortName: string) {
       if (!cached) return null;
       const data = JSON.parse(cached);
       if (!data.events?.length) return null;
-      return data;
+      // Same legacy-shape migration as load() so browser caches
+      // written by pre-0.5.0 builds render correctly after upgrade.
+      const migrated = migrateLegacyEventShape(data.events, data.results);
+      return {
+        ...data,
+        events: migrated.events as SimEvent[],
+        results: migrated.results ?? data.results ?? [],
+      };
     } catch {
       return null;
     }

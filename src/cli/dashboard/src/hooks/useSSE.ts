@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { migrateLegacyEventShape } from './migrateLegacyEventShape';
 
 /**
  * Event type strings the dashboard consumes.
@@ -397,7 +398,15 @@ function rollupValidationFallbacks(events: SimEvent[]): ValidationFallbackBucket
 
       es.addEventListener('sim', (e: MessageEvent) => {
         try {
-          const data = JSON.parse(e.data) as SimEvent;
+          const rawData = JSON.parse(e.data) as SimEvent;
+          // Pre-0.5.0 session replays emit events with legacy field
+          // names (data.colony, colonyDeltas, 'colony_snapshot'). The
+          // migration helper aliases them to the new shape on read so
+          // the rest of the dashboard pipeline doesn't need a legacy
+          // code path. Live 0.5.0+ events already have the new keys,
+          // so this is a no-op for them.
+          const data = migrateLegacyEventShape([rawData as never])
+            .events[0] as SimEvent;
           const key = eventKey(data);
           if (seenEventKeys.has(key)) return; // skip duplicate from buffer replay
           seenEventKeys.add(key);
