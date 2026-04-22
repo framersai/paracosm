@@ -66,7 +66,13 @@ interface SwarmVizProps {
  * the strip widgets (TurnBanner, TimelineSparkline, EventChronicle).
  */
 export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
-  const { a: snapsA, b: snapsB } = useVizSnapshots(state);
+  const snapshotMap = useVizSnapshots(state);
+  const firstLeaderId = state.leaderIds[0];
+  const secondLeaderId = state.leaderIds[1];
+  const snapsA = (firstLeaderId ? snapshotMap[firstLeaderId] : undefined) ?? [];
+  const snapsB = (secondLeaderId ? snapshotMap[secondLeaderId] : undefined) ?? [];
+  const sideStateA = firstLeaderId ? state.leaders[firstLeaderId] : null;
+  const sideStateB = secondLeaderId ? state.leaders[secondLeaderId] : null;
   const maxTurn = Math.max(snapsA.length, snapsB.length);
   const [currentTurn, setCurrentTurn] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -263,8 +269,13 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
     type Evt = { type: string; turn?: number; data?: Record<string, unknown> };
     const findLatest = () => {
       let best: { key: string; side: 'a' | 'b'; turn: number; category: string; title: string } | null = null;
-      for (const side of ['a', 'b'] as const) {
-        const events = state[side].events as Evt[];
+      const slots: Array<{ side: 'a' | 'b'; leaderName: string }> = [];
+      if (state.leaderIds[0]) slots.push({ side: 'a', leaderName: state.leaderIds[0] });
+      if (state.leaderIds[1]) slots.push({ side: 'b', leaderName: state.leaderIds[1] });
+      for (const { side, leaderName } of slots) {
+        const sideState = state.leaders[leaderName];
+        if (!sideState) continue;
+        const events = sideState.events as Evt[];
         for (let i = events.length - 1; i >= 0; i--) {
           const e = events[i];
           if (!crisisKinds.has(e.type)) continue;
@@ -290,7 +301,7 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
       if (prev && prev.key === latest.key) return prev;
       return { ...latest, expiresAt: performance.now() + 5500 };
     });
-  }, [state.a.events, state.b.events, gridSettings.alerts, state.isRunning]);
+  }, [state.leaderIds, state.leaders, gridSettings.alerts, state.isRunning]);
 
   // Dismiss crisis toast after timeout.
   useEffect(() => {
@@ -454,8 +465,8 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
   const presetB: LeaderInfo | null = defaultPreset?.leaders?.[1]
     ? { name: defaultPreset.leaders[1].name, archetype: defaultPreset.leaders[1].archetype, unit: 'Colony Beta', hexaco: defaultPreset.leaders[1].hexaco, instructions: defaultPreset.leaders[1].instructions, quote: '' }
     : null;
-  const leaderA = state.a.leader ?? presetA;
-  const leaderB = state.b.leader ?? presetB;
+  const leaderA = sideStateA?.leader ?? presetA;
+  const leaderB = sideStateB?.leader ?? presetB;
 
   // Timelapse recording state. Uses MediaRecorder on a composite
   // canvas stream so the user can capture a short webm of the viz.
@@ -573,7 +584,7 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
       leaderB: { name: leaderB?.name ?? 'Leader B', archetype: leaderB?.archetype ?? '' },
       currentTurn,
       snapshots: { a: snapsA, b: snapsB },
-      events: { a: state.a.events, b: state.b.events },
+      events: { a: sideStateA?.events ?? [], b: sideStateB?.events ?? [] },
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], {
       type: 'application/json',
@@ -586,7 +597,7 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
     a.click();
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }, [currentTurn, leaderA, leaderB, snapsA, snapsB, state.a.events, state.b.events]);
+  }, [currentTurn, leaderA, leaderB, snapsA, snapsB, sideStateA, sideStateB]);
 
 
   const handleExportPng = useCallback(() => {
@@ -723,9 +734,14 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
       a: { attempts: [], reuses: [] },
       b: { attempts: [], reuses: [] },
     };
-    for (const side of ['a', 'b'] as const) {
+    const slots: Array<{ side: 'a' | 'b'; leaderName: string }> = [];
+    if (state.leaderIds[0]) slots.push({ side: 'a', leaderName: state.leaderIds[0] });
+    if (state.leaderIds[1]) slots.push({ side: 'b', leaderName: state.leaderIds[1] });
+    for (const { side, leaderName } of slots) {
+      const sideState = state.leaders[leaderName];
+      if (!sideState) continue;
       const firstByName = new Map<string, string>();
-      for (const evt of state[side].events) {
+      for (const evt of sideState.events) {
         if (evt.type === 'forge_attempt') {
           const d = evt.data || {};
           feed[side].attempts.push({
@@ -792,8 +808,10 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
 
   const hexacoById = useMemo(() => {
     const m = new Map<string, HexacoShape>();
-    for (const side of ['a', 'b'] as const) {
-      for (const evt of state[side].events) {
+    for (const leaderName of state.leaderIds) {
+      const sideState = state.leaders[leaderName];
+      if (!sideState) continue;
+      for (const evt of sideState.events) {
         if (evt.type !== 'agent_reactions') continue;
         const reactions = (evt.data?.reactions as Array<Record<string, unknown>>) || [];
         for (const r of reactions) {
@@ -1042,13 +1060,13 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
           }}
         />
         <TurnProgress
-          eventsA={state.a.events as Array<{ type: string; turn?: number; data?: Record<string, unknown> }>}
-          eventsB={state.b.events as Array<{ type: string; turn?: number; data?: Record<string, unknown> }>}
+          eventsA={(sideStateA?.events ?? []) as Array<{ type: string; turn?: number; data?: Record<string, unknown> }>}
+          eventsB={(sideStateB?.events ?? []) as Array<{ type: string; turn?: number; data?: Record<string, unknown> }>}
           totalDepartments={scenario.departments.length}
         />
         <EventChronicle
-          eventsA={state.a.events as Array<{ type: string; turn?: number; data?: Record<string, unknown> }>}
-          eventsB={state.b.events as Array<{ type: string; turn?: number; data?: Record<string, unknown> }>}
+          eventsA={(sideStateA?.events ?? []) as Array<{ type: string; turn?: number; data?: Record<string, unknown> }>}
+          eventsB={(sideStateB?.events ?? []) as Array<{ type: string; turn?: number; data?: Record<string, unknown> }>}
           currentTurn={currentTurn}
           onJumpToTurn={handleTurnChange}
           hoveredTurn={hoveredTurn}

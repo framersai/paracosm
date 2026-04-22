@@ -27,16 +27,19 @@ test('classifyTurn returns shared when both titles match, divergent otherwise', 
 
 test('collectMetricSeries extracts six metrics per side from turn_done events', () => {
   const state = {
-    a: {
-      events: [
-        { id: '1', type: 'turn_done', turn: 1, data: { systems: { population: 30, morale: 0.8, foodMonthsReserve: 100, powerKw: 500, infrastructureModules: 5, scienceOutput: 10 } } },
-        { id: '2', type: 'turn_done', turn: 2, data: { systems: { population: 28, morale: 0.7, foodMonthsReserve: 95, powerKw: 480, infrastructureModules: 6, scienceOutput: 15 } } },
-      ],
-    },
-    b: {
-      events: [
-        { id: '3', type: 'turn_done', turn: 1, data: { systems: { population: 29, morale: 0.75, foodMonthsReserve: 90, powerKw: 450, infrastructureModules: 5, scienceOutput: 12 } } },
-      ],
+    leaderIds: ['Alice', 'Bob'],
+    leaders: {
+      Alice: {
+        events: [
+          { id: '1', type: 'turn_done', turn: 1, data: { systems: { population: 30, morale: 0.8, foodMonthsReserve: 100, powerKw: 500, infrastructureModules: 5, scienceOutput: 10 } } },
+          { id: '2', type: 'turn_done', turn: 2, data: { systems: { population: 28, morale: 0.7, foodMonthsReserve: 95, powerKw: 480, infrastructureModules: 6, scienceOutput: 15 } } },
+        ],
+      },
+      Bob: {
+        events: [
+          { id: '3', type: 'turn_done', turn: 1, data: { systems: { population: 29, morale: 0.75, foodMonthsReserve: 90, powerKw: 450, infrastructureModules: 5, scienceOutput: 12 } } },
+        ],
+      },
     },
   } as unknown as GameState;
 
@@ -51,16 +54,19 @@ test('collectMetricSeries extracts six metrics per side from turn_done events', 
   assert.deepEqual(morale!.a, [{ turn: 1, value: 0.8 }, { turn: 2, value: 0.7 }]);
 });
 
-test('collectMetricSeries drops events without a colony payload', () => {
+test('collectMetricSeries drops events without a systems payload', () => {
   const state = {
-    a: {
-      events: [
-        { id: '1', type: 'turn_start', turn: 1, data: {} },
-        { id: '2', type: 'turn_done', turn: 1, data: { systems: { population: 30, morale: 0.8, foodMonthsReserve: 100, powerKw: 500, infrastructureModules: 5, scienceOutput: 10 } } },
-        { id: '3', type: 'agent_reactions', turn: 1, data: {} },
-      ],
+    leaderIds: ['Alice', 'Bob'],
+    leaders: {
+      Alice: {
+        events: [
+          { id: '1', type: 'turn_start', turn: 1, data: {} },
+          { id: '2', type: 'turn_done', turn: 1, data: { systems: { population: 30, morale: 0.8, foodMonthsReserve: 100, powerKw: 500, infrastructureModules: 5, scienceOutput: 10 } } },
+          { id: '3', type: 'agent_reactions', turn: 1, data: {} },
+        ],
+      },
+      Bob: { events: [] },
     },
-    b: { events: [] },
   } as unknown as GameState;
 
   const metrics = collectMetricSeries(state);
