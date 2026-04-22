@@ -7,15 +7,18 @@ import { useGamePersistence } from './hooks/useGamePersistence';
 import { useForgeToasts } from './hooks/useForgeToasts';
 import { useTerminalToast } from './hooks/useTerminalToast';
 import { useSimSavedToast } from './hooks/useSimSavedToast';
+import { useLaunchState } from './hooks/useLaunchState';
+import { VerdictBanner } from './components/layout/VerdictBanner';
+import { VerdictModal } from './components/layout/VerdictModal';
+import { ReplayBanner, ReplayNotFoundBanner } from './components/layout/ReplayBanner';
+import { EventLogPanel } from './components/log/EventLogPanel';
 import { useCitationRegistry, CitationRegistryContext } from './hooks/useCitationRegistry';
 import { useToolRegistry, ToolRegistryContext } from './hooks/useToolRegistry';
-import { useFocusTrap } from './hooks/useFocusTrap';
 import { TopBar } from './components/layout/TopBar';
 import { TabBar } from './components/layout/TabBar';
 import { ProviderErrorBanner } from './components/layout/ProviderErrorBanner';
 // Toolbar merged into TopBar
 import { SimView } from './components/sim/SimView';
-import { VerdictDetails } from './components/sim/VerdictCard';
 import { SettingsPanel } from './components/settings/SettingsPanel';
 import { ReportView } from './components/reports/ReportView';
 import { ChatPanel } from './components/chat/ChatPanel';
@@ -128,42 +131,17 @@ function AppContent() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [verdictModalOpen]);
-  const verdictDialogRef = useFocusTrap<HTMLDivElement>(verdictModalOpen);
 
   // Dynamic page title
   useEffect(() => {
     document.title = `${scenario.labels.name} \u2014 Paracosm`;
   }, [scenario.labels.name]);
 
-  // Event Log auto-scroll. Stays pinned to the bottom as new SSE
-  // events stream in so the user sees the latest frame without manual
-  // scrolling, but releases the pin the moment the user scrolls up
-  // (so they can read an older event without being yanked back down).
-  const logScrollRef = useRef<HTMLDivElement>(null);
-  const logPinnedRef = useRef(true);
-  const onLogScroll = useCallback(() => {
-    const el = logScrollRef.current;
-    if (!el) return;
-    // Anything within 40px of the bottom counts as pinned. Covers
-    // rounding slop and the details element expanding under the
-    // caret after a click.
-    logPinnedRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
-  }, []);
-
-  // When tour is active, use demo events; otherwise use live SSE events
+  // When tour is active, use demo events; otherwise use live SSE events.
+  // Event Log pin-to-bottom scroll logic lives inside EventLogPanel.
   const effectiveEvents = tourActive ? DEMO_EVENTS : sse.events;
   const effectiveComplete = tourActive ? true : sse.isComplete;
   const gameState = useGameState(effectiveEvents, effectiveComplete);
-
-  // Whenever a new event lands and the user is still pinned to the
-  // bottom of the log, scroll it down. If the log tab is not mounted
-  // the ref is null and this is a no-op.
-  useEffect(() => {
-    if (!logPinnedRef.current) return;
-    const el = logScrollRef.current;
-    if (!el) return;
-    el.scrollTop = el.scrollHeight;
-  }, [effectiveEvents.length]);
 
   // Forge-attempt toast pipeline (sessionStorage + watermark + toasted-key
   // set). Three-layer gating extracted to hooks/useForgeToasts.ts; see
@@ -408,25 +386,14 @@ function AppContent() {
     }
   }, [sse.events.length]);
 
-  // Auto-clear launching once the sim actually starts running, is
-  // complete, or the connection errored. Earlier this cleared on any
-  // SSE event arriving, but the server broadcasts a `status
-  // phase='starting'` event before anything else, and that event does
-  // NOT flip gameState.isRunning. With the old logic, launching cleared
-  // the moment that first status event landed, then SimView's empty-
-  // state condition (!launching && !isRunning) flashed "No simulation
-  // running" for the multiple seconds of Turn 0 dept promotions before
-  // the `parallel` status or first leader event arrived. Gating on
-  // gameState.isRunning instead closes that gap: the Launching spinner
-  // hands off directly to the Waiting-for-first-turn spinner inside
-  // SimView (`state.isRunning && !hasEvents`), with no empty-state
-  // flash in between.
-  useEffect(() => {
-    if (!launching) return;
-    if (gameState.isRunning || sse.isComplete || sse.status === 'error') {
-      setLaunching(false);
-    }
-  }, [launching, gameState.isRunning, sse.isComplete, sse.status]);
+  useLaunchState({
+    launching,
+    setLaunching,
+    isRunning: gameState.isRunning,
+    isComplete: sse.isComplete,
+    sseStatus: sse.status,
+    eventsCount: sse.events.length,
+  });
 
   useTerminalToast({
     isComplete: sse.isComplete,
@@ -470,23 +437,6 @@ function AppContent() {
   ]);
 
   useSimSavedToast({ events: sse.events, tourActive });
-
-  // Safety timeout: if /setup succeeded but no events arrived in 30s,
-  // give up on the spinner. Only toast when we really saw nothing —
-  // if SSE events arrived, the sim is alive and the user does not
-  // need a "Launch Stalled" message scaring them while they watch
-  // events stream in.
-  useEffect(() => {
-    if (!launching) return;
-    const timer = setTimeout(() => {
-      setLaunching(false);
-      const hasSignal = sse.events.length > 0 || gameState.isRunning || sse.isComplete;
-      if (!hasSignal) {
-        toast('error', 'Launch Stalled', 'No events received within 30 seconds. The simulation may still complete in the background.');
-      }
-    }, 30_000);
-    return () => clearTimeout(timer);
-  }, [launching, toast, sse.events.length, sse.isComplete, gameState.isRunning]);
 
   const handleRun = useCallback(async () => {
     // Guard against double-fire. The RUN button is also hidden
@@ -564,219 +514,22 @@ function AppContent() {
             />
           ) : null}
           {replaySessionId && sse.status === 'replay_not_found' ? (
-            <div
-              role="alert"
-              style={{
-                background: 'rgba(196, 74, 30, 0.15)',
-                color: 'var(--text-1)',
-                padding: '12px 16px',
-                fontFamily: 'var(--mono)',
-                fontSize: 12,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 12,
-                borderBottom: '1px solid var(--rust)',
-              }}
-            >
-              <span>
-                <strong style={{ color: 'var(--rust)' }}>REPLAY NOT FOUND</strong>{' '}
-                · The saved run <code>{replaySessionId}</code> no longer exists. It may have been evicted from the 10-run cache, or the URL was mistyped.
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  const url = new URL(window.location.href);
-                  url.searchParams.delete('replay');
-                  window.history.replaceState({}, '', url.toString());
-                  window.location.reload();
-                }}
-                style={{
-                  background: 'var(--bg-card)',
-                  color: 'var(--text-1)',
-                  border: '1px solid var(--border)',
-                  padding: '6px 14px',
-                  fontFamily: 'var(--mono)',
-                  fontSize: 11,
-                  fontWeight: 800,
-                  cursor: 'pointer',
-                  borderRadius: 4,
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                ← Back to live mode
-              </button>
-            </div>
+            <ReplayNotFoundBanner replaySessionId={replaySessionId} />
           ) : null}
           {replaySessionId && sse.status !== 'replay_not_found' ? (
-            <div
-              role="status"
-              style={{
-                background: 'var(--accent)',
-                color: 'var(--bg-deep)',
-                padding: '8px 16px',
-                fontFamily: 'var(--mono)',
-                fontSize: 11,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 12,
-                borderBottom: '1px solid var(--border)',
-              }}
-            >
-              <span>
-                <strong>REPLAYING SAVED DEMO</strong> · stored event stream, no LLM calls
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  // Drop the ?replay= query, return to live mode. Preserves
-                  // the rest of the URL (tab, etc) so users return to where
-                  // they were — popstate handler in useReplaySessionId
-                  // re-reads the param and useSSE re-subscribes to /events.
-                  const url = new URL(window.location.href);
-                  url.searchParams.delete('replay');
-                  window.history.pushState({}, '', url.toString());
-                  window.dispatchEvent(new PopStateEvent('popstate'));
-                }}
-                style={{
-                  padding: '4px 10px',
-                  background: 'transparent',
-                  border: '1px solid var(--bg-deep)',
-                  color: 'var(--bg-deep)',
-                  borderRadius: 4,
-                  cursor: 'pointer',
-                  fontFamily: 'var(--mono)',
-                  fontSize: 11,
-                  fontWeight: 600,
-                }}
-              >
-                EXIT REPLAY
-              </button>
-            </div>
+            <ReplayBanner replaySessionId={replaySessionId} />
           ) : null}
           <TopBar scenario={scenario} sse={sse} gameState={gameState} onSave={handleSave} onLoad={handleLoad} onClear={handleClear} onRun={handleRun} onTour={handleTourStart} onCopy={handleCopySummary} launching={launching} />
           <TabBar active={activeTab} onTabChange={setActiveTab} scenario={scenario} />
-          {/* Global verdict banner. Visible on every tab as soon as the
-              verdict LLM returns, closable per-verdict (a new run's
-              headline re-shows the banner even after dismissal). Click
-              the middle strip to open the full breakdown modal. */}
-          {(() => {
-            const vraw = sse.verdict as Record<string, unknown> | null;
-            if (!vraw || !vraw.winner) return null;
-            const headline = String(vraw.headline || '');
-            const winnerKey = `${vraw.winner}|${headline}`;
-            if (verdictDismissedKey === winnerKey) return null;
-            const winner = vraw.winner as 'A' | 'B' | 'tie';
-            const winColor = winner === 'A' ? 'var(--vis)' : winner === 'B' ? 'var(--eng)' : 'var(--amber)';
-            const winnerLabel = winner === 'tie'
-              ? 'Tie'
-              : `${String(vraw.winnerName || 'Winner')} wins`;
-            const turnLabel = `Turn ${gameState.turn}/${gameState.maxTurns} · verdict by gpt-4o`;
-            return (
-              <div
-                role="region"
-                aria-label="Simulation verdict"
-                style={{
-                  margin: '8px 16px 4px',
-                  padding: '14px 18px',
-                  background: `linear-gradient(135deg, ${winColor}22 0%, var(--bg-panel) 55%, var(--bg-panel) 100%)`,
-                  border: `1px solid ${winColor}`,
-                  borderLeft: `4px solid ${winColor}`,
-                  borderRadius: 8,
-                  boxShadow: `0 6px 22px rgba(0, 0, 0, 0.35), 0 0 0 1px ${winColor}33 inset`,
-                  fontFamily: 'var(--sans)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 16,
-                  animation: 'fadeUp 0.28s ease-out',
-                }}
-              >
-                <div style={{ flex: '0 0 auto', minWidth: 0 }}>
-                  <div style={{
-                    fontSize: 9, fontWeight: 800, color: 'var(--text-3)',
-                    letterSpacing: '0.15em', textTransform: 'uppercase',
-                    fontFamily: 'var(--mono)', marginBottom: 3,
-                  }}>
-                    ★ Run Complete
-                  </div>
-                  <div style={{
-                    fontSize: 20, fontWeight: 800, color: winColor,
-                    lineHeight: 1.1, letterSpacing: '0.01em',
-                    whiteSpace: 'nowrap',
-                  }}>
-                    {winnerLabel}
-                  </div>
-                </div>
-                <div style={{
-                  flex: 1, minWidth: 0,
-                  borderLeft: `1px solid ${winColor}55`,
-                  paddingLeft: 16,
-                }}>
-                  <button
-                    onClick={() => setVerdictModalOpen(true)}
-                    style={{
-                      background: 'transparent', border: 'none', padding: 0, margin: 0,
-                      fontSize: 13, color: 'var(--text-1)', cursor: 'pointer',
-                      textAlign: 'left', lineHeight: 1.4, fontFamily: 'var(--sans)',
-                      display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden', marginBottom: 4, width: '100%',
-                    }}
-                    title="Click to open the full verdict breakdown"
-                  >
-                    {headline || 'Verdict delivered — click to see full breakdown.'}
-                  </button>
-                  <div style={{
-                    fontSize: 10, color: 'var(--text-3)',
-                    fontFamily: 'var(--mono)', letterSpacing: '0.04em',
-                  }}>
-                    {turnLabel}
-                  </div>
-                </div>
-                <button
-                  onClick={() => setVerdictModalOpen(true)}
-                  style={{
-                    fontSize: 11, fontFamily: 'var(--mono)', fontWeight: 800,
-                    color: 'var(--bg-deep)', background: winColor,
-                    letterSpacing: '0.08em',
-                    padding: '8px 16px', borderRadius: 4,
-                    border: 'none', cursor: 'pointer',
-                    whiteSpace: 'nowrap', flexShrink: 0,
-                    boxShadow: `0 2px 8px ${winColor}66`,
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  View Full Verdict →
-                </button>
-                <button
-                  onClick={() => setActiveTab('reports')}
-                  style={{
-                    fontSize: 10, fontFamily: 'var(--mono)', fontWeight: 700,
-                    color: 'var(--text-2)', letterSpacing: '0.06em',
-                    padding: '7px 12px', borderRadius: 4,
-                    border: '1px solid var(--border)',
-                    background: 'var(--bg-card)',
-                    cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
-                    textTransform: 'uppercase',
-                  }}
-                  title="Open the Reports tab for the full run breakdown"
-                >
-                  Reports
-                </button>
-                <button
-                  onClick={() => setVerdictDismissedKey(winnerKey)}
-                  aria-label="Dismiss verdict banner"
-                  style={{
-                    background: 'none', border: 'none', color: 'var(--text-3)',
-                    cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: 4,
-                    flexShrink: 0,
-                  }}
-                >
-                  ×
-                </button>
-              </div>
-            );
-          })()}
+          <VerdictBanner
+            verdict={sse.verdict}
+            currentTurn={gameState.turn}
+            maxTurns={gameState.maxTurns}
+            dismissedKey={verdictDismissedKey}
+            onOpenModal={() => setVerdictModalOpen(true)}
+            onDismiss={setVerdictDismissedKey}
+            onNavigateTab={setActiveTab}
+          />
 
           <main id="main-content" className="flex-1 overflow-hidden" role="main" aria-label={`${activeTab} view`} style={{ background: 'var(--bg-deep)', display: 'flex', flexDirection: 'column' }}>
             {activeTab === 'sim' && <SimView state={gameState} sseStatus={sse.status} onRun={handleRun} onTour={handleTourStart} verdict={sse.verdict} launching={launching} />}
@@ -798,117 +551,7 @@ function AppContent() {
               <ChatPanel state={gameState} onChatUsage={handleChatUsage} />
             </div>
 
-            {activeTab === 'log' && (() => {
-              // Hash-driven filter: ToolboxSection's "↗ LOG" button
-              // sets `#log=<toolName>` before navigating here so the
-              // user lands on a view scoped to that one tool's forge
-              // / dept_done / reuse events instead of the full
-              // ~1000-event stream. Read once per render on hash.
-              const hashTool = (() => {
-                if (typeof window === 'undefined') return '';
-                const h = window.location.hash.replace(/^#/, '');
-                const match = h.match(/(?:^|&)log=([^&]+)/);
-                return match ? decodeURIComponent(match[1]) : '';
-              })();
-              const logFilter = hashTool.toLowerCase();
-              const filteredEvents = logFilter
-                ? effectiveEvents.filter(e => {
-                    const d = (e.data ?? {}) as Record<string, unknown>;
-                    const name = typeof d.name === 'string' ? d.name.toLowerCase() : '';
-                    if (name && name.includes(logFilter)) return true;
-                    const tools = Array.isArray(d.forgedTools) ? d.forgedTools : [];
-                    return tools.some(t => {
-                      const tt = t as Record<string, unknown>;
-                      const tn = typeof tt.name === 'string' ? tt.name.toLowerCase() : '';
-                      return tn.includes(logFilter);
-                    });
-                  })
-                : effectiveEvents;
-              return (
-              <div
-                ref={logScrollRef}
-                onScroll={onLogScroll}
-                className="flex-1 overflow-y-auto p-4 font-mono text-xs"
-                role="log"
-                aria-label="Event log"
-                aria-live="polite"
-                style={{ background: 'var(--bg-deep)', color: 'var(--text-3)' }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', gap: 12, flexWrap: 'wrap' }}>
-                  <h2 style={{ color: 'var(--text-1)', fontSize: '14px', fontWeight: 700 }}>
-                    Event Log ({filteredEvents.length}
-                    {logFilter ? ` of ${effectiveEvents.length}` : ''} events)
-                  </h2>
-                  {logFilter && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--mono)', fontSize: 11 }}>
-                      <span style={{ color: 'var(--text-3)' }}>filtered to tool</span>
-                      <span style={{ color: 'var(--amber)', fontWeight: 800 }}>{hashTool}</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const url = new URL(window.location.href);
-                          url.hash = '';
-                          window.history.replaceState({}, '', url.toString());
-                          window.dispatchEvent(new HashChangeEvent('hashchange'));
-                        }}
-                        style={{
-                          padding: '2px 8px', borderRadius: 3,
-                          background: 'var(--bg-card)', color: 'var(--text-3)',
-                          border: '1px solid var(--border)', cursor: 'pointer',
-                          fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 700,
-                          letterSpacing: '0.06em', textTransform: 'uppercase',
-                        }}
-                        aria-label="Clear log filter"
-                      >
-                        Clear filter
-                      </button>
-                    </div>
-                  )}
-                </div>
-                {filteredEvents.length === 0 && (
-                  <div style={{ color: 'var(--text-3)', padding: '20px 0' }}>
-                    {logFilter
-                      ? `No events matched "${hashTool}". Clear the filter or check the tool name spelling.`
-                      : 'No events yet. Run a simulation to see the raw SSE event stream.'}
-                  </div>
-                )}
-                {filteredEvents.map((e, i) => {
-                  const typeColors: Record<string, string> = {
-                    status: 'var(--teal)', turn_start: 'var(--rust)', turn_done: 'var(--rust)',
-                    dept_start: 'var(--text-3)', dept_done: 'var(--green)',
-                    commander_deciding: 'var(--amber)', commander_decided: 'var(--amber)',
-                    outcome: '#e8b44a', drift: 'var(--teal)', agent_reactions: '#6aad48',
-                    bulletin: 'var(--text-2)', promotion: 'var(--teal)',
-                  };
-                  const color = typeColors[e.type] || 'var(--text-3)';
-                  const hasData = e.data && Object.keys(e.data).length > 0;
-                  return (
-                    <details key={i} style={{ borderBottom: '1px solid var(--border)', padding: '2px 0' }}>
-                      <summary style={{ cursor: 'pointer', padding: '4px 0', display: 'flex', gap: '8px', alignItems: 'baseline' }}>
-                        <span style={{ color: 'var(--text-3)', minWidth: '28px', textAlign: 'right', opacity: 0.5 }}>{i}</span>
-                        <span style={{ color, fontWeight: 700, minWidth: '120px' }}>{e.type}</span>
-                        <span style={{ color: 'var(--text-2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.leader}</span>
-                        {e.data?.turn != null && <span style={{ color: 'var(--text-3)' }}>T{String(e.data.turn)}</span>}
-                        {!!e.data?.title && <span style={{ color: 'var(--text-2)' }}>{String(e.data.title)}</span>}
-                        {!!e.data?.department && <span style={{ color: 'var(--teal)' }}>{String(e.data.department)}</span>}
-                        {!!e.data?.outcome && <span style={{ color: 'var(--amber)', fontWeight: 700 }}>{String(e.data.outcome)}</span>}
-                      </summary>
-                      {hasData && (
-                        <pre style={{
-                          padding: '8px 12px 8px 44px', margin: '0 0 4px',
-                          background: 'var(--bg-card)', borderRadius: '4px', border: '1px solid var(--border)',
-                          overflow: 'auto', maxHeight: '400px', fontSize: '11px', lineHeight: 1.5,
-                          color: 'var(--text-2)', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                        }}>
-                          {JSON.stringify(e.data, null, 2)}
-                        </pre>
-                      )}
-                    </details>
-                  );
-                })}
-              </div>
-              );
-            })()}
+            {activeTab === 'log' && <EventLogPanel events={effectiveEvents} />}
 
             {/* About tab redirects to the landing page */}
           </main>
@@ -933,52 +576,11 @@ function AppContent() {
               providerError: sse.providerError,
             }}
           />
-          {/* Full-verdict modal triggered from the global top banner. */}
           {verdictModalOpen && sse.verdict && (
-            <div
-              role="dialog"
-              aria-modal="true"
-              aria-label="Simulation verdict full breakdown"
-              onClick={() => setVerdictModalOpen(false)}
-              style={{
-                position: 'fixed', inset: 0, zIndex: 100000,
-                background: 'rgba(10,8,6,0.78)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                padding: 20,
-              }}
-            >
-              <div
-                ref={verdictDialogRef}
-                tabIndex={-1}
-                onClick={e => e.stopPropagation()}
-                style={{
-                  background: 'linear-gradient(180deg, var(--bg-panel) 0%, var(--bg-deep) 100%)',
-                  border: '1px solid var(--border)',
-                  borderTop: `3px solid ${(sse.verdict as Record<string, unknown>).winner === 'A' ? 'var(--vis)' : (sse.verdict as Record<string, unknown>).winner === 'B' ? 'var(--eng)' : 'var(--amber)'}`,
-                  borderRadius: 10,
-                  padding: '20px 24px',
-                  maxWidth: 640, width: '100%', maxHeight: '85vh', overflowY: 'auto',
-                  boxShadow: '0 12px 60px rgba(0,0,0,0.6)',
-                  fontFamily: 'var(--sans)', color: 'var(--text-1)',
-                  position: 'relative',
-                  outline: 'none',
-                }}
-              >
-                <button
-                  onClick={() => setVerdictModalOpen(false)}
-                  aria-label="Close verdict"
-                  style={{
-                    position: 'absolute', top: 8, right: 12,
-                    background: 'none', border: 'none', color: 'var(--text-3)',
-                    cursor: 'pointer', fontSize: 20, lineHeight: 1, padding: 4,
-                    zIndex: 1,
-                  }}
-                >
-                  ×
-                </button>
-                <VerdictDetails v={sse.verdict as any} />
-              </div>
-            </div>
+            <VerdictModal
+              verdict={sse.verdict as Record<string, unknown>}
+              onClose={() => setVerdictModalOpen(false)}
+            />
           )}
           {tourActive && (
             <GuidedTour
