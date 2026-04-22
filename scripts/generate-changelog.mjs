@@ -85,3 +85,44 @@ export function classifyCommit(c) {
   if (c.type === 'perf') return 'performance';
   return 'other';
 }
+
+// ---------------------------------------------------------------------------
+// Narrative preservation
+// ---------------------------------------------------------------------------
+
+/**
+ * Parse an existing CHANGELOG.md string, returning a map of
+ * version → narrative block. A narrative is everything between the
+ * `## <version> (...)` header line and the first `###` subsection
+ * (or the next `## ` entry, or end of file). Leading and trailing
+ * whitespace and horizontal-rule separators are trimmed.
+ *
+ * Returns an empty Map if the input is empty or missing.
+ */
+export function extractNarratives(changelogText) {
+  const narratives = new Map();
+  if (!changelogText) return narratives;
+
+  const entries = changelogText.split(/(?=^## \d+\.\d+\.\d+)/m);
+  for (const entry of entries) {
+    const versionMatch = /^## (\d+\.\d+\.\d+)/m.exec(entry);
+    if (!versionMatch) continue;
+    const version = versionMatch[1];
+
+    const headerEndIdx = entry.indexOf('\n');
+    if (headerEndIdx === -1) {
+      narratives.set(version, '');
+      continue;
+    }
+    const bodyAfterHeader = entry.slice(headerEndIdx + 1);
+
+    const subsectionIdx = bodyAfterHeader.search(/^### /m);
+    const ruleIdx = bodyAfterHeader.search(/^---\s*$/m);
+    const ends = [subsectionIdx, ruleIdx].filter(i => i !== -1);
+    const narrativeEnd = ends.length ? Math.min(...ends) : bodyAfterHeader.length;
+
+    const narrative = bodyAfterHeader.slice(0, narrativeEnd).trim();
+    narratives.set(version, narrative);
+  }
+  return narratives;
+}
