@@ -1,11 +1,12 @@
 import { useRef, useEffect, useState, useMemo, useCallback } from 'react';
-import type { GameState, Side, SideState, LeaderInfo } from '../../hooks/useGameState';
+import type { GameState, LeaderSideState, LeaderInfo } from '../../hooks/useGameState';
+import { getLeaderColorVar } from '../../hooks/useGameState';
 import { useScenarioContext } from '../../App';
 import { useCitationContext } from '../../hooks/useCitationRegistry';
 import { useToolContext } from '../../hooks/useToolRegistry';
 import { LeaderBar } from '../layout/LeaderBar';
 import { StatsBar } from '../layout/StatsBar';
-import { CrisisHeader } from './CrisisHeader';
+import { TurnEventHeader } from './TurnEventHeader';
 import { EventCard } from './EventCard';
 import { DivergenceRail } from './DivergenceRail';
 import { Timeline } from './Timeline';
@@ -27,11 +28,8 @@ interface SimViewProps {
   launching?: boolean;
 }
 
-function SideColumn({ side, sideState, state }: { side: Side; sideState: SideState; state: GameState }) {
+function LeaderColumn({ leaderIndex, sideState, state }: { leaderIndex: number; sideState: LeaderSideState; state: GameState }) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  // Pin-to-bottom state. Starts pinned; releases when the user
-  // scrolls up more than 40px so they can read an older event
-  // without being yanked back to the live edge.
   const pinnedRef = useRef(true);
   const onScroll = () => {
     const el = scrollRef.current;
@@ -46,15 +44,15 @@ function SideColumn({ side, sideState, state }: { side: Side; sideState: SideSta
   }, [sideState.events.length]);
 
   const isWaiting = !sideState.leader && !state.isRunning;
-  const sideColor = side === 'a' ? 'var(--vis)' : 'var(--eng)';
-  const sideLabel = side === 'a' ? 'Leader A' : 'Leader B';
+  const sideColor = getLeaderColorVar(leaderIndex);
+  const sideLabel = `Leader ${String.fromCharCode(65 + leaderIndex)}`;
 
   return (
     <section
       style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: 'var(--bg-deep)', overflow: 'hidden' }}
       aria-label={`${sideState.leader?.name || sideLabel} events`}
     >
-      <CrisisHeader side={side} crisis={sideState.crisis} />
+      <TurnEventHeader leaderIndex={leaderIndex} event={sideState.event} />
 
       <div ref={scrollRef} onScroll={onScroll} style={{ flex: 1, overflowY: 'auto', padding: '4px 8px', display: 'flex', flexDirection: 'column', gap: '1px' }}>
         {!isWaiting && sideState.events.length === 0 && state.isRunning && (
@@ -69,7 +67,6 @@ function SideColumn({ side, sideState, state }: { side: Side; sideState: SideSta
           </div>
         )}
         {(() => {
-          // Group all dept_done events by turn, render as one row per turn
           const deptsByTurn = new Map<number, typeof sideState.events>();
           const renderedDeptTurns = new Set<number>();
           for (const e of sideState.events) {
@@ -80,20 +77,18 @@ function SideColumn({ side, sideState, state }: { side: Side; sideState: SideSta
           }
 
           return sideState.events.map(event => {
-            // Skip dept_start (noise between dept_done pills)
             if (event.type === 'dept_start') return null;
-            // For dept_done: render the whole turn's group on first encounter
             if (event.type === 'dept_done' && event.turn != null) {
               if (renderedDeptTurns.has(event.turn)) return null;
               renderedDeptTurns.add(event.turn);
               const group = deptsByTurn.get(event.turn) || [event];
               return (
                 <div key={`depts-${event.turn}`} style={{ display: 'flex', flexWrap: 'wrap', gap: '3px', padding: '2px 0' }}>
-                  {group.map(e => <EventCard key={e.id} event={e} side={side} />)}
+                  {group.map(e => <EventCard key={e.id} event={e} leaderIndex={leaderIndex} />)}
                 </div>
               );
             }
-            return <EventCard key={event.id} event={event} side={side} />;
+            return <EventCard key={event.id} event={event} leaderIndex={leaderIndex} />;
           });
         })()}
       </div>
@@ -167,7 +162,11 @@ export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: l
   const [localLaunching, setLocalLaunching] = useState(false);
   const launching = launchingProp ?? localLaunching;
 
-  const hasEvents = state.a.events.length > 0 || state.b.events.length > 0;
+  const firstId = state.leaderIds[0];
+  const secondId = state.leaderIds[1];
+  const sideA = firstId ? state.leaders[firstId] : null;
+  const sideB = secondId ? state.leaders[secondId] : null;
+  const hasEvents = Object.values(state.leaders).some(s => s.events.length > 0);
   const showLoading = state.isRunning && !hasEvents;
 
   // Clear local launching state once events start arriving or sim is running
@@ -199,10 +198,10 @@ export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: l
     localStorage.setItem('paracosm-intro-dismissed', '1');
   };
 
-  // Build crisis text for the shared stats bar
-  const crisisA = state.a.crisis;
-  const crisisText = crisisA
-    ? `T${crisisA.turn} \u2014 ${crisisA.year}: ${crisisA.title}`
+  // Build turn-event text for the shared stats bar
+  const eventA = sideA?.event;
+  const crisisText = eventA
+    ? `T${eventA.turn} \u2014 ${eventA.year}: ${eventA.title}`
     : '';
 
   return (
@@ -219,8 +218,8 @@ export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: l
           w === 'B' ? 'winner' : w === 'A' ? 'second' : w === 'tie' ? 'tie' : null;
         return (
           <div className="leaders-row" style={{ display: 'flex', gap: '1px', background: 'var(--border)' }}>
-            <LeaderBar side="a" leader={state.a.leader || presetLeaderA} popHistory={state.a.popHistory} moraleHistory={state.a.moraleHistory} verdictPlacement={placementA} />
-            <LeaderBar side="b" leader={state.b.leader || presetLeaderB} popHistory={state.b.popHistory} moraleHistory={state.b.moraleHistory} verdictPlacement={placementB} />
+            <LeaderBar leaderIndex={0} leader={sideA?.leader || presetLeaderA} popHistory={sideA?.popHistory || []} moraleHistory={sideA?.moraleHistory || []} verdictPlacement={placementA} />
+            <LeaderBar leaderIndex={1} leader={sideB?.leader || presetLeaderB} popHistory={sideB?.popHistory || []} moraleHistory={sideB?.moraleHistory || []} verdictPlacement={placementB} />
           </div>
         );
       })()}
@@ -229,18 +228,7 @@ export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: l
           StatsBar when the cost breakdown moved to its own modal; the
           component ignored them even at runtime, so stop passing them. */}
       <StatsBar
-        systemsA={state.a.systems}
-        systemsB={state.b.systems}
-        prevSystemsA={state.a.prevSystems}
-        prevSystemsB={state.b.prevSystems}
-        deathsA={state.a.deaths}
-        deathsB={state.b.deaths}
-        deathCausesA={state.a.deathCauses}
-        deathCausesB={state.b.deathCauses}
-        toolsA={state.a.tools}
-        toolsB={state.b.tools}
-        citationsA={state.a.citations}
-        citationsB={state.b.citations}
+        leaders={state.leaderIds.slice(0, 2).map(id => ({ id, state: state.leaders[id] }))}
         crisisText={crisisText}
         toolRegistry={toolRegistry}
       />
@@ -277,7 +265,7 @@ export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: l
         </div>
       )}
 
-      {showIntro && state.a.events.length > 0 && <IntroBar onDismiss={dismissIntro} />}
+      {showIntro && (sideA?.events.length ?? 0) > 0 && <IntroBar onDismiss={dismissIntro} />}
 
       <DivergenceRail state={state} />
 
@@ -330,7 +318,7 @@ export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: l
       )}
 
       {/* Empty state: connected but no events and no sim running */}
-      {!state.isRunning && !state.isComplete && state.a.events.length === 0 && state.b.events.length === 0 && sseStatus === 'connected' && !launching && (
+      {!state.isRunning && !state.isComplete && !hasEvents && sseStatus === 'connected' && !launching && (
         <div style={{
           flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
           padding: '40px 24px', textAlign: 'center', background: 'var(--bg-deep)',
@@ -459,9 +447,9 @@ export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: l
       )}
 
       {/* Two columns (only show when there are events or sim is running) */}
-      <div className="sim-columns" style={{ display: (state.isRunning || state.isComplete || state.a.events.length > 0 || state.b.events.length > 0 || sseStatus === 'connected') ? 'flex' : 'none', flex: 1, gap: '1px', background: 'var(--border)', overflow: 'hidden' }}>
-        <SideColumn side="a" sideState={state.a} state={state} />
-        <SideColumn side="b" sideState={state.b} state={state} />
+      <div className="sim-columns" style={{ display: (state.isRunning || state.isComplete || hasEvents || sseStatus === 'connected') ? 'flex' : 'none', flex: 1, gap: '1px', background: 'var(--border)', overflow: 'hidden' }}>
+        {sideA && <LeaderColumn leaderIndex={0} sideState={sideA} state={state} />}
+        {sideB && <LeaderColumn leaderIndex={1} sideState={sideB} state={state} />}
       </div>
 
       {/* Verdict surfaces as a global top banner (App.tsx) and inline

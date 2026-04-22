@@ -1,30 +1,23 @@
 import { useMemo, useRef, useEffect } from 'react';
-import type { SystemsState } from '../../hooks/useGameState';
+import type { LeaderSideState } from '../../hooks/useGameState';
+import { getLeaderColorVar } from '../../hooks/useGameState';
 import type { ToolRegistry } from '../../hooks/useToolRegistry';
 import { useScenarioContext } from '../../App';
 
+export interface StatsBarLeader {
+  id: string;
+  state: LeaderSideState;
+}
+
 interface StatsBarProps {
-  systemsA: SystemsState | null;
-  systemsB: SystemsState | null;
-  prevSystemsA: SystemsState | null;
-  prevSystemsB: SystemsState | null;
-  deathsA: number;
-  deathsB: number;
-  /** Cumulative death-cause breakdown per side. Lets the DEATHS pill
-   *  render a tooltip + compact inline chip of attributed causes
-   *  ("3 radiation · 2 accident") so mortality reads as structural
-   *  pressure (starvation, radiation, despair) rather than a faceless
-   *  total. */
-  deathCausesA?: Record<string, number>;
-  deathCausesB?: Record<string, number>;
-  toolsA: number;
-  toolsB: number;
-  citationsA: number;
-  citationsB: number;
+  /** Ordered leader list. Index 0 renders with vis palette, index 1 with eng.
+   *  F2/F3 will extend beyond two columns; today only the first two render
+   *  in the pills row. */
+  leaders: StatsBarLeader[];
   crisisText?: string;
-  /** Per-simulation forged-tool registry. Used to surface per-side
-   *  reuse counts so users can see how much each leader leaned on
-   *  emergent tools across the run. */
+  /** Per-simulation forged-tool registry. Used to surface per-leader reuse
+   *  counts so users can see how much each leader leaned on emergent tools
+   *  across the run. */
   toolRegistry?: ToolRegistry;
 }
 
@@ -54,12 +47,7 @@ const SHORT_LABELS: Record<string, string> = {
   oxygenReserveHours: 'O2',
 };
 
-/**
- * Single-character icon labels for phone width (<480px). Fallback to
- * the first letter of the short label when a metric isn't in this
- * table, which keeps the row readable for any scenario that adds
- * custom metrics without registering an icon.
- */
+/** Single-character icon labels for phone width (<480px). */
 const ICON_LABELS: Record<string, string> = {
   population: 'P',
   morale: 'M',
@@ -78,8 +66,6 @@ function delta(curr: number, prev: number | undefined): string {
   return d > 0 ? `+${d}` : `${d}`;
 }
 
-// Shared pill style helpers. Inline-styled like the rest of this file,
-// but consolidated so a single change tightens the whole row at once.
 const pillWrap: React.CSSProperties = {
   display: 'flex', alignItems: 'baseline', gap: '3px', whiteSpace: 'nowrap',
   flexShrink: 0, paddingLeft: '6px', borderLeft: '1px solid var(--border)',
@@ -92,10 +78,6 @@ const valueStyle: React.CSSProperties = { fontSize: '12px', fontWeight: 800 };
 const deltaStyle: React.CSSProperties = { fontSize: '8px' };
 const sepStyle: React.CSSProperties = { color: 'var(--text-3)', fontSize: '9px' };
 
-/**
- * Format a cause map into a compact chip: '3 radiation · 2 accident'.
- * Orders by count descending; caps at 3 causes to keep the chip small.
- */
 function formatCauses(causes: Record<string, number> | undefined): string {
   if (!causes) return '';
   const sorted = Object.entries(causes).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
@@ -108,33 +90,48 @@ function formatCauses(causes: Record<string, number> | undefined): string {
   return rest > 0 ? `${top.join(' \u00b7 ')} +${rest}` : top.join(' \u00b7 ');
 }
 
-export function StatsBar({
-  systemsA, systemsB, prevSystemsA, prevSystemsB,
-  deathsA, deathsB, deathCausesA, deathCausesB, toolsA, toolsB, citationsA, citationsB,
-  crisisText, toolRegistry,
-}: StatsBarProps) {
+export function StatsBar({ leaders, crisisText, toolRegistry }: StatsBarProps) {
   const scenario = useScenarioContext();
 
-  // Per-side reuse counts derived from the forged-tool ledger. A reuse is
-  // any tool-use event after the first forge, counted per side from the
-  // authoritative orchestrator history. Rejected re-forges are excluded
-  // so the pill reflects useful reuse only.
+  // F1 renders exactly 2 leaders (F2/F3 generalizes to N). Destructure
+  // the first two for the existing A-vs-B pill layout; leaders beyond
+  // index 1 are held in state but not rendered in this bar.
+  const aLeader = leaders[0];
+  const bLeader = leaders[1];
+  const aState = aLeader?.state;
+  const bState = bLeader?.state;
+  const systemsA = aState?.systems ?? null;
+  const systemsB = bState?.systems ?? null;
+  const prevSystemsA = aState?.prevSystems ?? null;
+  const prevSystemsB = bState?.prevSystems ?? null;
+  const deathsA = aState?.deaths ?? 0;
+  const deathsB = bState?.deaths ?? 0;
+  const deathCausesA = aState?.deathCauses;
+  const deathCausesB = bState?.deathCauses;
+  const toolsA = aState?.tools ?? 0;
+  const toolsB = bState?.tools ?? 0;
+  const citationsA = aState?.citations ?? 0;
+  const citationsB = bState?.citations ?? 0;
+  const aLeaderName = aLeader?.id ?? '';
+  const bLeaderName = bLeader?.id ?? '';
+
+  // Per-leader reuse counts derived from the forged-tool ledger. A
+  // reuse is any tool-use event after the first forge, counted per
+  // leader (by name) from the authoritative orchestrator history.
+  // Rejected re-forges are excluded so the pill reflects useful reuse only.
   const { reuseA, reuseB } = useMemo(() => {
     let a = 0; let b = 0;
     for (const entry of toolRegistry?.list ?? []) {
       for (let i = 1; i < entry.history.length; i++) {
         const h = entry.history[i];
         if (h.rejected) continue;
-        if (h.side === 'a') a++; else if (h.side === 'b') b++;
+        if (h.leaderName === aLeaderName) a++;
+        else if (h.leaderName === bLeaderName) b++;
       }
     }
     return { reuseA: a, reuseB: b };
-  }, [toolRegistry]);
+  }, [toolRegistry, aLeaderName, bLeaderName]);
 
-  // Track previous counter values so the row can show +N deltas for
-  // tools/reuse/cites/deaths the same way pop/morale/food/power already
-  // do. Uses refs so the math runs once per render without adding
-  // prev-value props to the component's interface.
   const prevCountersRef = useRef({ toolsA, toolsB, reuseA, reuseB, citationsA, citationsB, deathsA, deathsB });
   const prev = prevCountersRef.current;
   const deltaToolsA = delta(toolsA, prev.toolsA);
@@ -155,16 +152,11 @@ export function StatsBar({
 
   const metrics = scenario.ui.headerMetrics.slice(0, 4);
 
-  // Stats bar layout: tight pills, horizontal scroll on extreme narrow.
-  // Cost is no longer rendered here — overflows in practice and was
-  // never the primary signal users read off the top row. Full cost
-  // breakdown still lives on the reports / log pages.
+  const colorA = getLeaderColorVar(0);
+  const colorB = getLeaderColorVar(1);
+
   return (
-    <div className="stats-bar" role="region" aria-label="Colony statistics" style={{
-      // Single row always. When the pills overflow the viewport, the
-      // bar scrolls horizontally rather than folding onto a second
-      // row. Wrapping produced a visually jarring 2-row layout at
-      // common desktop widths where the full metric set almost fit.
+    <div className="stats-bar" role="region" aria-label="Leader statistics" style={{
       display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'nowrap',
       padding: '3px 8px', gap: '8px',
       overflowX: 'auto', overflowY: 'hidden',
@@ -181,9 +173,6 @@ export function StatsBar({
         </span>
       )}
 
-      {/* Colony metrics with per-leader comparison. Labels have a full
-          word (.pill-label-full) and a single-char icon (.pill-label-short)
-          swapped at phone width via tokens.css media queries. */}
       {metrics.map(metric => {
         const valA = systemsA?.[metric.id] ?? 0;
         const valB = systemsB?.[metric.id] ?? 0;
@@ -200,28 +189,22 @@ export function StatsBar({
               <span className="pill-label-full">{label}</span>
               <span className="pill-label-short">{icon}</span>
             </span>
-            <span style={{ ...valueStyle, color: 'var(--vis)' }}>{fA}{suffix}</span>
+            <span style={{ ...valueStyle, color: colorA }}>{fA}{suffix}</span>
             {dA && <span style={{ ...deltaStyle, color: dA.startsWith('+') ? 'var(--green)' : 'var(--rust)' }}>{dA}</span>}
             <span style={sepStyle}>vs</span>
-            <span style={{ ...valueStyle, color: 'var(--eng)' }}>{fB}{suffix}</span>
+            <span style={{ ...valueStyle, color: colorB }}>{fB}{suffix}</span>
             {dB && <span style={{ ...deltaStyle, color: dB.startsWith('+') ? 'var(--green)' : 'var(--rust)' }}>{dB}</span>}
           </span>
         );
       })}
 
-      {/* Deaths — leader-coloured A/B so the eye follows the same
-          colour mapping as the colony metrics (vis for A, eng for B).
-          Tooltips carry the full cause breakdown (e.g. '3 radiation
-          cancer, 2 accident, 1 despair') so the single DEATHS number
-          stays legible at the stats-bar scale but the detail is one
-          hover away. */}
       <span style={pillWrap}>
         <span style={labelStyle} title="Deaths">
           <span className="pill-label-full">DEATHS</span>
           <span className="pill-label-short">†</span>
         </span>
         <span
-          style={{ ...valueStyle, color: 'var(--vis)' }}
+          style={{ ...valueStyle, color: colorA }}
           title={deathCausesA && Object.keys(deathCausesA).length > 0
             ? `Leader A deaths by cause: ${Object.entries(deathCausesA).map(([k, v]) => `${v} ${k}`).join(', ')}`
             : undefined}
@@ -231,7 +214,7 @@ export function StatsBar({
         {deltaDeathsA && <span style={{ ...deltaStyle, color: 'var(--rust)' }}>{deltaDeathsA}</span>}
         <span style={sepStyle}>vs</span>
         <span
-          style={{ ...valueStyle, color: 'var(--eng)' }}
+          style={{ ...valueStyle, color: colorB }}
           title={deathCausesB && Object.keys(deathCausesB).length > 0
             ? `Leader B deaths by cause: ${Object.entries(deathCausesB).map(([k, v]) => `${v} ${k}`).join(', ')}`
             : undefined}
@@ -251,19 +234,15 @@ export function StatsBar({
         })()}
       </span>
 
-      {/* Tools + Reuse cluster together. The two numbers speak to the
-          same emergent-capability story: how many unique tools a side
-          forged (TOOLS) and how many times those tools got reused
-          across events without re-forging (REUSE). */}
       <span style={pillWrap}>
         <span style={labelStyle} title="Tools forged">
           <span className="pill-label-full">TOOLS</span>
           <span className="pill-label-short">T</span>
         </span>
-        <span style={{ ...valueStyle, color: 'var(--vis)' }}>{toolsA}</span>
+        <span style={{ ...valueStyle, color: colorA }}>{toolsA}</span>
         {deltaToolsA && <span style={{ ...deltaStyle, color: 'var(--green)' }}>{deltaToolsA}</span>}
         <span style={sepStyle}>/</span>
-        <span style={{ ...valueStyle, color: 'var(--eng)' }}>{toolsB}</span>
+        <span style={{ ...valueStyle, color: colorB }}>{toolsB}</span>
         {deltaToolsB && <span style={{ ...deltaStyle, color: 'var(--green)' }}>{deltaToolsB}</span>}
       </span>
 
@@ -276,24 +255,23 @@ export function StatsBar({
             <span className="pill-label-full">REUSE</span>
             <span className="pill-label-short">R</span>
           </span>
-          <span style={{ ...valueStyle, color: 'var(--vis)' }}>{reuseA}</span>
+          <span style={{ ...valueStyle, color: colorA }}>{reuseA}</span>
           {deltaReuseA && <span style={{ ...deltaStyle, color: 'var(--green)' }}>{deltaReuseA}</span>}
           <span style={sepStyle}>/</span>
-          <span style={{ ...valueStyle, color: 'var(--eng)' }}>{reuseB}</span>
+          <span style={{ ...valueStyle, color: colorB }}>{reuseB}</span>
           {deltaReuseB && <span style={{ ...deltaStyle, color: 'var(--green)' }}>{deltaReuseB}</span>}
         </span>
       )}
 
-      {/* Citations — research-signal metric, kept after the tools cluster. */}
       <span style={pillWrap}>
         <span style={labelStyle} title="Citations">
           <span className="pill-label-full">CITES</span>
           <span className="pill-label-short">C</span>
         </span>
-        <span style={{ ...valueStyle, color: 'var(--vis)' }}>{citationsA}</span>
+        <span style={{ ...valueStyle, color: colorA }}>{citationsA}</span>
         {deltaCitesA && <span style={{ ...deltaStyle, color: 'var(--text-3)' }}>{deltaCitesA}</span>}
         <span style={sepStyle}>/</span>
-        <span style={{ ...valueStyle, color: 'var(--eng)' }}>{citationsB}</span>
+        <span style={{ ...valueStyle, color: colorB }}>{citationsB}</span>
         {deltaCitesB && <span style={{ ...deltaStyle, color: 'var(--text-3)' }}>{deltaCitesB}</span>}
       </span>
     </div>

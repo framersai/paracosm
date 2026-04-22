@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
-import type { GameState, Side } from '../../hooks/useGameState';
+import type { GameState, LeaderSideState } from '../../hooks/useGameState';
+import { getLeaderColorVar } from '../../hooks/useGameState';
 import { Tooltip } from '../shared/Tooltip';
 
 interface TimelineProps {
@@ -19,9 +20,9 @@ interface TurnEntry {
   subEvents?: Array<{ index: number; title: string; category: string }>;
 }
 
-function extractTurns(state: GameState, side: 'a' | 'b'): TurnEntry[] {
+function extractTurns(sideState: LeaderSideState, isComplete: boolean): TurnEntry[] {
   const turns: TurnEntry[] = [];
-  const s = state[side];
+  const s = sideState;
   for (const evt of s.events) {
     if (evt.type === 'turn_start' && evt.data.title && evt.data.title !== 'Director generating...') {
       turns.push({
@@ -53,7 +54,7 @@ function extractTurns(state: GameState, side: 'a' | 'b'): TurnEntry[] {
       }
     }
   }
-  if (turns.length) turns[turns.length - 1].current = !state.isComplete;
+  if (turns.length) turns[turns.length - 1].current = !isComplete;
   return turns;
 }
 
@@ -117,8 +118,8 @@ function TurnTooltipContent({ t, sideColor }: { t: TurnEntry; sideColor: string 
   );
 }
 
-function SideTimeline({ turns, side }: { turns: TurnEntry[]; side: Side }) {
-  const sideColor = side === 'a' ? 'var(--vis)' : 'var(--eng)';
+function SideTimeline({ turns, leaderIndex }: { turns: TurnEntry[]; leaderIndex: number }) {
+  const sideColor = getLeaderColorVar(leaderIndex);
   // Same tail-to-bottom pattern as the Sim column and Event Log:
   // auto-scroll when pinned, release on user scroll-up.
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -189,8 +190,12 @@ function SideTimeline({ turns, side }: { turns: TurnEntry[]; side: Side }) {
 }
 
 export function Timeline({ state }: TimelineProps) {
-  const turnsA = extractTurns(state, 'a');
-  const turnsB = extractTurns(state, 'b');
+  const firstId = state.leaderIds[0];
+  const secondId = state.leaderIds[1];
+  const sideA = firstId ? state.leaders[firstId] : null;
+  const sideB = secondId ? state.leaders[secondId] : null;
+  const turnsA = sideA ? extractTurns(sideA, state.isComplete) : [];
+  const turnsB = sideB ? extractTurns(sideB, state.isComplete) : [];
 
   if (!turnsA.length && !turnsB.length) return null;
 
@@ -200,8 +205,8 @@ export function Timeline({ state }: TimelineProps) {
       display: 'flex', gap: '4px', height: '200px', overflow: 'hidden', flexShrink: 0,
       padding: '4px 8px', minWidth: 0, maxWidth: '100%',
     }}>
-      <SideTimeline turns={turnsA} side="a" />
-      <SideTimeline turns={turnsB} side="b" />
+      <SideTimeline turns={turnsA} leaderIndex={0} />
+      <SideTimeline turns={turnsB} leaderIndex={1} />
     </div>
   );
 }

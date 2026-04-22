@@ -48,7 +48,7 @@ export function ToolboxSection({ registry, title = 'Forged Toolbox', collapsible
     }}>
       {registry.list.map(entry => {
         const depts = [...entry.departments].join(', ');
-        const sidesLabel = entry.sides.size === 2 ? 'A · B' : entry.sides.has('a') ? 'A' : 'B';
+        const sidesLabel = [...entry.leaderNames].join(' · ');
         const inputCount = countSchemaFields(entry.inputSchema, entry.inputFields);
         const outputCount = countSchemaFields(entry.outputSchema, entry.outputFields);
         return (
@@ -180,7 +180,7 @@ export function ToolboxSection({ registry, title = 'Forged Toolbox', collapsible
                       <li key={i} style={{
                         color: h.rejected ? 'var(--rust)' : (h.isReforge ? 'var(--amber)' : 'var(--text-2)'),
                       }}>
-                        T{h.turn} · {h.department} · <span style={{ color: h.side === 'a' ? 'var(--vis)' : 'var(--eng)' }}>side {h.side.toUpperCase()}</span>
+                        T{h.turn} · {h.department} · <span style={{ color: 'var(--teal)' }}>{h.leaderName}</span>
                         {' · '}
                         {i === 0 ? 'first forge' : h.isReforge ? (h.rejected ? 're-forge rejected' : 're-forge accepted') : 'reuse'}
                         {typeof h.confidence === 'number' && ` · conf ${h.confidence.toFixed(2)}`}

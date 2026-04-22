@@ -75,8 +75,8 @@ function CitationPill({ n, entry }: { n: number; entry: CitationEntry | { text: 
   const departments = (entry as CitationEntry).departments
     ? [...(entry as CitationEntry).departments]
     : [];
-  const sides = (entry as CitationEntry).sides
-    ? [...(entry as CitationEntry).sides]
+  const leaderNames = (entry as CitationEntry).leaderNames
+    ? [...(entry as CitationEntry).leaderNames]
     : [];
 
   const popover = (
@@ -107,10 +107,10 @@ function CitationPill({ n, entry }: { n: number; entry: CitationEntry | { text: 
           DOI:{doi}
         </div>
       )}
-      {(departments.length > 0 || sides.length > 0) && (
+      {(departments.length > 0 || leaderNames.length > 0) && (
         <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--mono)', marginTop: 6, paddingTop: 6, borderTop: '1px solid var(--border)' }}>
           {departments.length > 0 && <>cited by {departments.join(', ')} · </>}
-          {sides.length > 0 && <>leader {sides.length === 2 ? 'A · B' : sides[0].toUpperCase()}</>}
+          {leaderNames.length > 0 && <>leader {leaderNames.join(' · ')}</>}
         </div>
       )}
       <div style={{ fontSize: 9, color: 'var(--text-3)', fontFamily: 'var(--mono)', marginTop: 6, fontStyle: 'italic' }}>
