@@ -19,78 +19,12 @@ import {
   cacheExpandedBody,
   buildReplayHref,
 } from './LoadMenu.helpers';
+import styles from './LoadMenu.module.scss';
 
 export interface LoadMenuProps {
   /** Called when the user picks "Load from file". */
   onLoadFromFile: () => void;
 }
-
-/**
- * Load-button CTA. Mirrors the RUN button's gradient + weight but uses
- * amber instead of rust so it reads as "watch a prior sim" next to RUN
- * ("start a new sim") without competing. Sized to match RUN exactly so
- * the two sit together as a balanced primary/secondary pair in the
- * TopBar.
- */
-const triggerStyle: React.CSSProperties = {
-  background: 'linear-gradient(135deg, var(--amber), #b88a1f)',
-  color: 'var(--bg-canvas)',
-  border: 'none',
-  padding: '3px 14px',
-  borderRadius: 4,
-  fontSize: 11,
-  fontWeight: 700,
-  cursor: 'pointer',
-  fontFamily: 'var(--mono)',
-  letterSpacing: '0.5px',
-  boxShadow: '0 2px 8px rgba(232, 180, 74, 0.25)',
-};
-
-const popoverStyle: React.CSSProperties = {
-  position: 'absolute',
-  top: 'calc(100% + 4px)',
-  right: 0,
-  width: 'min(520px, calc(100vw - 32px))',
-  maxHeight: 'min(70vh, 480px)',
-  overflowY: 'auto',
-  background: 'var(--bg-panel)',
-  border: '1px solid var(--border)',
-  borderRadius: 6,
-  boxShadow: 'var(--card-shadow, 0 8px 24px rgba(0,0,0,.35))',
-  padding: 8,
-  zIndex: 50,
-};
-
-const rowStyle: React.CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  gap: 8,
-  padding: '8px 10px',
-  fontSize: 12,
-  fontFamily: 'var(--mono)',
-  color: 'var(--text-1)',
-  background: 'var(--bg-canvas)',
-  border: '1px solid var(--border)',
-  borderRadius: 4,
-  cursor: 'pointer',
-  marginBottom: 6,
-};
-
-const cardStyle: React.CSSProperties = {
-  display: 'block',
-  textAlign: 'left',
-  padding: '10px 12px',
-  fontSize: 11,
-  fontFamily: 'var(--sans)',
-  color: 'var(--text-1)',
-  background: 'var(--bg-canvas)',
-  border: '1px solid var(--border)',
-  borderRadius: 4,
-  cursor: 'pointer',
-  width: '100%',
-  marginBottom: 6,
-};
 
 function formatRelative(ts: number): string {
   const diffSec = Math.max(0, Math.floor((Date.now() - ts) / 1000));
@@ -116,17 +50,12 @@ function formatCost(usd: number | undefined): string {
 }
 
 function Card({ s, onPick }: { s: StoredSessionMeta; onPick: () => void }) {
-  // Prefer the LLM-generated narrative title when present — it carries
-  // more meaning per character than the scenario name alone. Fall back
-  // to scenarioName for titleless (pre-pipeline or failed-call) rows,
-  // then to a deterministic label so no card reads as "Untitled run".
+  // Prefer the LLM-generated narrative title when present. Fall back to
+  // scenarioName for titleless rows, then to a deterministic label.
   const deterministicTitle = s.leaderA && s.leaderB
     ? `${s.leaderA} vs ${s.leaderB}${s.scenarioName ? ` · ${s.scenarioName}` : ''}`
     : s.scenarioName || 'Simulation Run';
   const title = s.title || s.scenarioName || deterministicTitle;
-  // Second line still shows the leader matchup + turn count so the
-  // narrative title doesn't displace the factual stats when the two
-  // differ (e.g. title "Engineering Wins" vs leaders "Aria vs Voss").
   const leaders = s.leaderA && s.leaderB ? `${s.leaderA} vs ${s.leaderB}` : '';
   const scenarioSub = s.title && s.scenarioName ? s.scenarioName : '';
   const turns = s.turnCount != null ? `${s.turnCount} turn${s.turnCount === 1 ? '' : 's'}` : '';
@@ -135,15 +64,15 @@ function Card({ s, onPick }: { s: StoredSessionMeta; onPick: () => void }) {
   return (
     <button
       type="button"
-      style={cardStyle}
+      className={styles.card}
       onClick={onPick}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPick(); }
       }}
     >
-      <div style={{ fontWeight: 700, color: 'var(--text-1)', marginBottom: 2 }}>{title}</div>
-      {line2 && <div style={{ fontSize: 10, color: 'var(--text-2)', marginBottom: 4 }}>{line2}</div>}
-      <div style={{ fontSize: 10, fontFamily: 'var(--mono)', color: 'var(--text-3)' }}>{line3}</div>
+      <div className={styles.cardTitle}>{title}</div>
+      {line2 && <div className={styles.cardLine2}>{line2}</div>}
+      <div className={styles.cardLine3}>{line3}</div>
     </button>
   );
 }
@@ -151,16 +80,13 @@ function Card({ s, onPick }: { s: StoredSessionMeta; onPick: () => void }) {
 export function LoadMenu(props: LoadMenuProps) {
   const [open, setOpen] = useState(false);
   // Cache section opens expanded by default so cached runs are visible
-  // the moment the menu opens; users one step closer to "watch a prior
-  // simulation" without a second click.
+  // the moment the menu opens.
   const [cacheExpanded, setCacheExpanded] = useState(true);
   const { sessions, status, refresh } = useSessions();
   const rootRef = useRef<HTMLDivElement>(null);
 
   // Refresh the saved-sessions list every time the menu opens so a run
-  // that completed *while the dashboard was open* shows up immediately
-  // instead of requiring a full page reload. Cheap: single GET /sessions
-  // per open, no polling.
+  // that completed while the dashboard was open shows up immediately.
   useEffect(() => {
     if (open) refresh();
   }, [open, refresh]);
@@ -199,11 +125,11 @@ export function LoadMenu(props: LoadMenuProps) {
   const body = cacheExpandedBody(status, sessions);
 
   return (
-    <div ref={rootRef} style={{ position: 'relative', display: 'inline-block' }}>
+    <div ref={rootRef} className={styles.root}>
       <button
         type="button"
         data-paracosm-load-menu-trigger="true"
-        style={triggerStyle}
+        className={styles.trigger}
         aria-haspopup="menu"
         aria-expanded={open}
         title="Load a saved simulation (from file or from server cache)"
@@ -212,52 +138,44 @@ export function LoadMenu(props: LoadMenuProps) {
         LOAD
       </button>
       {open && (
-        <div role="menu" style={popoverStyle}>
+        <div role="menu" className={styles.popover}>
           {shouldShowCacheRow(status) && (
             <>
-              <div role="menuitem" tabIndex={0} style={rowStyle} onClick={() => setCacheExpanded(v => !v)}
+              <div
+                role="menuitem"
+                tabIndex={0}
+                className={styles.row}
+                onClick={() => setCacheExpanded(v => !v)}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setCacheExpanded(v => !v); } }}
                 aria-expanded={cacheExpanded}
               >
                 <span>Load from cache</span>
-                <span style={{ color: 'var(--text-3)', fontSize: 10 }}>
+                <span className={styles.rowSubLabel}>
                   {status === 'loading' ? '...' : `${sessions.length} saved`}
                 </span>
               </div>
               {cacheExpanded && body === 'loading' && (
-                <div style={{ padding: '8px 10px', fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
-                  Loading cached runs...
-                </div>
+                <div className={styles.statusMessage}>Loading cached runs...</div>
               )}
               {cacheExpanded && body === 'empty' && (
-                <div style={{ padding: '8px 10px', fontSize: 11, color: 'var(--text-3)' }}>
+                <div className={styles.statusMessage}>
                   No cached runs yet. Completed runs appear here automatically.
                 </div>
               )}
               {cacheExpanded && body === 'error' && (
-                <div style={{ padding: '8px 10px', fontSize: 11, color: 'var(--rust)', fontFamily: 'var(--mono)' }}>
+                <div className={styles.errorMessage}>
                   Server unreachable. Check that the paracosm server is running, then hit refresh.
                   <button
                     type="button"
                     onClick={() => refresh()}
-                    style={{
-                      marginLeft: 8,
-                      padding: '2px 8px',
-                      background: 'var(--bg-card)',
-                      color: 'var(--text-1)',
-                      border: '1px solid var(--border)',
-                      borderRadius: 3,
-                      cursor: 'pointer',
-                      fontFamily: 'var(--mono)',
-                      fontSize: 10,
-                    }}
+                    className={styles.retryButton}
                   >
                     Retry
                   </button>
                 </div>
               )}
               {cacheExpanded && body === 'unavailable' && (
-                <div style={{ padding: '8px 10px', fontSize: 11, color: 'var(--amber)', fontFamily: 'var(--mono)' }}>
+                <div className={styles.warningMessage}>
                   Session store not initialized on the server. Cached runs won't appear until the server restarts with a writable data directory.
                 </div>
               )}
@@ -267,7 +185,7 @@ export function LoadMenu(props: LoadMenuProps) {
                 12px vertical padding + 6px bottom margin); 5 * 70 = 350.
               */}
               {cacheExpanded && body === 'cards' && (
-                <div style={{ marginTop: 4, maxHeight: 350, overflowY: 'auto' }}>
+                <div className={styles.cardsList}>
                   {sessions.map(s => (
                     <Card key={s.id} s={s} onPick={() => handlePick(s.id)} />
                   ))}
@@ -276,11 +194,15 @@ export function LoadMenu(props: LoadMenuProps) {
             </>
           )}
 
-          <div role="menuitem" tabIndex={0} style={rowStyle} onClick={handleFile}
+          <div
+            role="menuitem"
+            tabIndex={0}
+            className={styles.row}
+            onClick={handleFile}
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleFile(); } }}
           >
             <span>Load from file</span>
-            <span style={{ color: 'var(--text-3)', fontSize: 10 }}>.json</span>
+            <span className={styles.rowSubLabel}>.json</span>
           </div>
         </div>
       )}
