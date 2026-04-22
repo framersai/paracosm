@@ -179,7 +179,7 @@ const results = await Promise.all(
 for (const r of results) {
   console.log(r.leader.name, '→', r.fingerprint);
   console.log('  cost   $', r.cost.totalCostUSD.toFixed(2), `(${r.cost.llmCalls} LLM calls)`);
-  console.log('  final    ', r.finalState.colony);        // population, morale, foodMonthsReserve, powerKw, …
+  console.log('  final    ', r.finalState.systems);       // population, morale, foodMonthsReserve, powerKw, …
   console.log('  tools    ', r.forgedToolbox.length,      // deduped forge ledger
                'citations', r.citationCatalog.length);     // DOI-linked references
   if (r.providerError) {
