@@ -1,8 +1,6 @@
 import { useMemo } from 'react';
 import type { SimEvent } from './useSSE';
 
-export type Side = 'a' | 'b';
-
 export interface AgentSnapshot {
   agentId: string;
   name: string;
@@ -52,7 +50,14 @@ export interface CrisisInfo {
   turnSummary?: string;
 }
 
-export interface SideState {
+/**
+ * Per-leader dashboard projection. Field list identical to the old
+ * `SideState`; renamed to domain-agnostic label since a leader isn't
+ * conceptually a "side" (side-by-side is a rendering choice, not a
+ * state-shape property). The rename sets up P2 arena's N-leader mode
+ * without forcing the F2/F3 layout changes into this refactor.
+ */
+export interface LeaderSideState {
   leader: LeaderInfo | null;
   systems: SystemsState | null;
   prevSystems: SystemsState | null;
@@ -67,10 +72,8 @@ export interface SideState {
    *  of a single faceless number. */
   deathCauses: Record<string, number>;
   tools: number;
-  /** Set of unique tool names approved on this side so tools stat
-   *  counts unique forges, not per-call invocations. Invocations
-   *  across later turns reappear in every dept_done that cites the
-   *  tool, which was inflating s.tools past the real forge count. */
+  /** Set of unique tool names approved on this leader's side so tools
+   *  stat counts unique forges, not per-call invocations. */
   toolNames: Set<string>;
   citations: number;
   decisions: number;
@@ -101,12 +104,7 @@ export interface ProcessedEvent {
  * other). Empty when the run hasn't reported any calls yet.
  *
  * cacheReadTokens / cacheCreationTokens are present when a stage used
- * Anthropic prompt caching: cacheReadTokens counts tokens served from
- * the prefix cache at 0.1× cost, cacheCreationTokens counts tokens
- * written to a new cache entry at 1.25× cost. A stage with many read
- * tokens and few create tokens is benefiting from caching; a stage
- * with only creates never re-used its cached prefix (TTL expired
- * between calls, or something invalidated the prefix).
+ * Anthropic prompt caching.
  */
 export type CostSiteBreakdown = Record<
   string,
@@ -125,52 +123,49 @@ export interface CostBreakdown {
   totalTokens: number;
   totalCostUSD: number;
   llmCalls: number;
-  /** Total tokens served from provider prompt cache this run. */
   cacheReadTokens?: number;
-  /** Total tokens written to provider prompt cache this run. */
   cacheCreationTokens?: number;
-  /** USD saved by caching vs a no-cache run. Negative early (cache
-   *  fill), positive once reads amortize the creation overhead. */
   cacheSavingsUSD?: number;
-  /** Per-site spend. Present when the server reports it (always in current version). */
   breakdown?: CostSiteBreakdown;
-  /**
-   * Per-schema retry rollup. One bucket per Zod schema name
-   * (DirectorEventBatch, DepartmentReport, CommanderDecision,
-   * ReactionBatch, Verdict, Promotions). `attempts / calls` gives
-   * the average attempts-to-validate on that schema, a leading
-   * indicator of model misbehavior on structured output. `fallbacks`
-   * is how many times the wrapper gave up and returned an empty
-   * skeleton.
-   */
   schemaRetries?: Record<string, { attempts: number; calls: number; fallbacks: number }>;
-  /**
-   * Per-run forge reliability rollup. Populated on every SSE _cost
-   * payload once any forge attempt (approved or rejected) has been
-   * captured in the run. Dashboard divides approved / attempts for
-   * the live approval rate; divides approvedConfidenceSum / approved
-   * for the live avg judge confidence.
-   */
   forgeStats?: { attempts: number; approved: number; rejected: number; approvedConfidenceSum: number };
 }
 
 export interface GameState {
-  a: SideState;
-  b: SideState;
-  leaderMap: Record<string, Side>;
+  /** Per-leader state, keyed by `leader.name` (matches SimEvent.leader). */
+  leaders: Record<string, LeaderSideState>;
+  /** Launch order. leaderIds[0] renders in the first column, leaderIds[1] second.
+   *  F2/F3 will generalize to N-column rendering against the full list. */
+  leaderIds: string[];
   turn: number;
   year: number;
   maxTurns: number;
   seed: number;
   isRunning: boolean;
   isComplete: boolean;
+  /** Combined cost across all leaders. */
   cost: CostBreakdown;
-  /** Per-leader cost split for the StatsBar split display. */
-  costA: CostBreakdown;
-  costB: CostBreakdown;
+  /** Per-leader cost. Keyed by leader name so N-leader arena mode (P2)
+   *  inherits per-leader accounting without another refactor. */
+  costByLeader: Record<string, CostBreakdown>;
 }
 
-function emptySide(): SideState {
+/**
+ * Map a leader index to its CSS color custom property. Index 0 is the
+ * "visionary" palette, index 1 is "engineer". Indices 2+ fall back to
+ * amber for now; F2/F3 extends the palette when N>2 rendering ships.
+ */
+export function getLeaderColorVar(index: number): string {
+  if (index === 0) return 'var(--vis)';
+  if (index === 1) return 'var(--eng)';
+  return 'var(--amber)';
+}
+
+/**
+ * Construct a fresh per-leader state. Exported so tests and future
+ * reducers can initialize new leaders without replicating the field list.
+ */
+export function createEmptyLeaderSideState(): LeaderSideState {
   return {
     leader: null, systems: null, prevSystems: null, crisis: null,
     events: [], popHistory: [], moraleHistory: [],
@@ -180,321 +175,309 @@ function emptySide(): SideState {
   };
 }
 
-export function useGameState(sseEvents: SimEvent[], isComplete: boolean): GameState {
-  return useMemo(() => {
-    const state: GameState = {
-      a: emptySide(), b: emptySide(),
-      leaderMap: {}, turn: 0, year: 0, maxTurns: 6, seed: 950,
-      isRunning: false, isComplete,
-      cost: { totalTokens: 0, totalCostUSD: 0, llmCalls: 0 },
-      costA: { totalTokens: 0, totalCostUSD: 0, llmCalls: 0 },
-      costB: { totalTokens: 0, totalCostUSD: 0, llmCalls: 0 },
-    };
+function emptyCost(): CostBreakdown {
+  return { totalTokens: 0, totalCostUSD: 0, llmCalls: 0 };
+}
 
-    const assignSide = (leader: string): Side | null => {
-      if (state.leaderMap[leader]) return state.leaderMap[leader];
-      const assigned = Object.keys(state.leaderMap).length;
-      if (assigned === 0) { state.leaderMap[leader] = 'a'; return 'a'; }
-      if (assigned === 1) { state.leaderMap[leader] = 'b'; return 'b'; }
-      return null;
-    };
+/**
+ * Pure reducer: turn an SSE event list into the full GameState. Wrapped
+ * in useMemo by the hook below; exported here for direct unit testing
+ * without a React render context (matches the useRetryStats pattern).
+ */
+export function computeGameState(sseEvents: SimEvent[], isComplete: boolean): GameState {
+  const state: GameState = {
+    leaders: {},
+    leaderIds: [],
+    turn: 0, year: 0, maxTurns: 6, seed: 950,
+    isRunning: false, isComplete,
+    cost: emptyCost(),
+    costByLeader: {},
+  };
 
-    for (let i = 0; i < sseEvents.length; i++) {
-      const evt = sseEvents[i];
-      const side = evt.leader ? assignSide(evt.leader) : null;
-      const dd = evt.data || {};
+  /**
+   * Resolve (or lazily create) per-leader state. First-seen order drives
+   * leaderIds so the dashboard's leader-column ordering is stable and
+   * deterministic. Returns null only if the event's leader field is
+   * empty (server-synthetic events like sim_saved).
+   */
+  const getLeaderSide = (leaderName: string): LeaderSideState | null => {
+    if (!leaderName) return null;
+    let s = state.leaders[leaderName];
+    if (!s) {
+      s = createEmptyLeaderSideState();
+      state.leaders[leaderName] = s;
+      state.leaderIds.push(leaderName);
+    }
+    return s;
+  };
 
-      // Track per-leader cost. Each event payload carries the leader's
-      // cumulative _cost so far (totalTokens, totalCostUSD, llmCalls,
-      // breakdown). We keep them split on costA/costB and recompute the
-      // combined total plus a merged breakdown.
-      const evtCost = dd._cost as {
-        totalTokens?: number;
-        totalCostUSD?: number;
-        llmCalls?: number;
-        cacheReadTokens?: number;
-        cacheCreationTokens?: number;
-        cacheSavingsUSD?: number;
-        breakdown?: CostSiteBreakdown;
-        schemaRetries?: Record<string, { attempts: number; calls: number; fallbacks: number }>;
-        forgeStats?: { attempts: number; approved: number; rejected: number; approvedConfidenceSum: number };
-      } | undefined;
-      if (evtCost && side) {
-        const leaderBreakdown: CostBreakdown = {
-          totalTokens: evtCost.totalTokens ?? 0,
-          totalCostUSD: evtCost.totalCostUSD ?? 0,
-          llmCalls: evtCost.llmCalls ?? 0,
-          cacheReadTokens: evtCost.cacheReadTokens ?? 0,
-          cacheCreationTokens: evtCost.cacheCreationTokens ?? 0,
-          cacheSavingsUSD: evtCost.cacheSavingsUSD ?? 0,
-          breakdown: evtCost.breakdown,
-          schemaRetries: evtCost.schemaRetries,
-          forgeStats: evtCost.forgeStats,
-        };
-        if (side === 'a') state.costA = leaderBreakdown;
-        else state.costB = leaderBreakdown;
+  for (let i = 0; i < sseEvents.length; i++) {
+    const evt = sseEvents[i];
+    const dd = evt.data || {};
+    const leaderName = evt.leader || '';
 
-        // Combine the two leaders' per-site breakdowns into one rollup
-        // for the dashboard StatsBar modal. Each leader has its own
-        // cumulative breakdown; summing element-wise gives the total
-        // per pipeline stage across both runs.
-        const mergedBreakdown: CostSiteBreakdown = {};
-        for (const src of [state.costA.breakdown, state.costB.breakdown]) {
-          if (!src) continue;
-          for (const [siteKey, bucket] of Object.entries(src)) {
-            const existing = mergedBreakdown[siteKey] ?? {
-              totalTokens: 0, totalCostUSD: 0, calls: 0,
-              cacheReadTokens: 0, cacheCreationTokens: 0, cacheSavingsUSD: 0,
-            };
-            mergedBreakdown[siteKey] = {
-              totalTokens: existing.totalTokens + (bucket?.totalTokens ?? 0),
-              totalCostUSD: Math.round((existing.totalCostUSD + (bucket?.totalCostUSD ?? 0)) * 10000) / 10000,
-              calls: existing.calls + (bucket?.calls ?? 0),
-              cacheReadTokens: (existing.cacheReadTokens ?? 0) + (bucket?.cacheReadTokens ?? 0),
-              cacheCreationTokens: (existing.cacheCreationTokens ?? 0) + (bucket?.cacheCreationTokens ?? 0),
-              cacheSavingsUSD: Math.round(((existing.cacheSavingsUSD ?? 0) + (bucket?.cacheSavingsUSD ?? 0)) * 10000) / 10000,
-            };
-          }
-        }
+    // Per-leader cost tracking. Each event's _cost payload is the
+    // CUMULATIVE spend for that leader, so we overwrite the slot rather
+    // than accumulate. Combined totals get recomputed below.
+    const evtCost = dd._cost as {
+      totalTokens?: number;
+      totalCostUSD?: number;
+      llmCalls?: number;
+      cacheReadTokens?: number;
+      cacheCreationTokens?: number;
+      cacheSavingsUSD?: number;
+      breakdown?: CostSiteBreakdown;
+      schemaRetries?: Record<string, { attempts: number; calls: number; fallbacks: number }>;
+      forgeStats?: { attempts: number; approved: number; rejected: number; approvedConfidenceSum: number };
+    } | undefined;
 
-        // Merge schemaRetries buckets across leaders. Each leader's
-        // buckets are additive — sum attempts/calls/fallbacks for any
-        // schema name that appears on either side.
-        const mergedSchemaRetries: Record<string, { attempts: number; calls: number; fallbacks: number }> = {};
-        for (const src of [state.costA.schemaRetries, state.costB.schemaRetries]) {
-          if (!src) continue;
-          for (const [schemaName, bucket] of Object.entries(src)) {
-            const existing = mergedSchemaRetries[schemaName] ?? { attempts: 0, calls: 0, fallbacks: 0 };
-            mergedSchemaRetries[schemaName] = {
-              attempts: existing.attempts + bucket.attempts,
-              calls: existing.calls + bucket.calls,
-              fallbacks: existing.fallbacks + bucket.fallbacks,
-            };
-          }
-        }
-
-        // Merge per-leader forgeStats into a run-wide rollup for the
-        // cost modal's FORGE RELIABILITY section. Both leaders' forge
-        // activity adds to the total; the dashboard then divides
-        // approved/attempts for live approval rate.
-        const mergedForgeStats = (() => {
-          const a = state.costA.forgeStats;
-          const b = state.costB.forgeStats;
-          if (!a && !b) return undefined;
-          return {
-            attempts: (a?.attempts ?? 0) + (b?.attempts ?? 0),
-            approved: (a?.approved ?? 0) + (b?.approved ?? 0),
-            rejected: (a?.rejected ?? 0) + (b?.rejected ?? 0),
-            approvedConfidenceSum: (a?.approvedConfidenceSum ?? 0) + (b?.approvedConfidenceSum ?? 0),
-          };
-        })();
-
-        state.cost = {
-          totalTokens: state.costA.totalTokens + state.costB.totalTokens,
-          totalCostUSD: Math.round((state.costA.totalCostUSD + state.costB.totalCostUSD) * 10000) / 10000,
-          llmCalls: state.costA.llmCalls + state.costB.llmCalls,
-          cacheReadTokens: (state.costA.cacheReadTokens ?? 0) + (state.costB.cacheReadTokens ?? 0),
-          cacheCreationTokens: (state.costA.cacheCreationTokens ?? 0) + (state.costB.cacheCreationTokens ?? 0),
-          cacheSavingsUSD: Math.round(((state.costA.cacheSavingsUSD ?? 0) + (state.costB.cacheSavingsUSD ?? 0)) * 10000) / 10000,
-          breakdown: Object.keys(mergedBreakdown).length > 0 ? mergedBreakdown : undefined,
-          schemaRetries: Object.keys(mergedSchemaRetries).length > 0 ? mergedSchemaRetries : undefined,
-          forgeStats: mergedForgeStats,
-        };
-      }
-
-      // Handle status events (no side)
-      if (evt.type === 'status') {
-        if (dd.maxTurns) state.maxTurns = dd.maxTurns as number;
-        if (dd.phase === 'parallel' && Array.isArray(dd.leaders)) {
-          const leaders = dd.leaders as LeaderInfo[];
-          if (leaders[0]) state.a.leader = leaders[0];
-          if (leaders[1]) state.b.leader = leaders[1];
-          state.isRunning = true;
-        }
-        continue;
-      }
-
-      if (!side) continue;
-      const s = state[side];
-
-      const processed: ProcessedEvent = {
-        id: `${i}-${evt.type}`,
-        type: evt.type,
-        turn: dd.turn as number | undefined,
-        year: dd.year as number | undefined,
-        data: dd,
+    if (evtCost && leaderName) {
+      // Guarantee the leader exists in the map so cost tracking
+      // stays consistent even if no state-shaping event has landed yet
+      // for this leader (rare but possible on cost-before-turn ordering).
+      getLeaderSide(leaderName);
+      state.costByLeader[leaderName] = {
+        totalTokens: evtCost.totalTokens ?? 0,
+        totalCostUSD: evtCost.totalCostUSD ?? 0,
+        llmCalls: evtCost.llmCalls ?? 0,
+        cacheReadTokens: evtCost.cacheReadTokens ?? 0,
+        cacheCreationTokens: evtCost.cacheCreationTokens ?? 0,
+        cacheSavingsUSD: evtCost.cacheSavingsUSD ?? 0,
+        breakdown: evtCost.breakdown,
+        schemaRetries: evtCost.schemaRetries,
+        forgeStats: evtCost.forgeStats,
       };
 
-      switch (evt.type) {
-        case 'event_start': {
-          const info = {
-            eventIndex: Number(dd.eventIndex ?? 0),
-            totalEvents: Number(dd.totalEvents ?? 1),
-            title: String(dd.title || ''),
-            category: String(dd.category || ''),
+      // Recompute combined totals across ALL leaders. The old hook only
+      // merged 2; this generalization folds in every entry in the map,
+      // so N-leader arena runs get correct totals with no extra work.
+      const leaderCosts = Object.values(state.costByLeader);
+
+      const mergedBreakdown: CostSiteBreakdown = {};
+      for (const c of leaderCosts) {
+        if (!c.breakdown) continue;
+        for (const [siteKey, bucket] of Object.entries(c.breakdown)) {
+          const existing = mergedBreakdown[siteKey] ?? {
+            totalTokens: 0, totalCostUSD: 0, calls: 0,
+            cacheReadTokens: 0, cacheCreationTokens: 0, cacheSavingsUSD: 0,
           };
-          s.currentEvents.push(info);
-          if (info.totalEvents > 1) {
-            s.crisis = {
-              turn: dd.turn as number,
-              year: dd.year as number,
-              title: `${info.eventIndex + 1}/${info.totalEvents}: ${info.title}`,
-              description: dd.description as string || '',
-              category: info.category,
-              emergent: dd.emergent as boolean || false,
-              turnSummary: dd.turnSummary as string || '',
-            };
-          }
-          s.events.push(processed);
-          break;
+          mergedBreakdown[siteKey] = {
+            totalTokens: existing.totalTokens + (bucket?.totalTokens ?? 0),
+            totalCostUSD: Math.round((existing.totalCostUSD + (bucket?.totalCostUSD ?? 0)) * 10000) / 10000,
+            calls: existing.calls + (bucket?.calls ?? 0),
+            cacheReadTokens: (existing.cacheReadTokens ?? 0) + (bucket?.cacheReadTokens ?? 0),
+            cacheCreationTokens: (existing.cacheCreationTokens ?? 0) + (bucket?.cacheCreationTokens ?? 0),
+            cacheSavingsUSD: Math.round(((existing.cacheSavingsUSD ?? 0) + (bucket?.cacheSavingsUSD ?? 0)) * 10000) / 10000,
+          };
         }
-
-        case 'turn_start':
-          s.currentEvents = [];
-          if (dd.turn) state.turn = dd.turn as number;
-          if (dd.year) state.year = dd.year as number;
-          if (dd.title && dd.title !== 'Director generating...') {
-            s.crisis = {
-              turn: dd.turn as number,
-              year: dd.year as number,
-              title: dd.title as string,
-              description: dd.crisis as string || '',
-              category: dd.category as string || '',
-              emergent: dd.emergent as boolean || false,
-              turnSummary: dd.turnSummary as string || '',
-            };
-          }
-          if (dd.systems) {
-            s.prevSystems = s.systems ? { ...s.systems } : null;
-            s.systems = dd.systems as SystemsState;
-            s.popHistory.push((dd.systems as SystemsState).population || 0);
-            s.moraleHistory.push(Math.round(((dd.systems as SystemsState).morale || 0) * 100));
-          }
-          if (dd.deaths) s.deaths += Number(dd.deaths) || 0;
-          s.events.push(processed);
-          break;
-
-        case 'promotion':
-          s.events.push(processed);
-          break;
-
-        case 'dept_start':
-          s.events.push(processed);
-          break;
-
-        case 'forge_attempt':
-          // Real-time forge event from the orchestrator. Push into the
-          // event stream so EventCard can render an inline FORGED card
-          // the moment a tool is invented (not just at dept_done summary).
-          // Don't increment s.tools here — that's incremented from the
-          // dept_done summary which is the deduplicated authoritative
-          // count (forge_attempt fires per call; same tool reused = same
-          // name appears once in dept_done forgedTools).
-          s.events.push(processed);
-          break;
-
-        case 'dept_done': {
-          // Keep every named forge in _filteredTools (approved + rejected)
-          // so the Toolbox can render "attempted but failed" cards, but
-          // only count APPROVED tools toward the TOOLS stat. Rejecting a
-          // forge means the tool never entered the session registry, so
-          // it is not part of the leader's real capability inventory;
-          // counting it inflated the headline against reality.
-          const allTools = Array.isArray(dd.forgedTools) ? dd.forgedTools.filter((t: any) => t?.name && t.name !== 'unnamed') : [];
-          // Track unique approved tool names across the whole run so
-          // the stats bar counts real forges, not the fact that later
-          // dept_done events cite the same tool over and over. Each
-          // unique approved name contributes +1 to s.tools exactly
-          // once.
-          for (const t of allTools) {
-            const name = String(t.name || '').trim();
-            if (!name) continue;
-            if (t.approved !== false && !s.toolNames.has(name)) {
-              s.toolNames.add(name);
-            }
-          }
-          s.tools = s.toolNames.size;
-          s.citations += Number(dd.citations) || 0;
-          s.events.push({ ...processed, data: { ...dd, _filteredTools: allTools } });
-          break;
-        }
-
-        case 'commander_deciding':
-          s.events.push(processed);
-          break;
-
-        case 'commander_decided':
-          s.pendingDecision = dd.decision as string || '';
-          s.pendingRationale = dd.rationale as string || '';
-          s.pendingReasoning = dd.reasoning as string || '';
-          s.pendingPolicies = (dd.selectedPolicies as string[]) || [];
-          break;
-
-        case 'outcome': {
-          const outcome = dd.outcome as string || '';
-          s.outcome = outcome;
-          s.decisions++;
-          s.events.push({
-            ...processed,
-            data: {
-              ...dd,
-              _decision: s.pendingDecision,
-              _rationale: s.pendingRationale,
-              _reasoning: s.pendingReasoning,
-              _policies: s.pendingPolicies,
-            },
-          });
-          break;
-        }
-
-        case 'drift':
-          s.events.push(processed);
-          break;
-
-        case 'agent_reactions':
-          s.events.push(processed);
-          break;
-
-        case 'bulletin':
-          s.events.push(processed);
-          break;
-
-        case 'systems_snapshot':
-          s.agentSnapshots.push((dd.agents as AgentSnapshot[]) || []);
-          s.events.push(processed);
-          break;
-
-        case 'turn_done':
-          if (dd.systems) {
-            s.prevSystems = s.systems ? { ...s.systems } : null;
-            s.systems = dd.systems as SystemsState;
-          }
-          // Fold this turn's cause breakdown into the running tally so
-          // the stats bar tooltip can show "3 radiation · 2 accident"
-          // across the full run.
-          if (dd.deathCauses && typeof dd.deathCauses === 'object') {
-            for (const [cause, n] of Object.entries(dd.deathCauses as Record<string, number>)) {
-              if (typeof n !== 'number' || n <= 0) continue;
-              s.deathCauses[cause] = (s.deathCauses[cause] ?? 0) + n;
-            }
-          }
-          s.events.push(processed);
-          break;
       }
+
+      const mergedSchemaRetries: Record<string, { attempts: number; calls: number; fallbacks: number }> = {};
+      for (const c of leaderCosts) {
+        if (!c.schemaRetries) continue;
+        for (const [schemaName, bucket] of Object.entries(c.schemaRetries)) {
+          const existing = mergedSchemaRetries[schemaName] ?? { attempts: 0, calls: 0, fallbacks: 0 };
+          mergedSchemaRetries[schemaName] = {
+            attempts: existing.attempts + bucket.attempts,
+            calls: existing.calls + bucket.calls,
+            fallbacks: existing.fallbacks + bucket.fallbacks,
+          };
+        }
+      }
+
+      const mergedForgeStats = (() => {
+        const stats = leaderCosts.map(c => c.forgeStats).filter((x): x is NonNullable<typeof x> => !!x);
+        if (stats.length === 0) return undefined;
+        return stats.reduce(
+          (acc, s) => ({
+            attempts: acc.attempts + s.attempts,
+            approved: acc.approved + s.approved,
+            rejected: acc.rejected + s.rejected,
+            approvedConfidenceSum: acc.approvedConfidenceSum + s.approvedConfidenceSum,
+          }),
+          { attempts: 0, approved: 0, rejected: 0, approvedConfidenceSum: 0 },
+        );
+      })();
+
+      state.cost = {
+        totalTokens: leaderCosts.reduce((sum, c) => sum + c.totalTokens, 0),
+        totalCostUSD: Math.round(leaderCosts.reduce((sum, c) => sum + c.totalCostUSD, 0) * 10000) / 10000,
+        llmCalls: leaderCosts.reduce((sum, c) => sum + c.llmCalls, 0),
+        cacheReadTokens: leaderCosts.reduce((sum, c) => sum + (c.cacheReadTokens ?? 0), 0),
+        cacheCreationTokens: leaderCosts.reduce((sum, c) => sum + (c.cacheCreationTokens ?? 0), 0),
+        cacheSavingsUSD: Math.round(leaderCosts.reduce((sum, c) => sum + (c.cacheSavingsUSD ?? 0), 0) * 10000) / 10000,
+        breakdown: Object.keys(mergedBreakdown).length > 0 ? mergedBreakdown : undefined,
+        schemaRetries: Object.keys(mergedSchemaRetries).length > 0 ? mergedSchemaRetries : undefined,
+        forgeStats: mergedForgeStats,
+      };
     }
 
-    // Reconciliation: once the run has reached a terminal state the
-    // sim is no longer "running", regardless of whether a `status
-    // phase=parallel` event earlier flipped isRunning to true. Without
-    // this, reloading a page with a completed or aborted run in the
-    // event buffer replays the status event and leaves state.isRunning
-    // stuck at true forever, so SimView renders the in-run view
-    // instead of the "Unfinished" / "Complete" terminal UI.
-    const aborted = sseEvents.some(e => e.type === 'sim_aborted');
-    if (state.isComplete || aborted) {
-      state.isRunning = false;
+    // Status events carry run-wide metadata + leader roster. They're
+    // leader-less at the SimEvent layer (leader = '') so they don't
+    // create per-leader state; the leader roster payload explicitly
+    // populates leaders for every entry it carries.
+    if (evt.type === 'status') {
+      if (dd.maxTurns) state.maxTurns = dd.maxTurns as number;
+      if (dd.phase === 'parallel' && Array.isArray(dd.leaders)) {
+        const leaders = dd.leaders as LeaderInfo[];
+        for (const leaderInfo of leaders) {
+          if (!leaderInfo?.name) continue;
+          const s = getLeaderSide(leaderInfo.name);
+          if (s) s.leader = leaderInfo;
+        }
+        state.isRunning = true;
+      }
+      continue;
     }
 
-    return state;
-  }, [sseEvents, isComplete]);
+    const s = getLeaderSide(leaderName);
+    if (!s) continue;
+
+    const processed: ProcessedEvent = {
+      id: `${i}-${evt.type}`,
+      type: evt.type,
+      turn: dd.turn as number | undefined,
+      year: dd.year as number | undefined,
+      data: dd,
+    };
+
+    switch (evt.type) {
+      case 'event_start': {
+        const info = {
+          eventIndex: Number(dd.eventIndex ?? 0),
+          totalEvents: Number(dd.totalEvents ?? 1),
+          title: String(dd.title || ''),
+          category: String(dd.category || ''),
+        };
+        s.currentEvents.push(info);
+        if (info.totalEvents > 1) {
+          s.crisis = {
+            turn: dd.turn as number,
+            year: dd.year as number,
+            title: `${info.eventIndex + 1}/${info.totalEvents}: ${info.title}`,
+            description: dd.description as string || '',
+            category: info.category,
+            emergent: dd.emergent as boolean || false,
+            turnSummary: dd.turnSummary as string || '',
+          };
+        }
+        s.events.push(processed);
+        break;
+      }
+
+      case 'turn_start':
+        s.currentEvents = [];
+        if (dd.turn) state.turn = dd.turn as number;
+        if (dd.year) state.year = dd.year as number;
+        if (dd.title && dd.title !== 'Director generating...') {
+          s.crisis = {
+            turn: dd.turn as number,
+            year: dd.year as number,
+            title: dd.title as string,
+            description: dd.crisis as string || '',
+            category: dd.category as string || '',
+            emergent: dd.emergent as boolean || false,
+            turnSummary: dd.turnSummary as string || '',
+          };
+        }
+        if (dd.systems) {
+          s.prevSystems = s.systems ? { ...s.systems } : null;
+          s.systems = dd.systems as SystemsState;
+          s.popHistory.push((dd.systems as SystemsState).population || 0);
+          s.moraleHistory.push(Math.round(((dd.systems as SystemsState).morale || 0) * 100));
+        }
+        if (dd.deaths) s.deaths += Number(dd.deaths) || 0;
+        s.events.push(processed);
+        break;
+
+      case 'promotion':
+      case 'dept_start':
+      case 'forge_attempt':
+        // forge_attempt: orchestrator streams these as tools get invented.
+        // Do NOT increment s.tools here; dept_done is the authoritative
+        // dedup source for the unique-tool count.
+      case 'commander_deciding':
+      case 'drift':
+      case 'agent_reactions':
+      case 'bulletin':
+        s.events.push(processed);
+        break;
+
+      case 'dept_done': {
+        // Keep every named forge in _filteredTools (approved + rejected)
+        // so the Toolbox can render "attempted but failed" cards, but
+        // only count APPROVED tools toward the TOOLS stat.
+        const allTools = Array.isArray(dd.forgedTools) ? dd.forgedTools.filter((t: any) => t?.name && t.name !== 'unnamed') : [];
+        for (const t of allTools) {
+          const name = String(t.name || '').trim();
+          if (!name) continue;
+          if (t.approved !== false && !s.toolNames.has(name)) {
+            s.toolNames.add(name);
+          }
+        }
+        s.tools = s.toolNames.size;
+        s.citations += Number(dd.citations) || 0;
+        s.events.push({ ...processed, data: { ...dd, _filteredTools: allTools } });
+        break;
+      }
+
+      case 'commander_decided':
+        s.pendingDecision = dd.decision as string || '';
+        s.pendingRationale = dd.rationale as string || '';
+        s.pendingReasoning = dd.reasoning as string || '';
+        s.pendingPolicies = (dd.selectedPolicies as string[]) || [];
+        break;
+
+      case 'outcome': {
+        const outcome = dd.outcome as string || '';
+        s.outcome = outcome;
+        s.decisions++;
+        s.events.push({
+          ...processed,
+          data: {
+            ...dd,
+            _decision: s.pendingDecision,
+            _rationale: s.pendingRationale,
+            _reasoning: s.pendingReasoning,
+            _policies: s.pendingPolicies,
+          },
+        });
+        break;
+      }
+
+      case 'systems_snapshot':
+        s.agentSnapshots.push((dd.agents as AgentSnapshot[]) || []);
+        s.events.push(processed);
+        break;
+
+      case 'turn_done':
+        if (dd.systems) {
+          s.prevSystems = s.systems ? { ...s.systems } : null;
+          s.systems = dd.systems as SystemsState;
+        }
+        if (dd.deathCauses && typeof dd.deathCauses === 'object') {
+          for (const [cause, n] of Object.entries(dd.deathCauses as Record<string, number>)) {
+            if (typeof n !== 'number' || n <= 0) continue;
+            s.deathCauses[cause] = (s.deathCauses[cause] ?? 0) + n;
+          }
+        }
+        s.events.push(processed);
+        break;
+    }
+  }
+
+  // Reconciliation: once the run reached a terminal state, isRunning
+  // stays false even if an earlier status event tried to flip it true.
+  // Without this, reloading a page with a completed/aborted run in the
+  // event buffer would leave isRunning stuck at true forever.
+  const aborted = sseEvents.some(e => e.type === 'sim_aborted');
+  if (state.isComplete || aborted) {
+    state.isRunning = false;
+  }
+
+  return state;
+}
+
+export function useGameState(sseEvents: SimEvent[], isComplete: boolean): GameState {
+  return useMemo(() => computeGameState(sseEvents, isComplete), [sseEvents, isComplete]);
 }
