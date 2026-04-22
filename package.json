@@ -57,6 +57,7 @@
     "check:dashboard": "node --check src/cli/dashboard/main.legacy.js",
     "test": "node --import tsx --test 'tests/**/*.test.ts' 'src/cli/dashboard/src/**/*.test.ts'",
     "docs": "typedoc && cp assets/docs-theme/paracosm-override.css docs/api/assets/paracosm-override.css",
+    "changelog": "node scripts/generate-changelog.mjs",
     "prepublishOnly": "npm run build",
     "leader:a": "npx tsx src/cli/run-a.ts",
     "leader:b": "npx tsx src/cli/run-b.ts"

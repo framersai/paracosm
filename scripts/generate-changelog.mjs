@@ -141,9 +141,15 @@ export function runGit(args) {
   // execFileSync preserves args as an array without shell interpretation,
   // which matters because flags like `--pretty=format:%H %cs` contain
   // literal spaces that a shell invocation would split on.
+  //
+  // stderr is silenced because expected failures (e.g. `git describe`
+  // finding no tags yet) are handled via try/catch at the call site;
+  // propagating git's stderr to the console would look alarming in CI
+  // logs for what is normal behaviour.
   const out = execFileSync('git', args, {
     encoding: 'utf-8',
     maxBuffer: 128 * 1024 * 1024,
+    stdio: ['ignore', 'pipe', 'ignore'],
   });
   return out.trimEnd();
 }
@@ -359,7 +365,7 @@ export function renderChangelog({ boundaries, narratives, gitFn }) {
       version: current.version,
       date: current.date,
       narrative: narratives.get(current.version) ?? '',
-      commits: range,
+      commits: range.map(parseCommit),
       collapseOther: true,
     }));
   }
@@ -400,7 +406,7 @@ export function renderReleaseNotes({ boundaries, gitFn }) {
     version: upcomingVersion,
     date: today,
     narrative: '',
-    commits,
+    commits: commits.map(parseCommit),
     collapseOther: false,
   }) + '\n';
 }
