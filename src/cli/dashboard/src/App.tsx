@@ -4,6 +4,9 @@ import { useScenario, type ScenarioClientPayload } from './hooks/useScenario';
 import { useSSE } from './hooks/useSSE';
 import { useGameState } from './hooks/useGameState';
 import { useGamePersistence } from './hooks/useGamePersistence';
+import { useForgeToasts } from './hooks/useForgeToasts';
+import { useTerminalToast } from './hooks/useTerminalToast';
+import { useSimSavedToast } from './hooks/useSimSavedToast';
 import { useCitationRegistry, CitationRegistryContext } from './hooks/useCitationRegistry';
 import { useToolRegistry, ToolRegistryContext } from './hooks/useToolRegistry';
 import { useFocusTrap } from './hooks/useFocusTrap';
@@ -162,138 +165,16 @@ function AppContent() {
     el.scrollTop = el.scrollHeight;
   }, [effectiveEvents.length]);
 
-  // ── Forge result toasts ─────────────────────────────────────────
-  // Surface every forge_attempt as a toast so users see WHICH tool
-  // was attempted, whether the judge approved or rejected it, and the
-  // judge's reasoning. Without this, forge events are visible only in
-  // the dense viz / event log and users miss the reliability signal.
-  //
-  // Three layers of gating keep toasts from flashing all at once when
-  // the user launches a new sim, loads a saved run, or opens a replay:
-  //
-  // 1. sessionStorage (`paracosm:seenForgeToasts`): per-tab key-set so a
-  //    page reload does not replay every historical forge as a fresh
-  //    toast. Keys are `leader|name|timestamp|approved` — stable per
-  //    forge event across reconnects and buffer replays.
-  //
-  // 2. In-memory watermark (`liveStartIndexRef`): records the index in
-  //    the events array at the moment the run transitioned to live
-  //    (replayDone flipped true). Any forge at a position < watermark
-  //    is historical — seed into the seen-set silently, never toast.
-  //    This is the critical fix for the "all toasts flash at once" bug:
-  //    when the server flushes its buffered SSE events, React 18
-  //    batches the N sim setStates and the trailing replay_done
-  //    setState into ONE commit. Without this watermark the forge
-  //    effect would run once with events=[N forges] AND replayDone=true
-  //    and fire N toasts simultaneously. Same pathology hits
-  //    loadEvents(): it sets replayDone:true synchronously with the
-  //    populated events array. The watermark captures the length at
-  //    that instant so those events are treated as historical.
-  //
-  // 3. In-memory toasted key set (`toastedForgeKeysRef`): prevents the
-  //    same forge from toasting twice within one tab session, even if
-  //    sessionStorage gets cleared or a re-render re-enters the effect
-  //    with an already-processed event.
-  const forgeSeenStorageKey = 'paracosm:seenForgeToasts';
-  const readSeenForges = useCallback((): Set<string> => {
-    try {
-      const raw = sessionStorage.getItem(forgeSeenStorageKey);
-      if (!raw) return new Set();
-      return new Set(JSON.parse(raw) as string[]);
-    } catch {
-      return new Set();
-    }
-  }, []);
-  const writeSeenForges = useCallback((s: Set<string>) => {
-    try {
-      sessionStorage.setItem(forgeSeenStorageKey, JSON.stringify([...s].slice(-500)));
-    } catch {
-      /* silent */
-    }
-  }, []);
-  // `toast` must be declared before the effect below: reading it from
-  // the dep array on first render would throw TDZ ("Cannot access 'toast'
-  // before initialization") if the const sat below the useEffect.
+  // Forge-attempt toast pipeline (sessionStorage + watermark + toasted-key
+  // set). Three-layer gating extracted to hooks/useForgeToasts.ts; see
+  // that file for the rationale.
   const { toast } = useToast();
+  useForgeToasts({
+    events: effectiveEvents,
+    replayDone: sse.replayDone,
+    tourActive,
+  });
 
-  // Watermark: the index at which the currently-streamed run became
-  // live. Events at positions before this index are historical (buffer
-  // replay, loaded file, replay session, or post-reset backfill) and
-  // must never toast. Null while we are still in the replay phase.
-  const liveStartIndexRef = useRef<number | null>(null);
-  // Every forge we have already toasted in this tab session. Belt on
-  // top of the sessionStorage seen-set so a re-entry of the effect
-  // (new commit, HMR, StrictMode double-invoke in dev) can't double-fire
-  // a toast we already surfaced moments ago.
-  const toastedForgeKeysRef = useRef<Set<string>>(new Set());
-  useEffect(() => {
-    const replayDone = tourActive ? true : sse.replayDone;
-    if (!replayDone) return;
-    // `reset()` shrinks events back to zero. Realign the watermark so
-    // the next stream of events is treated as live — without this the
-    // watermark could stay at, say, 120 from the prior run and suppress
-    // every new forge coming in on the new run.
-    if (
-      liveStartIndexRef.current === null ||
-      liveStartIndexRef.current > effectiveEvents.length
-    ) {
-      liveStartIndexRef.current = effectiveEvents.length;
-    }
-  }, [sse.replayDone, effectiveEvents.length, tourActive]);
-
-  useEffect(() => {
-    const forgeKey = (ev: typeof effectiveEvents[number]): string => {
-      const d = ev.data as Record<string, unknown>;
-      return `${ev.leader || ''}|${d?.name || ''}|${d?.timestamp || ''}|${d?.approved}`;
-    };
-    const seen = readSeenForges();
-    const alreadyToasted = toastedForgeKeysRef.current;
-    const replayDone = tourActive ? true : sse.replayDone;
-    // If replay hasn't finished yet OR the live-start watermark is
-    // still unset, ALL current events are historical. Otherwise, only
-    // events at index >= watermark count as live.
-    const liveStart = replayDone ? (liveStartIndexRef.current ?? Infinity) : Infinity;
-
-    // Stagger live toasts so a burst of forges landing in one commit
-    // doesn't flash simultaneously. 450ms between pops reads as a
-    // sequence without feeling sluggish.
-    let stagger = 0;
-    for (let i = 0; i < effectiveEvents.length; i++) {
-      const ev = effectiveEvents[i];
-      if (ev.type !== 'forge_attempt') continue;
-      const key = forgeKey(ev);
-      if (seen.has(key) || alreadyToasted.has(key)) continue;
-      seen.add(key);
-      const isHistorical = i < liveStart;
-      if (isHistorical) continue;
-      alreadyToasted.add(key);
-      const d = ev.data as Record<string, unknown>;
-      const name = String(d?.name || 'unnamed tool');
-      const dept = String(d?.department || ev.leader || '').toUpperCase();
-      const approved = d?.approved === true;
-      const confidence = typeof d?.confidence === 'number' ? d.confidence : null;
-      const reason = String(d?.errorReason || '').slice(0, 220);
-      const delay = stagger;
-      stagger += 450;
-      setTimeout(() => {
-        if (approved) {
-          const confStr = confidence != null ? ` · conf ${confidence.toFixed(2)}` : '';
-          toast(
-            'success',
-            `${dept ? `${dept} · ` : ''}forged ${name}`,
-            `Judge approved${confStr}`,
-          );
-        } else {
-          toast(
-            'error',
-            `${dept ? `${dept} · ` : ''}rejected ${name}`,
-            reason || 'Judge rejected (no reason provided)',
-          );
-        }
-      }, delay);
-    }
-    writeSeenForges(seen);
-  }, [effectiveEvents, toast, sse.replayDone, tourActive, readSeenForges, writeSeenForges]);
   const citationRegistry = useCitationRegistry(gameState);
   const toolRegistry = useToolRegistry(gameState);
   const persistence = useGamePersistence(scenario.labels.shortName);
@@ -547,52 +428,15 @@ function AppContent() {
     }
   }, [launching, gameState.isRunning, sse.isComplete, sse.status]);
 
-  // End-of-sim toast: fire exactly once when the run transitions to a
-  // terminal state. Distinguishes Complete (all turns finished, verdict
-  // broadcast) from Unfinished (user left, disconnect watchdog aborted
-  // the run). Skipped during tour mode where isComplete is synthetic.
-  //
-  // Dedup across remounts via sessionStorage: the dashboard SPA fully
-  // reloads when the user clicks the About link (it jumps to /) and
-  // a fresh mount on return would otherwise re-fire this toast for
-  // the same terminal state the user already saw. Keyed on a stable
-  // fingerprint so a new run can still toast its own terminal event
-  // without the prior run's fingerprint blocking it.
-  useEffect(() => {
-    if (tourActive) return;
-    if (!sse.isComplete && !sse.isAborted) return;
-    // Only toast terminal events that happen LIVE — i.e. the
-    // replayDone flag has already flipped so we're past buffer
-    // replay. Terminal states observed before replay_done are
-    // historical (user is viewing a completed run, not watching it
-    // finish), and firing a toast for them reads as spam. Mirrors
-    // the forge-toast gate.
-    if (!sse.replayDone) return;
-    const fingerprint = sse.isAborted
-      ? `aborted:${sse.abortReason?.reason ?? 'unknown'}:${sse.abortReason?.leader ?? ''}:${sse.abortReason?.turn ?? ''}`
-      : `complete:${sse.results.length}:${sse.verdict ? 'v' : 'nv'}`;
-    const storageKey = 'paracosm:terminalToastFingerprint';
-    try {
-      if (sessionStorage.getItem(storageKey) === fingerprint) return;
-      sessionStorage.setItem(storageKey, fingerprint);
-    } catch {
-      /* silent — fall through and toast once per mount */
-    }
-    if (sse.isAborted) {
-      toast('info', 'Simulation ended early', 'Partial results saved. Reload to resume from the abort point.');
-    } else {
-      toast('success', 'Simulation complete', 'Open the Reports tab for the verdict + full breakdown.');
-    }
-  }, [
-    sse.isComplete,
-    sse.isAborted,
-    sse.abortReason,
-    sse.results.length,
-    sse.verdict,
-    sse.replayDone,
+  useTerminalToast({
+    isComplete: sse.isComplete,
+    isAborted: sse.isAborted,
+    abortReason: sse.abortReason,
+    resultsCount: sse.results.length,
+    hasVerdict: Boolean(sse.verdict),
+    replayDone: sse.replayDone,
     tourActive,
-    toast,
-  ]);
+  });
 
   // Local cache fallback: write completed runs to localStorage keyed
   // by scenario shortName so the LOAD menu can surface them even when
@@ -625,40 +469,7 @@ function AppContent() {
     tourActive,
   ]);
 
-  // Surface the server's sim_saved outcome. Toast success with the
-  // saved id (so users can see the run landed in the ring) and
-  // errors with a concrete reason so a failed save doesn't look
-  // indistinguishable from a silent skip. Dedup via sessionStorage
-  // keyed on the status+id so returning to the tab after a full page
-  // reload doesn't re-toast the same saved run.
-  useEffect(() => {
-    if (tourActive) return;
-    const savedEvent = sse.events.find((e) => e.type === 'sim_saved');
-    if (!savedEvent) return;
-    const d = (savedEvent.data ?? {}) as Record<string, unknown>;
-    const status = String(d.status ?? 'unknown');
-    const fingerprint = `sim_saved:${status}:${d.id ?? ''}:${d.reason ?? ''}`;
-    const storageKey = 'paracosm:simSavedToastFingerprint';
-    try {
-      if (sessionStorage.getItem(storageKey) === fingerprint) return;
-      sessionStorage.setItem(storageKey, fingerprint);
-    } catch {
-      /* silent */
-    }
-    if (status === 'saved') {
-      const id = typeof d.id === 'string' ? d.id.slice(0, 8) : 'run';
-      toast('success', 'Saved to cache', `Run ${id}… stored. Open LOAD to replay.`);
-    } else if (status === 'failed') {
-      toast('error', 'Cache save failed', String(d.error ?? 'Unknown error'));
-    } else if (status === 'skipped') {
-      const reason = String(d.reason ?? 'unknown');
-      // Only toast skips the user would want to know about. "below min
-      // turns" is an expected state for aborted-too-early runs; silence it.
-      if (reason !== 'below_min_turns') {
-        toast('info', 'Not cached', `Skipped: ${reason.replace(/_/g, ' ')}.`);
-      }
-    }
-  }, [sse.events, tourActive, toast]);
+  useSimSavedToast({ events: sse.events, tourActive });
 
   // Safety timeout: if /setup succeeded but no events arrived in 30s,
   // give up on the spinner. Only toast when we really saw nothing —
