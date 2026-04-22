@@ -8,12 +8,6 @@
  */
 
 /**
- * Normalized metadata the LoadPreviewModal renders. Every field is
- * display-ready; `schemaVersion` is either a number (canonical) or the
- * literal string `'legacy'` when the file predates the 0.5.0 schema
- * bump (no `schemaVersion` field written).
- */
-/**
  * Comparison outcome between a file's declared/inferred scenario and the
  * dashboard's active scenario. Populated only when the caller passes a
  * `currentScenario` to {@link extractPreviewMetadata}.
@@ -26,6 +20,12 @@ export interface ScenarioMatch {
   currentScenarioName: string;
 }
 
+/**
+ * Normalized metadata the LoadPreviewModal renders. Every field is
+ * display-ready; `schemaVersion` is either a number (canonical) or the
+ * literal string `'legacy'` when the file predates the 0.5.0 schema
+ * bump (no `schemaVersion` field written).
+ */
 export interface PreviewMetadata {
   /** Scenario display name, inferred in priority order from the file. */
   scenarioName: string;

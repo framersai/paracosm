@@ -7,6 +7,7 @@ import {
   SchemaVersionTooNewError,
 } from './schemaMigration';
 
+
 function storageKey(scenarioShortName: string, key: string) {
   return `${scenarioShortName}-${key}`;
 }
@@ -73,7 +74,9 @@ export function useGamePersistence(
       verdict: verdict ?? null,
       startedAt: new Date().toISOString(),
       completedAt: new Date().toISOString(),
-      schemaVersion: 2,
+      // Shared with parseFile's migration chain so bumping the version
+      // here and in schemaMigration.ts stays a single edit.
+      schemaVersion: CURRENT_SCHEMA_VERSION,
       ...(scenarioStamp ? { scenario: scenarioStamp } : {}),
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });

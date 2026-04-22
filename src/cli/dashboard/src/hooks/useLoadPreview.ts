@@ -118,12 +118,18 @@ export function useLoadPreview(opts: UseLoadPreviewOptions): UseLoadPreviewApi {
       verdict?: Record<string, unknown> | null;
     };
     dispatch({ type: 'confirm' });
-    opts.onConfirm({
-      events: (data.events ?? []) as SimEvent[],
-      results: (data.results ?? []) as unknown[],
-      verdict: (data.verdict ?? null) as Record<string, unknown> | null,
-    });
-    dispatch({ type: 'confirm-complete' });
+    try {
+      opts.onConfirm({
+        events: (data.events ?? []) as SimEvent[],
+        results: (data.results ?? []) as unknown[],
+        verdict: (data.verdict ?? null) as Record<string, unknown> | null,
+      });
+    } finally {
+      // Always close the modal, even if the caller's onConfirm throws.
+      // Without finally, a throw would leave state stuck in 'dispatching'
+      // and the modal unreachable until a full page reload.
+      dispatch({ type: 'confirm-complete' });
+    }
   }, [state, opts]);
 
   const cancel = useCallback(() => {
