@@ -22,6 +22,16 @@ import { pathToFileURL } from 'node:url';
  */
 export const EARLIEST_BOUNDARY_MAJOR_MINOR = '0.4.0';
 
+/**
+ * Versions in this list are preserved verbatim (narrative plus all
+ * subsections) across regeneration. Used to freeze backfill-era entries
+ * whose commit messages predate this repo's conventional-commit adoption
+ * and were hand-recategorized by a human. Post-backfill entries
+ * (everything from 0.5.0 forward) rely on commit-message discipline and
+ * should NOT be added here.
+ */
+export const LOCKED_ENTRY_VERSIONS = ['0.4.0'];
+
 const REPO_URL = 'https://github.com/framersai/paracosm';
 
 /**
@@ -101,6 +111,9 @@ export function classifyCommit(c) {
  */
 export function extractNarratives(changelogText) {
   const narratives = new Map();
+  // Stash raw input on the map so renderChangelog can reuse it to
+  // extract locked verbatim entries without re-reading the file.
+  narratives.rawText = changelogText ?? '';
   if (!changelogText) return narratives;
 
   const entries = changelogText.split(/(?=^## \d+\.\d+\.\d+)/m);
@@ -125,6 +138,33 @@ export function extractNarratives(changelogText) {
     narratives.set(version, narrative);
   }
   return narratives;
+}
+
+/**
+ * Extract the full verbatim entry body (header + narrative + every
+ * subsection) for a list of specific versions from an existing
+ * CHANGELOG.md string. Used by renderChangelog to freeze locked
+ * backfill entries that shouldn't be regenerated from commits.
+ *
+ * Returns a Map<version, fullEntryText>. Requested versions that aren't
+ * present in the input yield no map entry.
+ */
+export function extractLockedEntries(changelogText, wantVersions) {
+  const locked = new Map();
+  if (!changelogText || !wantVersions.length) return locked;
+
+  const chunks = changelogText.split(/(?=^## \d+\.\d+\.\d+)/m);
+  for (const chunk of chunks) {
+    const versionMatch = /^## (\d+\.\d+\.\d+)/m.exec(chunk);
+    if (!versionMatch) continue;
+    const version = versionMatch[1];
+    if (!wantVersions.includes(version)) continue;
+    // Strip a trailing `---` separator and surrounding whitespace so
+    // the composition layer can re-add separators uniformly.
+    const cleaned = chunk.replace(/\n---\s*$/m, '').trimEnd();
+    locked.set(version, cleaned);
+  }
+  return locked;
 }
 
 // ---------------------------------------------------------------------------
@@ -348,11 +388,20 @@ export function renderChangelog({ boundaries, narratives, gitFn }) {
   }
 
   const entries = [];
+  // Locked entries preserve their full previous text (including
+  // manually-recategorized bullets). Non-locked entries regenerate from
+  // commit history.
+  const lockedEntries = extractLockedEntries(narratives.rawText ?? '', LOCKED_ENTRY_VERSIONS);
+
   // boundaries is newest-first; each boundary's range needs the older
   // boundary's sha as `prev`. The last entry in the list (oldest) has
   // no predecessor; use the root commit.
   for (let i = 0; i < boundaries.length; i++) {
     const current = boundaries[i];
+    if (LOCKED_ENTRY_VERSIONS.includes(current.version) && lockedEntries.has(current.version)) {
+      entries.push(lockedEntries.get(current.version));
+      continue;
+    }
     const previous = boundaries[i + 1] ?? null;
     const range = previous
       ? sliceCommits(previous.sha, current.sha, { runGit: gitFn })
@@ -370,7 +419,7 @@ export function renderChangelog({ boundaries, narratives, gitFn }) {
     }));
   }
 
-  return CHANGELOG_HEADER + '\n' + entries.join('\n---\n\n');
+  return CHANGELOG_HEADER + '\n' + entries.join('\n---\n\n') + '\n';
 }
 
 /**
