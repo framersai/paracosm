@@ -4,6 +4,8 @@ import {
   parseCommit,
   classifyCommit,
   extractNarratives,
+  detectBoundaries,
+  sliceCommits,
 } from '../../scripts/generate-changelog.mjs';
 
 test('parseCommit extracts type, scope, breaking, subject from "feat(runtime): add X"', () => {
@@ -181,4 +183,147 @@ Narrative for 0.5.0.
   const result = extractNarratives(input);
   assert.equal(result.get('0.5.0'), 'Narrative for 0.5.0.');
   assert.equal(result.get('0.4.0'), '');
+});
+
+test('detectBoundaries: finds every major.minor change and filters run-number writes', () => {
+  const mockGit = (args: string[]): string => {
+    if (args[0] === 'log' && args.includes('--diff-filter=M')) {
+      // git log returns newest-first. CI run-number writes (0.4.47)
+      // touch package.json but don't change major.minor and must be
+      // filtered. The real paracosm history has one commit per
+      // major.minor bump, so no ambiguity about which commit "is" the
+      // boundary.
+      return [
+        'sha-050 2026-04-21',
+        'sha-047-rn 2026-04-18',
+        'sha-040 2026-02-15',
+      ].join('\n');
+    }
+    if (args[0] === 'show') {
+      const sha = args[1].split(':')[0];
+      const versions: Record<string, string> = {
+        'sha-050': '0.5.0',
+        'sha-047-rn': '0.4.47',
+        'sha-040': '0.4.0',
+      };
+      return JSON.stringify({ version: versions[sha] });
+    }
+    throw new Error(`Unexpected git call: ${args.join(' ')}`);
+  };
+
+  const boundaries = detectBoundaries({ runGit: mockGit });
+  assert.equal(boundaries.length, 2);
+  assert.equal(boundaries[0].version, '0.5.0');
+  assert.equal(boundaries[0].sha, 'sha-050');
+  assert.equal(boundaries[1].version, '0.4.0');
+  assert.equal(boundaries[1].sha, 'sha-040');
+});
+
+test('detectBoundaries: filters boundaries below EARLIEST_BOUNDARY_MAJOR_MINOR', () => {
+  const mockGit = (args: string[]): string => {
+    if (args[0] === 'log' && args.includes('--diff-filter=M')) {
+      return [
+        'sha-050 2026-04-21',
+        'sha-040 2026-02-15',
+        'sha-030 2026-01-10',
+        'sha-020 2025-12-01',
+      ].join('\n');
+    }
+    if (args[0] === 'show') {
+      const sha = args[1].split(':')[0];
+      const versions: Record<string, string> = {
+        'sha-050': '0.5.0',
+        'sha-040': '0.4.0',
+        'sha-030': '0.3.0',
+        'sha-020': '0.2.0',
+      };
+      return JSON.stringify({ version: versions[sha] });
+    }
+    throw new Error(`Unexpected git call: ${args.join(' ')}`);
+  };
+
+  const boundaries = detectBoundaries({ runGit: mockGit });
+  assert.equal(boundaries.length, 2, '0.3.0 and 0.2.0 filtered by EARLIEST');
+  assert.deepEqual(
+    boundaries.map(b => b.version),
+    ['0.5.0', '0.4.0'],
+  );
+});
+
+test('sliceCommits: parses git log output into commit records', () => {
+  const mockGit = (args: string[]): string => {
+    if (args[0] === 'log') {
+      return [
+        'abc1234567890abcdef1234567890abcdef12345',
+        '\x01feat(runtime): add X',
+        '\x01Jane Dev',
+        '\x01body text line 1\nbody text line 2\x02',
+      ].join('');
+    }
+    throw new Error(`Unexpected git call: ${args.join(' ')}`);
+  };
+  const commits = sliceCommits('prev', 'curr', { runGit: mockGit });
+  assert.equal(commits.length, 1);
+  assert.equal(commits[0].subject, 'feat(runtime): add X');
+  assert.equal(commits[0].author, 'Jane Dev');
+  assert.equal(commits[0].body, 'body text line 1\nbody text line 2');
+  assert.equal(commits[0].sha, 'abc1234567890abcdef1234567890abcdef12345');
+});
+
+test('sliceCommits: filters bot-authored commits', () => {
+  const mockGit = (args: string[]): string => {
+    if (args[0] === 'log') {
+      return [
+        'sha1\x01feat: real work\x01Jane Dev\x01\x02',
+        'sha2\x01chore: update CHANGELOG\x01github-actions[bot]\x01\x02',
+        'sha3\x01fix: another real fix\x01Jane Dev\x01\x02',
+      ].join('');
+    }
+    throw new Error(`Unexpected git call: ${args.join(' ')}`);
+  };
+  const commits = sliceCommits('prev', 'curr', { runGit: mockGit });
+  assert.equal(commits.length, 2, 'bot commit filtered');
+  assert.deepEqual(
+    commits.map(c => c.subject),
+    ['feat: real work', 'fix: another real fix'],
+  );
+});
+
+test('sliceCommits: filters "chore: update CHANGELOG" subjects even from humans', () => {
+  const mockGit = (args: string[]): string => {
+    if (args[0] === 'log') {
+      return [
+        'sha1\x01chore: update CHANGELOG\x01Jane Dev\x01\x02',
+        'sha2\x01feat: real\x01Jane Dev\x01\x02',
+      ].join('');
+    }
+    throw new Error(`Unexpected git call: ${args.join(' ')}`);
+  };
+  const commits = sliceCommits('prev', 'curr', { runGit: mockGit });
+  assert.equal(commits.length, 1);
+  assert.equal(commits[0].subject, 'feat: real');
+});
+
+test('sliceCommits: filters Merge commits as belt-and-suspenders against --no-merges', () => {
+  const mockGit = (args: string[]): string => {
+    if (args[0] === 'log') {
+      return [
+        'sha1\x01Merge branch master into foo\x01Jane Dev\x01\x02',
+        'sha2\x01feat: real\x01Jane Dev\x01\x02',
+      ].join('');
+    }
+    throw new Error(`Unexpected git call: ${args.join(' ')}`);
+  };
+  const commits = sliceCommits('prev', 'curr', { runGit: mockGit });
+  assert.equal(commits.length, 1);
+  assert.equal(commits[0].subject, 'feat: real');
+});
+
+test('sliceCommits: empty git output returns empty array', () => {
+  const mockGit = (args: string[]): string => {
+    if (args[0] === 'log') return '';
+    throw new Error(`Unexpected git call: ${args.join(' ')}`);
+  };
+  const commits = sliceCommits('prev', 'curr', { runGit: mockGit });
+  assert.equal(commits.length, 0);
 });
