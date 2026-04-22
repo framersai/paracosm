@@ -1087,7 +1087,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
 
         // Extract simulation memories for this colonist
         const memories = extractColonistMemories(agentId, simEvents);
-        // Extract the full colony roster from the latest colony_snapshot so
+        // Extract the full agent roster from the latest systems_snapshot so
         // the chat agent knows who else exists. Without this, the agent
         // confabulates fake bios for any name the user invents.
         const roster = extractColonistRoster(simEvents);
@@ -1166,10 +1166,10 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         deptReports: Array<{ turn?: number; year?: number; eventIndex?: number; department?: string; summary?: string; risks?: unknown[]; recommendedActions?: unknown[]; citations?: number; toolCount?: number }>;
         agentReactions: Array<{ turn?: number; year?: number; reactions?: unknown[]; totalReactions?: number }>;
         promotions: Array<Record<string, unknown>>;
-        colonySnapshots: Array<Record<string, unknown>>;
+        systemsSnapshots: Array<Record<string, unknown>>;
       }>();
       const ensureLeader = (name: string) => {
-        if (!byLeader.has(name)) byLeader.set(name, { events: [], decisions: [], forges: [], citations: [], deptReports: [], agentReactions: [], promotions: [], colonySnapshots: [] });
+        if (!byLeader.has(name)) byLeader.set(name, { events: [], decisions: [], forges: [], citations: [], deptReports: [], agentReactions: [], promotions: [], systemsSnapshots: [] });
         return byLeader.get(name)!;
       };
       // Track decision pending state so we can attach it to outcomes per event
@@ -1220,8 +1220,8 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
           slot.agentReactions.push({ turn, year, reactions: data.reactions as unknown[], totalReactions: data.totalReactions as number });
         } else if (type === 'promotion') {
           slot.promotions.push({ ...data });
-        } else if (type === 'colony_snapshot') {
-          slot.colonySnapshots.push({ turn, year, ...data });
+        } else if (type === 'systems_snapshot') {
+          slot.systemsSnapshots.push({ turn, year, ...data });
         }
       }
       const leaders = [...byLeader.entries()].map(([name, slot]) => ({ name, ...slot }));
