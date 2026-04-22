@@ -65,7 +65,7 @@ interface EventBlock {
 
 interface TurnData {
   year?: number;
-  colony?: Record<string, unknown>;
+  systems?: Record<string, unknown>;
   events: Map<number, EventBlock>;
   reactions: Array<Record<string, unknown>>;
   totalReactions: number;
@@ -114,7 +114,7 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
 
         if (evt.type === 'turn_start') {
           if (evt.data?.year != null) t.year = evt.data.year as number;
-          if (evt.data?.colony) t.colony = evt.data.colony as Record<string, unknown>;
+          if (evt.data?.systems) t.systems = evt.data.systems as Record<string, unknown>;
           // Legacy single-event turn_start: also seed event 0
           if (evt.data?.title && evt.data?.title !== 'Director generating...' && !evt.data?.totalEvents) {
             const block = getEventBlock(t, 0, 1);
@@ -303,16 +303,16 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
         const turnCount = turns.length;
         const lastTurn = turns[turns.length - 1];
         const firstTurn = turns[0];
-        const pick = (colony: Record<string, unknown> | undefined, key: string): number => {
-          const v = colony?.[key];
+        const pick = (systems: Record<string, unknown> | undefined, key: string): number => {
+          const v = systems?.[key];
           return typeof v === 'number' ? v : 0;
         };
-        const finalPopA = pick(lastTurn?.[1]?.a?.colony, 'population');
-        const finalPopB = pick(lastTurn?.[1]?.b?.colony, 'population');
-        const finalMoraleA = pick(lastTurn?.[1]?.a?.colony, 'morale');
-        const finalMoraleB = pick(lastTurn?.[1]?.b?.colony, 'morale');
-        const initialPopA = pick(firstTurn?.[1]?.a?.colony, 'population') || finalPopA;
-        const initialPopB = pick(firstTurn?.[1]?.b?.colony, 'population') || finalPopB;
+        const finalPopA = pick(lastTurn?.[1]?.a?.systems, 'population');
+        const finalPopB = pick(lastTurn?.[1]?.b?.systems, 'population');
+        const finalMoraleA = pick(lastTurn?.[1]?.a?.systems, 'morale');
+        const finalMoraleB = pick(lastTurn?.[1]?.b?.systems, 'morale');
+        const initialPopA = pick(firstTurn?.[1]?.a?.systems, 'population') || finalPopA;
+        const initialPopB = pick(firstTurn?.[1]?.b?.systems, 'population') || finalPopB;
         const totalToolsA = state.a.events.filter(e => e.type === 'forge_attempt' && e.data?.approved === true).length;
         const totalToolsB = state.b.events.filter(e => e.type === 'forge_attempt' && e.data?.approved === true).length;
         const stats: Array<{ label: string; value: string; tone?: 'pos' | 'neg' | 'neutral' }> = [
@@ -777,18 +777,18 @@ function EventSide({ block, eventIndex, totalEvents, name, sideColor, sections }
 }
 
 function TurnSharedFooter({ data, name, sideColor, showQuotes }: { data: TurnData; name: string; sideColor: string; showQuotes: boolean }) {
-  const colony = data.colony as Record<string, number> | undefined;
-  if (!colony && (!showQuotes || data.reactions.length === 0)) return <div />;
+  const systems = data.systems as Record<string, number> | undefined;
+  if (!systems && (!showQuotes || data.reactions.length === 0)) return <div />;
 
   return (
     <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px 12px' }}>
-      {colony && (
+      {systems && (
         <details style={{ marginBottom: data.reactions.length ? '8px' : 0 }}>
           <summary style={{ fontSize: '11px', fontWeight: 600, cursor: 'pointer', color: sideColor, fontFamily: 'var(--mono)' }}>
-            {name} &middot; Colony State
+            {name} &middot; Systems State
           </summary>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 12px', marginTop: '4px', fontSize: '11px', fontFamily: 'var(--mono)' }}>
-            {Object.entries(colony).map(([k, v]) => (
+            {Object.entries(systems).map(([k, v]) => (
               <span key={k} style={{ color: 'var(--text-2)' }}>
                 <span style={{ color: 'var(--text-3)' }}>{k}: </span>
                 <span style={{ fontWeight: 700, color: 'var(--text-1)' }}>{typeof v === 'number' ? (Number.isInteger(v) ? v : v.toFixed(2)) : String(v)}</span>

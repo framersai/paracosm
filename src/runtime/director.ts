@@ -88,7 +88,7 @@ export interface DirectorContext {
 
   // Legacy aliases (backward compat with existing scenario hooks)
   /** @deprecated Use state */
-  colony?: Record<string, number>;
+  systems?: Record<string, number>;
   /** @deprecated Use previousEvents */
   previousCrises?: DirectorContext['previousEvents'];
   /** @deprecated Use nativeBornCount */

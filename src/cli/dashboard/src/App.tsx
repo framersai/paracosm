@@ -455,19 +455,19 @@ function AppContent() {
     const nameB = b.leader?.name || 'Leader B';
     const archA = a.leader?.archetype || '';
     const archB = b.leader?.archetype || '';
-    const colA = a.leader?.colony || '';
-    const colB = b.leader?.colony || '';
+    const unitA = a.leader?.unit || '';
+    const unitB = b.leader?.unit || '';
 
     const lines: string[] = [
       `## ${scenario.labels.name} — Simulation Report`,
       `**Turns**: ${gameState.turn}/${gameState.maxTurns} | **Seed**: ${gameState.seed} | **Year**: ${gameState.year}`,
       '',
       `### ${nameA}${archA ? ` (${archA})` : ''}`,
-      `Colony: ${colA} | Pop: ${a.colony?.population ?? '?'} | Morale: ${a.colony ? Math.round(a.colony.morale * 100) : '?'}% | Deaths: ${a.deaths}`,
+      `Unit: ${unitA} | Pop: ${a.systems?.population ?? '?'} | Morale: ${a.systems ? Math.round(a.systems.morale * 100) : '?'}% | Deaths: ${a.deaths}`,
       `Tools forged: ${a.tools} | Citations: ${a.citations} | Decisions: ${a.decisions}`,
       '',
       `### ${nameB}${archB ? ` (${archB})` : ''}`,
-      `Colony: ${colB} | Pop: ${b.colony?.population ?? '?'} | Morale: ${b.colony ? Math.round(b.colony.morale * 100) : '?'}% | Deaths: ${b.deaths}`,
+      `Unit: ${unitB} | Pop: ${b.systems?.population ?? '?'} | Morale: ${b.systems ? Math.round(b.systems.morale * 100) : '?'}% | Deaths: ${b.deaths}`,
       `Tools forged: ${b.tools} | Citations: ${b.citations} | Decisions: ${b.decisions}`,
     ];
 
@@ -688,10 +688,10 @@ function AppContent() {
     const defaultPreset = scenario.presets.find(p => p.id === 'default');
     const leaders = defaultPreset?.leaders?.slice(0, 2).map((l, i) => ({
       ...l,
-      colony: i === 0 ? 'Colony Alpha' : 'Colony Beta',
+      unit: i === 0 ? 'Colony Alpha' : 'Colony Beta',
     })) || [
-      { name: 'Leader A', archetype: 'The Visionary', colony: 'Colony Alpha', hexaco: { openness: 0.95, conscientiousness: 0.35, extraversion: 0.85, agreeableness: 0.55, emotionality: 0.3, honestyHumility: 0.65 }, instructions: '' },
-      { name: 'Leader B', archetype: 'The Engineer', colony: 'Colony Beta', hexaco: { openness: 0.25, conscientiousness: 0.97, extraversion: 0.3, agreeableness: 0.6, emotionality: 0.7, honestyHumility: 0.9 }, instructions: '' },
+      { name: 'Leader A', archetype: 'The Visionary', unit: 'Colony Alpha', hexaco: { openness: 0.95, conscientiousness: 0.35, extraversion: 0.85, agreeableness: 0.55, emotionality: 0.3, honestyHumility: 0.65 }, instructions: '' },
+      { name: 'Leader B', archetype: 'The Engineer', unit: 'Colony Beta', hexaco: { openness: 0.25, conscientiousness: 0.97, extraversion: 0.3, agreeableness: 0.6, emotionality: 0.7, honestyHumility: 0.9 }, instructions: '' },
     ];
     try {
       setLaunching(true);

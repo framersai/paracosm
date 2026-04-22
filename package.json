@@ -1,6 +1,6 @@
 {
   "name": "paracosm",
-  "version": "0.4.88",
+  "version": "0.5.0",
   "description": "AI agent swarm simulation engine with emergent crises, runtime tool forging, HEXACO personality drift, and deterministic kernels. Built on AgentOS.",
   "type": "module",
   "main": "dist/engine/index.js",

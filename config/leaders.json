@@ -3,7 +3,7 @@
     {
       "name": "Aria Chen",
       "archetype": "The Visionary",
-      "colony": "Ares Horizon",
+      "unit": "Ares Horizon",
       "hexaco": {
         "openness": 0.95,
         "conscientiousness": 0.35,
@@ -17,7 +17,7 @@
     {
       "name": "Dietrich Voss",
       "archetype": "The Engineer",
-      "colony": "Meridian Base",
+      "unit": "Meridian Base",
       "hexaco": {
         "openness": 0.25,
         "conscientiousness": 0.97,

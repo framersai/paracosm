@@ -88,13 +88,13 @@ export function validateFingerprint(fn: ScenarioHooks['fingerprintHook']): { ok:
   try {
     const mockState = {
       agents: [makeTestColonist()],
-      colony: { morale: 0.6, population: 80, foodMonthsReserve: 6, powerKw: 300, infrastructureModules: 10, scienceOutput: 5, lifeSupportCapacity: 100, pressurizedVolumeM3: 2000, waterLitersPerDay: 500 },
+      systems: { morale: 0.6, population: 80, foodMonthsReserve: 6, powerKw: 300, infrastructureModules: 10, scienceOutput: 5, lifeSupportCapacity: 100, pressurizedVolumeM3: 2000, waterLitersPerDay: 500 },
       politics: { earthDependencyPct: 50, governanceStatus: 'earth-governed' as const, independencePressure: 0.3 },
       metadata: { simulationId: 'test', leaderId: 'test', seed: 100, startYear: 2035, currentYear: 2070, currentTurn: 8 },
       eventLog: [],
     };
     const log = [{ turn: 1, year: 2035, outcome: 'conservative_success' }, { turn: 2, year: 2039, outcome: 'risky_success' }];
-    const leader = { name: 'Test', archetype: 'test', colony: 'Test', instructions: '', hexaco: { openness: 0.5, conscientiousness: 0.5, extraversion: 0.5, agreeableness: 0.5, emotionality: 0.5, honestyHumility: 0.5 } };
+    const leader = { name: 'Test', archetype: 'test', unit: 'Test', instructions: '', hexaco: { openness: 0.5, conscientiousness: 0.5, extraversion: 0.5, agreeableness: 0.5, emotionality: 0.5, honestyHumility: 0.5 } };
     const result = fn(mockState, log, leader, { engineering: ['tool1'] }, 8);
     if (typeof result !== 'object' || !result.summary) {
       return { ok: false, error: 'Fingerprint must return object with summary key' };

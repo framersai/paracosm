@@ -16,7 +16,7 @@ export function marsFingerprint(
   const marsBorn = finalState.agents.filter((c: any) => c.health.alive && c.core.marsborn).length;
   const totalTools = Object.values(toolRegs).flat().length;
 
-  const resilience = finalState.colony.morale > 0.6 ? 'antifragile' : finalState.colony.morale > 0.35 ? 'resilient' : 'brittle';
+  const resilience = finalState.systems.morale > 0.6 ? 'antifragile' : finalState.systems.morale > 0.35 ? 'resilient' : 'brittle';
   const autonomy = finalState.politics.earthDependencyPct < 40 ? 'autonomous' : finalState.politics.earthDependencyPct < 70 ? 'transitioning' : 'Earth-tethered';
   const governance = leader.hexaco.extraversion > 0.7 ? 'charismatic' : leader.hexaco.conscientiousness > 0.7 ? 'technocratic' : 'communal';
   const riskProfile = riskyWins + riskyLosses > conservativeWins ? 'expansionist' : 'conservative';

@@ -21,7 +21,7 @@ export interface AgentSnapshot {
   shortTermMemory: string[];
 }
 
-export interface ColonyState {
+export interface SystemsState {
   population: number;
   morale: number;
   foodMonthsReserve: number;
@@ -36,7 +36,7 @@ export interface ColonyState {
 export interface LeaderInfo {
   name: string;
   archetype: string;
-  colony: string;
+  unit: string;
   hexaco: Record<string, number>;
   instructions?: string;
   quote?: string;
@@ -54,8 +54,8 @@ export interface CrisisInfo {
 
 export interface SideState {
   leader: LeaderInfo | null;
-  colony: ColonyState | null;
-  prevColony: ColonyState | null;
+  systems: SystemsState | null;
+  prevSystems: SystemsState | null;
   crisis: CrisisInfo | null;
   events: ProcessedEvent[];
   popHistory: number[];
@@ -172,7 +172,7 @@ export interface GameState {
 
 function emptySide(): SideState {
   return {
-    leader: null, colony: null, prevColony: null, crisis: null,
+    leader: null, systems: null, prevSystems: null, crisis: null,
     events: [], popHistory: [], moraleHistory: [],
     deaths: 0, deathCauses: {}, tools: 0, toolNames: new Set<string>(), citations: 0, decisions: 0,
     pendingDecision: '', pendingRationale: '', pendingReasoning: '', pendingPolicies: [],
@@ -364,11 +364,11 @@ export function useGameState(sseEvents: SimEvent[], isComplete: boolean): GameSt
               turnSummary: dd.turnSummary as string || '',
             };
           }
-          if (dd.colony) {
-            s.prevColony = s.colony ? { ...s.colony } : null;
-            s.colony = dd.colony as ColonyState;
-            s.popHistory.push((dd.colony as ColonyState).population || 0);
-            s.moraleHistory.push(Math.round(((dd.colony as ColonyState).morale || 0) * 100));
+          if (dd.systems) {
+            s.prevSystems = s.systems ? { ...s.systems } : null;
+            s.systems = dd.systems as SystemsState;
+            s.popHistory.push((dd.systems as SystemsState).population || 0);
+            s.moraleHistory.push(Math.round(((dd.systems as SystemsState).morale || 0) * 100));
           }
           if (dd.deaths) s.deaths += Number(dd.deaths) || 0;
           s.events.push(processed);
@@ -459,15 +459,15 @@ export function useGameState(sseEvents: SimEvent[], isComplete: boolean): GameSt
           s.events.push(processed);
           break;
 
-        case 'colony_snapshot':
+        case 'systems_snapshot':
           s.agentSnapshots.push((dd.agents as AgentSnapshot[]) || []);
           s.events.push(processed);
           break;
 
         case 'turn_done':
-          if (dd.colony) {
-            s.prevColony = s.colony ? { ...s.colony } : null;
-            s.colony = dd.colony as ColonyState;
+          if (dd.systems) {
+            s.prevSystems = s.systems ? { ...s.systems } : null;
+            s.systems = dd.systems as SystemsState;
           }
           // Fold this turn's cause breakdown into the running tally so
           // the stats bar tooltip can show "3 radiation · 2 accident"

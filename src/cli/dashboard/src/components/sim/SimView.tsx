@@ -183,10 +183,10 @@ export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: l
   // Fallback leader info from scenario presets when no simulation data yet
   const defaultPreset = scenario.presets.find(p => p.id === 'default');
   const presetLeaderA: LeaderInfo | null = defaultPreset?.leaders?.[0]
-    ? { name: defaultPreset.leaders[0].name, archetype: defaultPreset.leaders[0].archetype, colony: 'Colony Alpha', hexaco: defaultPreset.leaders[0].hexaco, instructions: defaultPreset.leaders[0].instructions, quote: '' }
+    ? { name: defaultPreset.leaders[0].name, archetype: defaultPreset.leaders[0].archetype, unit: 'Colony Alpha', hexaco: defaultPreset.leaders[0].hexaco, instructions: defaultPreset.leaders[0].instructions, quote: '' }
     : null;
   const presetLeaderB: LeaderInfo | null = defaultPreset?.leaders?.[1]
-    ? { name: defaultPreset.leaders[1].name, archetype: defaultPreset.leaders[1].archetype, colony: 'Colony Beta', hexaco: defaultPreset.leaders[1].hexaco, instructions: defaultPreset.leaders[1].instructions, quote: '' }
+    ? { name: defaultPreset.leaders[1].name, archetype: defaultPreset.leaders[1].archetype, unit: 'Colony Beta', hexaco: defaultPreset.leaders[1].hexaco, instructions: defaultPreset.leaders[1].instructions, quote: '' }
     : null;
 
   const [showIntro, setShowIntro] = useState(() => {
@@ -229,10 +229,10 @@ export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: l
           StatsBar when the cost breakdown moved to its own modal; the
           component ignored them even at runtime, so stop passing them. */}
       <StatsBar
-        colonyA={state.a.colony}
-        colonyB={state.b.colony}
-        prevColonyA={state.a.prevColony}
-        prevColonyB={state.b.prevColony}
+        systemsA={state.a.systems}
+        systemsB={state.b.systems}
+        prevSystemsA={state.a.prevSystems}
+        prevSystemsB={state.b.prevSystems}
         deathsA={state.a.deaths}
         deathsB={state.b.deaths}
         deathCausesA={state.a.deathCauses}

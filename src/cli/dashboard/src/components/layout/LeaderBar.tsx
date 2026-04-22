@@ -31,7 +31,7 @@ export function LeaderBar({ side, leader, popHistory, moraleHistory, verdictPlac
   const sideBorder = side === 'a' ? 'var(--amber-dim)' : 'var(--teal-dim)';
   const name = leader?.name || (side === 'a' ? 'Leader A' : 'Leader B');
   const archetype = leader?.archetype || '';
-  const colony = leader?.colony || '';
+  const unit = leader?.unit || '';
   const h = leader?.hexaco || {};
   const hasHexaco = Object.values(h).some(v => v > 0);
 
@@ -50,7 +50,7 @@ export function LeaderBar({ side, leader, popHistory, moraleHistory, verdictPlac
     // row now uses flex-wrap to break gracefully instead of getting cut
     // off mid-letter.
     <div style={{ flex: 1, padding: '4px 12px', background: 'var(--bg-panel)', minWidth: 0 }}>
-      {/* Row 1 — allows wrap so name + archetype + colony + traits can
+      {/* Row 1 — allows wrap so name + archetype + unit + traits can
           reflow to two lines when the browser can't fit them on one. */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
         {archetype && (
@@ -87,7 +87,7 @@ export function LeaderBar({ side, leader, popHistory, moraleHistory, verdictPlac
         <Tooltip dot content={
           <div>
             <b style={{ color: sideColor, fontSize: '14px', display: 'block', marginBottom: '6px' }}>{archetype ? `${archetype}: ` : ''}{name}</b>
-            {colony && <div>Colony: {colony}</div>}
+            {unit && <div>Unit: {unit}</div>}
             {leader?.instructions && <div style={{ fontSize: '11px', color: 'var(--text-2)', marginTop: '6px', fontStyle: 'italic' }}>{leader.instructions}</div>}
             {hasHexaco && (
               <div style={{ fontFamily: 'var(--mono)', fontSize: '11px', marginTop: '8px', lineHeight: 1.8 }}>
@@ -103,9 +103,9 @@ export function LeaderBar({ side, leader, popHistory, moraleHistory, verdictPlac
         }>
           <span style={{ fontSize: '14px', fontWeight: 800, color: sideColor, whiteSpace: 'nowrap' }}>{name}</span>
         </Tooltip>
-        {colony && (
+        {unit && (
           <span style={{ fontSize: '10px', color: 'var(--text-3)', whiteSpace: 'nowrap', marginLeft: '6px', paddingLeft: '6px', borderLeft: '1px solid var(--border)' }}>
-            {colony}
+            {unit}
           </span>
         )}
         {traitLine && (

@@ -58,9 +58,9 @@ function seriesForSide(
   const out: Array<{ turn: number; value: number }> = [];
   const seenTurn = new Set<number>();
   for (const ev of events) {
-    const colony = ev.data?.colony as Record<string, number> | undefined;
-    if (!colony || typeof ev.turn !== 'number') continue;
-    const value = colony[metricId];
+    const systems = ev.data?.systems as Record<string, number> | undefined;
+    if (!systems || typeof ev.turn !== 'number') continue;
+    const value = systems[metricId];
     if (typeof value !== 'number') continue;
     if (seenTurn.has(ev.turn)) {
       // Latest snapshot for the turn wins (turn_done overwrites turn_start).

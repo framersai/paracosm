@@ -4,7 +4,7 @@ export type { HexacoProfile };
 export interface LeaderConfig {
   name: string;
   archetype: string;
-  colony: string;
+  unit: string;
   hexaco: HexacoProfile;
   instructions: string;
 }
@@ -24,7 +24,7 @@ export interface ForgedToolRecord {
   judgeVerdict: 'approved' | 'rejected';
 }
 
-export interface ColonySnapshot {
+export interface SystemsSnapshot {
   population: number;
   waterLitersPerDay: number;
   foodMonthsReserve: number;
@@ -45,7 +45,7 @@ export interface TurnResult {
   reasoning: string;
   citations: Citation[];
   toolsForged: ForgedToolRecord[];
-  snapshot: ColonySnapshot;
+  snapshot: SystemsSnapshot;
   rawResponse: string;
 }
 
@@ -72,7 +72,7 @@ export interface Scenario {
   title: string;
   crisis: string;
   researchKeywords: string[];
-  snapshotHints: Partial<ColonySnapshot>;
+  snapshotHints: Partial<SystemsSnapshot>;
   riskyOption: string;
   riskSuccessProbability: number;
   options?: import('../runtime/contracts.js').CrisisOption[];

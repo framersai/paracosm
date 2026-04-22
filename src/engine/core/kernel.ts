@@ -4,8 +4,8 @@ import { SeededRng } from './rng.js';
 import { generateInitialPopulation, type KeyPersonnel } from './agent-generator.js';
 import { progressBetweenTurns, applyPersonalityDrift, ROLE_ACTIVATIONS } from './progression.js';
 
-export interface ColonyPatch {
-  colony?: Partial<WorldSystems>;
+export interface SystemsPatch {
+  systems?: Partial<WorldSystems>;
   politics?: Partial<WorldPolitics>;
   agentUpdates?: Array<{
     agentId: string;
@@ -16,7 +16,7 @@ export interface ColonyPatch {
 
 export interface PolicyEffect {
   description: string;
-  patches: ColonyPatch;
+  patches: SystemsPatch;
   events: TurnEvent[];
 }
 
@@ -42,7 +42,7 @@ export class SimulationKernel {
         leaderId, seed,
         startYear, currentYear: startYear, currentTurn: 0,
       },
-      colony: {
+      systems: {
         population: agents.length,
         powerKw: init.startingResources?.powerKw ?? 400,
         foodMonthsReserve: init.startingResources?.foodMonthsReserve ?? 18,
@@ -94,9 +94,9 @@ export class SimulationKernel {
   applyPolicy(effect: PolicyEffect): void {
     const { patches, events } = effect;
 
-    if (patches.colony) {
-      const c = this.state.colony;
-      for (const [k, v] of Object.entries(patches.colony)) {
+    if (patches.systems) {
+      const c = this.state.systems;
+      for (const [k, v] of Object.entries(patches.systems)) {
         if (v !== undefined && k in c) (c as any)[k] = v;
       }
       c.population = Math.max(0, c.population);
@@ -138,7 +138,7 @@ export class SimulationKernel {
 
     const { state: progressed, events } = progressBetweenTurns(this.state, yearDelta, turnRng, progressionHook);
     this.state = progressed;
-    this.state.colony.population = this.getAliveCount();
+    this.state.systems.population = this.getAliveCount();
     this.updateFeaturedAgents(events);
 
     return this.getState();
@@ -195,9 +195,9 @@ export class SimulationKernel {
     });
   }
 
-  /** Apply additive deltas to colony systems (not absolute values). */
-  applyColonyDeltas(deltas: Partial<WorldSystems>, events: TurnEvent[] = []): void {
-    const c = this.state.colony;
+  /** Apply additive deltas to world systems (not absolute values). */
+  applySystemDeltas(deltas: Partial<WorldSystems>, events: TurnEvent[] = []): void {
+    const c = this.state.systems;
     for (const [k, v] of Object.entries(deltas)) {
       if (v !== undefined && typeof v === 'number' && k in c) {
         (c as any)[k] = (c as any)[k] + v;
@@ -212,7 +212,7 @@ export class SimulationKernel {
     this.state.eventLog.push(...events);
   }
 
-  /** Apply additive deltas to colony politics. */
+  /** Apply additive deltas to world politics. */
   applyPoliticsDeltas(deltas: Partial<WorldPolitics>, events: TurnEvent[] = []): void {
     const p = this.state.politics;
     for (const [k, v] of Object.entries(deltas)) {

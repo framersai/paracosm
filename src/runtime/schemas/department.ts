@@ -55,7 +55,7 @@ export const RecommendedEffectSchema = z.object({
     'risk_mitigation', 'governance_change', 'social_investment', 'research_bet',
   ]),
   description: z.string().default(''),
-  colonyDelta: z.record(z.string(), z.number()).optional(),
+  systemDelta: z.record(z.string(), z.number()).optional(),
   politicsDelta: z.record(z.string(), z.number()).optional(),
 });
 

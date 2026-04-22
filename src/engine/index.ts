@@ -51,7 +51,7 @@ export type {
 
 // Additional types
 export type { KeyPersonnel } from './core/agent-generator.js';
-export type { ColonyPatch, PolicyEffect, SimulationInitOverrides } from './core/kernel.js';
+export type { SystemsPatch, PolicyEffect, SimulationInitOverrides } from './core/kernel.js';
 export type { HexacoSnapshot, LifeEvent } from './core/state.js';
 export type { LeaderConfig, LlmProvider, SimulationModelConfig, Scenario, EventOptionDef, MilestoneEventDef, TurnOutcomeType } from './types.js';
 

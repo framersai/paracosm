@@ -449,10 +449,10 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
   const snapBTurn = snapB?.turn ?? 0;
   const defaultPreset = scenario.presets.find(p => p.id === 'default');
   const presetA: LeaderInfo | null = defaultPreset?.leaders?.[0]
-    ? { name: defaultPreset.leaders[0].name, archetype: defaultPreset.leaders[0].archetype, colony: 'Colony Alpha', hexaco: defaultPreset.leaders[0].hexaco, instructions: defaultPreset.leaders[0].instructions, quote: '' }
+    ? { name: defaultPreset.leaders[0].name, archetype: defaultPreset.leaders[0].archetype, unit: 'Colony Alpha', hexaco: defaultPreset.leaders[0].hexaco, instructions: defaultPreset.leaders[0].instructions, quote: '' }
     : null;
   const presetB: LeaderInfo | null = defaultPreset?.leaders?.[1]
-    ? { name: defaultPreset.leaders[1].name, archetype: defaultPreset.leaders[1].archetype, colony: 'Colony Beta', hexaco: defaultPreset.leaders[1].hexaco, instructions: defaultPreset.leaders[1].instructions, quote: '' }
+    ? { name: defaultPreset.leaders[1].name, archetype: defaultPreset.leaders[1].archetype, unit: 'Colony Beta', hexaco: defaultPreset.leaders[1].hexaco, instructions: defaultPreset.leaders[1].instructions, quote: '' }
     : null;
   const leaderA = state.a.leader ?? presetA;
   const leaderB = state.b.leader ?? presetB;
@@ -1155,7 +1155,7 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
             snapshotHistory={snapsA}
             leaderName={leaderA?.name ?? 'Leader A'}
             leaderArchetype={leaderA?.archetype ?? ''}
-            leaderColony={leaderA?.colony ?? ''}
+            leaderUnit={leaderA?.unit ?? ''}
             sideColor="var(--vis)"
             side="a"
             lagTurns={snapATurn < snapBTurn ? snapBTurn - snapATurn : 0}
@@ -1199,7 +1199,7 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
             snapshotHistory={snapsB}
             leaderName={leaderB?.name ?? 'Leader B'}
             leaderArchetype={leaderB?.archetype ?? ''}
-            leaderColony={leaderB?.colony ?? ''}
+            leaderUnit={leaderB?.unit ?? ''}
             sideColor="var(--eng)"
             side="b"
             lagTurns={snapBTurn < snapATurn ? snapATurn - snapBTurn : 0}

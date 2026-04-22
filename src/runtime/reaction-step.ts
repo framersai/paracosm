@@ -101,8 +101,8 @@ export async function runReactionStep(args: RunReactionStepArgs): Promise<Reacti
     outcome: lastOutcome,
     decision: turnEventTitles.join('. '),
     year, turn,
-    colonyMorale: kernel.getState().colony.morale,
-    colonyPopulation: kernel.getState().colony.population,
+    colonyMorale: kernel.getState().systems.morale,
+    colonyPopulation: kernel.getState().systems.population,
   };
 
   // Progressive reactions: turn 1 always runs the full colony so

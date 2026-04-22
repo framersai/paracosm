@@ -10,8 +10,8 @@ interface VerdictData {
     a: { survival: number; prosperity: number; morale: number; innovation: number };
     b: { survival: number; prosperity: number; morale: number; innovation: number };
   };
-  leaderA: { name: string; archetype: string; colony: string };
-  leaderB: { name: string; archetype: string; colony: string };
+  leaderA: { name: string; archetype: string; unit: string };
+  leaderB: { name: string; archetype: string; unit: string };
   finalStats: {
     a: { population: number; morale: number; food: number; power: number; modules: number; science: number; tools: number };
     b: { population: number; morale: number; food: number; power: number; modules: number; science: number; tools: number };

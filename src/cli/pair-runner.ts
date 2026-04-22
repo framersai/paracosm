@@ -62,7 +62,7 @@ export async function runPairSimulations(
     leaders: leaders.map(leader => ({
       name: leader.name,
       archetype: leader.archetype,
-      colony: leader.colony,
+      unit: leader.unit,
       hexaco: leader.hexaco,
     })),
   });
@@ -93,8 +93,8 @@ export async function runPairSimulations(
       broadcast('result', {
         leader: tag,
         summary: {
-          population: result.finalState?.colony?.population,
-          morale: result.finalState?.colony?.morale,
+          population: result.finalState?.systems?.population,
+          morale: result.finalState?.systems?.morale,
           toolsForged: result.totalToolsForged,
           citations: result.totalCitations,
         },
@@ -125,8 +125,8 @@ export async function runPairSimulations(
   if (settled.length === 2) {
     try {
       const [a, b] = settled;
-      const colA = a.result.finalState?.colony;
-      const colB = b.result.finalState?.colony;
+      const colA = a.result.finalState?.systems;
+      const colB = b.result.finalState?.systems;
       const verdictModel = resolveVerdictModel(simConfig.provider || 'openai', simConfig.economics);
       if (!verdictModel) {
         broadcast('complete', {
@@ -161,7 +161,7 @@ export async function runPairSimulations(
           ? Object.entries(causeCounts).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${n} ${k}`).join(', ')
           : 'no deaths';
         return [
-          `${label}: ${v.leader.name} "${v.leader.archetype}" (${v.leader.colony})`,
+          `${label}: ${v.leader.name} "${v.leader.archetype}" (${v.leader.unit})`,
           `  HEXACO: O${v.leader.hexaco.openness.toFixed(2)} C${v.leader.hexaco.conscientiousness.toFixed(2)} E${v.leader.hexaco.extraversion.toFixed(2)} A${v.leader.hexaco.agreeableness.toFixed(2)} Em${v.leader.hexaco.emotionality.toFixed(2)} HH${v.leader.hexaco.honestyHumility.toFixed(2)}`,
           `  Final: Pop ${col?.population ?? '?'}, Morale ${Math.round((col?.morale ?? 0) * 100)}%, Food ${col?.foodMonthsReserve?.toFixed(1) ?? '?'}mo, Power ${col?.powerKw?.toFixed(0) ?? '?'}kW, Modules ${col?.infrastructureModules?.toFixed(1) ?? '?'}, Science ${col?.scienceOutput ?? '?'}`,
           `  Mortality: ${deathEvents.length} total (${causeSummary})`,
@@ -218,8 +218,8 @@ Then fill out:
         } else {
           broadcast('verdict', {
             ...verdict,
-            leaderA: { name: a.leader.name, archetype: a.leader.archetype, colony: a.leader.colony },
-            leaderB: { name: b.leader.name, archetype: b.leader.archetype, colony: b.leader.colony },
+            leaderA: { name: a.leader.name, archetype: a.leader.archetype, unit: a.leader.unit },
+            leaderB: { name: b.leader.name, archetype: b.leader.archetype, unit: b.leader.unit },
             finalStats: {
               a: { population: colA?.population, morale: colA?.morale, food: colA?.foodMonthsReserve, power: colA?.powerKw, modules: colA?.infrastructureModules, science: colA?.scienceOutput, tools: a.result.totalToolsForged },
               b: { population: colB?.population, morale: colB?.morale, food: colB?.foodMonthsReserve, power: colB?.powerKw, modules: colB?.infrastructureModules, science: colB?.scienceOutput, tools: b.result.totalToolsForged },

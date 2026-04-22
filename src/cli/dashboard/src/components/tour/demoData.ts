@@ -21,7 +21,7 @@ export const DEMO_EVENTS: SimEvent[] = [
         {
           name: 'Commander Elena Vasquez',
           archetype: 'The Visionary',
-          colony: 'Olympus Base',
+          unit: 'Olympus Base',
           hexaco: { openness: 0.92, conscientiousness: 0.40, extraversion: 0.80, agreeableness: 0.55, emotionality: 0.25, honestyHumility: 0.65 },
           instructions: 'You lead by inspiration. You value openness to experience and bold experimentation. You tolerate mess if it leads to breakthroughs.',
           quote: 'The frontier rewards the bold.',
@@ -29,7 +29,7 @@ export const DEMO_EVENTS: SimEvent[] = [
         {
           name: 'Commander Hiroshi Tanaka',
           archetype: 'The Engineer',
-          colony: 'Meridian Station',
+          unit: 'Meridian Station',
           hexaco: { openness: 0.30, conscientiousness: 0.95, extraversion: 0.35, agreeableness: 0.70, emotionality: 0.60, honestyHumility: 0.90 },
           instructions: 'You lead by precision and evidence. You value conscientiousness and proven methods. You reject untested approaches.',
           quote: 'Every system has a tolerance. Know yours.',
@@ -50,7 +50,7 @@ export const DEMO_EVENTS: SimEvent[] = [
       crisis: 'A massive dust storm system approaching from the Hellas basin threatens solar panel efficiency and outdoor operations for the next several months.',
       category: 'environmental', emergent: false,
       turnSummary: 'The colony faces its first major environmental challenge as Martian dust storm season arrives early.',
-      colony: { population: 100, morale: 0.85, foodMonthsReserve: 18, waterLitersPerDay: 800, powerKw: 400, infrastructureModules: 3, lifeSupportCapacity: 120, scienceOutput: 0 },
+      systems: { population: 100, morale: 0.85, foodMonthsReserve: 18, waterLitersPerDay: 800, powerKw: 400, infrastructureModules: 3, lifeSupportCapacity: 120, scienceOutput: 0 },
     },
   },
   { type: 'dept_start', leader: 'Commander Elena Vasquez', data: { turn: 1, department: 'engineering', title: 'Engineering Analysis' } },
@@ -115,7 +115,7 @@ export const DEMO_EVENTS: SimEvent[] = [
   },
   {
     type: 'turn_done', leader: 'Commander Elena Vasquez',
-    data: { turn: 1, colony: { population: 100, morale: 0.78, foodMonthsReserve: 17.5, waterLitersPerDay: 790, powerKw: 340, infrastructureModules: 3, lifeSupportCapacity: 120, scienceOutput: 2 } },
+    data: { turn: 1, systems: { population: 100, morale: 0.78, foodMonthsReserve: 17.5, waterLitersPerDay: 790, powerKw: 340, infrastructureModules: 3, lifeSupportCapacity: 120, scienceOutput: 2 } },
   },
 
   // ════════════════════════════════════════════════════════════════════
@@ -130,7 +130,7 @@ export const DEMO_EVENTS: SimEvent[] = [
       crisis: 'A massive dust storm system approaching from the Hellas basin threatens solar panel efficiency and outdoor operations for the next several months.',
       category: 'environmental', emergent: false,
       turnSummary: 'The colony faces its first major environmental challenge as Martian dust storm season arrives early.',
-      colony: { population: 100, morale: 0.85, foodMonthsReserve: 18, waterLitersPerDay: 800, powerKw: 400, infrastructureModules: 3, lifeSupportCapacity: 120, scienceOutput: 0 },
+      systems: { population: 100, morale: 0.85, foodMonthsReserve: 18, waterLitersPerDay: 800, powerKw: 400, infrastructureModules: 3, lifeSupportCapacity: 120, scienceOutput: 0 },
     },
   },
   { type: 'dept_start', leader: 'Commander Hiroshi Tanaka', data: { turn: 1, department: 'engineering', title: 'Engineering Analysis' } },
@@ -195,7 +195,7 @@ export const DEMO_EVENTS: SimEvent[] = [
   },
   {
     type: 'turn_done', leader: 'Commander Hiroshi Tanaka',
-    data: { turn: 1, colony: { population: 100, morale: 0.87, foodMonthsReserve: 17.8, waterLitersPerDay: 800, powerKw: 395, infrastructureModules: 3, lifeSupportCapacity: 120, scienceOutput: 0 } },
+    data: { turn: 1, systems: { population: 100, morale: 0.87, foodMonthsReserve: 17.8, waterLitersPerDay: 800, powerKw: 395, infrastructureModules: 3, lifeSupportCapacity: 120, scienceOutput: 0 } },
   },
 
   // ════════════════════════════════════════════════════════════════════
@@ -210,7 +210,7 @@ export const DEMO_EVENTS: SimEvent[] = [
       crisis: 'Trace perchlorate contamination detected in the primary water recycling system. Secondary filters are catching it but operating at 150% rated capacity.',
       category: 'infrastructure', emergent: true,
       turnSummary: 'An emergent crisis triggered by dust storm operations. Aggressive EVA schedules allowed fine regolith into intake systems.',
-      colony: { population: 100, morale: 0.78, foodMonthsReserve: 17, waterLitersPerDay: 650, powerKw: 360, infrastructureModules: 3, lifeSupportCapacity: 118, scienceOutput: 4 },
+      systems: { population: 100, morale: 0.78, foodMonthsReserve: 17, waterLitersPerDay: 650, powerKw: 360, infrastructureModules: 3, lifeSupportCapacity: 118, scienceOutput: 4 },
     },
   },
   { type: 'dept_start', leader: 'Commander Elena Vasquez', data: { turn: 2, department: 'engineering', title: 'Engineering Analysis' } },
@@ -279,7 +279,7 @@ export const DEMO_EVENTS: SimEvent[] = [
   },
   {
     type: 'turn_done', leader: 'Commander Elena Vasquez',
-    data: { turn: 2, colony: { population: 98, morale: 0.68, foodMonthsReserve: 16, waterLitersPerDay: 850, powerKw: 350, infrastructureModules: 4, lifeSupportCapacity: 116, scienceOutput: 8 }, deaths: 2 },
+    data: { turn: 2, systems: { population: 98, morale: 0.68, foodMonthsReserve: 16, waterLitersPerDay: 850, powerKw: 350, infrastructureModules: 4, lifeSupportCapacity: 116, scienceOutput: 8 }, deaths: 2 },
   },
 
   // ════════════════════════════════════════════════════════════════════
@@ -294,7 +294,7 @@ export const DEMO_EVENTS: SimEvent[] = [
       crisis: 'Trace perchlorate contamination detected in the primary water recycling system. Secondary filters are catching it but operating at 150% rated capacity.',
       category: 'infrastructure', emergent: true,
       turnSummary: 'An emergent crisis triggered by dust storm residue in the atmosphere settling into intake vents during routine maintenance.',
-      colony: { population: 100, morale: 0.87, foodMonthsReserve: 17.5, waterLitersPerDay: 650, powerKw: 390, infrastructureModules: 3, lifeSupportCapacity: 120, scienceOutput: 0 },
+      systems: { population: 100, morale: 0.87, foodMonthsReserve: 17.5, waterLitersPerDay: 650, powerKw: 390, infrastructureModules: 3, lifeSupportCapacity: 120, scienceOutput: 0 },
     },
   },
   { type: 'dept_start', leader: 'Commander Hiroshi Tanaka', data: { turn: 2, department: 'engineering', title: 'Engineering Analysis' } },
@@ -350,7 +350,7 @@ export const DEMO_EVENTS: SimEvent[] = [
   },
   {
     type: 'turn_done', leader: 'Commander Hiroshi Tanaka',
-    data: { turn: 2, colony: { population: 100, morale: 0.89, foodMonthsReserve: 17, waterLitersPerDay: 820, powerKw: 388, infrastructureModules: 3, lifeSupportCapacity: 120, scienceOutput: 1 } },
+    data: { turn: 2, systems: { population: 100, morale: 0.89, foodMonthsReserve: 17, waterLitersPerDay: 820, powerKw: 388, infrastructureModules: 3, lifeSupportCapacity: 120, scienceOutput: 1 } },
   },
 
   // ════════════════════════════════════════════════════════════════════
@@ -365,7 +365,7 @@ export const DEMO_EVENTS: SimEvent[] = [
       crisis: 'Three colonists are pregnant. Colony must decide on birthing protocols, education infrastructure, and whether to allocate scarce resources to a pediatric wing.',
       category: 'social', emergent: true,
       turnSummary: 'A milestone moment as the colony prepares for its first generation of humans born on Mars.',
-      colony: { population: 98, morale: 0.72, foodMonthsReserve: 15, waterLitersPerDay: 850, powerKw: 370, infrastructureModules: 4, lifeSupportCapacity: 116, scienceOutput: 12 },
+      systems: { population: 98, morale: 0.72, foodMonthsReserve: 15, waterLitersPerDay: 850, powerKw: 370, infrastructureModules: 4, lifeSupportCapacity: 116, scienceOutput: 12 },
     },
   },
   { type: 'dept_start', leader: 'Commander Elena Vasquez', data: { turn: 3, department: 'medical', title: 'Medical Analysis' } },
@@ -430,7 +430,7 @@ export const DEMO_EVENTS: SimEvent[] = [
   },
   {
     type: 'turn_done', leader: 'Commander Elena Vasquez',
-    data: { turn: 3, colony: { population: 98, morale: 0.82, foodMonthsReserve: 14, waterLitersPerDay: 840, powerKw: 365, infrastructureModules: 4, lifeSupportCapacity: 114, scienceOutput: 16 } },
+    data: { turn: 3, systems: { population: 98, morale: 0.82, foodMonthsReserve: 14, waterLitersPerDay: 840, powerKw: 365, infrastructureModules: 4, lifeSupportCapacity: 114, scienceOutput: 16 } },
   },
 
   // ════════════════════════════════════════════════════════════════════
@@ -445,7 +445,7 @@ export const DEMO_EVENTS: SimEvent[] = [
       crisis: 'Three colonists are pregnant. Colony must decide on birthing protocols, education infrastructure, and whether to allocate scarce resources to a pediatric wing.',
       category: 'social', emergent: true,
       turnSummary: 'A milestone moment as the colony prepares for its first generation of humans born on Mars.',
-      colony: { population: 100, morale: 0.89, foodMonthsReserve: 16.5, waterLitersPerDay: 820, powerKw: 385, infrastructureModules: 3, lifeSupportCapacity: 120, scienceOutput: 2 },
+      systems: { population: 100, morale: 0.89, foodMonthsReserve: 16.5, waterLitersPerDay: 820, powerKw: 385, infrastructureModules: 3, lifeSupportCapacity: 120, scienceOutput: 2 },
     },
   },
   { type: 'dept_start', leader: 'Commander Hiroshi Tanaka', data: { turn: 3, department: 'medical', title: 'Medical Analysis' } },
@@ -501,6 +501,6 @@ export const DEMO_EVENTS: SimEvent[] = [
   },
   {
     type: 'turn_done', leader: 'Commander Hiroshi Tanaka',
-    data: { turn: 3, colony: { population: 100, morale: 0.90, foodMonthsReserve: 16, waterLitersPerDay: 815, powerKw: 382, infrastructureModules: 3, lifeSupportCapacity: 120, scienceOutput: 3 } },
+    data: { turn: 3, systems: { population: 100, morale: 0.90, foodMonthsReserve: 16, waterLitersPerDay: 815, powerKw: 382, infrastructureModules: 3, lifeSupportCapacity: 120, scienceOutput: 3 } },
   },
 ];

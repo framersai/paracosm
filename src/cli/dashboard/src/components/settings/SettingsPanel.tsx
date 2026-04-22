@@ -75,7 +75,7 @@ function defaultLeader(idx: number): LeaderFormData {
   return {
     name: idx === 0 ? 'Leader A' : 'Leader B',
     archetype: idx === 0 ? 'The Visionary' : 'The Engineer',
-    colony: idx === 0 ? 'Colony Alpha' : 'Colony Beta',
+    unit: idx === 0 ? 'Colony Alpha' : 'Colony Beta',
     instructions: '',
     hexaco: { ...DEFAULT_HEXACO },
   };
@@ -93,10 +93,10 @@ export function SettingsPanel() {
 
   const defaultPreset = scenario.presets.find(p => p.id === 'default');
   const initLeaderA = defaultPreset?.leaders?.[0]
-    ? { name: defaultPreset.leaders[0].name, archetype: defaultPreset.leaders[0].archetype, colony: 'Colony Alpha', instructions: defaultPreset.leaders[0].instructions, hexaco: defaultPreset.leaders[0].hexaco }
+    ? { name: defaultPreset.leaders[0].name, archetype: defaultPreset.leaders[0].archetype, unit: 'Colony Alpha', instructions: defaultPreset.leaders[0].instructions, hexaco: defaultPreset.leaders[0].hexaco }
     : defaultLeader(0);
   const initLeaderB = defaultPreset?.leaders?.[1]
-    ? { name: defaultPreset.leaders[1].name, archetype: defaultPreset.leaders[1].archetype, colony: 'Colony Beta', instructions: defaultPreset.leaders[1].instructions, hexaco: defaultPreset.leaders[1].hexaco }
+    ? { name: defaultPreset.leaders[1].name, archetype: defaultPreset.leaders[1].archetype, unit: 'Colony Beta', instructions: defaultPreset.leaders[1].instructions, hexaco: defaultPreset.leaders[1].hexaco }
     : defaultLeader(1);
 
   const [leaderA, setLeaderA] = useState<LeaderFormData>(initLeaderA);
@@ -110,7 +110,7 @@ export function SettingsPanel() {
       setLeaderA({
         name: p.leaders![0].name,
         archetype: p.leaders![0].archetype,
-        colony: 'Colony Alpha',
+        unit: 'Colony Alpha',
         instructions: p.leaders![0].instructions,
         hexaco: { ...p.leaders![0].hexaco },
       });
@@ -119,7 +119,7 @@ export function SettingsPanel() {
       setLeaderB({
         name: p.leaders![1].name,
         archetype: p.leaders![1].archetype,
-        colony: 'Colony Beta',
+        unit: 'Colony Beta',
         instructions: p.leaders![1].instructions,
         hexaco: { ...p.leaders![1].hexaco },
       });

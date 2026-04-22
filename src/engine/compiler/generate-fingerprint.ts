@@ -22,7 +22,7 @@ DEPARTMENTS: ${depts}
 Function signature: (finalState, outcomeLog, leader, toolRegs, maxTurns) => Record<string, string>
 
 Inputs:
-- finalState: { agents, colony, politics, metadata: { currentYear, startYear } }
+- finalState: { agents, systems, politics, metadata: { currentYear, startYear } }
 - outcomeLog: [{ turn, year, outcome: 'risky_success' | 'risky_failure' | 'conservative_success' | 'conservative_failure' }]
 - leader: { name, archetype, hexaco }
 - toolRegs: Record<dept, string[]> (department -> tool names)
@@ -53,7 +53,7 @@ export function parseResponse(text: string): FingerprintFn | null {
 
 function smokeTest(fn: FingerprintFn): void {
   const result = fn(
-    { agents: [], colony: { morale: 0.6, population: 80 }, politics: { earthDependencyPct: 50 }, metadata: { currentYear: 2070, startYear: 2035 } },
+    { agents: [], systems: { morale: 0.6, population: 80 }, politics: { earthDependencyPct: 50 }, metadata: { currentYear: 2070, startYear: 2035 } },
     [{ turn: 1, year: 2035, outcome: 'conservative_success' }],
     { name: 'Test', archetype: 'test', hexaco: { openness: 0.5, conscientiousness: 0.5, extraversion: 0.5, agreeableness: 0.5, emotionality: 0.5, honestyHumility: 0.5 } },
     { engineering: ['tool1'] },

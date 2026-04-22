@@ -43,7 +43,7 @@ interface LivingSwarmGridProps {
   snapshotHistory?: TurnSnapshot[];
   leaderName: string;
   leaderArchetype: string;
-  leaderColony?: string;
+  leaderUnit?: string;
   /** First year of the scenario for HUD "Yr N" readout. */
   startYear?: number;
   sideColor: string;
