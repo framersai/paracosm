@@ -44,27 +44,18 @@ The inference is pure — lives alongside `extractPreviewMetadata` from F9 as a 
 
 ---
 
-## Swap-to-scenario action
+## Swap-to-scenario action — deferred
 
-A secondary button in the preview modal when state is `mismatch`: **Swap scenario then load**.
+The dashboard's scenario switch currently goes through `POST /scenario/switch` followed by `window.location.reload()` (see [`SettingsPanel.tsx:238-249`](../../src/cli/dashboard/src/components/settings/SettingsPanel.tsx#L238-L249)). Intercepting the load to swap-then-apply across a full page reload would require stashing the parsed events in `sessionStorage`, triggering the reload, then auto-confirming after the reload completes against the new scenario. That's viable but adds enough surface that it belongs in its own follow-up spec.
 
-Click behaviour:
+For F12: **no swap action button.** The mismatch warning surfaces clearly in the modal, and the user's workflow is:
+1. Cancel the preview
+2. Go to Settings, switch scenario (server reloads the page)
+3. Re-pick the same file, which now previews cleanly under the new scenario
 
-```
-user clicks "Swap scenario then load"
-    │
-    ▼
-  findScenarioInCatalog(file.scenario.id)
-    │
-    ├──► found in scenarioCatalog (built-in) → setActiveScenario(id); then dispatch normal confirm
-    │
-    ├──► found in customScenarioCatalog → setActiveScenario(id); then dispatch normal confirm
-    │
-    └──► not found → fallback to mismatch warning path, disable swap button with tooltip
-           "Scenario <id> is not in your catalog. Import the scenario JSON first."
-```
+Alternatively the user can click **Load anyway** to accept the degraded render.
 
-The "swap before load" flow avoids the halfway state where events mount against a mismatched scenario. Implementation: do the swap, wait one tick for `ScenarioContext` to propagate, then call `sse.loadEvents`. A `useEffect` in the `useLoadPreview` hook waits on `scenario.id` changing to the target value before triggering the dispatch.
+This keeps F12 tightly scoped as a detection + warning layer, not a cross-reload state-transfer feature.
 
 ---
 
@@ -109,13 +100,14 @@ When `matchState === 'mismatch'`:
   ⚠  This file was saved under Mars Genesis.
      Your dashboard's active scenario is Submarine.
      Labels, colors, and department names will not match.
+     Switch scenario in Settings before loading for a clean render.
 
-  [ Cancel ]  [ Load anyway ]  [ Swap to Mars Genesis and load ]
+  [ Cancel ]  [ Load anyway ]
 ```
 
-The tri-button row replaces F9's bi-button row only in the `mismatch` case. In `match` / `unknown` / `unavailable` cases, the bi-button row stays.
+F9's bi-button row is retained; only the sub-copy + confirm-button label changes in the `mismatch` case. In `match` / `unknown` / `unavailable` cases, the standard F9 buttons render.
 
-Styling: warning row uses the same pattern as F9's "This will replace..." warning (same warning color + icon). Swap button uses the primary-action accent color; Load anyway uses a muted neutral to gently discourage.
+Styling: warning row uses the same pattern as F9's "This will replace..." warning (same warning color + icon). Load-anyway button is styled with a muted neutral to gently discourage, vs the green "Load" in the match case.
 
 ---
 
@@ -123,11 +115,10 @@ Styling: warning row uses the same pattern as F9's "This will replace..." warnin
 
 **Modified.**
 - `src/cli/dashboard/src/hooks/useGamePersistence.ts` — `save()` writes `scenario: { id, version, shortName }` unconditionally (takes current `scenario` prop as input)
-- `src/cli/dashboard/src/hooks/useLoadPreview.ts` — add `inferScenarioIdentity` + compute `matchState` in preview metadata
-- `src/cli/dashboard/src/hooks/useLoadPreview.test.ts` — extend tests for match / mismatch / unknown / unavailable
-- `src/cli/dashboard/src/components/layout/LoadPreviewModal.tsx` — branch the buttons row on `matchState`, add warning row, add swap handler
-- `src/cli/dashboard/src/components/layout/LoadPreviewModal.module.scss` — swap-button variant + mismatch warning styling
-- `src/cli/dashboard/src/App.tsx` — pass `setActiveScenario` callback into the preview hook's swap path
+- `src/cli/dashboard/src/hooks/useLoadPreview.helpers.ts` — add `inferScenarioIdentity` + compute `matchState` pure helper
+- `src/cli/dashboard/src/hooks/useLoadPreview.helpers.test.ts` — extend tests for match / mismatch / unknown / unavailable
+- `src/cli/dashboard/src/components/layout/LoadPreviewModal.tsx` — render the warning row + adjust confirm button label/color in `mismatch` case
+- `src/cli/dashboard/src/components/layout/LoadPreviewModal.module.scss` — mismatch warning styling variant
 
 **No new files.** Layered onto F9 + F11.
 
@@ -136,17 +127,15 @@ Styling: warning row uses the same pattern as F9's "This will replace..." warnin
 ## Rollout sequence
 
 1. Extend `save()` to always write the `scenario` field (harmless addition — older dashboards just ignore it)
-2. Add `inferScenarioIdentity` helper in the preview hook
-3. Compute `matchState` in the metadata extractor
-4. Update `LoadPreviewModal` to render based on `matchState`
-5. Wire `setActiveScenario` through to the swap handler
-6. Tests for each match state
-7. Manual smoke:
+2. Add `inferScenarioIdentity` + `computeMatchState` helpers in the helpers file
+3. Thread the computed `matchState` + file-scenario info through `useLoadPreview` into preview metadata
+4. Update `LoadPreviewModal` to render warning row + adjusted button label in `mismatch` case
+5. Tests for each match state (`match` / `mismatch` / `unknown` / `unavailable`)
+6. Manual smoke:
    - Load a Mars save while active scenario is Mars → `match`, no warning
-   - Load a Mars save while active scenario is Submarine → `mismatch`, three-button row, swap works
-   - Load a Mars save while active scenario is a custom Submarine in `customScenarioCatalog` → `mismatch`, swap-button text still shows target name
-   - Load a legacy save (pre-F9 scenario field) → `unknown`, single warning row, confirm stays enabled
-   - Load a save with a `scenario.id` that isn't in this dashboard's catalog → `unavailable`, warning, swap disabled
+   - Load a Mars save while active scenario is Submarine → `mismatch`, warning row, "Load anyway" button
+   - Load a legacy save (pre-F9 scenario field) → `unknown`, soft info row, confirm stays enabled
+   - Load a save with a `scenario.id` that isn't in any known scenario → `unavailable`, amber warning, confirm stays enabled
 
 ---
 
@@ -176,9 +165,9 @@ Styling: warning row uses the same pattern as F9's "This will replace..." warnin
 
 - Saved files carry `scenario: { id, version, shortName }` from F12 forward
 - Loading matched file → no warning, identical to F9 baseline
-- Loading mismatched file → red warning row, three action buttons, swap action swaps the scenario then loads events cleanly
+- Loading mismatched file → red warning row, "Load anyway" button, degraded-render guidance text
 - Loading legacy / unknown-scenario file → soft info row, single confirm button, no hard block
-- Loading file whose scenario isn't in the catalog → amber warning, swap disabled, Load-anyway still works
+- Loading file whose scenario isn't known to the dashboard → amber warning, confirm stays enabled
 - Tests pass for all four match states
 - SCSS module used; no inline styles
 - Existing 77/77 dashboard tests still pass
@@ -187,6 +176,7 @@ Styling: warning row uses the same pattern as F9's "This will replace..." warnin
 
 ## Out of scope
 
+- **Swap-then-load workflow.** The dashboard's scenario switch requires a server-side POST + full page reload, which means loading across a swap needs sessionStorage stashing. Deferred; see "Swap-to-scenario action — deferred" section above.
 - **Auto-import the file's scenario JSON into the catalog** when the save embeds a full scenario definition. Possible future feature: save files could optionally carry the compiled `ScenarioPackage`; loading could offer "Import the scenario and load the run". Separate spec; too much surface for F12.
 - **Partial compatibility matching.** "Mars v1.0" vs "Mars v1.1" — no semver-aware match; exact id match only. Version skew inside the same scenario family isn't a UX problem today.
 - **Scenario version checks.** `scenario.version` is written + displayed but not used to block. A file saved under Mars v0.9 loads against Mars v1.0 without warning. That's fine; scenario hooks are forward-compatible within a minor range.

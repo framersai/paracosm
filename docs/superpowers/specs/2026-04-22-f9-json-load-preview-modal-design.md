@@ -55,7 +55,7 @@ proposed (F9):
 
 The existing public `load()` stays for backward compat within the dashboard (callers that want the old fire-and-forget path). Internally it becomes `pickFile()` + `parseFile()` + returned promise. F9 consumers use the split pair directly so they can inject the preview step between pick and apply.
 
-**Metadata extractor.** `hooks/useLoadPreview.ts::extractPreviewMetadata(data: GameData) → PreviewMetadata`. Pure function. Computes:
+**Metadata extractor.** `hooks/useLoadPreview.helpers.ts::extractPreviewMetadata(data: GameData, file?: { name: string; size: number }) → PreviewMetadata | null`. Pure function living in a sibling `.helpers.ts` file alongside the hook, matching the dashboard's established pattern ([`LoadMenu.helpers.ts`](../../src/cli/dashboard/src/components/layout/LoadMenu.helpers.ts)). The `.helpers.ts` file is free of React / DOM imports so it runs under `node:test` without a shim. Returns `null` when `data.events` is missing / empty. Computes:
 
 | Field | Source | Example |
 |---|---|---|
@@ -71,9 +71,9 @@ The existing public `load()` stays for backward compat within the dashboard (cal
 
 `extractPreviewMetadata` is pure + stable → easy to unit-test via `node:test` without DOM.
 
-**Overwrite warning.** When `sse.events.length > 0 && !sse.isReplay`, the modal's confirm button label becomes "**Replace current simulation**" (orange) with sub-copy "`This will replace the 24-event run you're viewing.`". When the current state is empty (or in replay mode), the button is "**Load**" (green). No second modal; the color + copy shift is the signal.
+**Overwrite warning.** When `sse.events.length > 0 && !replaySessionId` (where `replaySessionId` comes from `useReplaySessionId()` — the URL `?replay=<id>` param), the modal's confirm button label becomes "**Replace current simulation**" (orange) with sub-copy "`This will replace the 24-event run you're viewing.`". When the current state is empty or in replay mode, the button is "**Load**" (green). No second modal; the color + copy shift is the signal.
 
-**LoadMenu cache/replay cards.** Same flow. Today, clicking a cache card in `LoadMenu.tsx` calls `onSelectCache` which dispatches directly. After F9, those handlers go through `useLoadPreview.openFromCache(cacheEntry)` (cache cards) or `useLoadPreview.openFromReplay(sessionId)` (server replay cards) so the same preview modal shows up for all three entry points. The metadata extractor gets a `fileName` of `"cache: <scenario>-<timestamp>"` or `"replay: <session-id>"` to keep the same shape.
+**Scope clarification — file-load only.** F9 intercepts ONLY the file-picker path (`handleLoad` in App + `onLoadFromFile` in LoadMenu). The LoadMenu cache/replay cards trigger `/sim?replay=<id>` via `window.location.assign` at [`LoadMenu.tsx:120-123`](../../src/cli/dashboard/src/components/layout/LoadMenu.tsx#L120-L123), which is a full page navigation rather than an in-memory dispatch. Adding a preview step to that navigation flow requires different plumbing (preview the session meta, then navigate on confirm) and is out of scope for F9. Tracked as follow-up.
 
 ---
 
@@ -92,18 +92,20 @@ The write is additive. F11's schema-version gate will bump `schemaVersion: 2 →
 
 **New.**
 - `src/cli/dashboard/src/components/layout/LoadPreviewModal.tsx` + `LoadPreviewModal.module.scss` (~120 + ~80 lines)
-- `src/cli/dashboard/src/hooks/useLoadPreview.ts` (~140 lines)
-- `src/cli/dashboard/src/hooks/useLoadPreview.test.ts` (~60 lines; tests extractPreviewMetadata, state machine)
+- `src/cli/dashboard/src/hooks/useLoadPreview.ts` (~100 lines — hook only; state transitions + callbacks)
+- `src/cli/dashboard/src/hooks/useLoadPreview.helpers.ts` (~80 lines — pure `extractPreviewMetadata` + formatting helpers)
+- `src/cli/dashboard/src/hooks/useLoadPreview.helpers.test.ts` (~80 lines; tests extractPreviewMetadata on canonical, legacy, empty fixtures)
 
 **Modified.**
-- `src/cli/dashboard/src/hooks/useGamePersistence.ts` — split `load()` internals into `pickFile()` + `parseFile()` + retain a back-compat `load()` that composes them.
+- `src/cli/dashboard/src/hooks/useGamePersistence.ts` — split `load()` internals into `pickFile()` + `parseFile()` + retain a back-compat `load()` that composes them. Also extend `save()` to include the optional `scenario` field in the output JSON.
 - `src/cli/dashboard/src/App.tsx` — replace `handleLoad` body with `useLoadPreview.openFromFile()` entry; mount `<LoadPreviewModal />` next to the other modals; plumb the confirm callback into `sse.loadEvents` + `setActiveTab('sim')`.
-- `src/cli/dashboard/src/components/layout/LoadMenu.tsx` — cache + replay card handlers call `useLoadPreview.openFromCache()` / `openFromReplay()` instead of dispatching directly.
-- `src/cli/dashboard/src/hooks/useGamePersistence.ts` — `save()` adds the optional `scenario` field in the output JSON.
+
+**NOT modified in F9.**
+- `src/cli/dashboard/src/components/layout/LoadMenu.tsx` — cache + replay card handlers stay as today (URL-based navigation). Preview flow for those paths is separate scope.
 
 **Tests.**
-- Add `useLoadPreview.test.ts` covering: metadata extraction from canonical fixture, empty file handling, non-JSON handling, confirm/cancel state machine, openFromCache path.
-- Extend one existing App test to assert the modal mounts on load and dispatches only after confirm.
+- Add `useLoadPreview.helpers.test.ts` covering: metadata extraction from canonical fixture, legacy file fixture, empty file handling, malformed JSON handling.
+- No component-level test; the dashboard does not use a test-library (per standing `useRetryStats.test.ts` / `useGameState.test.ts` pattern). Verify modal + wiring via manual smoke.
 
 ---
 
@@ -136,7 +138,7 @@ Modal layout, top to bottom:
 
 Styling hooks via SCSS module (per the F4 / no-inline-styles rule). Focus-trapped on open, closes on Escape / backdrop click / Cancel click. The confirm button is the default-focused element so Enter loads immediately.
 
-The warning row (⚠) only renders when `sse.events.length > 0 && !sse.isReplay`. In the no-current-state case the row is absent and the button text is "Load".
+The warning row (⚠) only renders when `sse.events.length > 0 && !replaySessionId`. In the no-current-state case (or when replay is active) the row is absent and the button text is "Load".
 
 ---
 
@@ -215,11 +217,6 @@ No breaking changes. Old saved files load with fallback preview (scenario name f
 - `extractPreviewMetadata(legacyPre05Fixture)` → returns fallback metadata with `schemaVersion === 'legacy (pre-0.5.0)'` and a scenarioName derived from events
 - State-machine transitions: `openFromFile` from each state yields expected next state
 
-**Component (existing pattern — no test-library per feedback).**
-- Mount App, simulate LOAD click → preview state appears
-- Simulate cancel → no sse.loadEvents called
-- Simulate confirm → sse.loadEvents called exactly once with the parsed events
-
 **Manual smoke.**
 - Load a current-version file → preview renders, confirm dispatches, timeline renders
 - Load a pre-0.5.0 file → preview renders with "legacy" schema badge, confirm dispatches, migration still runs
@@ -235,10 +232,10 @@ No breaking changes. Old saved files load with fallback preview (scenario name f
 - Modal shows: scenario name, leader names, turn + event counts, schema version, date, verdict presence, file size, file name
 - Confirm dispatches events + switches to Sim tab + fires the existing "Loaded N events" toast
 - Cancel / Escape / backdrop click closes the modal without dispatching
-- Warning row visible only when current state has events and is not a replay
-- LoadMenu cache + replay cards flow through the same preview modal
-- `useLoadPreview.test.ts` passes 100%
-- Existing 77/77 dashboard tests still pass; extended App test passes
+- Warning row visible only when current state has events and replay is not active (no `?replay=<id>` URL param)
+- LoadMenu's "Load from file" row opens the same preview modal (file-picker flow goes through the hook)
+- `useLoadPreview.helpers.test.ts` passes 100%
+- Existing 77/77 dashboard tests still pass
 - No inline styles; SCSS module used per standing rule
 - `npx tsc --noEmit -p tsconfig.json` clean
 
@@ -258,4 +255,4 @@ No breaking changes. Old saved files load with fallback preview (scenario name f
 
 - **File pickers that return wrong mime type.** Safari on macOS sometimes hands over `application/octet-stream` instead of `application/json`. Current `input.accept = '.json'` filters by extension — keep that, ignore mime.
 - **Large files (50 MB+ saves).** FileReader + JSON.parse are synchronous on the main thread. Current load is too. F9 preview doesn't add cost; deferring the spend to after confirm isn't worth it.
-- **Modal-on-top-of-modal.** LoadMenu is a popover; triggering the preview modal from a cache card click needs to dismiss the popover first (or the backdrop stacking gets wrong). Handle by calling `closeLoadMenu()` at the top of `openFromCache`.
+- **LoadMenu popover stays as-is in F9.** Cache + replay cards continue to navigate via URL; file-picker row continues to call `onLoadFromFile` which now routes through the hook. The popover auto-closes on its own click-outside logic when the modal opens.
