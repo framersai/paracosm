@@ -14,6 +14,7 @@ import { useCallback, useReducer } from 'react';
 import {
   extractPreviewMetadata,
   reducePreviewState,
+  type CurrentScenarioContext,
   type PreviewMetadata,
   type PreviewState,
 } from './useLoadPreview.helpers.js';
@@ -25,6 +26,11 @@ export interface UseLoadPreviewOptions {
   pickFile: () => Promise<File | null>;
   /** Parser + migration hop — typically `persistence.parseFile`. */
   parseFile: (file: File) => Promise<ParseResult>;
+  /**
+   * Dashboard's active scenario used to detect mismatch with the loaded
+   * file's scenario. Optional: omit to skip the match check entirely.
+   */
+  currentScenario?: CurrentScenarioContext;
   /**
    * Called on confirm. Receives the parsed + migrated save-file payload.
    * Host does whatever it needs (dispatch to SSE, switch tabs, toast).
@@ -81,10 +87,11 @@ export function useLoadPreview(opts: UseLoadPreviewOptions): UseLoadPreviewApi {
         }
         return;
       }
-      const metadata = extractPreviewMetadata(parsed.data, {
-        name: file.name,
-        size: file.size,
-      });
+      const metadata = extractPreviewMetadata(
+        parsed.data,
+        { name: file.name, size: file.size },
+        opts.currentScenario,
+      );
       if (!metadata) {
         dispatch({ type: 'open-failed' });
         opts.onError?.('No valid game data found in file.');
