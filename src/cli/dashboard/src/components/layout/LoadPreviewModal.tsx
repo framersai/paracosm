@@ -65,10 +65,15 @@ export function LoadPreviewModal({
       ? 'legacy (pre-0.5.0)'
       : `v${metadata.schemaVersion}`;
 
-  const confirmLabel = showOverwriteWarning ? 'Replace current simulation' : 'Load';
+  const isMismatch = metadata.scenarioMatch?.state === 'mismatch';
+  const confirmLabel = isMismatch
+    ? 'Load anyway'
+    : showOverwriteWarning
+      ? 'Replace current simulation'
+      : 'Load';
   const confirmClassName = [
     styles.button,
-    showOverwriteWarning ? styles.warningConfirm : styles.primary,
+    isMismatch || showOverwriteWarning ? styles.warningConfirm : styles.primary,
   ].join(' ');
 
   return (
@@ -139,6 +144,18 @@ export function LoadPreviewModal({
           <div className={styles.metaLabel}>Verdict</div>
           <div className={styles.metaValue}>{metadata.hasVerdict ? 'yes' : 'no'}</div>
         </div>
+
+        {metadata.scenarioMatch?.state === 'mismatch' && (
+          <div role="alert" className={styles.warning}>
+            <span aria-hidden="true" className={styles.warningIcon}>⚠</span>
+            <span>
+              This file was saved under <strong>{metadata.scenarioMatch.fileScenarioName}</strong>.
+              Your dashboard's active scenario is <strong>{metadata.scenarioMatch.currentScenarioName}</strong>.
+              Labels, colors, and department names will not match. Switch
+              scenario in Settings before loading for a clean render.
+            </span>
+          </div>
+        )}
 
         {showOverwriteWarning && (
           <div role="alert" className={styles.warning}>

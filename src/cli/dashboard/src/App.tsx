@@ -185,6 +185,7 @@ function AppContent() {
   const loadPreview = useLoadPreview({
     pickFile: persistence.pickFile,
     parseFile: persistence.parseFile,
+    currentScenario: { id: scenario.id, name: scenario.labels.name },
     onConfirm: ({ events, results, verdict }) => {
       sse.loadEvents(events, results, verdict);
       toast('info', 'Loaded', `${events.length} events loaded.`);

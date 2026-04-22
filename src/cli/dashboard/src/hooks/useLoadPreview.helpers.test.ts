@@ -10,6 +10,8 @@ import {
   extractPreviewMetadata,
   formatFileSize,
   reducePreviewState,
+  inferScenarioIdentity,
+  computeMatchState,
   type PreviewState,
   type PreviewAction,
   type PreviewMetadata,
@@ -325,3 +327,128 @@ test('reducePreviewState: cancel while idle is a no-op', () => {
 // Silence unused-type warnings when PreviewAction isn't instantiated at runtime.
 const _actionShape: PreviewAction = { type: 'cancel' };
 void _actionShape;
+
+// -- inferScenarioIdentity -------------------------------------------------
+
+test('inferScenarioIdentity: top-level scenario field -> declared', () => {
+  const ident = inferScenarioIdentity({
+    scenario: { id: 'mars-genesis', version: '1.0.0', shortName: 'mars' },
+    events: [{ type: 'turn_start', leader: 'A', data: { turn: 1 } }],
+  });
+  assert.equal(ident.source, 'declared');
+  assert.equal(ident.id, 'mars-genesis');
+  assert.equal(ident.name, 'mars');
+});
+
+test('inferScenarioIdentity: missing top-level scenario, events carry data.scenario.name -> inferred', () => {
+  const ident = inferScenarioIdentity({
+    events: [
+      {
+        type: 'turn_start',
+        leader: 'A',
+        data: { turn: 1, scenario: { name: 'Mars Genesis', id: 'mars-genesis' } },
+      },
+    ],
+  });
+  assert.equal(ident.source, 'inferred');
+  assert.equal(ident.name, 'Mars Genesis');
+  assert.equal(ident.id, 'mars-genesis');
+});
+
+test('inferScenarioIdentity: no signals anywhere -> unknown', () => {
+  const ident = inferScenarioIdentity({
+    events: [{ type: 'turn_start', leader: 'A', data: { turn: 1 } }],
+  });
+  assert.equal(ident.source, 'unknown');
+  assert.equal(ident.id, undefined);
+  assert.equal(ident.name, undefined);
+});
+
+test('inferScenarioIdentity: non-object input -> unknown', () => {
+  assert.equal(inferScenarioIdentity(null).source, 'unknown');
+  assert.equal(inferScenarioIdentity(undefined).source, 'unknown');
+  assert.equal(inferScenarioIdentity('nope').source, 'unknown');
+});
+
+test('inferScenarioIdentity: declared wins over event-level inference', () => {
+  const ident = inferScenarioIdentity({
+    scenario: { id: 'mars-genesis', version: '1.0.0', shortName: 'mars' },
+    events: [
+      { type: 'turn_start', data: { scenario: { name: 'Submarine' } } },
+    ],
+  });
+  assert.equal(ident.source, 'declared');
+  assert.equal(ident.id, 'mars-genesis');
+});
+
+// -- computeMatchState -----------------------------------------------------
+
+test('computeMatchState: declared id matches current id -> match', () => {
+  const state = computeMatchState(
+    { id: 'mars-genesis', name: 'mars', source: 'declared' },
+    { id: 'mars-genesis', name: 'Mars Genesis' },
+  );
+  assert.equal(state, 'match');
+});
+
+test('computeMatchState: declared id differs from current id -> mismatch', () => {
+  const state = computeMatchState(
+    { id: 'mars-genesis', name: 'mars', source: 'declared' },
+    { id: 'submarine', name: 'Submarine Habitat' },
+  );
+  assert.equal(state, 'mismatch');
+});
+
+test('computeMatchState: inferred name matches current name (fallback) -> match', () => {
+  const state = computeMatchState(
+    { name: 'Mars Genesis', source: 'inferred' },
+    { id: 'mars-genesis', name: 'Mars Genesis' },
+  );
+  assert.equal(state, 'match');
+});
+
+test('computeMatchState: unknown identity -> unknown', () => {
+  const state = computeMatchState(
+    { source: 'unknown' },
+    { id: 'mars-genesis', name: 'Mars Genesis' },
+  );
+  assert.equal(state, 'unknown');
+});
+
+test('computeMatchState: inferred id with no current match -> mismatch', () => {
+  const state = computeMatchState(
+    { id: 'submarine', name: 'Submarine', source: 'inferred' },
+    { id: 'mars-genesis', name: 'Mars Genesis' },
+  );
+  assert.equal(state, 'mismatch');
+});
+
+// -- extractPreviewMetadata returns scenarioMatch when currentScenario is supplied --
+
+test('extractPreviewMetadata: scenarioMatch reports match when currentScenario matches file scenario', () => {
+  const meta = extractPreviewMetadata(
+    canonicalFixture,
+    { name: 'mars.json', size: 1024 },
+    { id: 'mars-genesis', name: 'mars' },
+  );
+  assert.ok(meta);
+  assert.equal(meta!.scenarioMatch?.state, 'match');
+});
+
+test('extractPreviewMetadata: scenarioMatch reports mismatch when currentScenario differs', () => {
+  const meta = extractPreviewMetadata(
+    canonicalFixture,
+    { name: 'mars.json', size: 1024 },
+    { id: 'submarine', name: 'Submarine' },
+  );
+  assert.ok(meta);
+  assert.equal(meta!.scenarioMatch?.state, 'mismatch');
+  assert.equal(meta!.scenarioMatch?.fileScenarioName, 'Mars Genesis');
+  assert.equal(meta!.scenarioMatch?.currentScenarioName, 'Submarine');
+});
+
+test('extractPreviewMetadata: scenarioMatch absent when no currentScenario passed', () => {
+  const meta = extractPreviewMetadata(canonicalFixture);
+  assert.ok(meta);
+  assert.equal(meta!.scenarioMatch, undefined);
+});

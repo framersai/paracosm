@@ -13,6 +13,19 @@
  * literal string `'legacy'` when the file predates the 0.5.0 schema
  * bump (no `schemaVersion` field written).
  */
+/**
+ * Comparison outcome between a file's declared/inferred scenario and the
+ * dashboard's active scenario. Populated only when the caller passes a
+ * `currentScenario` to {@link extractPreviewMetadata}.
+ */
+export type ScenarioMatchState = 'match' | 'mismatch' | 'unknown';
+
+export interface ScenarioMatch {
+  state: ScenarioMatchState;
+  fileScenarioName: string;
+  currentScenarioName: string;
+}
+
 export interface PreviewMetadata {
   /** Scenario display name, inferred in priority order from the file. */
   scenarioName: string;
@@ -32,6 +45,31 @@ export interface PreviewMetadata {
   fileName: string;
   /** Human-readable size string (e.g. `'142 KB'`), or `''` when absent. */
   fileSize: string;
+  /**
+   * Scenario match outcome vs the dashboard's active scenario. Only
+   * present when a `currentScenario` was supplied.
+   */
+  scenarioMatch?: ScenarioMatch;
+}
+
+/** Identity extracted from a saved file for match comparison. */
+export interface ScenarioIdentity {
+  id?: string;
+  name?: string;
+  /**
+   * - `'declared'`: the file carries a top-level `scenario: { id, ... }`
+   *   stamp (F9 save format and later).
+   * - `'inferred'`: only event-level `data.scenario.name`/`id` were
+   *   present; identity was extracted from there.
+   * - `'unknown'`: no scenario signals anywhere in the file.
+   */
+  source: 'declared' | 'inferred' | 'unknown';
+}
+
+/** Dashboard's active-scenario context, used for match computation. */
+export interface CurrentScenarioContext {
+  id: string;
+  name: string;
 }
 
 interface EventLike {
@@ -60,6 +98,7 @@ interface FileInfo {
 export function extractPreviewMetadata(
   data: unknown,
   file?: FileInfo,
+  currentScenario?: CurrentScenarioContext,
 ): PreviewMetadata | null {
   if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
   const obj = data as Record<string, unknown>;
@@ -88,6 +127,16 @@ export function extractPreviewMetadata(
 
   const scenarioName = inferScenarioName(obj, events);
 
+  let scenarioMatch: ScenarioMatch | undefined;
+  if (currentScenario) {
+    const identity = inferScenarioIdentity(data);
+    scenarioMatch = {
+      state: computeMatchState(identity, currentScenario),
+      fileScenarioName: scenarioName,
+      currentScenarioName: currentScenario.name,
+    };
+  }
+
   return {
     scenarioName,
     schemaVersion,
@@ -98,7 +147,64 @@ export function extractPreviewMetadata(
     hasVerdict,
     fileName: file?.name ?? '',
     fileSize: file ? formatFileSize(file.size) : '',
+    ...(scenarioMatch ? { scenarioMatch } : {}),
   };
+}
+
+/**
+ * Extract a scenario identity from parsed save data. Priority:
+ *   1. Top-level `scenario: { id, shortName }` (F9 save format)
+ *   2. First event's `data.scenario.{id, name}` (director-emitted)
+ *   3. Fall through to `source: 'unknown'`
+ *
+ * The `source` field distinguishes trusted declarations from heuristic
+ * inference so the UI can decide how strongly to warn on mismatch.
+ */
+export function inferScenarioIdentity(data: unknown): ScenarioIdentity {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    return { source: 'unknown' };
+  }
+  const obj = data as Record<string, unknown>;
+
+  const topScenario = obj.scenario;
+  if (topScenario && typeof topScenario === 'object') {
+    const rec = topScenario as Record<string, unknown>;
+    const id = typeof rec.id === 'string' ? rec.id : undefined;
+    const shortName = typeof rec.shortName === 'string' ? rec.shortName : undefined;
+    if (id || shortName) {
+      return { id, name: shortName, source: 'declared' };
+    }
+  }
+
+  const events = Array.isArray(obj.events) ? (obj.events as EventLike[]) : [];
+  for (const e of events) {
+    if (!e?.data || typeof e.data !== 'object') continue;
+    const scenarioRec = (e.data as Record<string, unknown>).scenario;
+    if (scenarioRec && typeof scenarioRec === 'object') {
+      const rec = scenarioRec as Record<string, unknown>;
+      const id = typeof rec.id === 'string' ? rec.id : undefined;
+      const name = typeof rec.name === 'string' ? rec.name : undefined;
+      if (id || name) return { id, name, source: 'inferred' };
+    }
+  }
+
+  return { source: 'unknown' };
+}
+
+/**
+ * Compare a file's extracted identity to the dashboard's active
+ * scenario. Primary match is by `id`; falls back to `name` when the
+ * file only carried a name-level signal. Returns `'unknown'` when the
+ * file's source is `'unknown'`.
+ */
+export function computeMatchState(
+  file: ScenarioIdentity,
+  current: CurrentScenarioContext,
+): ScenarioMatchState {
+  if (file.source === 'unknown') return 'unknown';
+  if (file.id && file.id === current.id) return 'match';
+  if (!file.id && file.name && file.name === current.name) return 'match';
+  return 'mismatch';
 }
 
 /**
