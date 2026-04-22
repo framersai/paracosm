@@ -252,3 +252,184 @@ export function sliceCommits(prevSha, currSha, { runGit: gitFn = runGit } = {}) 
   }
   return commits;
 }
+
+// ---------------------------------------------------------------------------
+// Rendering
+// ---------------------------------------------------------------------------
+
+/**
+ * Render a single commit as a CHANGELOG bullet. Conventional commits
+ * drop the `type:` prefix and keep the optional scope as a label. Non-
+ * conventional / scope-only commits keep their full subject intact so
+ * the original reads unchanged.
+ */
+export function renderBullet(c) {
+  const body = c.type
+    ? (c.scope ? `${c.scope}: ${c.subject}` : c.subject)
+    : c.subject;
+  return `- ${body} ([${c.shortSha}](${REPO_URL}/commit/${c.sha}))`;
+}
+
+/**
+ * Group + render one version entry. `collapseOther` controls whether the
+ * "other" bucket renders inside a `<details>` block (CHANGELOG.md) or
+ * flat as `### Other` (release-notes.md; GitHub Release UI handles
+ * `<details>` poorly). Empty subsections are omitted.
+ */
+export function renderEntry({ version, date, narrative, commits, collapseOther }) {
+  const groups = {
+    breaking: [],
+    features: [],
+    bugfixes: [],
+    performance: [],
+    other: [],
+  };
+  for (const c of commits) {
+    groups[classifyCommit(c)].push(c);
+  }
+
+  const lines = [`## ${version} (${date})`, ''];
+  if (narrative && narrative.length) {
+    lines.push(narrative, '');
+  }
+
+  const sectionOrder = [
+    ['breaking', '### Breaking Changes'],
+    ['features', '### Features'],
+    ['bugfixes', '### Bug Fixes'],
+    ['performance', '### Performance'],
+  ];
+  for (const [key, header] of sectionOrder) {
+    if (!groups[key].length) continue;
+    lines.push(header, '');
+    for (const c of groups[key]) lines.push(renderBullet(c));
+    lines.push('');
+  }
+
+  if (groups.other.length) {
+    if (collapseOther) {
+      lines.push('<details>', '<summary>Other</summary>', '');
+      for (const c of groups.other) lines.push(renderBullet(c));
+      lines.push('', '</details>', '');
+    } else {
+      lines.push('### Other', '');
+      for (const c of groups.other) lines.push(renderBullet(c));
+      lines.push('');
+    }
+  }
+
+  return lines.join('\n');
+}
+
+// ---------------------------------------------------------------------------
+// Full-output composition
+// ---------------------------------------------------------------------------
+
+const CHANGELOG_HEADER = `# Changelog
+
+All notable changes to paracosm are documented here. Format follows the spirit of [Keep a Changelog](https://keepachangelog.com/), grouped by major.minor version. Each \`0.M.<run_number>\` npm publish rolls into the matching major.minor entry. Per-publish detail lives in each [GitHub Release](${REPO_URL}/releases).
+`;
+
+/**
+ * Build CHANGELOG.md text from boundaries + existing narratives. Each
+ * boundary's commit range runs from the previous boundary's commit
+ * (exclusive) to this boundary's commit (inclusive). The oldest
+ * boundary has no predecessor; it ranges from the root of history.
+ */
+export function renderChangelog({ boundaries, narratives, gitFn }) {
+  if (!boundaries.length) {
+    return CHANGELOG_HEADER;
+  }
+
+  const entries = [];
+  // boundaries is newest-first; each boundary's range needs the older
+  // boundary's sha as `prev`. The last entry in the list (oldest) has
+  // no predecessor; use the root commit.
+  for (let i = 0; i < boundaries.length; i++) {
+    const current = boundaries[i];
+    const previous = boundaries[i + 1] ?? null;
+    const range = previous
+      ? sliceCommits(previous.sha, current.sha, { runGit: gitFn })
+      : sliceCommits(
+          gitFn(['rev-list', '--max-parents=0', 'HEAD']).split('\n')[0],
+          current.sha,
+          { runGit: gitFn },
+        );
+    entries.push(renderEntry({
+      version: current.version,
+      date: current.date,
+      narrative: narratives.get(current.version) ?? '',
+      commits: range,
+      collapseOther: true,
+    }));
+  }
+
+  return CHANGELOG_HEADER + '\n' + entries.join('\n---\n\n');
+}
+
+/**
+ * Build release-notes.md text for the upcoming publish. Range is
+ * `<last v*-tag>..HEAD`, falling back to the newest boundary's sha
+ * when no `v*` tag exists yet (first-publish case). Returns a short
+ * "no user-facing changes" body when the range is empty.
+ */
+export function renderReleaseNotes({ boundaries, gitFn }) {
+  let lastTag = null;
+  try {
+    lastTag = gitFn(['describe', '--tags', '--abbrev=0', '--match', 'v*']);
+  } catch {
+    lastTag = null;
+  }
+
+  const from = lastTag ?? (boundaries[0]?.sha ?? null);
+  if (!from) return 'Maintenance release; no user-facing changes.\n';
+
+  const commits = sliceCommits(from, 'HEAD', { runGit: gitFn });
+  if (!commits.length) return 'Maintenance release; no user-facing changes.\n';
+
+  let upcomingVersion = 'Upcoming';
+  try {
+    const pkg = JSON.parse(readFileSync('package.json', 'utf-8'));
+    if (pkg.version) upcomingVersion = pkg.version;
+  } catch {
+    // leave default
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  return renderEntry({
+    version: upcomingVersion,
+    date: today,
+    narrative: '',
+    commits,
+    collapseOther: false,
+  }) + '\n';
+}
+
+// ---------------------------------------------------------------------------
+// main()
+// ---------------------------------------------------------------------------
+
+export async function main() {
+  const boundaries = detectBoundaries();
+  const existing = existsSync('CHANGELOG.md')
+    ? readFileSync('CHANGELOG.md', 'utf-8')
+    : '';
+  const narratives = extractNarratives(existing);
+
+  const changelog = renderChangelog({ boundaries, narratives, gitFn: runGit });
+  writeFileSync('CHANGELOG.md', changelog);
+
+  const releaseNotes = renderReleaseNotes({ boundaries, gitFn: runGit });
+  writeFileSync('release-notes.md', releaseNotes);
+
+  console.log(`changelog: ${boundaries.length} boundary entry(ies)`);
+  console.log(`release-notes: ${releaseNotes.split('\n')[0].slice(0, 80)}`);
+}
+
+// Only run when invoked directly (not when imported from tests).
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch(err => {
+    console.error(err);
+    process.exit(1);
+  });
+}
