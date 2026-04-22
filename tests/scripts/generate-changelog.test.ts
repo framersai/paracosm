@@ -6,6 +6,8 @@ import {
   extractNarratives,
   detectBoundaries,
   sliceCommits,
+  renderBullet,
+  renderEntry,
 } from '../../scripts/generate-changelog.mjs';
 
 test('parseCommit extracts type, scope, breaking, subject from "feat(runtime): add X"', () => {
@@ -326,4 +328,104 @@ test('sliceCommits: empty git output returns empty array', () => {
   };
   const commits = sliceCommits('prev', 'curr', { runGit: mockGit });
   assert.equal(commits.length, 0);
+});
+
+test('renderBullet: feat(scope) subject strips type + keeps scope', () => {
+  const c = parseCommit({
+    sha: 'abcdef1234567890abcdef1234567890abcdef12',
+    subject: 'feat(runtime): add X',
+    body: '',
+    author: 'Jane',
+  });
+  const b = renderBullet(c);
+  assert.equal(
+    b,
+    '- runtime: add X ([abcdef1](https://github.com/framersai/paracosm/commit/abcdef1234567890abcdef1234567890abcdef12))',
+  );
+});
+
+test('renderBullet: feat without scope strips type prefix', () => {
+  const c = parseCommit({
+    sha: '0'.repeat(40),
+    subject: 'feat: new thing',
+    body: '',
+    author: 'Jane',
+  });
+  const b = renderBullet(c);
+  assert.ok(b.startsWith('- new thing ('), `expected no scope prefix, got: ${b}`);
+});
+
+test('renderBullet: scope-only (no type) keeps the full subject', () => {
+  const c = parseCommit({
+    sha: '0'.repeat(40),
+    subject: 'dashboard: fix contrast',
+    body: '',
+    author: 'Jane',
+  });
+  const b = renderBullet(c);
+  assert.ok(b.startsWith('- dashboard: fix contrast ('));
+});
+
+test('renderEntry: groups bullets by classification, omits empty sections', () => {
+  const commits = [
+    parseCommit({ sha: '1'.repeat(40), subject: 'feat: a', body: '', author: 'J' }),
+    parseCommit({ sha: '2'.repeat(40), subject: 'fix: b', body: '', author: 'J' }),
+    parseCommit({ sha: '3'.repeat(40), subject: 'chore: c', body: '', author: 'J' }),
+  ];
+  const out = renderEntry({
+    version: '0.5.0',
+    date: '2026-04-21',
+    narrative: '',
+    commits,
+    collapseOther: true,
+  });
+  assert.ok(out.includes('## 0.5.0 (2026-04-21)'));
+  assert.ok(out.includes('### Features'));
+  assert.ok(out.includes('### Bug Fixes'));
+  assert.ok(out.includes('<details>\n<summary>Other</summary>'));
+  assert.ok(!out.includes('### Performance'), 'empty section omitted');
+  assert.ok(!out.includes('### Breaking Changes'), 'empty section omitted');
+});
+
+test('renderEntry: with narrative, block placed between header and first subsection', () => {
+  const commits = [
+    parseCommit({ sha: '1'.repeat(40), subject: 'feat: a', body: '', author: 'J' }),
+  ];
+  const out = renderEntry({
+    version: '0.5.0',
+    date: '2026-04-21',
+    narrative: 'Hand-written summary paragraph.',
+    commits,
+    collapseOther: true,
+  });
+  const headerIdx = out.indexOf('## 0.5.0');
+  const narrIdx = out.indexOf('Hand-written summary paragraph.');
+  const featIdx = out.indexOf('### Features');
+  assert.ok(headerIdx < narrIdx && narrIdx < featIdx, 'narrative sits between header and first subsection');
+});
+
+test('renderEntry: collapseOther:false renders other flat (for release-notes)', () => {
+  const commits = [
+    parseCommit({ sha: '1'.repeat(40), subject: 'chore: c', body: '', author: 'J' }),
+  ];
+  const out = renderEntry({
+    version: '0.5.47',
+    date: '2026-04-22',
+    narrative: '',
+    commits,
+    collapseOther: false,
+  });
+  assert.ok(out.includes('### Other'), 'flat header instead of <details>');
+  assert.ok(!out.includes('<details>'));
+});
+
+test('renderEntry: empty commits + no narrative still emits the header', () => {
+  const out = renderEntry({
+    version: '0.5.0',
+    date: '2026-04-21',
+    narrative: '',
+    commits: [],
+    collapseOther: true,
+  });
+  assert.ok(out.includes('## 0.5.0 (2026-04-21)'));
 });
