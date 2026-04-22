@@ -76,14 +76,16 @@ function seriesForSide(
 
 /** Build the six-metric series for both sides from the game state. */
 export function collectMetricSeries(state: GameState): MetricSeries[] {
-  const aEvents = state.a.events as Array<{ turn?: number; data: Record<string, unknown> }>;
-  const bEvents = state.b.events as Array<{ turn?: number; data: Record<string, unknown> }>;
+  const firstId = state.leaderIds[0];
+  const secondId = state.leaderIds[1];
+  const aEvents = (firstId ? state.leaders[firstId]?.events : undefined) as Array<{ turn?: number; data: Record<string, unknown> }> | undefined;
+  const bEvents = (secondId ? state.leaders[secondId]?.events : undefined) as Array<{ turn?: number; data: Record<string, unknown> }> | undefined;
   return METRIC_DEFS.map(def => ({
     id: def.id,
     label: def.label,
     unit: def.unit,
-    a: seriesForSide(aEvents, def.id),
-    b: seriesForSide(bEvents, def.id),
+    a: aEvents ? seriesForSide(aEvents, def.id) : [],
+    b: bEvents ? seriesForSide(bEvents, def.id) : [],
   }));
 }
 
