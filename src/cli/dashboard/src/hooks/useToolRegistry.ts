@@ -1,9 +1,10 @@
 import { useMemo, createContext, useContext } from 'react';
-import type { GameState, Side } from './useGameState';
+import type { GameState } from './useGameState';
 
 export interface ToolUseEvent {
-  /** Which side (a/b) used the tool here. */
-  side: Side;
+  /** Which leader used the tool here (by name, the dedup key across
+   *  the SSE event stream). Was `side: 'a' | 'b'` pre-F1. */
+  leaderName: string;
   turn: number;
   year: number;
   eventIndex: number;
@@ -28,8 +29,8 @@ export interface ToolEntry {
   firstForgedDepartment: string;
   /** All departments that referenced this tool across the run. */
   departments: Set<string>;
-  /** Sides that referenced it (for divergence display). */
-  sides: Set<Side>;
+  /** Leaders (by name) that referenced it, for divergence display. */
+  leaderNames: Set<string>;
   /** Number of times reused after the first forge (across all events). */
   reuseCount: number;
   /** Of the reuses, how many were re-forge attempts (vs pure citations). */
@@ -89,8 +90,10 @@ export function useToolRegistry(state: GameState): ToolRegistry {
     const list: ToolEntry[] = [];
     let next = 1;
 
-    for (const side of ['a', 'b'] as Side[]) {
-      for (const evt of state[side].events) {
+    for (const leaderName of state.leaderIds) {
+      const sideState = state.leaders[leaderName];
+      if (!sideState) continue;
+      for (const evt of sideState.events) {
         if (evt.type !== 'dept_done') continue;
         const tools = (evt.data?._filteredTools as Array<Record<string, unknown>>) || [];
         const dept = String(evt.data?.department || '');
@@ -108,15 +111,10 @@ export function useToolRegistry(state: GameState): ToolRegistry {
               firstForgedTurn: typeof t.firstForgedTurn === 'number' ? (t.firstForgedTurn as number) : (evt.turn ?? 0),
               firstForgedDepartment: String(t.firstForgedDepartment || dept),
               departments: new Set(),
-              sides: new Set(),
+              leaderNames: new Set(),
               reuseCount: 0,
               reforgeCount: 0,
               rejectedReforges: 0,
-              // Confidence is the judge's verdict on this tool. If the
-              // payload didn't include one (older sims), fall back to 0
-              // for rejected tools so we never misrepresent failures as
-              // borderline-passable. Approved tools without a confidence
-              // value default to 0.85 (the historical fallback).
               confidence: typeof t.confidence === 'number'
                 ? (t.confidence as number)
                 : (t.approved !== false ? 0.85 : 0),
@@ -132,28 +130,15 @@ export function useToolRegistry(state: GameState): ToolRegistry {
             byName.set(name, entry);
             list.push(entry);
           } else {
-            // Reuse: refresh latest output/sample. Reuse count is now
-            // derived from history.length below, so don't increment.
             if (typeof t.output === 'string' && t.output) entry.sampleOutput = t.output as string;
             if (typeof t.confidence === 'number' && (t.confidence as number) > entry.confidence) {
               entry.confidence = t.confidence as number;
             }
-            // Approval escalates monotonically: if ANY attempt with
-            // this name was approved (even a later retry after an
-            // initial rejection), the tool is approved in the
-            // registry. The previous "first attempt wins" rule
-            // mislabelled tools where the LLM re-forged with a
-            // corrected schema after an initial judge reject.
             if (t.approved !== false) {
               entry.approved = true;
             }
-            // Backfill schema if a later occurrence has it.
             if (!entry.inputSchema && t.inputSchema) entry.inputSchema = t.inputSchema;
             if (!entry.outputSchema && t.outputSchema) entry.outputSchema = t.outputSchema;
-            // errorReason surfaces only when the tool is still
-            // rejected. If a later retry succeeded, clear the reason
-            // so the UI stops showing a stale failure message next
-            // to a passing tool.
             if (entry.approved) {
               entry.errorReason = undefined;
             } else if (typeof t.errorReason === 'string' && t.errorReason) {
@@ -161,20 +146,15 @@ export function useToolRegistry(state: GameState): ToolRegistry {
             }
           }
           if (dept) entry.departments.add(dept);
-          entry.sides.add(side);
+          entry.leaderNames.add(leaderName);
 
-          // Authoritative history comes from the orchestrator's
-          // forgedLedger and is attached to every dept_done.forgedTools[i]
-          // entry. Replace the locally-accumulated history with the
-          // server's full history each time we see this tool — the
-          // server's history for this tool grows monotonically.
           const serverHistory = (t.history as Array<{
             turn: number; year: number; eventIndex: number; eventTitle: string;
             department: string; output: string | null;
             isReforge: boolean; rejected: boolean; confidence?: number;
           }>) || null;
           if (Array.isArray(serverHistory)) {
-            entry.history = serverHistory.map(h => ({ ...h, side }));
+            entry.history = serverHistory.map(h => ({ ...h, leaderName }));
             entry.reuseCount = Math.max(0, serverHistory.length - 1);
             entry.reforgeCount = serverHistory.filter(h => h.isReforge).length;
             entry.rejectedReforges = serverHistory.filter(h => h.isReforge && h.rejected).length;
@@ -190,14 +170,16 @@ export function useToolRegistry(state: GameState): ToolRegistry {
     // those attempts wouldn't land in dept_done.forgedTools but ARE in
     // the live forge_attempt stream, and users need to see terminal
     // failures in the toolbox to understand what was tried.
-    for (const side of ['a', 'b'] as Side[]) {
-      for (const evt of state[side].events) {
+    for (const leaderName of state.leaderIds) {
+      const sideState = state.leaders[leaderName];
+      if (!sideState) continue;
+      for (const evt of sideState.events) {
         if (evt.type !== 'forge_attempt') continue;
         const d = (evt.data as Record<string, unknown>) || {};
         const name = String(d.name || '').trim();
         if (!name || name === 'unnamed') continue;
-        if (byName.has(name)) continue; // already captured via dept_done path
-        if (d.approved === true) continue; // approved-only forge that somehow missed dept_done — skip
+        if (byName.has(name)) continue;
+        if (d.approved === true) continue;
         const failEntry: ToolEntry = {
           n: next++,
           name,
@@ -208,7 +190,7 @@ export function useToolRegistry(state: GameState): ToolRegistry {
           departments: new Set<string>(
             typeof d.department === 'string' && d.department ? [d.department] : [],
           ),
-          sides: new Set<Side>([side]),
+          leaderNames: new Set<string>([leaderName]),
           reuseCount: 0,
           reforgeCount: 0,
           rejectedReforges: 1,
@@ -232,7 +214,7 @@ export function useToolRegistry(state: GameState): ToolRegistry {
               rejected: true,
               confidence:
                 typeof d.confidence === 'number' ? (d.confidence as number) : undefined,
-              side,
+              leaderName,
             },
           ],
         };

@@ -40,7 +40,14 @@ export interface LeaderInfo {
   quote?: string;
 }
 
-export interface CrisisInfo {
+/**
+ * Per-turn narrative event projected from the SSE stream. Populated by
+ * `turn_start` and `event_start` events. The scenario layer calls these
+ * "events" generically; the default label noun is `crisis` (Mars-
+ * heritage) but scenarios override via `labels.eventNounSingular`. Field
+ * `year` is legacy — tracked in audit F23 (generic time units).
+ */
+export interface TurnEventInfo {
   turn: number;
   year?: number;
   title: string;
@@ -61,7 +68,7 @@ export interface LeaderSideState {
   leader: LeaderInfo | null;
   systems: SystemsState | null;
   prevSystems: SystemsState | null;
-  crisis: CrisisInfo | null;
+  event: TurnEventInfo | null;
   events: ProcessedEvent[];
   popHistory: number[];
   moraleHistory: number[];
@@ -167,7 +174,7 @@ export function getLeaderColorVar(index: number): string {
  */
 export function createEmptyLeaderSideState(): LeaderSideState {
   return {
-    leader: null, systems: null, prevSystems: null, crisis: null,
+    leader: null, systems: null, prevSystems: null, event: null,
     events: [], popHistory: [], moraleHistory: [],
     deaths: 0, deathCauses: {}, tools: 0, toolNames: new Set<string>(), citations: 0, decisions: 0,
     pendingDecision: '', pendingRationale: '', pendingReasoning: '', pendingPolicies: [],
@@ -351,7 +358,7 @@ export function computeGameState(sseEvents: SimEvent[], isComplete: boolean): Ga
         };
         s.currentEvents.push(info);
         if (info.totalEvents > 1) {
-          s.crisis = {
+          s.event = {
             turn: dd.turn as number,
             year: dd.year as number,
             title: `${info.eventIndex + 1}/${info.totalEvents}: ${info.title}`,
@@ -370,7 +377,7 @@ export function computeGameState(sseEvents: SimEvent[], isComplete: boolean): Ga
         if (dd.turn) state.turn = dd.turn as number;
         if (dd.year) state.year = dd.year as number;
         if (dd.title && dd.title !== 'Director generating...') {
-          s.crisis = {
+          s.event = {
             turn: dd.turn as number,
             year: dd.year as number,
             title: dd.title as string,

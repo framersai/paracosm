@@ -22,7 +22,7 @@ const btnStyle = {
 
 export function Toolbar({ state, onSave, onLoad, onClear }: ToolbarProps) {
   const scenario = useScenarioContext();
-  const hasEvents = state.a.events.length > 0 || state.b.events.length > 0;
+  const hasEvents = Object.values(state.leaders).some(s => s.events.length > 0);
 
   return (
     <div

@@ -1,22 +1,29 @@
 import { useMemo } from 'react';
-import type { GameState, Side } from '../../hooks/useGameState';
+import type { GameState } from '../../hooks/useGameState';
 import type { TurnSnapshot, CellSnapshot } from './viz-types';
 
 /**
- * Extract per-turn TurnSnapshot arrays from GameState for each side.
+ * Extract per-turn TurnSnapshot arrays from GameState, keyed by leader
+ * name. Pulls systems_snapshot events for the spatial cells data and
+ * joins event_start / turn_start events to surface category flashes
+ * per turn. Population, morale, food and birth/death deltas come from
+ * the snapshot payload.
  *
- * Pulls systems_snapshot events for the spatial cells data and joins
- * event_start events to surface category flashes per turn. Population,
- * morale, food and birth/death deltas come from the snapshot payload.
+ * Return shape is `Record<leaderName, TurnSnapshot[]>` — F1 (arena-
+ * ready refactor) generalized this away from the old `{ a, b }` pair.
+ * Consumers read `snaps[leaderIds[0]]` / `snaps[leaderIds[1]]` for
+ * the current 2-column dashboard; P2's N-column mode uses the full
+ * map.
  */
-export function useVizSnapshots(state: GameState): { a: TurnSnapshot[]; b: TurnSnapshot[] } {
+export function useVizSnapshots(state: GameState): Record<string, TurnSnapshot[]> {
   return useMemo(() => {
-    const result: Record<Side, TurnSnapshot[]> = { a: [], b: [] };
+    const result: Record<string, TurnSnapshot[]> = {};
 
-    for (const side of ['a', 'b'] as Side[]) {
-      const s = state[side];
+    for (const leaderName of state.leaderIds) {
+      const s = state.leaders[leaderName];
+      if (!s) continue;
+      result[leaderName] = [];
 
-      // Build a map of turn → list of event categories (for the flash overlay).
       const categoriesByTurn = new Map<number, string[]>();
       for (const e of s.events) {
         if ((e.type === 'event_start' || e.type === 'turn_start') && e.turn != null) {
@@ -55,7 +62,7 @@ export function useVizSnapshots(state: GameState): { a: TurnSnapshot[]; b: TurnS
           shortTermMemory: a.shortTermMemory || [],
         }));
 
-        result[side].push({
+        result[leaderName].push({
           turn: turnNum,
           year: (dd.year as number) || 0,
           cells,

@@ -1,5 +1,5 @@
 import { useMemo, createContext, useContext } from 'react';
-import type { GameState, Side } from './useGameState';
+import type { GameState } from './useGameState';
 
 export interface CitationEntry {
   n: number;
@@ -8,8 +8,8 @@ export interface CitationEntry {
   doi?: string;
   /** Departments that referenced this citation. */
   departments: Set<string>;
-  /** Sides that referenced it (for divergence display). */
-  sides: Set<Side>;
+  /** Leaders (by name) that referenced it, used for divergence display. */
+  leaderNames: Set<string>;
 }
 
 export interface CitationRegistry {
@@ -45,17 +45,17 @@ export function useCitationRegistry(state: GameState): CitationRegistry {
     const list: CitationEntry[] = [];
     let next = 1;
 
-    for (const side of ['a', 'b'] as Side[]) {
-      for (const evt of state[side].events) {
+    for (const leaderName of state.leaderIds) {
+      const sideState = state.leaders[leaderName];
+      if (!sideState) continue;
+      for (const evt of sideState.events) {
         if (evt.type !== 'dept_done') continue;
         const dept = String(evt.data?.department || '');
         const cites = (evt.data?.citationList as Array<{ text?: string; url?: string; doi?: string }>) || [];
         for (const c of cites) {
           const url = (c.url || '').trim();
           const text = (c.text || '').trim();
-          // Skip empty-URL + empty-text entries
           if (!url && !text) continue;
-          // Skip placeholder seed-document entries with no real URL
           if (!url && text === 'Seed document') continue;
           const key = url || `text:${text}`;
           let entry = byKey.get(key);
@@ -66,14 +66,13 @@ export function useCitationRegistry(state: GameState): CitationRegistry {
               url,
               doi: c.doi,
               departments: new Set(),
-              sides: new Set(),
+              leaderNames: new Set(),
             };
             byKey.set(key, entry);
             list.push(entry);
           }
           if (dept) entry.departments.add(dept);
-          entry.sides.add(side);
-          // Backfill DOI if a later occurrence has one
+          entry.leaderNames.add(leaderName);
           if (!entry.doi && c.doi) entry.doi = c.doi;
         }
       }

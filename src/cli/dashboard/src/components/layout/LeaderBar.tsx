@@ -1,15 +1,17 @@
 import type { LeaderInfo } from '../../hooks/useGameState';
-import type { Side } from '../../hooks/useGameState';
+import { getLeaderColorVar } from '../../hooks/useGameState';
 import { SparkLine } from '../shared/SparkLine';
 import { Tooltip } from '../shared/Tooltip';
 
 interface LeaderBarProps {
-  side: Side;
+  /** Position in the leader lineup. 0 renders the primary palette, 1 the
+   *  secondary. F2/F3 extends beyond 2 via the central color helper. */
+  leaderIndex: number;
   leader: LeaderInfo | null;
   popHistory: number[];
   moraleHistory: number[];
   /**
-   * When the sim has produced a verdict, indicate how this side
+   * When the sim has produced a verdict, indicate how this leader
    * placed so the header can carry a victory / second / tie chip
    * next to the archetype tag. Undefined while the run is still
    * in flight or before verdict generation finished.
@@ -25,17 +27,17 @@ function traitStr(label: string, val: number): string {
   return `${label} ${bar} ${num}`;
 }
 
-export function LeaderBar({ side, leader, popHistory, moraleHistory, verdictPlacement }: LeaderBarProps) {
-  const sideColor = side === 'a' ? 'var(--vis)' : 'var(--eng)';
-  const sideBg = side === 'a' ? 'rgba(232,180,74,.12)' : 'rgba(76,168,168,.12)';
-  const sideBorder = side === 'a' ? 'var(--amber-dim)' : 'var(--teal-dim)';
-  const name = leader?.name || (side === 'a' ? 'Leader A' : 'Leader B');
+export function LeaderBar({ leaderIndex, leader, popHistory, moraleHistory, verdictPlacement }: LeaderBarProps) {
+  const sideColor = getLeaderColorVar(leaderIndex);
+  const sideBg = leaderIndex === 0 ? 'rgba(232,180,74,.12)' : 'rgba(76,168,168,.12)';
+  const sideBorder = leaderIndex === 0 ? 'var(--amber-dim)' : 'var(--teal-dim)';
+  const fallbackLabel = `Leader ${String.fromCharCode(65 + leaderIndex)}`;
+  const name = leader?.name || fallbackLabel;
   const archetype = leader?.archetype || '';
   const unit = leader?.unit || '';
   const h = leader?.hexaco || {};
   const hasHexaco = Object.values(h).some(v => v > 0);
 
-  // Build trait string for inline display
   const keys = ['openness', 'conscientiousness', 'extraversion', 'agreeableness', 'emotionality', 'honestyHumility'];
   const labels = ['O', 'C', 'E', 'A', 'Em', 'HH'];
   const traitLine = hasHexaco
@@ -43,15 +45,7 @@ export function LeaderBar({ side, leader, popHistory, moraleHistory, verdictPlac
     : '';
 
   return (
-    // `overflow: hidden` previously clipped the trait strip when the
-    // viewport was narrower than the trait content width, silently
-    // dropping the last 1-2 HEXACO traits (HH, Em). Switched to `visible`
-    // so the row 1 flex can wrap to a second line when needed; traits
-    // row now uses flex-wrap to break gracefully instead of getting cut
-    // off mid-letter.
     <div style={{ flex: 1, padding: '4px 12px', background: 'var(--bg-panel)', minWidth: 0 }}>
-      {/* Row 1 — allows wrap so name + archetype + unit + traits can
-          reflow to two lines when the browser can't fit them on one. */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
         {archetype && (
           <span style={{
@@ -111,10 +105,6 @@ export function LeaderBar({ side, leader, popHistory, moraleHistory, verdictPlac
         {traitLine && (
           <span className="leader-traits" style={{ display: 'contents' }}>
             <span style={{ color: 'var(--border)', margin: '0 2px' }}>|</span>
-            {/* Trait row: wraps to next line on narrow viewports instead
-                of truncating HH/Em at the ellipsis. The full HEXACO
-                numeric profile is also in the name tooltip for users
-                who want the canonical view. */}
             <span style={{
               fontFamily: 'var(--mono)', fontSize: '9px', color: sideColor,
               letterSpacing: 0, opacity: 0.9,
@@ -125,13 +115,11 @@ export function LeaderBar({ side, leader, popHistory, moraleHistory, verdictPlac
           </span>
         )}
       </div>
-      {/* Row 2 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '3px' }}>
         <span style={{ fontStyle: 'italic', fontSize: '11px', color: 'var(--text-2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {(() => {
             if (leader?.quote) return `"${leader.quote}"`;
             if (!leader?.instructions) return '';
-            // Strip "You are [Name], ..." prefix to show just the bio
             const bio = leader.instructions
               .replace(/^You are [^.]+\.\s*/i, '')
               .replace(/^"[^"]+"\.\s*/i, '')
