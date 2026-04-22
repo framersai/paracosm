@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   parseCommit,
   classifyCommit,
+  extractNarratives,
 } from '../../scripts/generate-changelog.mjs';
 
 test('parseCommit extracts type, scope, breaking, subject from "feat(runtime): add X"', () => {
@@ -108,4 +109,76 @@ test('classifyCommit: chore goes to other', () => {
 test('classifyCommit: docs goes to other', () => {
   const c = parseCommit({ sha: '0'.repeat(40), subject: 'docs: update README', body: '', author: 'X' });
   assert.equal(classifyCommit(c), 'other');
+});
+
+test('extractNarratives: empty / missing input returns empty map', () => {
+  const result = extractNarratives('');
+  assert.equal(result.size, 0);
+});
+
+test('extractNarratives: entry with narrative captures it', () => {
+  const input = `# Changelog
+
+## 0.5.0 (2026-04-21)
+
+This is the narrative. It spans one paragraph.
+
+### Features
+- foo ([abc1234](url))
+`;
+  const result = extractNarratives(input);
+  assert.equal(result.get('0.5.0'), 'This is the narrative. It spans one paragraph.');
+});
+
+test('extractNarratives: multi-paragraph narrative preserved', () => {
+  const input = `# Changelog
+
+## 0.5.0 (2026-04-21)
+
+First paragraph of narrative.
+
+Second paragraph.
+
+### Features
+- foo ([abc1234](url))
+`;
+  const result = extractNarratives(input);
+  assert.equal(
+    result.get('0.5.0'),
+    'First paragraph of narrative.\n\nSecond paragraph.',
+  );
+});
+
+test('extractNarratives: entry with no narrative returns empty string for that version', () => {
+  const input = `# Changelog
+
+## 0.5.0 (2026-04-21)
+
+### Features
+- foo ([abc1234](url))
+`;
+  const result = extractNarratives(input);
+  assert.equal(result.get('0.5.0'), '');
+});
+
+test('extractNarratives: multiple entries, mixed narratives', () => {
+  const input = `# Changelog
+
+## 0.5.0 (2026-04-21)
+
+Narrative for 0.5.0.
+
+### Features
+- foo ([abc1234](url))
+
+---
+
+## 0.4.0 (2026-02-15)
+
+### Features
+- old ([def5678](url))
+`;
+  const result = extractNarratives(input);
+  assert.equal(result.get('0.5.0'), 'Narrative for 0.5.0.');
+  assert.equal(result.get('0.4.0'), '');
 });
