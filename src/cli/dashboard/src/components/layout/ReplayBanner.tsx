@@ -3,9 +3,8 @@
  * active: one when the session exists (REPLAYING SAVED DEMO) and one
  * when it's gone (REPLAY NOT FOUND). Both offer an exit back to live
  * mode.
- *
- * Extracted from App.tsx.
  */
+import styles from './ReplayBanner.module.scss';
 
 interface ReplayBannerProps {
   replaySessionId: string;
@@ -15,21 +14,7 @@ interface ReplayBannerProps {
  *  stream is playing back. */
 export function ReplayBanner({ replaySessionId: _replaySessionId }: ReplayBannerProps) {
   return (
-    <div
-      role="status"
-      style={{
-        background: 'var(--accent)',
-        color: 'var(--bg-deep)',
-        padding: '8px 16px',
-        fontFamily: 'var(--mono)',
-        fontSize: 11,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 12,
-        borderBottom: '1px solid var(--border)',
-      }}
-    >
+    <div role="status" className={styles.activeBanner}>
       <span>
         <strong>REPLAYING SAVED DEMO</strong> · stored event stream, no LLM calls
       </span>
@@ -45,17 +30,7 @@ export function ReplayBanner({ replaySessionId: _replaySessionId }: ReplayBanner
           window.history.pushState({}, '', url.toString());
           window.dispatchEvent(new PopStateEvent('popstate'));
         }}
-        style={{
-          padding: '4px 10px',
-          background: 'transparent',
-          border: '1px solid var(--bg-deep)',
-          color: 'var(--bg-deep)',
-          borderRadius: 4,
-          cursor: 'pointer',
-          fontFamily: 'var(--mono)',
-          fontSize: 11,
-          fontWeight: 600,
-        }}
+        className={styles.exitButton}
       >
         EXIT REPLAY
       </button>
@@ -68,23 +43,9 @@ export function ReplayBanner({ replaySessionId: _replaySessionId }: ReplayBanner
  *  drops the query param and reloads into the live /events feed. */
 export function ReplayNotFoundBanner({ replaySessionId }: ReplayBannerProps) {
   return (
-    <div
-      role="alert"
-      style={{
-        background: 'rgba(196, 74, 30, 0.15)',
-        color: 'var(--text-1)',
-        padding: '12px 16px',
-        fontFamily: 'var(--mono)',
-        fontSize: 12,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 12,
-        borderBottom: '1px solid var(--rust)',
-      }}
-    >
+    <div role="alert" className={styles.notFoundBanner}>
       <span>
-        <strong style={{ color: 'var(--rust)' }}>REPLAY NOT FOUND</strong>{' '}
+        <strong className={styles.notFoundLabel}>REPLAY NOT FOUND</strong>{' '}
         · The saved run <code>{replaySessionId}</code> no longer exists. It may have been evicted from the 10-run cache, or the URL was mistyped.
       </span>
       <button
@@ -95,18 +56,7 @@ export function ReplayNotFoundBanner({ replaySessionId }: ReplayBannerProps) {
           window.history.replaceState({}, '', url.toString());
           window.location.reload();
         }}
-        style={{
-          background: 'var(--bg-card)',
-          color: 'var(--text-1)',
-          border: '1px solid var(--border)',
-          padding: '6px 14px',
-          fontFamily: 'var(--mono)',
-          fontSize: 11,
-          fontWeight: 800,
-          cursor: 'pointer',
-          borderRadius: 4,
-          whiteSpace: 'nowrap',
-        }}
+        className={styles.returnButton}
       >
         ← Back to live mode
       </button>

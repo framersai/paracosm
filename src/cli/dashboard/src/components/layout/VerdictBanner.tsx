@@ -4,10 +4,10 @@
  * banner even after dismissal). Click the middle strip or the "View
  * Full Verdict" button to open the full breakdown modal; the "Reports"
  * chip jumps to the Reports tab.
- *
- * Extracted from App.tsx.
  */
+import type { CSSProperties } from 'react';
 import type { DashboardTab } from '../../tab-routing';
+import styles from './VerdictBanner.module.scss';
 
 interface VerdictBannerProps {
   verdict: Record<string, unknown> | null;
@@ -17,6 +17,26 @@ interface VerdictBannerProps {
   onOpenModal: () => void;
   onDismiss: (key: string) => void;
   onNavigateTab: (tab: Exclude<DashboardTab, 'about'>) => void;
+}
+
+function resolveWinColor(winner: 'A' | 'B' | 'tie'): string {
+  if (winner === 'A') return 'var(--vis)';
+  if (winner === 'B') return 'var(--eng)';
+  return 'var(--amber)';
+}
+
+// Derived translucent/faint/glow stops from the winner color. Kept as
+// CSS custom properties so the SCSS module reads them off the root
+// element via fallback chains instead of templating into class names.
+function winColorCssVars(winner: 'A' | 'B' | 'tie'): CSSProperties {
+  const winColor = resolveWinColor(winner);
+  return {
+    '--win-color': winColor,
+    '--win-color-translucent': `${winColor}22`,
+    '--win-color-faint': `${winColor}33`,
+    '--win-color-border': `${winColor}55`,
+    '--win-color-glow': `${winColor}66`,
+  } as CSSProperties;
 }
 
 export function VerdictBanner({
@@ -33,7 +53,6 @@ export function VerdictBanner({
   const winnerKey = `${verdict.winner}|${headline}`;
   if (dismissedKey === winnerKey) return null;
   const winner = verdict.winner as 'A' | 'B' | 'tie';
-  const winColor = winner === 'A' ? 'var(--vis)' : winner === 'B' ? 'var(--eng)' : 'var(--amber)';
   const winnerLabel = winner === 'tie'
     ? 'Tie'
     : `${String(verdict.winnerName || 'Winner')} wins`;
@@ -42,88 +61,29 @@ export function VerdictBanner({
     <div
       role="region"
       aria-label="Simulation verdict"
-      style={{
-        margin: '8px 16px 4px',
-        padding: '14px 18px',
-        background: `linear-gradient(135deg, ${winColor}22 0%, var(--bg-panel) 55%, var(--bg-panel) 100%)`,
-        border: `1px solid ${winColor}`,
-        borderLeft: `4px solid ${winColor}`,
-        borderRadius: 8,
-        boxShadow: `0 6px 22px rgba(0, 0, 0, 0.35), 0 0 0 1px ${winColor}33 inset`,
-        fontFamily: 'var(--sans)',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 16,
-        animation: 'fadeUp 0.28s ease-out',
-      }}
+      className={styles.banner}
+      style={winColorCssVars(winner)}
     >
-      <div style={{ flex: '0 0 auto', minWidth: 0 }}>
-        <div style={{
-          fontSize: 9, fontWeight: 800, color: 'var(--text-3)',
-          letterSpacing: '0.15em', textTransform: 'uppercase',
-          fontFamily: 'var(--mono)', marginBottom: 3,
-        }}>
-          ★ Run Complete
-        </div>
-        <div style={{
-          fontSize: 20, fontWeight: 800, color: winColor,
-          lineHeight: 1.1, letterSpacing: '0.01em',
-          whiteSpace: 'nowrap',
-        }}>
-          {winnerLabel}
-        </div>
+      <div className={styles.winnerLabel}>
+        <div className={styles.kicker}>★ Run Complete</div>
+        <div className={styles.winnerName}>{winnerLabel}</div>
       </div>
-      <div style={{
-        flex: 1, minWidth: 0,
-        borderLeft: `1px solid ${winColor}55`,
-        paddingLeft: 16,
-      }}>
+      <div className={styles.headlineColumn}>
         <button
           onClick={onOpenModal}
-          style={{
-            background: 'transparent', border: 'none', padding: 0, margin: 0,
-            fontSize: 13, color: 'var(--text-1)', cursor: 'pointer',
-            textAlign: 'left', lineHeight: 1.4, fontFamily: 'var(--sans)',
-            display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-            overflow: 'hidden', marginBottom: 4, width: '100%',
-          }}
+          className={styles.headlineButton}
           title="Click to open the full verdict breakdown"
         >
           {headline || 'Verdict delivered — click to see full breakdown.'}
         </button>
-        <div style={{
-          fontSize: 10, color: 'var(--text-3)',
-          fontFamily: 'var(--mono)', letterSpacing: '0.04em',
-        }}>
-          {turnLabel}
-        </div>
+        <div className={styles.turnLabel}>{turnLabel}</div>
       </div>
-      <button
-        onClick={onOpenModal}
-        style={{
-          fontSize: 11, fontFamily: 'var(--mono)', fontWeight: 800,
-          color: 'var(--bg-deep)', background: winColor,
-          letterSpacing: '0.08em',
-          padding: '8px 16px', borderRadius: 4,
-          border: 'none', cursor: 'pointer',
-          whiteSpace: 'nowrap', flexShrink: 0,
-          boxShadow: `0 2px 8px ${winColor}66`,
-          textTransform: 'uppercase',
-        }}
-      >
+      <button onClick={onOpenModal} className={styles.viewButton}>
         View Full Verdict →
       </button>
       <button
         onClick={() => onNavigateTab('reports')}
-        style={{
-          fontSize: 10, fontFamily: 'var(--mono)', fontWeight: 700,
-          color: 'var(--text-2)', letterSpacing: '0.06em',
-          padding: '7px 12px', borderRadius: 4,
-          border: '1px solid var(--border)',
-          background: 'var(--bg-card)',
-          cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
-          textTransform: 'uppercase',
-        }}
+        className={styles.reportsChip}
         title="Open the Reports tab for the full run breakdown"
       >
         Reports
@@ -131,11 +91,7 @@ export function VerdictBanner({
       <button
         onClick={() => onDismiss(winnerKey)}
         aria-label="Dismiss verdict banner"
-        style={{
-          background: 'none', border: 'none', color: 'var(--text-3)',
-          cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: 4,
-          flexShrink: 0,
-        }}
+        className={styles.dismissButton}
       >
         ×
       </button>
