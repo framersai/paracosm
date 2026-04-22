@@ -1,0 +1,64 @@
+// App shell styles migrated from inline styles (F4). Keeps the top-
+// level flex layout + the top-right ErrorBoundary fallback legible
+// without style={{}} plumbing.
+
+.shell {
+  background: var(--bg-deep);
+  color: var(--text-1);
+}
+
+.main {
+  background: var(--bg-deep);
+  display: flex;
+  flex-direction: column;
+}
+
+.chatSurfaceHidden { display: none; }
+.chatSurfaceVisible {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.errorBoundary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: #0a0806;
+  color: #f5f0e4;
+  font-family: 'JetBrains Mono', monospace;
+  padding: 24px;
+  text-align: center;
+}
+
+.errorTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: #e06530;
+  margin-bottom: 12px;
+  letter-spacing: 0.08em;
+}
+
+.errorMessage {
+  font-size: 12px;
+  color: #a89878;
+  max-width: 500px;
+  line-height: 1.7;
+  margin-bottom: 16px;
+}
+
+.errorReload {
+  background: #e06530;
+  color: #f5f0e4;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+
+  &:hover { background: #c44a1e; }
+}

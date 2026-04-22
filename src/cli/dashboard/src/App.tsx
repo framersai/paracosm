@@ -35,6 +35,7 @@ import {
   getDashboardTabFromHref,
   type DashboardTab,
 } from './tab-routing';
+import styles from './App.module.scss';
 
 // Scenario context available to all components
 const ScenarioContext = createContext<ScenarioClientPayload | null>(null);
@@ -506,7 +507,7 @@ function AppContent() {
       <ScenarioContext.Provider value={scenario}>
        <CitationRegistryContext.Provider value={citationRegistry}>
         <ToolRegistryContext.Provider value={toolRegistry}>
-        <div className="flex flex-col h-screen w-screen overflow-hidden scanline-overlay" style={{ background: 'var(--bg-deep)', color: 'var(--text-1)' }}>
+        <div className={`flex flex-col h-screen w-screen overflow-hidden scanline-overlay ${styles.shell}`}>
           {sse.providerError && !bannerDismissed ? (
             <ProviderErrorBanner
               providerError={sse.providerError}
@@ -531,7 +532,7 @@ function AppContent() {
             onNavigateTab={setActiveTab}
           />
 
-          <main id="main-content" className="flex-1 overflow-hidden" role="main" aria-label={`${activeTab} view`} style={{ background: 'var(--bg-deep)', display: 'flex', flexDirection: 'column' }}>
+          <main id="main-content" className={`flex-1 overflow-hidden ${styles.main}`} role="main" aria-label={`${activeTab} view`}>
             {activeTab === 'sim' && <SimView state={gameState} sseStatus={sse.status} onRun={handleRun} onTour={handleTourStart} verdict={sse.verdict} launching={launching} />}
 
             {activeTab === 'viz' && <SwarmViz state={gameState} onNavigateToChat={navigateToChat} />}
@@ -547,7 +548,7 @@ function AppContent() {
                 conversation the moment the user navigated away. Other tabs
                 (Sim, Viz, Settings, Reports, Log) have no user-generated
                 state at risk and stay on the unmount-on-switch pattern. */}
-            <div style={{ display: activeTab === 'chat' ? 'flex' : 'none', flex: 1, minHeight: 0, flexDirection: 'column' }}>
+            <div className={activeTab === 'chat' ? styles.chatSurfaceVisible : styles.chatSurfaceHidden}>
               <ChatPanel state={gameState} onChatUsage={handleChatUsage} />
             </div>
 
@@ -612,23 +613,12 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
   render() {
     if (this.state.error) {
       return (
-        <div style={{
-          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          height: '100vh', background: '#0a0806', color: '#f5f0e4', fontFamily: "'JetBrains Mono', monospace",
-          padding: '24px', textAlign: 'center',
-        }}>
-          <div style={{ fontSize: '14px', fontWeight: 700, color: '#e06530', marginBottom: '12px', letterSpacing: '.08em' }}>
-            SIMULATION ERROR
-          </div>
-          <div style={{ fontSize: '12px', color: '#a89878', maxWidth: '500px', lineHeight: 1.7, marginBottom: '16px' }}>
-            {this.state.error.message}
-          </div>
+        <div className={styles.errorBoundary}>
+          <div className={styles.errorTitle}>SIMULATION ERROR</div>
+          <div className={styles.errorMessage}>{this.state.error.message}</div>
           <button
             onClick={() => { this.setState({ error: null }); window.location.reload(); }}
-            style={{
-              background: '#e06530', color: '#f5f0e4', border: 'none', padding: '10px 24px',
-              borderRadius: '6px', fontSize: '13px', fontWeight: 700, cursor: 'pointer',
-            }}
+            className={styles.errorReload}
           >
             Reload Dashboard
           </button>
