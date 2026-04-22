@@ -194,7 +194,14 @@ export async function getOrCreateChatAgent(
     instructions,
     personality,
     memory: { types: ['episodic', 'semantic'] },
-    memoryProvider,
+    // AgentMemory returned from AgentMemory.sqlite() implements the full
+    // AgentMemoryProvider contract at runtime, but its observe() signature
+    // returns `Promise<ObservationNote[] | null>` whereas the provider
+    // interface declares `Promise<void>`. The extra return value is
+    // ignored by the agent runtime; the cast keeps the typecheck clean
+    // across @framers/agentos version drift. Remove this cast once the
+    // upstream declaration converges.
+    memoryProvider: memoryProvider as unknown as Parameters<typeof createAgent>[0]['memoryProvider'],
   });
 
   const session = chatAgent.session(key);
