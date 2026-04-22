@@ -99,12 +99,19 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
   const turns = useMemo(() => {
     const map: Record<number, { a: TurnData; b: TurnData }> = {};
 
-    for (const side of ['a', 'b'] as const) {
-      // Track pending decision/rationale per event index — commander_decided
-      // arrives before outcome, both reference the same event.
+    // Iterate the first two leaders and bind each to the local 'a'/'b'
+    // slot in the per-turn map. F1 preserves the 2-slot map shape in
+    // this file; F2/F3 will generalize `TurnData` into an array.
+    const leaderSlots: Array<{ side: 'a' | 'b'; leaderName: string }> = [];
+    if (state.leaderIds[0]) leaderSlots.push({ side: 'a', leaderName: state.leaderIds[0] });
+    if (state.leaderIds[1]) leaderSlots.push({ side: 'b', leaderName: state.leaderIds[1] });
+
+    for (const { side, leaderName } of leaderSlots) {
+      const sideState = state.leaders[leaderName];
+      if (!sideState) continue;
       const pending = new Map<number, { decision: string; rationale: string; policies: string[] }>();
 
-      for (const evt of state[side].events) {
+      for (const evt of sideState.events) {
         const turn = evt.turn;
         if (!turn) continue;
         if (!map[turn]) map[turn] = { a: emptyTurn(), b: emptyTurn() };
@@ -191,9 +198,13 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
       .sort((a, b) => a[0] - b[0]);
   }, [state]);
 
-  const nameA = state.a.leader?.name || 'Leader A';
-  const nameB = state.b.leader?.name || 'Leader B';
-  const hasTrajectories = state.a.events.some(e => e.type === 'drift') || state.b.events.some(e => e.type === 'drift');
+  const firstId = state.leaderIds[0];
+  const secondId = state.leaderIds[1];
+  const sideA = firstId ? state.leaders[firstId] : null;
+  const sideB = secondId ? state.leaders[secondId] : null;
+  const nameA = sideA?.leader?.name || 'Leader A';
+  const nameB = sideB?.leader?.name || 'Leader B';
+  const hasTrajectories = (sideA?.events.some(e => e.type === 'drift') ?? false) || (sideB?.events.some(e => e.type === 'drift') ?? false);
   const hasQuotes = turns.some(([, sides]) => sides.a.reactions.length > 0 || sides.b.reactions.length > 0);
   const hasCausality = turns.some(([, sides]) => (
     [...sides.a.events.values(), ...sides.b.events.values()].some(block => Boolean(block.rationale))
@@ -259,7 +270,7 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
     }
   }, [turns.length]);
 
-  if (!state.a.events.length && !state.b.events.length) {
+  if (!(sideA?.events.length ?? 0) && !(sideB?.events.length ?? 0)) {
     return (
       <div style={{ flex: 1, overflowY: 'auto', padding: '24px 32px', background: 'var(--bg-deep)' }}>
         <div style={{ color: 'var(--text-3)', fontSize: '15px', textAlign: 'center', padding: '40px' }}>
@@ -313,8 +324,8 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
         const finalMoraleB = pick(lastTurn?.[1]?.b?.systems, 'morale');
         const initialPopA = pick(firstTurn?.[1]?.a?.systems, 'population') || finalPopA;
         const initialPopB = pick(firstTurn?.[1]?.b?.systems, 'population') || finalPopB;
-        const totalToolsA = state.a.events.filter(e => e.type === 'forge_attempt' && e.data?.approved === true).length;
-        const totalToolsB = state.b.events.filter(e => e.type === 'forge_attempt' && e.data?.approved === true).length;
+        const totalToolsA = sideA?.events.filter(e => e.type === 'forge_attempt' && e.data?.approved === true).length ?? 0;
+        const totalToolsB = sideB?.events.filter(e => e.type === 'forge_attempt' && e.data?.approved === true).length ?? 0;
         const stats: Array<{ label: string; value: string; tone?: 'pos' | 'neg' | 'neutral' }> = [
           { label: 'Turns', value: String(turnCount) },
           {
@@ -439,14 +450,14 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
         {hasTrajectories && (
           <div className="responsive-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
             <CommanderTrajectoryCard
-              events={state.a.events}
+              events={sideA?.events ?? []}
               leaderName={nameA}
-              baselineHexaco={state.a.leader?.hexaco}
+              baselineHexaco={sideA?.leader?.hexaco}
             />
             <CommanderTrajectoryCard
-              events={state.b.events}
+              events={sideB?.events ?? []}
               leaderName={nameB}
-              baselineHexaco={state.b.leader?.hexaco}
+              baselineHexaco={sideB?.leader?.hexaco}
             />
           </div>
         )}
@@ -489,10 +500,10 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
       {costOpen && state.cost && state.cost.llmCalls > 0 && (
         <CostBreakdownModal
           combined={state.cost}
-          leaderA={state.costA}
-          leaderB={state.costB}
-          leaderAName={state.a.leader?.name}
-          leaderBName={state.b.leader?.name}
+          leaderA={(firstId ? state.costByLeader[firstId] : undefined) ?? { totalTokens: 0, totalCostUSD: 0, llmCalls: 0 }}
+          leaderB={(secondId ? state.costByLeader[secondId] : undefined) ?? { totalTokens: 0, totalCostUSD: 0, llmCalls: 0 }}
+          leaderAName={sideA?.leader?.name}
+          leaderBName={sideB?.leader?.name}
           onClose={() => setCostOpen(false)}
         />
       )}

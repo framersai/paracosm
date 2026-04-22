@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import type { ProcessedEvent, Side } from '../../hooks/useGameState';
+import type { ProcessedEvent } from '../../hooks/useGameState';
+import { getLeaderColorVar } from '../../hooks/useGameState';
 import { useScenarioContext } from '../../App';
 import { useToolContext } from '../../hooks/useToolRegistry';
 import { Badge } from '../shared/Badge';
@@ -8,7 +9,7 @@ import { CitationPills } from '../shared/CitationPills';
 
 interface EventCardProps {
   event: ProcessedEvent;
-  side: Side;
+  leaderIndex: number;
 }
 
 // Shared card base style
@@ -24,14 +25,14 @@ const moodColors: Record<string, string> = {
   defiant: 'var(--rust)', hopeful: 'var(--green)', resigned: 'var(--text-3)', neutral: 'var(--text-2)',
 };
 
-export function EventCard({ event, side }: EventCardProps) {
+export function EventCard({ event, leaderIndex }: EventCardProps) {
   const scenario = useScenarioContext();
   const toolRegistry = useToolContext();
   // Open detail modal for a forge_attempt or dept_done tool card. Tracks
   // the inspected tool's name so the modal can pull schema + sample
   // output + reuse stats from the registry.
   const [inspectingTool, setInspectingTool] = useState<string | null>(null);
-  const sideColor = side === 'a' ? 'var(--vis)' : 'var(--eng)';
+  const sideColor = getLeaderColorVar(leaderIndex);
   const dd = event.data;
 
   switch (event.type) {
@@ -493,8 +494,8 @@ export function EventCard({ event, side }: EventCardProps) {
         <div style={{
           margin: '0 8px 4px', borderRadius: '4px', padding: '6px 10px',
           animation: 'decisionPulse 2s ease both',
-          background: side === 'a' ? 'rgba(232,180,74,.06)' : 'rgba(76,168,168,.06)',
-          border: `1px solid ${side === 'a' ? 'var(--amber-dim)' : 'var(--teal-dim)'}`,
+          background: leaderIndex === 0 ? 'rgba(232,180,74,.06)' : 'rgba(76,168,168,.06)',
+          border: `1px solid ${leaderIndex === 0 ? 'var(--amber-dim)' : 'var(--teal-dim)'}`,
           borderLeft: `3px solid ${sideColor}`,
           boxShadow: 'var(--card-shadow)',
         }}>

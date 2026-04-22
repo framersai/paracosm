@@ -65,7 +65,7 @@ const toolBtnStyle: React.CSSProperties = {
 
 export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRun, onTour, onCopy, launching = false }: TopBarProps) {
   const { resolved, setTheme } = useTheme();
-  const hasEvents = gameState.a.events.length > 0 || gameState.b.events.length > 0;
+  const hasEvents = Object.values(gameState.leaders).some(s => s.events.length > 0);
 
   // Secondary run actions (Save / Copy / Clear) consolidate behind a
   // single overflow trigger so the right cluster does not carry 9+

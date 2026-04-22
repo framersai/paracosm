@@ -93,7 +93,7 @@ export function SimFooterBar({ citationRegistry, toolRegistry }: SimFooterBarPro
                 url: e.url,
                 doi: e.doi,
                 departments: [...e.departments],
-                sides: [...e.sides],
+                leaderNames: [...e.leaderNames],
               }))}
             />
           }
