@@ -12,12 +12,12 @@
 
 | Severity | Count | Themes |
 |---|---|---|
-| P0 (blocks P2 arena) | 3 | Hardcoded A/B, 2-column SideColumn layout, LeaderBar/StatsBar N-leader gap |
+| P0 (blocks P2 arena / generic scenarios) | 4 | Hardcoded A/B, 2-column SideColumn layout, LeaderBar/StatsBar N-leader gap, generic time units |
 | P1 (code quality at scale) | 5 | Inline styles, App.tsx monolith, SimView inline panels, SwarmViz+LivingSwarmGrid size, event log inline |
 | P2 (user-facing UX) | 8 | JSON load preview, drag-drop, schema-version check, scenario-mismatch detection, URL-param load, multi-run local history, run comparison view, export formats |
 | P3 (polish) | 6 | Event log filters, accessibility audits, mobile columns, inline re-run panel, scope-only commit convention, toast dedup state machine |
 
-**22 distinct findings**. Each has a proposed fix + rough effort. Nothing in this document has been committed against — it's a menu.
+**23 distinct findings** (F23 added 2026-04-22 during F1 execution). Each has a proposed fix + rough effort. Nothing in this document has been committed against — it's a menu.
 
 ---
 
@@ -385,6 +385,49 @@ Settings or Reports tab menu option.
 **Proposed fix.** Centralize localStorage-keyed protocols in `hooks/useLastLaunchConfig.ts` and `hooks/useKeyOverrides.ts`. All writers + readers go through these hooks. Key strings + shapes defined once.
 
 **Effort.** Small. Roll into F8's RerunPanel extraction.
+
+---
+
+### F23. Time is hardcoded to years (engine-wide generic-ification)
+
+**Added:** 2026-04-22 during F1 execution. Surfaces as a user question: "we can't just simulate time in years but minutes, seconds, any time unit."
+
+**Where.** Cross-cutting. The `year` concept is baked into:
+- [`engine/types.ts:ScenarioSetupSchema`](../src/engine/types.ts) — `defaultStartYear`, `defaultYearsPerTurn`
+- [`engine/core/state.ts:SimulationMetadata`](../src/engine/core/state.ts) — `startYear`, `currentYear`
+- [`engine/core/kernel.ts:advanceTurn`](../src/engine/core/kernel.ts) — `(nextTurn, nextYear, ...)`, `yearDelta` progressionHook context
+- Orchestrator — `buildYearSchedule`, `yearDelta` on every SSE event
+- Compiler prompts — hardcoded "over 48 years" phrasing
+- SimEvent shape — `e.year` on every event payload
+- Mars + Lunar scenarios — `defaultStartYear: 2035`, `defaultYearsPerTurn: 8`
+- Dashboard display — "Year 2043", "T3/6 Year 2043" literals
+- Saved-file format — `year` fields in events + results
+
+**Problem.** A submarine habitat sim might want hour-level ticks. A corporate quarterly-strategy sim wants quarters. An AgentOS Arena benchmark might want real-time seconds. Today the engine forces year semantics on all of them — scenarios with non-year time use `year` as a synonym for "tick index" which reads wrong in every user-facing string.
+
+**Proposed fix.** New scenario field `setup.timeUnit: 'second' | 'minute' | 'hour' | 'day' | 'week' | 'month' | 'quarter' | 'year'`. Rename:
+- `SimulationMetadata.startYear` → `startTime` (number)
+- `SimulationMetadata.currentYear` → `currentTime` (number)
+- `ScenarioSetupSchema.defaultStartYear` → `defaultStartTime`
+- `ScenarioSetupSchema.defaultYearsPerTurn` → `defaultTimePerTurn`
+- `kernel.advanceTurn(nextTurn, nextYear, ...)` → `kernel.advanceTurn(nextTurn, nextTime, ...)`
+- `yearDelta` in progression context → `timeDelta`
+- `e.year` on SSE events → `e.time`
+- Dashboard `state.year` / `CrisisInfo.year` / `TurnEventInfo.year` → `state.time` / `TurnEventInfo.time`
+
+Scenario labels add:
+- `labels.timeUnitNoun: 'year'` (singular for display, e.g. "Year 2043", "Day 42", "Minute 308")
+- `labels.timeUnitNounPlural: 'years'`
+
+Dashboard display formats via `${time} ${labels.timeUnitNoun}` or derived helper.
+
+Saved-file migration (in dashboard's `migrateLegacyEventShape`): alias `data.year` → `data.time` when reading pre-time-rename files. Same pattern as 0.5.0's colony→systems migration.
+
+**Effort.** Large — comparable to P1's colony→unit/systems rename. Roughly 20-30 files across engine + runtime + compiler + scenarios + dashboard + saved-file migration. Dedicated spec + plan cycle.
+
+**Severity.** P0 — blocks any non-year scenario from rendering correctly. Does NOT block P2 arena itself (arena can inherit year defaults), but any arena vertical that wants real-time latency simulation (e.g. AgentBench Arena) is blocked.
+
+**Ordering.** Ship as 0.6.0 breaking change on par with 0.5.0. Lands between F1 (arena state shape) and F4 (inline styles). Gets its own spec at `docs/superpowers/specs/2026-04-XX-f23-generic-time-units-design.md`.
 
 ---
 
