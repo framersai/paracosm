@@ -208,9 +208,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Need full history so the change-detection diff against the
-          # previous commit can resolve.
-          fetch-depth: 2
+          # Full history needed so scripts/generate-changelog.mjs can walk
+          # every package.json version boundary. Prior requirement was
+          # only the previous-commit diff (fetch-depth: 2) for library-
+          # change detection.
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -265,6 +267,23 @@ jobs:
           echo "version=$NEXT" >> $GITHUB_OUTPUT
           echo "Publishing ${NEXT} (run #${{ github.run_number }})"
 
+      - name: Generate CHANGELOG and release notes
+        if: steps.changes.outputs.library_changed == 'true'
+        run: node scripts/generate-changelog.mjs
+
+      - name: Commit CHANGELOG if changed
+        if: steps.changes.outputs.library_changed == 'true'
+        run: |
+          if ! git diff --quiet CHANGELOG.md; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add CHANGELOG.md
+            git commit -m "chore: update CHANGELOG"
+            git push origin HEAD:master
+          else
+            echo "CHANGELOG unchanged; no commit-back."
+          fi
+
       - name: Publish to npm
         if: steps.changes.outputs.library_changed == 'true'
         run: npm publish --access public
@@ -276,7 +295,7 @@ jobs:
         run: |
           gh release create "v${{ steps.version.outputs.version }}" \
             --title "v${{ steps.version.outputs.version }}" \
-            --generate-notes \
+            --notes-file release-notes.md \
             --latest
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
