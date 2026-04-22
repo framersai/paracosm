@@ -1,0 +1,90 @@
+{
+  "simulation": "mars-genesis-v3",
+  "events": [
+    {
+      "type": "turn_start",
+      "leader": "Captain Reyes",
+      "turn": 1,
+      "year": 2035,
+      "data": {
+        "turn": 1,
+        "year": 2035,
+        "title": "First Footfall",
+        "colony": {
+          "population": 100,
+          "morale": 0.78,
+          "foodMonthsReserve": 18,
+          "powerKw": 400,
+          "waterLitersPerDay": 800,
+          "pressurizedVolumeM3": 3000,
+          "lifeSupportCapacity": 120,
+          "infrastructureModules": 3,
+          "scienceOutput": 5
+        }
+      }
+    },
+    {
+      "type": "colony_snapshot",
+      "leader": "Captain Reyes",
+      "turn": 1,
+      "year": 2035,
+      "data": {
+        "turn": 1,
+        "agents": [],
+        "population": 100,
+        "morale": 0.78,
+        "foodReserve": 18,
+        "births": 0,
+        "deaths": 0
+      }
+    },
+    {
+      "type": "outcome",
+      "leader": "Captain Reyes",
+      "turn": 1,
+      "year": 2035,
+      "data": {
+        "turn": 1,
+        "outcome": "conservative_success",
+        "category": "Exploration",
+        "emergent": false,
+        "colonyDeltas": { "morale": 0.09, "powerKw": -1.2 },
+        "eventIndex": 0
+      }
+    },
+    {
+      "type": "turn_done",
+      "leader": "Captain Reyes",
+      "turn": 1,
+      "year": 2035,
+      "data": {
+        "turn": 1,
+        "colony": {
+          "population": 100,
+          "morale": 0.87,
+          "foodMonthsReserve": 18,
+          "powerKw": 398.8,
+          "waterLitersPerDay": 800,
+          "pressurizedVolumeM3": 3000,
+          "lifeSupportCapacity": 120,
+          "infrastructureModules": 3,
+          "scienceOutput": 5
+        },
+        "toolsForged": 0,
+        "totalEvents": 1
+      }
+    }
+  ],
+  "results": [
+    {
+      "leader": {
+        "name": "Captain Reyes",
+        "archetype": "The Pragmatist",
+        "colony": "Station Alpha"
+      },
+      "summary": { "finalColony": { "population": 100, "morale": 0.87 } },
+      "fingerprint": { "resilience": "resilient" }
+    }
+  ],
+  "verdict": null
+}
