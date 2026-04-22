@@ -72,8 +72,8 @@ function parseFrame(sse: string): { event: string; data: Record<string, unknown>
  */
 export function summariseForTitle(events: TimestampedEvent[]): RunHighlights {
   const out: RunHighlights = { scenarioName: 'Run' };
-  let lastColonyA: Record<string, unknown> | null = null;
-  let lastColonyB: Record<string, unknown> | null = null;
+  let lastSystemsA: Record<string, unknown> | null = null;
+  let lastSystemsB: Record<string, unknown> | null = null;
   let lastForgedA = 0;
   let lastForgedB = 0;
   let lastDeathsA = 0;
@@ -99,11 +99,11 @@ export function summariseForTitle(events: TimestampedEvent[]): RunHighlights {
     if (innerType === 'turn_done') {
       const turn = typeof data.turn === 'number' ? data.turn : undefined;
       if (typeof turn === 'number' && turn > (out.turnCount ?? 0)) out.turnCount = turn;
-      const colony = (data.colony ?? null) as Record<string, unknown> | null;
+      const systems = (data.systems ?? null) as Record<string, unknown> | null;
       const leader = typeof data.leader === 'string' ? data.leader : '';
-      if (colony) {
-        if (leader && leader === out.leaderA) lastColonyA = colony;
-        else if (leader && leader === out.leaderB) lastColonyB = colony;
+      if (systems) {
+        if (leader && leader === out.leaderA) lastSystemsA = systems;
+        else if (leader && leader === out.leaderB) lastSystemsB = systems;
       }
       if (typeof data.deaths === 'number') {
         if (leader === out.leaderA) lastDeathsA += data.deaths;
@@ -131,15 +131,15 @@ export function summariseForTitle(events: TimestampedEvent[]): RunHighlights {
       out.aborted = true;
     }
   }
-  if (lastColonyA) {
-    const pop = typeof lastColonyA.population === 'number' ? lastColonyA.population : undefined;
-    const mor = typeof lastColonyA.morale === 'number' ? lastColonyA.morale : undefined;
+  if (lastSystemsA) {
+    const pop = typeof lastSystemsA.population === 'number' ? lastSystemsA.population : undefined;
+    const mor = typeof lastSystemsA.morale === 'number' ? lastSystemsA.morale : undefined;
     if (typeof pop === 'number') out.finalPopA = pop;
     if (typeof mor === 'number') out.finalMoraleA = mor;
   }
-  if (lastColonyB) {
-    const pop = typeof lastColonyB.population === 'number' ? lastColonyB.population : undefined;
-    const mor = typeof lastColonyB.morale === 'number' ? lastColonyB.morale : undefined;
+  if (lastSystemsB) {
+    const pop = typeof lastSystemsB.population === 'number' ? lastSystemsB.population : undefined;
+    const mor = typeof lastSystemsB.morale === 'number' ? lastSystemsB.morale : undefined;
     if (typeof pop === 'number') out.finalPopB = pop;
     if (typeof mor === 'number') out.finalMoraleB = mor;
   }

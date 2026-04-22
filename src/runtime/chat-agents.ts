@@ -441,7 +441,7 @@ export function extractColonistMemories(
 }
 
 /**
- * Extract the colony roster from the most recent colony_snapshot event.
+ * Extract the agent roster from the most recent systems_snapshot event.
  *
  * The snapshot carries the full agent list at that turn: name, department,
  * role, rank, alive/dead, marsborn, age, partner, children. Resolves
