@@ -2,11 +2,10 @@
  * Event Log tab content. Scrollable list of every SSE event with
  * per-type color coding, a hash-driven tool filter (`#log=<toolName>`
  * set by the ToolboxSection CTA), and auto-pin-to-bottom behaviour.
- *
- * Extracted from App.tsx.
  */
 import { useEffect, useRef, useCallback } from 'react';
 import type { SimEvent } from '../../hooks/useSSE';
+import styles from './EventLogPanel.module.scss';
 
 const TYPE_COLORS: Record<string, string> = {
   status: 'var(--teal)',
@@ -73,21 +72,20 @@ export function EventLogPanel({ events }: EventLogPanelProps) {
     <div
       ref={scrollRef}
       onScroll={onScroll}
-      className="flex-1 overflow-y-auto p-4 font-mono text-xs"
+      className={`flex-1 overflow-y-auto p-4 font-mono text-xs ${styles.panel}`}
       role="log"
       aria-label="Event log"
       aria-live="polite"
-      style={{ background: 'var(--bg-deep)', color: 'var(--text-3)' }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', gap: 12, flexWrap: 'wrap' }}>
-        <h2 style={{ color: 'var(--text-1)', fontSize: '14px', fontWeight: 700 }}>
+      <div className={styles.header}>
+        <h2 className={styles.heading}>
           Event Log ({filteredEvents.length}
           {logFilter ? ` of ${events.length}` : ''} events)
         </h2>
         {logFilter && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--mono)', fontSize: 11 }}>
-            <span style={{ color: 'var(--text-3)' }}>filtered to tool</span>
-            <span style={{ color: 'var(--amber)', fontWeight: 800 }}>{hashTool}</span>
+          <div className={styles.filterBar}>
+            <span className={styles.filterLabel}>filtered to tool</span>
+            <span className={styles.filterValue}>{hashTool}</span>
             <button
               type="button"
               onClick={() => {
@@ -96,13 +94,7 @@ export function EventLogPanel({ events }: EventLogPanelProps) {
                 window.history.replaceState({}, '', url.toString());
                 window.dispatchEvent(new HashChangeEvent('hashchange'));
               }}
-              style={{
-                padding: '2px 8px', borderRadius: 3,
-                background: 'var(--bg-card)', color: 'var(--text-3)',
-                border: '1px solid var(--border)', cursor: 'pointer',
-                fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 700,
-                letterSpacing: '0.06em', textTransform: 'uppercase',
-              }}
+              className={styles.clearFilterButton}
               aria-label="Clear log filter"
             >
               Clear filter
@@ -111,7 +103,7 @@ export function EventLogPanel({ events }: EventLogPanelProps) {
         )}
       </div>
       {filteredEvents.length === 0 && (
-        <div style={{ color: 'var(--text-3)', padding: '20px 0' }}>
+        <div className={styles.emptyState}>
           {logFilter
             ? `No events matched "${hashTool}". Clear the filter or check the tool name spelling.`
             : 'No events yet. Run a simulation to see the raw SSE event stream.'}
@@ -121,23 +113,18 @@ export function EventLogPanel({ events }: EventLogPanelProps) {
         const color = TYPE_COLORS[e.type] || 'var(--text-3)';
         const hasData = e.data && Object.keys(e.data).length > 0;
         return (
-          <details key={i} style={{ borderBottom: '1px solid var(--border)', padding: '2px 0' }}>
-            <summary style={{ cursor: 'pointer', padding: '4px 0', display: 'flex', gap: '8px', alignItems: 'baseline' }}>
-              <span style={{ color: 'var(--text-3)', minWidth: '28px', textAlign: 'right', opacity: 0.5 }}>{i}</span>
-              <span style={{ color, fontWeight: 700, minWidth: '120px' }}>{e.type}</span>
-              <span style={{ color: 'var(--text-2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.leader}</span>
-              {e.data?.turn != null && <span style={{ color: 'var(--text-3)' }}>T{String(e.data.turn)}</span>}
-              {!!e.data?.title && <span style={{ color: 'var(--text-2)' }}>{String(e.data.title)}</span>}
-              {!!e.data?.department && <span style={{ color: 'var(--teal)' }}>{String(e.data.department)}</span>}
-              {!!e.data?.outcome && <span style={{ color: 'var(--amber)', fontWeight: 700 }}>{String(e.data.outcome)}</span>}
+          <details key={i} className={styles.event}>
+            <summary className={styles.eventSummary}>
+              <span className={styles.index}>{i}</span>
+              <span className={styles.type} style={{ color }}>{e.type}</span>
+              <span className={styles.leader}>{e.leader}</span>
+              {e.data?.turn != null && <span className={styles.turn}>T{String(e.data.turn)}</span>}
+              {!!e.data?.title && <span className={styles.title}>{String(e.data.title)}</span>}
+              {!!e.data?.department && <span className={styles.department}>{String(e.data.department)}</span>}
+              {!!e.data?.outcome && <span className={styles.outcome}>{String(e.data.outcome)}</span>}
             </summary>
             {hasData && (
-              <pre style={{
-                padding: '8px 12px 8px 44px', margin: '0 0 4px',
-                background: 'var(--bg-card)', borderRadius: '4px', border: '1px solid var(--border)',
-                overflow: 'auto', maxHeight: '400px', fontSize: '11px', lineHeight: 1.5,
-                color: 'var(--text-2)', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-              }}>
+              <pre className={styles.dataBlock}>
                 {JSON.stringify(e.data, null, 2)}
               </pre>
             )}
