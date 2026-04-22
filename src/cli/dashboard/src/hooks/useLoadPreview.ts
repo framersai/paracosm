@@ -59,6 +59,12 @@ export interface UseLoadPreviewApi {
   metadata: PreviewMetadata | null;
   /** Open the hidden file picker + walk the selected file through parse + preview. */
   openPicker: () => void;
+  /**
+   * Parse a pre-selected File (e.g. from drag-and-drop) and present the
+   * preview. Skips the file picker; every other step of the flow is
+   * identical to {@link openPicker}.
+   */
+  openFromFile: (file: File) => Promise<void>;
   /** Commit the preview — invokes onConfirm with the parsed data. */
   confirm: () => void;
   /** Drop the preview without dispatching. */
@@ -70,9 +76,7 @@ const initialState: PreviewState = { kind: 'idle' };
 export function useLoadPreview(opts: UseLoadPreviewOptions): UseLoadPreviewApi {
   const [state, dispatch] = useReducer(reducePreviewState, initialState);
 
-  const openPicker = useCallback(async () => {
-    const file = await opts.pickFile();
-    if (!file) return;
+  const openFromFile = useCallback(async (file: File) => {
     dispatch({ type: 'open-started' });
     try {
       const parsed = await opts.parseFile(file);
@@ -97,6 +101,12 @@ export function useLoadPreview(opts: UseLoadPreviewOptions): UseLoadPreviewApi {
     }
   }, [opts]);
 
+  const openPicker = useCallback(async () => {
+    const file = await opts.pickFile();
+    if (!file) return;
+    await openFromFile(file);
+  }, [opts, openFromFile]);
+
   const confirm = useCallback(() => {
     if (state.kind !== 'preview') return;
     const data = state.data as ParsedSaveFile;
@@ -115,5 +125,5 @@ export function useLoadPreview(opts: UseLoadPreviewOptions): UseLoadPreviewApi {
 
   const metadata = state.kind === 'preview' ? state.metadata : null;
 
-  return { state, metadata, openPicker, confirm, cancel };
+  return { state, metadata, openPicker, openFromFile, confirm, cancel };
 }

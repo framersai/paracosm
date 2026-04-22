@@ -5,7 +5,9 @@ import { useSSE } from './hooks/useSSE';
 import { useGameState } from './hooks/useGameState';
 import { useGamePersistence } from './hooks/useGamePersistence';
 import { useLoadPreview } from './hooks/useLoadPreview';
+import { useDashboardDropZone } from './hooks/useDashboardDropZone';
 import { LoadPreviewModal } from './components/layout/LoadPreviewModal';
+import { DropZoneOverlay } from './components/layout/DropZoneOverlay';
 import { useForgeToasts } from './hooks/useForgeToasts';
 import { useTerminalToast } from './hooks/useTerminalToast';
 import { useSimSavedToast } from './hooks/useSimSavedToast';
@@ -193,6 +195,18 @@ function AppContent() {
     },
   });
   const handleLoad = loadPreview.openPicker;
+
+  // Drag-and-drop a .json save file anywhere on the dashboard. Uses the
+  // same preview + parse pipeline as the file-picker flow.
+  const dropZone = useDashboardDropZone({
+    onFile: (file) => loadPreview.openFromFile(file),
+    onError: () => {
+      toast('error', 'Unsupported file', 'Only .json simulation files supported.');
+    },
+    onMultipleFiles: (totalCount) => {
+      toast('info', 'Multi-file drop', `Loaded first of ${totalCount} files; ignoring the rest.`);
+    },
+  });
 
   const handleClear = useCallback(() => {
     if (!confirm('Clear all simulation data? This cannot be undone.')) return;
@@ -601,6 +615,7 @@ function AppContent() {
               onCancel={loadPreview.cancel}
             />
           )}
+          <DropZoneOverlay active={dropZone.isDragging} />
           {tourActive && (
             <GuidedTour
               onTabChange={(tab) => setActiveTab(tab)}
