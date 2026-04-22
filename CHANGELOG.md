@@ -4,6 +4,8 @@ All notable changes to paracosm are documented here. Format follows the spirit o
 
 ## 0.5.0 (2026-04-21)
 
+Domain-agnostic schema rename. `LeaderConfig.colony` renamed to `.unit`, `SimulationState.colony` renamed to `.systems`, every `SimEvent` payload field renamed in lockstep, the `'colony_snapshot'` event type renamed to `'systems_snapshot'`, public types `ColonyPatch` and `applyColonyDeltas` renamed to `SystemsPatch` and `applySystemDeltas`, CLI flag `--colony` renamed to `--unit`. Saved-run migration helper aliases legacy field names on read so pre-0.5 output JSON and stored sessions still load cleanly. Cache busted via `COMPILE_SCHEMA_VERSION` bump, forcing regeneration of every pre-0.5 compiled scenario hook on next run.
+
 ### Breaking Changes
 
 - rename colony→unit/systems across public API (0.5.0) ([9d00630](https://github.com/framersai/paracosm/commit/9d00630935691c8ba6b8b4fca578bbefdc2caabb))
@@ -413,6 +415,8 @@ All notable changes to paracosm are documented here. Format follows the spirit o
 ---
 
 ## 0.4.0 (2026-04-15)
+
+First npm-published release series. Multi-event turns, Event Director with cross-turn planning, Zod schema validation on every structured LLM call, session-aware `sendAndValidate` wrapper preserving conversation memory across validation retries, cost tracking with per-call-site rollup, stored sessions with replay, seed enrichment and citation provenance, `costPreset` economy mode for cheap iteration, universal `e.data.summary` on every event, `createParacosmClient` factory with `PARACOSM_*` env-var config, discriminated `SimEvent` union with per-type payload narrowing.
 
 ### Features
 

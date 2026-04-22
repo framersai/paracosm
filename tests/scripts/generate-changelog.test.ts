@@ -4,6 +4,7 @@ import {
   parseCommit,
   classifyCommit,
   extractNarratives,
+  extractLockedEntries,
   detectBoundaries,
   sliceCommits,
   renderBullet,
@@ -428,4 +429,43 @@ test('renderEntry: empty commits + no narrative still emits the header', () => {
     collapseOther: true,
   });
   assert.ok(out.includes('## 0.5.0 (2026-04-21)'));
+});
+
+test('extractLockedEntries: returns full verbatim entry for requested versions only', () => {
+  const input = `# Changelog
+
+header prose.
+
+## 0.5.0 (2026-04-21)
+
+narrative A
+
+### Features
+- foo ([abc1234](url))
+
+---
+
+## 0.4.0 (2026-02-15)
+
+narrative B
+
+### Features
+- bar ([def5678](url))
+
+### Bug Fixes
+- baz ([ghi9012](url))
+`;
+  const locked = extractLockedEntries(input, ['0.4.0']);
+  assert.equal(locked.size, 1);
+  const entry = locked.get('0.4.0');
+  assert.ok(entry.startsWith('## 0.4.0 (2026-02-15)'));
+  assert.ok(entry.includes('narrative B'));
+  assert.ok(entry.includes('- bar'));
+  assert.ok(entry.includes('- baz'));
+  assert.ok(!entry.endsWith('---'), 'trailing separator stripped');
+});
+
+test('extractLockedEntries: missing version yields no map entry', () => {
+  const locked = extractLockedEntries('# Changelog\n\n## 0.5.0 (2026-04-21)\n\n### Features\n- x\n', ['0.4.0']);
+  assert.equal(locked.size, 0);
 });
