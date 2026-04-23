@@ -1,6 +1,6 @@
 import type { ProgressionHookContext } from '../types.js';
 
-const MARS_RADIATION_MSV_PER_YEAR = 0.67 * 365; // ~244.55 mSv/time
+const MARS_RADIATION_MSV_PER_YEAR = 0.67 * 365; // ~244.55 mSv/year
 
 /**
  * Mars-specific between-turn progression: radiation accumulation and bone density loss.

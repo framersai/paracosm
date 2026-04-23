@@ -51,7 +51,7 @@ Current water situation: {waterLitersPerDay} L/day production, 1000 L/day needed
 
 OPTION A: Full hydroponic conversion. Abandon soil-based agriculture entirely. Build sealed hydroponic bays. Proven, controllable, but requires 30% more power (120 kW) and significant material investment.
 
-OPTION B: Engineer perchlorate-reducing bacteria for bioremediation. Introduce modified Dechloromonas strains to break down perchlorate in contained soil beds. Untested on Mars, 2-time R&D timeline, but could enable open-soil farming colony-wide if successful.
+OPTION B: Engineer perchlorate-reducing bacteria for bioremediation. Introduce modified Dechloromonas strains to break down perchlorate in contained soil beds. Untested on Mars, 2-year R&D timeline, but could enable open-soil farming colony-wide if successful.
 
 Research the real science of Mars perchlorate contamination and decide.`,
     researchKeywords: ['Mars perchlorate Phoenix lander', 'perchlorate bioremediation bacteria', 'Mars soil toxicity agriculture', 'hydroponics space farming'],
@@ -60,7 +60,7 @@ Research the real science of Mars perchlorate contamination and decide.`,
     riskSuccessProbability: 0.50,
     options: [
       { id: 'option_a', label: 'Full hydroponic conversion', description: 'Abandon soil, sealed hydroponic bays, more power needed', isRisky: false },
-      { id: 'option_b', label: 'Perchlorate bioremediation', description: 'Engineer bacteria, 2-time R&D, could enable soil farming', isRisky: true },
+      { id: 'option_b', label: 'Perchlorate bioremediation', description: 'Engineer bacteria, 2-year R&D, could enable soil farming', isRisky: true },
     ],
   },
   {

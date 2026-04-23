@@ -18,7 +18,7 @@ const turnLoopFixture = {
   metadata: { ...baseMetadata, seed: 42, mode: 'turn-loop' as const },
   overview: 'Bold expansion outpaced cautious engineering.',
   trajectory: {
-    timeUnit: { singular: 'time', plural: 'years' },
+    timeUnit: { singular: 'year', plural: 'years' },
     points: [
       { time: 2035, metrics: { population: 100, morale: 0.7 } },
       { time: 2043, metrics: { population: 130, morale: 0.65 } },

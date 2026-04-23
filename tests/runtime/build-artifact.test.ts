@@ -10,7 +10,7 @@ const baseInputs = {
   seed: 42,
   startedAt: '2026-04-22T10:00:00.000Z',
   completedAt: '2026-04-22T10:05:00.000Z',
-  timeUnit: { singular: 'time', plural: 'years' },
+  timeUnit: { singular: 'year', plural: 'years' },
   turnArtifacts: [],
   commanderDecisions: [],
   forgedToolbox: [],
