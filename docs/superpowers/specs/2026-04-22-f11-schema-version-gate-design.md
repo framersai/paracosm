@@ -86,15 +86,14 @@ The modal's F9 "Schema" row already renders as a chip: `v2` (green, current) or 
 ## Files
 
 **Modified.**
-- `src/cli/dashboard/src/hooks/useGamePersistence.ts` — add `CURRENT_SCHEMA_VERSION`, migration chain, error types, version gate in `parseFile`
-- `src/cli/dashboard/src/components/layout/LoadPreviewModal.tsx` (from F9) — branch the Schema row into the badge variants; disable confirm button when `tooNew` flag is set
-- `src/cli/dashboard/src/hooks/useLoadPreview.ts` (from F9) — propagate the migration outcome + `tooNew` flag into the preview metadata
+- `src/cli/dashboard/src/hooks/useGamePersistence.ts` — import migration chain, change `parseFile` to the `ParseResult` discriminated union, route too-new errors as `{ ok: false, reason: 'too-new' }`
+- `src/cli/dashboard/src/hooks/useLoadPreview.ts` (from F9) — consume the new `ParseResult` shape, route `too-new` to the error-toast path with version-specific copy
 
 **New.**
-- `src/cli/dashboard/src/hooks/useGamePersistence.test.ts` (extension) — test migration chain, test error cases
-- Extend `useLoadPreview.test.ts` with schema-version badge cases
+- `src/cli/dashboard/src/hooks/schemaMigration.ts` — `CURRENT_SCHEMA_VERSION`, `runMigrationChain`, `SchemaVersionTooNewError`, `SchemaVersionGapError`, `migrations` table
+- `src/cli/dashboard/src/hooks/schemaMigration.test.ts` — chain identity, legacy→current, too-new-throws, idempotency tests
 
-No new files. Layered onto F9's hook + modal.
+No `LoadPreviewModal` or helper changes needed in F11. F9's modal already renders `v2` / `legacy` chip variants. Too-new files never reach the modal.
 
 ---
 

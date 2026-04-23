@@ -37,10 +37,11 @@ The inference is pure — lives alongside `extractPreviewMetadata` from F9 as a 
 
 | Condition | Match state | Modal behaviour |
 |---|---|---|
-| File's scenario id === current scenario id | `match` | No warning row. Standard modal. |
-| File's scenario id !== current scenario id | `mismatch` | Warning row + action: "Swap to `<file-scenario>` before loading" |
-| File's scenario unknown (heuristic returned nothing) | `unknown` | Info row: "Scenario unclear; load proceeds with current settings." |
-| File has `scenario` field but its id is not in the dashboard's scenario catalog | `unavailable` | Warning: "This file was saved under `<name>` which is not in this dashboard's catalog. Loading will render with approximate labels." Confirm still enabled. |
+| File's scenario id === current scenario id | `match` | No warning row. Standard F9 modal, confirm labeled "Load". |
+| File's scenario id !== current scenario id | `mismatch` | Red warning row with guidance to switch scenario in Settings. Confirm labeled "Load anyway" (muted styling). Swap action deferred (see below). |
+| File's scenario unknown (heuristic returned nothing) | `unknown` | No warning row. Standard F9 modal. |
+
+F12 ships three match states (`match` / `mismatch` / `unknown`). A fourth state (`unavailable` — file's scenario id not in the dashboard's catalog) was considered but dropped for this ship; the dashboard doesn't surface the scenario catalog to App.tsx directly today, and collapsing `unavailable` into `mismatch` with a generic warning is sufficient UX. Revisit if catalog-aware preview becomes valuable.
 
 ---
 
@@ -71,17 +72,20 @@ inferScenarioIdentity(data) → { id?, name?, source }
   compare to useScenarioContext().id
     │
     ▼
-matchState: 'match' | 'mismatch' | 'unknown' | 'unavailable'
+matchState: 'match' | 'mismatch' | 'unknown'
     │
     ▼
   include in previewMetadata → LoadPreviewModal renders accordingly
     │
     ▼
 user click:
-  - Load          → sse.loadEvents (current scenario stays)
-  - Swap and load → setActiveScenario(target); useEffect → sse.loadEvents
-  - Cancel        → no-op
+  - Load / Load anyway → sse.loadEvents (current scenario stays; confirm
+                         label becomes "Load anyway" when mismatch to
+                         signal the degraded render)
+  - Cancel             → no-op
 ```
+
+(Swap-then-load is deferred. See "Swap-to-scenario action — deferred" above.)
 
 ---
 
@@ -147,17 +151,17 @@ Styling: warning row uses the same pattern as F9's "This will replace..." warnin
 - File with neither → `{ source: 'unknown' }`
 
 **Unit: matchState computation**
-- declared match → `'match'`
-- declared mismatch, target in catalog → `'mismatch'`
-- declared mismatch, target NOT in catalog → `'unavailable'`
-- inferred mismatch → `'mismatch'` with inferred scenario id
+- declared id match → `'match'`
+- declared id mismatch → `'mismatch'`
+- inferred name match (no file id, names equal) → `'match'`
+- inferred id mismatch → `'mismatch'`
 - unknown → `'unknown'`
 
-**Component: LoadPreviewModal**
-- Renders bi-button row in `match` / `unknown` / `unavailable`
-- Renders tri-button row in `mismatch`
-- Swap button click → `setActiveScenario(targetId)` called, then `onConfirm` fires after scenario context updates
-- Load-anyway click in mismatch → `onConfirm` fires immediately without scenario change
+**Component: LoadPreviewModal (manual smoke only — no test-library in repo)**
+- Bi-button row (`Cancel` + confirm) renders in all three match states
+- In `match` + `unknown`: confirm labeled "Load" with standard styling
+- In `mismatch`: confirm labeled "Load anyway" with muted-warning styling, preceded by the red mismatch warning row
+- Clicking "Load anyway" fires `onConfirm` immediately; no scenario context changes
 
 ---
 
@@ -168,7 +172,7 @@ Styling: warning row uses the same pattern as F9's "This will replace..." warnin
 - Loading mismatched file → red warning row, "Load anyway" button, degraded-render guidance text
 - Loading legacy / unknown-scenario file → soft info row, single confirm button, no hard block
 - Loading file whose scenario isn't known to the dashboard → amber warning, confirm stays enabled
-- Tests pass for all four match states
+- Tests pass for all three match states (`match` / `mismatch` / `unknown`)
 - SCSS module used; no inline styles
 - Existing 77/77 dashboard tests still pass
 
@@ -185,7 +189,7 @@ Styling: warning row uses the same pattern as F9's "This will replace..." warnin
 
 ## Risks + notes
 
-- **Scenario catalog shape.** `customScenarioCatalog` is user-state in localStorage. The swap-to-custom path needs to query the catalog at click time, not at preview-open time, so a scenario imported between preview-open and click is available. Implementation: pass the catalog lookup as a callback, resolved at swap time.
-- **One-tick async between swap and dispatch.** The `useEffect` pattern is mildly racy if the user cancels during that tick. Guard with a local `pendingSwap` state that aborts the dispatch on cancel. Covered in the state-machine tests.
 - **Legacy saves proliferate forever.** Files saved before F12 lands never carry the `scenario` field. The heuristic fallback handles them indefinitely; no cleanup required.
 - **Two builtin scenarios today** (Mars, Lunar). Both scenarios write `scenario.id` of `mars-genesis` and `lunar-outpost` respectively. Inference from event payloads should match these exact ids.
+- **Name-based fallback ambiguity.** When the file carries only an inferred name (no id), match is by string equality with the current scenario's display name. Two different scenarios with the same display name would falsely match. No real-world collision today; call out if the catalog ever grows a duplicate-name entry.
+- **Swap-implementation risks live in the deferred spec.** Catalog-at-click-time resolution, the one-tick async, and `pendingSwap` cancel guards apply to whatever follow-up spec resurrects the swap-and-load button. Not in F12's risk surface.

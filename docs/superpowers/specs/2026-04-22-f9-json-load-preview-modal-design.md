@@ -201,7 +201,7 @@ Single commit on master. Order within the commit:
 1. Add `LoadPreviewModal.tsx` + `.module.scss` + `useLoadPreview.ts` + test file. Ship the hook + component in isolation first; tests pass before the component is mounted.
 2. Split `useGamePersistence.load()` into `pickFile` + `parseFile`; keep back-compat `load()` that calls both.
 3. Wire `<LoadPreviewModal>` into `App.tsx` next to the other modals; replace `handleLoad` body with the hook's `openFromFile`.
-4. Wire `LoadMenu.tsx` cache + replay card handlers through the hook's `openFromCache` / `openFromReplay`.
+4. LoadMenu's cache + replay card handlers stay on their URL-navigation path (out of scope — see "Scope clarification" above). Only the "Load from file" row is affected, and it already delegates via `onLoadFromFile` → `handleLoad`, which is now backed by the hook's `openPicker`.
 5. Extend `save()` to include the optional `scenario` field (opportunistic, no bump of schemaVersion).
 6. Unit tests pass; manual smoke: pick a file, preview renders, confirm works, cancel works, Escape works, backdrop click works, warning row renders when state has events, hidden when state is empty.
 
@@ -222,7 +222,7 @@ No breaking changes. Old saved files load with fallback preview (scenario name f
 - Load a pre-0.5.0 file → preview renders with "legacy" schema badge, confirm dispatches, migration still runs
 - Load a non-JSON file → toast fires, no modal
 - Load while current sim has events → warning row visible, button copy correct
-- Load while replay is active → warning row hidden (per `!sse.isReplay` gate)
+- Load while replay is active → warning row hidden (per `!replaySessionId` gate, where `replaySessionId` comes from `useReplaySessionId()`)
 
 ---
 

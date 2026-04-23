@@ -124,7 +124,7 @@ export function LoadPreviewModal({
           </div>
 
           <div className={styles.metaLabel}>Turns</div>
-          <div className={styles.metaValue}>{metadata.turnCount || '—'}</div>
+          <div className={styles.metaValue}>{metadata.turnCount ?? '—'}</div>
 
           <div className={styles.metaLabel}>Events</div>
           <div className={styles.metaValue}>{metadata.eventCount}</div>
@@ -167,14 +167,19 @@ export function LoadPreviewModal({
         )}
 
         <div className={styles.actions}>
-          <button type="button" onClick={onCancel} className={styles.button}>
+          <button
+            type="button"
+            onClick={onCancel}
+            className={styles.button}
+            autoFocus={showOverwriteWarning || isMismatch}
+          >
             Cancel
           </button>
           <button
             type="button"
             onClick={onConfirm}
             className={confirmClassName}
-            autoFocus
+            autoFocus={!showOverwriteWarning && !isMismatch}
           >
             {confirmLabel}
           </button>

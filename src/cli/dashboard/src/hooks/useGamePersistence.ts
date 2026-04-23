@@ -92,16 +92,35 @@ export function useGamePersistence(
    * `null` if the user cancelled. Exposed separately from `parseFile`
    * so the two-stage preview flow can insert a modal between pick and
    * apply.
+   *
+   * Cancel detection: `input.onchange` only fires when a file is
+   * selected. A user who cancels the picker dialog never triggers
+   * onchange, which would hang the returned promise. We listen for
+   * window `focus` (fired when the OS dialog closes and control
+   * returns to the page) with a small delay so a real selection can
+   * still win the race, then resolve with `null`.
    */
   const pickFile = useCallback((): Promise<File | null> => {
     return new Promise(resolve => {
       const input = document.createElement('input');
       input.type = 'file';
       input.accept = '.json';
-      input.onchange = () => {
-        const file = input.files?.[0];
-        resolve(file ?? null);
+      let settled = false;
+      const settle = (file: File | null) => {
+        if (settled) return;
+        settled = true;
+        window.removeEventListener('focus', onFocus);
+        resolve(file);
       };
+      const onFocus = () => {
+        // 300ms lets onchange fire first when a file was actually
+        // picked; if nothing selected by then, treat as cancel.
+        window.setTimeout(() => settle(null), 300);
+      };
+      input.onchange = () => {
+        settle(input.files?.[0] ?? null);
+      };
+      window.addEventListener('focus', onFocus, { once: true });
       input.click();
     });
   }, []);

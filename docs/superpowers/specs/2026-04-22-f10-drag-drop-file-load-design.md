@@ -143,7 +143,7 @@ All styling via SCSS module. CSS custom properties for colors (`--accent`, `--bg
 | Case | Behaviour |
 |---|---|
 | Drag from external app, cursor leaves window before drop | `dragleave` on `<body>` → counter decrements → overlay hides. Clean idle. |
-| Drag starts inside the window (text selection drag) | `dragenter` still fires. `dataTransfer.types` includes `'Files'` only when a file is dragged; check that to gate the overlay. Text selection drags do NOT show the overlay. |
+| Drag starts inside the window (text selection drag) | `dragenter` still fires. `dataTransfer.types` includes `'Files'` only when a file is dragged; check that to gate the overlay. Text selection drags do NOT show the overlay. Browser variants: Chromium + Safari both expose the `'Files'` string on file drags; Firefox historically also accepted `'application/x-moz-file'`. The helper's `hasFilesDragPayload` tolerates both the array and `DOMStringList.contains()` shapes to stay cross-browser; if Firefox ever drops `'Files'` in favor of `'application/x-moz-file'`, extend the helper with that as a fallback. |
 | Drag + drop onto a modal (e.g., F9's preview modal) | Overlay still shows. Drop hands to `openFromFile`; F9's state machine rejects re-entry while already in `preview` state (documented in F9 spec). Toast: `"Cancel the current preview before loading another file."` |
 | Drop a folder | `dataTransfer.files[0]` is the folder placeholder; extension check fails (no `.json` suffix); toast fires. |
 | Drop with pointer over the TopBar LOAD button | Same path. LOAD button doesn't intercept drops; drop event bubbles to window. |

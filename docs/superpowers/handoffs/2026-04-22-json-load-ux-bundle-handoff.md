@@ -1,6 +1,6 @@
 # Session Handoff — 2026-04-22 (late) — JSON-load UX bundle
 
-Second 2026-04-22 session. Picks up from [`2026-04-22-session-handoff.md`](./2026-04-22-session-handoff.md). State at this handoff is production-deployed; no local-only changes outstanding.
+Second 2026-04-22 session. Picks up from [`2026-04-22-session-handoff.md`](./2026-04-22-session-handoff.md). State at this handoff: all commits are local on the master branch of both paracosm and the monorepo; nothing pushed to origin yet. Once pushed, CI/CD deploys automatically to `paracosm.agentos.sh`.
 
 ---
 
@@ -36,7 +36,7 @@ Each spec self-reviewed against the real codebase before implementation, TDD thr
 
 ### Standing rules + new instruction
 
-Added at the monorepo root: [`AGENTS.md`](../../../../AGENTS.md) — shared agent guidance for Claude Code + Codex. Key new rule: **run BOTH `coderabbit:review` AND `superpowers:requesting-code-review` after any feature / multi-file refactor / non-trivial bug fix.** Mirrored to Claude Code's memory as [`feedback_code_review_after_big_changes.md`](/Users/johnn/.claude/projects/-Users-johnn-Documents-git-voice-chat-assistant/memory/feedback_code_review_after_big_changes.md).
+Added at the monorepo root: [`AGENTS.md`](../../../../AGENTS.md) — shared agent guidance for Claude Code + Codex. Key new rule: **run BOTH `coderabbit:review` AND `superpowers:requesting-code-review` after any feature / multi-file refactor / non-trivial bug fix.** Mirrored to Claude Code's project memory under `~/.claude/projects/<project>/memory/feedback_code_review_after_big_changes.md`.
 
 ---
 
@@ -80,8 +80,10 @@ Added at the monorepo root: [`AGENTS.md`](../../../../AGENTS.md) — shared agen
 
 ## Verification commands (run at session start)
 
+Run from repository root:
+
 ```bash
-cd /Users/johnn/Documents/git/voice-chat-assistant/apps/paracosm
+cd apps/paracosm
 
 git log --oneline -18
 git status  # should be clean
