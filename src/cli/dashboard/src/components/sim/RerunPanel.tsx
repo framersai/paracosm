@@ -44,9 +44,18 @@ export function RerunPanel({ enabled = true }: RerunPanelProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(next),
       });
-      const data = (await res.json()) as { redirect?: string; error?: string };
+      const data = (await res.json().catch(() => ({}))) as {
+        redirect?: string;
+        error?: string;
+      };
       if (res.status === 429) {
         alert(data.error || 'Rate limit hit. Add an API key in Settings to bypass.');
+        return;
+      }
+      if (!res.ok) {
+        // Non-429 4xx/5xx — surface the server's error or a generic one
+        // so the user isn't left with a dead button click.
+        alert(data.error || `Re-run failed: server responded with HTTP ${res.status}.`);
         return;
       }
       if (data.redirect) {
@@ -54,6 +63,8 @@ export function RerunPanel({ enabled = true }: RerunPanelProps) {
         // run's seed, not the original.
         writeLastLaunchConfig(window.localStorage, next);
         window.location.href = data.redirect;
+      } else {
+        alert('Re-run failed: server did not return a redirect. Check the server logs.');
       }
     } catch (err) {
       alert(`Re-run failed: ${err}`);
