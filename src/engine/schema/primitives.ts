@@ -284,6 +284,81 @@ export const DecisionSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
+// Subject (input primitive): who/what is being simulated
+// ---------------------------------------------------------------------------
+
+/**
+ * One time-stamped observation about a subject. Biometric, telemetry,
+ * sensor reading, or any other recorded measurement.
+ */
+export const SubjectSignalSchema = z.object({
+  label: z.string().min(1),
+  value: z.union([z.string(), z.number()]),
+  unit: z.string().optional(),
+  recordedAt: z.string().datetime().optional(),
+});
+
+/**
+ * One categorical marker about a subject. Genome rsIDs, clinical flags,
+ * classification tags, faction affiliations — anything discrete + labeled.
+ */
+export const SubjectMarkerSchema = z.object({
+  id: z.string().min(1),
+  category: z.string().optional(),
+  value: z.string().optional(),
+  interpretation: z.string().optional(),
+});
+
+/**
+ * Identity + context for the subject of a simulation. Domain-agnostic:
+ * digital-twin = person (profile + genome + biometrics); game = character
+ * (traits + inventory); ecology = organism; fleet ops = vessel.
+ *
+ * `profile` is a free-form `Record<string, unknown>` — consumers narrow
+ * to a scenario-specific sub-schema when they need stronger typing.
+ */
+export const SubjectConfigSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  profile: z.record(z.string(), z.unknown()).optional(),
+  signals: z.array(SubjectSignalSchema).optional(),
+  markers: z.array(SubjectMarkerSchema).optional(),
+  personality: z.record(z.string(), z.number()).optional(),
+  conditions: z.array(z.string()).optional(),
+  scenarioExtensions: ScenarioExtensionsSchema,
+});
+
+// ---------------------------------------------------------------------------
+// Intervention (input primitive): what's being tested on the subject
+// ---------------------------------------------------------------------------
+
+/**
+ * Counterfactual being tested. Digital-twin = a health protocol; game =
+ * strategic choice; policy sim = policy; clinical trial = treatment arm.
+ *
+ * `duration.unit` is not constrained to the scenario's time-unit —
+ * interventions may span multiple scenario time-units or be measured in
+ * different units than the simulation itself ticks on.
+ */
+export const InterventionConfigSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  description: z.string().min(1),
+  category: z.string().optional(),
+  mechanism: z.string().optional(),
+  targetBehaviors: z.array(z.string()).optional(),
+  duration: z.object({
+    value: z.number(),
+    unit: z.string().min(1),
+  }).optional(),
+  adherenceProfile: z.object({
+    expected: z.number().min(0).max(1),
+    risks: z.array(z.string()).optional(),
+  }).optional(),
+  scenarioExtensions: ScenarioExtensionsSchema,
+});
+
+// ---------------------------------------------------------------------------
 // Operational schemas (live on the artifact, not simulation content)
 // ---------------------------------------------------------------------------
 

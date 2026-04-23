@@ -41,6 +41,11 @@ export {
   // Operational
   CostSchema,
   ProviderErrorSchema,
+  // Subject + Intervention input primitives
+  SubjectSignalSchema,
+  SubjectMarkerSchema,
+  SubjectConfigSchema,
+  InterventionConfigSchema,
 } from './primitives.js';
 
 export { RunArtifactSchema, ForgedToolSummarySchema } from './artifact.js';
