@@ -2,7 +2,7 @@
 
 **Status:** design, awaiting approval
 **Date:** 2026-04-22
-**Scope:** dashboard-only. Depends on F9's `useLoadPreview` for loading entries through the preview modal (optional — direct restore still works).
+**Scope:** dashboard-only. Independent of F9's `useLoadPreview` — history-card restores dispatch events directly via `sse.loadEvents` and gate destructive overwrites with a native `confirm()` dialog, matching the `handleClear` pattern in App.tsx.
 
 ---
 
@@ -177,7 +177,7 @@ Each card click → call `restore(entry, sse.loadEvents)` which dispatches the c
 - Clear all localStorage → dashboard renders no history section entries
 - Run one sim → ring has 1 entry, LoadMenu shows 1 card
 - Run five more sims → ring has 5 entries (oldest evicted), LoadMenu shows 5 cards
-- Click oldest card → preview modal → confirm → events restored
+- Click oldest card → (if live state has events) native confirm dialog → events restored
 - Delete middle card → ring shows 4, card disappears from menu
 - Clear all → ring empty, section disappears or shows empty state
 
@@ -189,7 +189,7 @@ Each card click → call `restore(entry, sse.loadEvents)` which dispatches the c
 - Migration from legacy single-slot runs transparently on first mount post-upgrade
 - Restore-on-mount behavior unchanged (still loads the newest entry)
 - LoadMenu's "Local history" section renders ring entries with summary metadata + delete controls
-- Card click → F9 preview modal → confirm → entry restored
+- Card click → native confirm (only when live state has events) → entry restored via sse.loadEvents
 - Clear-all empties the ring
 - 135 existing dashboard tests still pass; new helper tests pass
 - CodeRabbit review surfaces zero findings
