@@ -1,0 +1,1069 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "turn_start"
+        },
+        "leader": {
+          "type": "string"
+        },
+        "turn": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "time": {
+          "type": "number"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "summary": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "crisis": {
+              "type": "string"
+            },
+            "category": {
+              "type": "string"
+            },
+            "births": {
+              "type": "number"
+            },
+            "deaths": {
+              "type": "number"
+            },
+            "systems": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "type": "number"
+              }
+            },
+            "emergent": {
+              "type": "boolean"
+            },
+            "turnSummary": {
+              "type": "string"
+            },
+            "totalEvents": {
+              "type": "number"
+            },
+            "pacing": {}
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "type",
+        "leader",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "event_start"
+        },
+        "leader": {
+          "type": "string"
+        },
+        "turn": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "time": {
+          "type": "number"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "summary": {
+              "type": "string"
+            },
+            "eventIndex": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "totalEvents": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "title": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "category": {
+              "type": "string"
+            },
+            "emergent": {
+              "type": "boolean"
+            },
+            "turnSummary": {
+              "type": "string"
+            },
+            "pacing": {}
+          },
+          "required": [
+            "eventIndex",
+            "totalEvents",
+            "title",
+            "category"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "type",
+        "leader",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "specialist_start"
+        },
+        "leader": {
+          "type": "string"
+        },
+        "turn": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "time": {
+          "type": "number"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "summary": {
+              "type": "string"
+            },
+            "department": {
+              "type": "string",
+              "minLength": 1
+            },
+            "eventIndex": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "department",
+            "eventIndex"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "type",
+        "leader",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "specialist_done"
+        },
+        "leader": {
+          "type": "string"
+        },
+        "turn": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "time": {
+          "type": "number"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "summary": {
+              "type": "string"
+            },
+            "department": {
+              "type": "string",
+              "minLength": 1
+            },
+            "eventIndex": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "citations": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "citationList": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "text": {
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string"
+                  },
+                  "doi": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "text",
+                  "url"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "risks": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "forgedTools": {
+              "type": "array",
+              "items": {}
+            },
+            "recommendedActions": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "deptSummary": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "department",
+            "eventIndex",
+            "citations",
+            "citationList",
+            "risks",
+            "forgedTools"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "type",
+        "leader",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "forge_attempt"
+        },
+        "leader": {
+          "type": "string"
+        },
+        "turn": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "time": {
+          "type": "number"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "summary": {
+              "type": "string"
+            },
+            "department": {
+              "type": "string",
+              "minLength": 1
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": {
+              "type": "string"
+            },
+            "mode": {
+              "type": "string"
+            },
+            "approved": {
+              "type": "boolean"
+            },
+            "confidence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "inputFields": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "outputFields": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "errorReason": {
+              "type": "string"
+            },
+            "timestamp": {
+              "type": "string"
+            },
+            "eventIndex": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "department",
+            "name",
+            "approved",
+            "confidence",
+            "inputFields",
+            "outputFields",
+            "timestamp"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "type",
+        "leader",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "decision_pending"
+        },
+        "leader": {
+          "type": "string"
+        },
+        "turn": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "time": {
+          "type": "number"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "summary": {
+              "type": "string"
+            },
+            "eventIndex": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "eventIndex"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "type",
+        "leader",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "decision_made"
+        },
+        "leader": {
+          "type": "string"
+        },
+        "turn": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "time": {
+          "type": "number"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "summary": {
+              "type": "string"
+            },
+            "decision": {
+              "type": "string"
+            },
+            "rationale": {
+              "type": "string"
+            },
+            "reasoning": {
+              "type": "string"
+            },
+            "selectedPolicies": {
+              "type": "array",
+              "items": {}
+            },
+            "selectedOptionId": {
+              "type": "string"
+            },
+            "eventIndex": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "decision",
+            "rationale",
+            "reasoning",
+            "selectedPolicies",
+            "eventIndex"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "type",
+        "leader",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "outcome"
+        },
+        "leader": {
+          "type": "string"
+        },
+        "turn": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "time": {
+          "type": "number"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "summary": {
+              "type": "string"
+            },
+            "outcome": {
+              "type": "string"
+            },
+            "category": {
+              "type": "string"
+            },
+            "emergent": {
+              "type": "boolean"
+            },
+            "systemDeltas": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "type": "number"
+              }
+            },
+            "eventIndex": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "outcome",
+            "category",
+            "emergent",
+            "systemDeltas",
+            "eventIndex"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "type",
+        "leader",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "personality_drift"
+        },
+        "leader": {
+          "type": "string"
+        },
+        "turn": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "time": {
+          "type": "number"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "summary": {
+              "type": "string"
+            },
+            "agents": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "hexaco": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {
+                      "type": "number"
+                    }
+                  }
+                },
+                "required": [
+                  "name",
+                  "hexaco"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "commander": {}
+          },
+          "required": [
+            "agents",
+            "commander"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "type",
+        "leader",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "agent_reactions"
+        },
+        "leader": {
+          "type": "string"
+        },
+        "turn": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "time": {
+          "type": "number"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "summary": {
+              "type": "string"
+            },
+            "reactions": {
+              "type": "array",
+              "items": {}
+            },
+            "moodSummary": {}
+          },
+          "required": [
+            "reactions"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "type",
+        "leader",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "bulletin"
+        },
+        "leader": {
+          "type": "string"
+        },
+        "turn": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "time": {
+          "type": "number"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "summary": {
+              "type": "string"
+            },
+            "posts": {
+              "type": "array",
+              "items": {}
+            }
+          },
+          "required": [
+            "posts"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "type",
+        "leader",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "turn_done"
+        },
+        "leader": {
+          "type": "string"
+        },
+        "turn": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "time": {
+          "type": "number"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "summary": {
+              "type": "string"
+            },
+            "systems": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "type": "number"
+              }
+            },
+            "toolsForged": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "totalEvents": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "deathCauses": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "type": "number"
+              }
+            },
+            "error": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "systems",
+            "toolsForged"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "type",
+        "leader",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "promotion"
+        },
+        "leader": {
+          "type": "string"
+        },
+        "turn": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "time": {
+          "type": "number"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "summary": {
+              "type": "string"
+            },
+            "agentId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "department": {
+              "type": "string",
+              "minLength": 1
+            },
+            "role": {
+              "type": "string",
+              "minLength": 1
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "agentId",
+            "department",
+            "role"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "type",
+        "leader",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "systems_snapshot"
+        },
+        "leader": {
+          "type": "string"
+        },
+        "turn": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "time": {
+          "type": "number"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "summary": {
+              "type": "string"
+            },
+            "agents": {
+              "type": "array",
+              "items": {}
+            },
+            "population": {
+              "type": "number"
+            },
+            "morale": {
+              "type": "number"
+            },
+            "foodReserve": {
+              "type": "number"
+            },
+            "births": {
+              "type": "number"
+            },
+            "deaths": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "agents",
+            "population",
+            "morale",
+            "foodReserve",
+            "births",
+            "deaths"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "type",
+        "leader",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "provider_error"
+        },
+        "leader": {
+          "type": "string"
+        },
+        "turn": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "time": {
+          "type": "number"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "auth",
+                "quota",
+                "rate_limit",
+                "network",
+                "unknown"
+              ]
+            },
+            "provider": {
+              "type": "string",
+              "minLength": 1
+            },
+            "message": {
+              "type": "string"
+            },
+            "actionUrl": {
+              "type": "string",
+              "format": "uri"
+            },
+            "summary": {
+              "type": "string"
+            },
+            "site": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "provider",
+            "message"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "type",
+        "leader",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "validation_fallback"
+        },
+        "leader": {
+          "type": "string"
+        },
+        "turn": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "time": {
+          "type": "number"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "summary": {
+              "type": "string"
+            },
+            "site": {
+              "type": "string"
+            },
+            "schemaName": {
+              "type": "string"
+            },
+            "rawTextPreview": {
+              "type": "string"
+            },
+            "error": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "site",
+            "rawTextPreview",
+            "error"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "type",
+        "leader",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "sim_aborted"
+        },
+        "leader": {
+          "type": "string"
+        },
+        "turn": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "time": {
+          "type": "number"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "summary": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "completedTurns": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "systems": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "type": "number"
+              }
+            },
+            "toolsForged": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "reason",
+            "completedTurns",
+            "systems",
+            "toolsForged"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "type",
+        "leader",
+        "data"
+      ],
+      "additionalProperties": false
+    }
+  ]
+}

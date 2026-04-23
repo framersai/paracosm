@@ -33,6 +33,10 @@
     "./compiler": {
       "import": "./dist/engine/compiler/index.js",
       "types": "./dist/engine/compiler/index.d.ts"
+    },
+    "./schema": {
+      "import": "./dist/engine/schema/index.js",
+      "types": "./dist/engine/schema/index.d.ts"
     }
   },
   "files": [
@@ -58,6 +62,7 @@
     "test": "node --import tsx --test 'tests/**/*.test.ts' 'src/cli/dashboard/src/**/*.test.ts'",
     "docs": "typedoc && cp assets/docs-theme/paracosm-override.css docs/api/assets/paracosm-override.css",
     "changelog": "node scripts/generate-changelog.mjs",
+    "export:json-schema": "npx tsx scripts/export-json-schema.ts",
     "prepublishOnly": "npm run build",
     "leader:a": "npx tsx src/cli/run-a.ts",
     "leader:b": "npx tsx src/cli/run-b.ts"
