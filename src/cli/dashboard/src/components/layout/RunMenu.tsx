@@ -344,7 +344,14 @@ export function RunMenu({
                     const turns = entry.summary.turnCount
                       ? `${entry.summary.turnCount} turn${entry.summary.turnCount === 1 ? '' : 's'}`
                       : '';
-                    const line2 = [leaders, entry.scenarioShortName, turns]
+                    // Dedup: when leaderNames is empty we already fell
+                    // back to scenarioShortName for `leaders`; don't
+                    // repeat it in line2.
+                    const line2 = [
+                      leaders,
+                      leaders !== entry.scenarioShortName ? entry.scenarioShortName : '',
+                      turns,
+                    ]
                       .filter(Boolean)
                       .join(' · ');
                     const line3 = `${formatRelative(ts)} · ${entry.summary.eventCount} ev · ${formatCost(entry.summary.totalCostUSD)}`;
