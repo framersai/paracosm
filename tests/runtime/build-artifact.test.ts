@@ -127,3 +127,24 @@ test('buildRunArtifact produces valid batch-point artifact without trajectory', 
   assert.equal(RunArtifactSchema.safeParse(artifact).success, true);
   assert.equal(artifact.trajectory, undefined);
 });
+
+test('buildRunArtifact assigns subject + intervention onto returned artifact', () => {
+  const subject = { id: 'subj-1', name: 'Alice' };
+  const intervention = { id: 'intv-1', name: 'Protocol A', description: 'Test.' };
+  const artifact = buildRunArtifact({
+    ...baseInputs,
+    mode: 'turn-loop',
+    subject,
+    intervention,
+  });
+  assert.equal(artifact.subject?.id, 'subj-1');
+  assert.equal(artifact.subject?.name, 'Alice');
+  assert.equal(artifact.intervention?.id, 'intv-1');
+  assert.equal(artifact.intervention?.description, 'Test.');
+});
+
+test('buildRunArtifact leaves subject + intervention undefined when not passed', () => {
+  const artifact = buildRunArtifact({ ...baseInputs, mode: 'turn-loop' });
+  assert.equal(artifact.subject, undefined);
+  assert.equal(artifact.intervention, undefined);
+});

@@ -12,10 +12,12 @@ import type {
   Cost,
   Decision,
   ForgedToolSummary,
+  InterventionConfig,
   ProviderError,
   RunArtifact,
   SimulationMode,
   SpecialistNote,
+  SubjectConfig,
   Timepoint,
   TrajectoryPoint,
   WorldSnapshot,
@@ -104,6 +106,16 @@ export interface BuildArtifactInputs {
   leveragePoints?: string[];
   disclaimer?: string;
   /**
+   * Subject being simulated. Passed through verbatim to the returned
+   * artifact. Turn-loop mode does not consume this semantically.
+   */
+  subject?: SubjectConfig;
+  /**
+   * Intervention being tested on the subject. Passed through verbatim to
+   * the returned artifact. Turn-loop ignores; batch modes consume.
+   */
+  intervention?: InterventionConfig;
+  /**
    * Additional payloads to merge into `scenarioExtensions`. Paracosm's
    * orchestrator stashes internal-only fields here (leader HEXACO
    * history, forgeAttempts detail, tool registries, director events,
@@ -191,6 +203,8 @@ export function buildRunArtifact(inputs: BuildArtifactInputs): RunArtifact {
       : undefined,
     specialistNotes: specialistNotes.length > 0 ? specialistNotes : undefined,
     decisions: decisions.length > 0 ? decisions : undefined,
+    subject: inputs.subject,
+    intervention: inputs.intervention,
     finalState: inputs.finalState
       ? { metrics: inputs.finalState.systems }
       : undefined,
