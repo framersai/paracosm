@@ -250,14 +250,14 @@ bun  add     paracosm</div>
   )
 );
 
-<span class="cm">// 4. Compare the two timelines. Each result is a full artifact:</span>
-<span class="cm">//    cost, fingerprint, finalState, forgedToolbox, citationCatalog.</span>
+<span class="cm">// 4. Compare the two timelines. Each result is a Zod-validated</span>
+<span class="cm">//    RunArtifact exported from `paracosm/schema`.</span>
 <span class="kw">for</span> (<span class="kw">const</span> r <span class="kw">of</span> results) {
-  console.<span class="fn">log</span>(r.leader.name, <span class="str">'→'</span>, r.fingerprint,
-              <span class="str">'cost $'</span> + r.cost.totalCostUSD.<span class="fn">toFixed</span>(<span class="num">2</span>),
-              <span class="str">'('</span> + r.cost.llmCalls + <span class="str">' LLM calls)'</span>,
-              <span class="str">'tools'</span>, r.forgedToolbox.length,
-              <span class="str">'citations'</span>, r.citationCatalog.length);
+  console.<span class="fn">log</span>(r.metadata.scenario.name, <span class="str">'→'</span>, r.fingerprint,
+              <span class="str">'cost $'</span> + r.cost?.totalUSD.<span class="fn">toFixed</span>(<span class="num">2</span>),
+              <span class="str">'('</span> + r.cost?.llmCalls + <span class="str">' LLM calls)'</span>,
+              <span class="str">'tools'</span>, r.forgedTools?.length ?? <span class="num">0</span>,
+              <span class="str">'citations'</span>, r.citations?.length ?? <span class="num">0</span>);
   <span class="kw">if</span> (r.providerError) console.<span class="fn">error</span>(<span class="str">'provider error:'</span>, r.providerError.message);
 }</div>
     </div>
