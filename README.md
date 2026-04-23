@@ -70,7 +70,7 @@ bounded collective under a leader's decisions.
   "setup": {
     "defaultTurns": 8,
     "defaultPopulation": 50,
-    "defaultStartYear": 2040,
+    "defaultStartTime": 2040,
     "defaultSeed": 42
   },
   "departments": [

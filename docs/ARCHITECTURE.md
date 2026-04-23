@@ -50,7 +50,7 @@ A scenario is a JSON file that describes the simulation domain. It does not cont
 {
   "id": "mars-genesis",
   "labels": { "name": "Mars Genesis", "populationNoun": "colonists", "settlementNoun": "colony" },
-  "setup": { "defaultTurns": 6, "defaultSeed": 950, "defaultStartYear": 2035, "defaultYearsPerTurn": 8 },
+  "setup": { "defaultTurns": 6, "defaultSeed": 950, "defaultStartTime": 2035, "defaultTimePerTurn": 8 },
   "departments": [
     { "id": "medical", "label": "Medical", "role": "Chief Medical Officer", "instructions": "Analyze health impacts..." },
     { "id": "engineering", "label": "Engineering", "role": "Chief Engineer", "instructions": "Analyze infrastructure..." }

@@ -2,6 +2,65 @@
 
 All notable changes to paracosm are documented here. Format follows the spirit of [Keep a Changelog](https://keepachangelog.com/), grouped by major.minor version. Each `0.M.<run_number>` npm publish rolls into the matching major.minor entry. Per-publish detail lives in each [GitHub Release](https://github.com/framersai/paracosm/releases).
 
+## 0.7.0 (2026-04-23)
+
+F23 generic time-units rename. Retires the last Mars-ism from the public type system. `year` becomes `time` across scenario setup, simulation metadata, event payloads, hook contexts, and agent cores. Scenarios whose natural cadence is not yearly (hour-granular habitats, quarterly corporate strategy, real-time arena benchmarks) no longer have to pretend. Mars and Lunar continue to display year-unit copy through the new additive `labels.timeUnitNoun` field.
+
+### Breaking Changes
+
+- **Scenario setup:** `defaultStartYear` → `defaultStartTime`; `defaultYearsPerTurn` → `defaultTimePerTurn`.
+- **Simulation metadata:** `startYear` → `startTime`; `currentYear` → `currentTime`.
+- **Progression / reaction / fingerprint hook contexts:** `year` / `yearDelta` / `startYear` → `time` / `timeDelta` / `startTime`.
+- **Agent core:** `birthYear` → `birthTime`; `deathYear` → `deathTime`.
+- **Snapshots and events:** `year` field on turn-stamped payloads (`hexacoHistory[]`, `lifeEvents[]`, `TurnEvent`, `AgentMemoryEntry`, snapshot events) → `time`.
+- **Kernel:** `advanceTurn(nextTurn, nextTime, progressionHook?)`; `applyDrift` third argument is `timeDelta`.
+- **Scenario (legacy turn struct):** `Scenario.year` → `Scenario.time`.
+- **Runtime options:** `yearsPerTurn` → `timePerTurn` on `RunOptions`.
+- **Internal helper:** `buildYearSchedule` renamed to `buildTimeSchedule`.
+
+Preserved on purpose (`yearsExperience` on `AgentCareer`, `ratePerYear` on `AgentFieldDefinition.mortalityContribution`, narrative display copy like "Year 2043"). These are either non-API or scenario-specific narrative and get threaded through `labels.timeUnitNoun` in F23.1.
+
+### Features
+
+- `ScenarioLabels.timeUnitNoun?: string` + `timeUnitNounPlural?: string` additive fields for display copy. Default when absent: `'tick'` / `'ticks'`. Mars, Lunar, and the submarine example set them to `'year'` / `'years'` explicitly.
+
+### Migration
+
+**External TypeScript consumers** (apply a grep-and-replace across your codebase):
+
+```ts
+// Before:
+const opts = { scenario, maxTurns: 6, seed: 42, startYear: 2035, yearsPerTurn: 8 };
+const result = await runSimulation(leader, [], opts);
+console.log(result.metadata.currentYear, result.metadata.startYear);
+
+// After:
+const opts = { scenario, maxTurns: 6, seed: 42, startTime: 2035, timePerTurn: 8 };
+const result = await runSimulation(leader, [], opts);
+console.log(result.metadata.currentTime, result.metadata.startTime);
+```
+
+**Scenario JSON authors:**
+
+```jsonc
+// Before:
+"setup": { "defaultStartYear": 2035, "defaultYearsPerTurn": 8 }
+
+// After (Mars-equivalent default copy):
+"labels": { "timeUnitNoun": "year", "timeUnitNounPlural": "years" },
+"setup": { "defaultStartTime": 2035, "defaultTimePerTurn": 8 }
+```
+
+**Compiled scenario cache.** `COMPILE_SCHEMA_VERSION` bumps 3 → 4. Every previously-compiled hook on a user's disk regenerates on next `compileScenario()` call. One-time cost ~$0.10 per scenario per user.
+
+**Saved dashboard runs.** `CURRENT_SCHEMA_VERSION` bumps 2 → 3. A pre-0.7 `output/v3-*.json` loaded through the dashboard's file picker runs through `migrations[2]`, which recursively aliases legacy year-family keys onto time-family equivalents on events, results, nested metadata, and agent cores. Aliases only where the new key is absent, so a mixed file is safe. Legacy keys stay in place for forward-compat debugging.
+
+**Downstream `^0.6.x` caret ranges** refuse to auto-upgrade to 0.7, which is intentional. Pin `^0.6.x` if you need the pre-F23 shape; bump to `^0.7.0` after applying the grep-and-replace above.
+
+### Rollback
+
+`git revert` the three F23 commits and ship a `0.7.1` patch. No persistent state changes beyond cached compiled hooks, which regenerate harmlessly on first post-rollback run.
+
 ## 0.6.0 (2026-04-22)
 
 Universal JSON result schema. `runSimulation()` now returns `Promise<RunArtifact>` — one Zod-validated shape covering civilization sims (turn-loop), digital-twin simulations (batch-trajectory), and one-shot forecasts (batch-point). Public primitives + schemas live under the new `paracosm/schema` subpath export. Digital-twin's `SimulationResponse` maps 1:1 via field rename. Five SSE event types renamed for consistency with the primitive vocabulary.
