@@ -1,6 +1,7 @@
 import { writeRunOutput } from './output-writer.js';
 import { buildRunArtifact } from './build-artifact.js';
 import type {
+  Decision,
   InterventionConfig,
   RunArtifact,
   SubjectConfig,
@@ -1838,6 +1839,9 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
   // top-level shape stays consumer-friendly.
   // Flatten commander decisions into the public-shape DecisionSchema
   // (top-level fields, not nested under `.decision.*`).
+  // TurnOutcome and DecisionOutcome are identical string-literal unions
+  // (['risky_success','risky_failure','conservative_success','conservative_failure']);
+  // the cast names the target type instead of the `never` escape hatch.
   const commanderDecisionsForArtifact = allCommanderDecisions.map((cd) => ({
     turn: cd.turn,
     year: cd.year,
@@ -1845,7 +1849,7 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
     decision: cd.decision.decision,
     rationale: cd.decision.rationale ?? '',
     reasoning: cd.decision.reasoning,
-    outcome: cd.outcome as never,
+    outcome: cd.outcome as Decision['outcome'],
   }));
 
   const peSnapshot = providerErrorState as ClassifiedProviderError | null;
