@@ -177,7 +177,9 @@ export function parseFiltersFromUrl(
     const min = Number(tMin);
     const max = Number(tMax);
     if (Number.isFinite(min) && Number.isFinite(max)) {
-      filters.turnRange = [min, max];
+      // Normalize so an inverted URL (tMin > tMax) doesn't silently
+      // exclude every event — swap into [low, high] order.
+      filters.turnRange = [Math.min(min, max), Math.max(min, max)];
     }
   }
   const hashBody = hash.startsWith('#') ? hash.slice(1) : hash;

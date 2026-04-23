@@ -69,20 +69,29 @@ export function EventLogPanel({ events }: EventLogPanelProps) {
     el.scrollTop = el.scrollHeight;
   }, [events.length]);
 
-  // Sync non-hash filters back to the URL so a refresh / share link
-  // preserves the filter state. Legacy hash is left alone.
-  const handleFiltersChange = useCallback((next: LogFilters) => {
-    setFilters(next);
-    try {
-      const qs = serializeFiltersToUrl(next);
-      const base = window.location.pathname;
-      const hash = window.location.hash;
-      const target = base + qs + (hash || '');
-      window.history.replaceState({}, '', target);
-    } catch {
-      // Best-effort; filter state still lives in React.
-    }
-  }, []);
+  // Sync filters back to the URL so a refresh / share link preserves
+  // state. The legacy `#log=<tool>` hash is stripped when the user
+  // clears `toolHash` via the chip's × button; otherwise the hash is
+  // preserved (toolbox-section clicks can still drive it).
+  const handleFiltersChange = useCallback(
+    (next: LogFilters) => {
+      setFilters((prev) => {
+        try {
+          const qs = serializeFiltersToUrl(next);
+          const base = window.location.pathname;
+          // Drop the hash entirely when the user just cleared toolHash.
+          const toolHashJustCleared = prev.toolHash !== '' && next.toolHash === '';
+          const hash = toolHashJustCleared ? '' : window.location.hash;
+          const target = base + qs + (hash || '');
+          window.history.replaceState({}, '', target);
+        } catch {
+          // Best-effort; filter state still lives in React.
+        }
+        return next;
+      });
+    },
+    [],
+  );
 
   const filteredEvents = applyLogFilters(events, filters);
   const hasActiveFilter =
