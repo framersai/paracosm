@@ -34,6 +34,7 @@ This spec covers ONLY the rename + minimal label plumbing. Deeper changes (e.g.,
 | `fingerprintHook` `outcomeLog[].year` | `.time` |
 | `reactionContextHook` ctx `{ year, turn }` | `{ time, turn }` |
 | `Agent.hexacoHistory[].year` | `.time` |
+| `Agent.core.birthYear: number` | `birthTime: number` (it's a time stamp in sim units, not a calendar year) |
 | `LeaderConfig` / `Personnel` — no-change (units are population-level, not time-level) | n/a |
 
 ### Scenario-label additions (new fields, additive)
@@ -96,7 +97,15 @@ For each entry in `data.results`:
 
 ## Rollout sequence (phased plan)
 
-Each phase is its own commit (or tight cluster) so bisect stays useful.
+Lands in **3 commits**, matching the P1 shipping pattern:
+
+- **Commit 1 (atomic rename):** Phases A + B + C + D + E combined — engine + runtime + compiler + scenarios + dashboard all together. Typecheck is only green when all five land at once, so splitting by phase creates broken intermediate states. `feat!:` prefix.
+- **Commit 2 (tests + fixtures):** Phase F — regenerate golden-run snapshot, add `migrate-v2-to-v3-event-shape.test.ts`, extend `cache-version-bust.test.ts`, update existing test files touching year fields.
+- **Commit 3 (docs + version bump):** Phases G + H — CHANGELOG entry, README / ARCHITECTURE scrub, `package.json 0.5.x → 0.6.0`. `chore(release):` prefix.
+
+CodeRabbit review runs ONCE at the end against the 3-commit range, per the batching rule in AGENTS.md.
+
+Within Commit 1, order of operations for live coding is still the A→E sequence below (keeps `tsc --noEmit` chasing errors outward from the core).
 
 ### Phase A — Engine core rename (types + kernel + progression + agent-generator)
 
