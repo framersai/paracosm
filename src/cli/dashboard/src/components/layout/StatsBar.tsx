@@ -3,6 +3,7 @@ import type { LeaderSideState } from '../../hooks/useGameState';
 import { getLeaderColorVar } from '../../hooks/useGameState';
 import type { ToolRegistry } from '../../hooks/useToolRegistry';
 import { useScenarioContext } from '../../App';
+import styles from './StatsBar.module.scss';
 
 export interface StatsBarLeader {
   id: string;
@@ -66,17 +67,12 @@ function delta(curr: number, prev: number | undefined): string {
   return d > 0 ? `+${d}` : `${d}`;
 }
 
-const pillWrap: React.CSSProperties = {
-  display: 'flex', alignItems: 'baseline', gap: '3px', whiteSpace: 'nowrap',
-  flexShrink: 0, paddingLeft: '6px', borderLeft: '1px solid var(--border)',
-};
-const labelStyle: React.CSSProperties = {
-  fontSize: '9px', color: 'var(--text-1)', letterSpacing: '0.6px',
-  fontWeight: 800, marginRight: '1px', opacity: 0.7,
-};
-const valueStyle: React.CSSProperties = { fontSize: '12px', fontWeight: 800 };
-const deltaStyle: React.CSSProperties = { fontSize: '8px' };
-const sepStyle: React.CSSProperties = { color: 'var(--text-3)', fontSize: '9px' };
+function deltaClass(d: string, tone: 'gain' | 'lossIsRed' | 'neutral'): string {
+  if (!d) return '';
+  if (tone === 'neutral') return styles.deltaNeutral;
+  if (tone === 'lossIsRed') return styles.deltaNegative;
+  return d.startsWith('+') ? styles.deltaPositive : styles.deltaNegative;
+}
 
 function formatCauses(causes: Record<string, number> | undefined): string {
   if (!causes) return '';
@@ -93,9 +89,6 @@ function formatCauses(causes: Record<string, number> | undefined): string {
 export function StatsBar({ leaders, crisisText, toolRegistry }: StatsBarProps) {
   const scenario = useScenarioContext();
 
-  // F1 renders exactly 2 leaders (F2/F3 generalizes to N). Destructure
-  // the first two for the existing A-vs-B pill layout; leaders beyond
-  // index 1 are held in state but not rendered in this bar.
   const aLeader = leaders[0];
   const bLeader = leaders[1];
   const aState = aLeader?.state;
@@ -151,27 +144,20 @@ export function StatsBar({ leaders, crisisText, toolRegistry }: StatsBarProps) {
   }
 
   const metrics = scenario.ui.headerMetrics.slice(0, 4);
-
   const colorA = getLeaderColorVar(0);
   const colorB = getLeaderColorVar(1);
 
   return (
-    <div className="stats-bar" role="region" aria-label="Leader statistics" style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'nowrap',
-      padding: '3px 8px', gap: '8px',
-      overflowX: 'auto', overflowY: 'hidden',
-      WebkitOverflowScrolling: 'touch',
-      background: 'var(--bg-panel)', borderBottom: '1px solid var(--border)',
-      fontFamily: 'var(--mono)',
-    }}>
-      {crisisText && (
-        <span style={{
-          flexShrink: 1, fontSize: '12px', fontWeight: 700, color: 'var(--rust)',
-          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0,
-        }}>
-          {crisisText}
-        </span>
-      )}
+    <div
+      className={`stats-bar ${styles.bar}`}
+      role="region"
+      aria-label="Leader statistics"
+      style={{
+        ['--leader-color-a' as string]: colorA,
+        ['--leader-color-b' as string]: colorB,
+      }}
+    >
+      {crisisText && <span className={styles.crisis}>{crisisText}</span>}
 
       {metrics.map(metric => {
         const valA = systemsA?.[metric.id] ?? 0;
@@ -184,95 +170,95 @@ export function StatsBar({ leaders, crisisText, toolRegistry }: StatsBarProps) {
         const label = SHORT_LABELS[metric.id] || metric.id.replace(/([A-Z])/g, ' $1').trim().toUpperCase();
         const icon = ICON_LABELS[metric.id] || label.charAt(0);
         return (
-          <span key={metric.id} style={pillWrap}>
-            <span style={labelStyle} title={label}>
+          <span key={metric.id} className={styles.pill}>
+            <span className={styles.label} title={label}>
               <span className="pill-label-full">{label}</span>
               <span className="pill-label-short">{icon}</span>
             </span>
-            <span style={{ ...valueStyle, color: colorA }}>{fA}{suffix}</span>
-            {dA && <span style={{ ...deltaStyle, color: dA.startsWith('+') ? 'var(--green)' : 'var(--rust)' }}>{dA}</span>}
-            <span style={sepStyle}>vs</span>
-            <span style={{ ...valueStyle, color: colorB }}>{fB}{suffix}</span>
-            {dB && <span style={{ ...deltaStyle, color: dB.startsWith('+') ? 'var(--green)' : 'var(--rust)' }}>{dB}</span>}
+            <span className={styles.valueA}>{fA}{suffix}</span>
+            {dA && <span className={deltaClass(dA, 'gain')}>{dA}</span>}
+            <span className={styles.sep}>vs</span>
+            <span className={styles.valueB}>{fB}{suffix}</span>
+            {dB && <span className={deltaClass(dB, 'gain')}>{dB}</span>}
           </span>
         );
       })}
 
-      <span style={pillWrap}>
-        <span style={labelStyle} title="Deaths">
+      <span className={styles.pill}>
+        <span className={styles.label} title="Deaths">
           <span className="pill-label-full">DEATHS</span>
           <span className="pill-label-short">†</span>
         </span>
         <span
-          style={{ ...valueStyle, color: colorA }}
+          className={styles.valueA}
           title={deathCausesA && Object.keys(deathCausesA).length > 0
             ? `Leader A deaths by cause: ${Object.entries(deathCausesA).map(([k, v]) => `${v} ${k}`).join(', ')}`
             : undefined}
         >
           {deathsA}
         </span>
-        {deltaDeathsA && <span style={{ ...deltaStyle, color: 'var(--rust)' }}>{deltaDeathsA}</span>}
-        <span style={sepStyle}>vs</span>
+        {deltaDeathsA && <span className={deltaClass(deltaDeathsA, 'lossIsRed')}>{deltaDeathsA}</span>}
+        <span className={styles.sep}>vs</span>
         <span
-          style={{ ...valueStyle, color: colorB }}
+          className={styles.valueB}
           title={deathCausesB && Object.keys(deathCausesB).length > 0
             ? `Leader B deaths by cause: ${Object.entries(deathCausesB).map(([k, v]) => `${v} ${k}`).join(', ')}`
             : undefined}
         >
           {deathsB}
         </span>
-        {deltaDeathsB && <span style={{ ...deltaStyle, color: 'var(--rust)' }}>{deltaDeathsB}</span>}
+        {deltaDeathsB && <span className={deltaClass(deltaDeathsB, 'lossIsRed')}>{deltaDeathsB}</span>}
         {(() => {
           const chipA = formatCauses(deathCausesA);
           const chipB = formatCauses(deathCausesB);
           if (!chipA && !chipB) return null;
           return (
-            <span style={{ ...deltaStyle, color: 'var(--text-3)', fontStyle: 'italic', marginLeft: 4 }}>
+            <span className={styles.causesChip}>
               ({chipA || '0'} / {chipB || '0'})
             </span>
           );
         })()}
       </span>
 
-      <span style={pillWrap}>
-        <span style={labelStyle} title="Tools forged">
+      <span className={styles.pill}>
+        <span className={styles.label} title="Tools forged">
           <span className="pill-label-full">TOOLS</span>
           <span className="pill-label-short">T</span>
         </span>
-        <span style={{ ...valueStyle, color: colorA }}>{toolsA}</span>
-        {deltaToolsA && <span style={{ ...deltaStyle, color: 'var(--green)' }}>{deltaToolsA}</span>}
-        <span style={sepStyle}>/</span>
-        <span style={{ ...valueStyle, color: colorB }}>{toolsB}</span>
-        {deltaToolsB && <span style={{ ...deltaStyle, color: 'var(--green)' }}>{deltaToolsB}</span>}
+        <span className={styles.valueA}>{toolsA}</span>
+        {deltaToolsA && <span className={styles.deltaPositive}>{deltaToolsA}</span>}
+        <span className={styles.sep}>/</span>
+        <span className={styles.valueB}>{toolsB}</span>
+        {deltaToolsB && <span className={styles.deltaPositive}>{deltaToolsB}</span>}
       </span>
 
       {toolRegistry && toolRegistry.list.length > 0 && (
         <span
-          style={pillWrap}
+          className={styles.pill}
           title="Forged-tool reuse count per leader. Reuses amortize forge cost across multiple events."
         >
-          <span style={labelStyle} title="Reuse count">
+          <span className={styles.label} title="Reuse count">
             <span className="pill-label-full">REUSE</span>
             <span className="pill-label-short">R</span>
           </span>
-          <span style={{ ...valueStyle, color: colorA }}>{reuseA}</span>
-          {deltaReuseA && <span style={{ ...deltaStyle, color: 'var(--green)' }}>{deltaReuseA}</span>}
-          <span style={sepStyle}>/</span>
-          <span style={{ ...valueStyle, color: colorB }}>{reuseB}</span>
-          {deltaReuseB && <span style={{ ...deltaStyle, color: 'var(--green)' }}>{deltaReuseB}</span>}
+          <span className={styles.valueA}>{reuseA}</span>
+          {deltaReuseA && <span className={styles.deltaPositive}>{deltaReuseA}</span>}
+          <span className={styles.sep}>/</span>
+          <span className={styles.valueB}>{reuseB}</span>
+          {deltaReuseB && <span className={styles.deltaPositive}>{deltaReuseB}</span>}
         </span>
       )}
 
-      <span style={pillWrap}>
-        <span style={labelStyle} title="Citations">
+      <span className={styles.pill}>
+        <span className={styles.label} title="Citations">
           <span className="pill-label-full">CITES</span>
           <span className="pill-label-short">C</span>
         </span>
-        <span style={{ ...valueStyle, color: colorA }}>{citationsA}</span>
-        {deltaCitesA && <span style={{ ...deltaStyle, color: 'var(--text-3)' }}>{deltaCitesA}</span>}
-        <span style={sepStyle}>/</span>
-        <span style={{ ...valueStyle, color: colorB }}>{citationsB}</span>
-        {deltaCitesB && <span style={{ ...deltaStyle, color: 'var(--text-3)' }}>{deltaCitesB}</span>}
+        <span className={styles.valueA}>{citationsA}</span>
+        {deltaCitesA && <span className={deltaClass(deltaCitesA, 'neutral')}>{deltaCitesA}</span>}
+        <span className={styles.sep}>/</span>
+        <span className={styles.valueB}>{citationsB}</span>
+        {deltaCitesB && <span className={deltaClass(deltaCitesB, 'neutral')}>{deltaCitesB}</span>}
       </span>
     </div>
   );

@@ -1,0 +1,152 @@
+// LeaderBar styles — F4 batch 2 migration from inline object styles.
+// Per-leader color + background + border come in via CSS custom
+// properties set on the root: `--leader-color`, `--leader-bg`,
+// `--leader-border`.
+
+.root {
+  flex: 1;
+  padding: 4px 12px;
+  background: var(--bg-panel);
+  min-width: 0;
+}
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.archetypeChip {
+  font-size: 9px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-weight: 800;
+  font-family: var(--mono);
+  color: var(--leader-color);
+  background: var(--leader-bg);
+  border: 1px solid var(--leader-border);
+  flex-shrink: 0;
+  letter-spacing: 0.5px;
+}
+
+.verdictChip {
+  font-size: 9px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-weight: 800;
+  font-family: var(--mono);
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+
+  &.winner {
+    color: var(--green);
+    background: rgba(106, 173, 72, 0.14);
+    border: 1px solid rgba(106, 173, 72, 0.4);
+  }
+
+  &.tie {
+    color: var(--amber);
+    background: rgba(232, 180, 74, 0.12);
+    border: 1px solid var(--amber-dim);
+  }
+
+  &.second {
+    color: var(--text-3);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+  }
+}
+
+.name {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--leader-color);
+  white-space: nowrap;
+}
+
+.unitTag {
+  font-size: 10px;
+  color: var(--text-3);
+  white-space: nowrap;
+  margin-left: 6px;
+  padding-left: 6px;
+  border-left: 1px solid var(--border);
+}
+
+.traits {
+  display: contents;
+}
+
+.traitsSep {
+  color: var(--border);
+  margin: 0 2px;
+}
+
+.traitsLine {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--leader-color);
+  letter-spacing: 0;
+  opacity: 0.9;
+  min-width: 0;
+}
+
+.subRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 3px;
+}
+
+.quote {
+  font-style: italic;
+  font-size: 11px;
+  color: var(--text-2);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sparklines {
+  font-family: var(--mono);
+  font-size: 10px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+// Tooltip inner chrome
+.tooltipHeading {
+  color: var(--leader-color);
+  font-size: 14px;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.tooltipInstructions {
+  font-size: 11px;
+  color: var(--text-2);
+  margin-top: 6px;
+  font-style: italic;
+}
+
+.tooltipTraitBlock {
+  font-family: var(--mono);
+  font-size: 11px;
+  margin-top: 8px;
+  line-height: 1.8;
+}
+
+.tooltipTraitRow {
+  display: flex;
+  justify-content: space-between;
+}
+
+.tooltipTraitLabel {
+  color: var(--text-2);
+}
+
+.tooltipTraitValue {
+  color: var(--leader-color);
+}

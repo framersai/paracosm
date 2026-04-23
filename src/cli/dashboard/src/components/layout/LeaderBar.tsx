@@ -2,6 +2,7 @@ import type { LeaderInfo } from '../../hooks/useGameState';
 import { getLeaderColorVar } from '../../hooks/useGameState';
 import { SparkLine } from '../shared/SparkLine';
 import { Tooltip } from '../shared/Tooltip';
+import styles from './LeaderBar.module.scss';
 
 interface LeaderBarProps {
   /** Position in the leader lineup. 0 renders the primary palette, 1 the
@@ -44,79 +45,70 @@ export function LeaderBar({ leaderIndex, leader, popHistory, moraleHistory, verd
     ? labels.map((l, i) => traitStr(l, h[keys[i]] ?? 0)).join(' ')
     : '';
 
+  const verdictClass = verdictPlacement
+    ? `${styles.verdictChip} ${styles[verdictPlacement] ?? ''}`.trim()
+    : '';
+
   return (
-    <div style={{ flex: 1, padding: '4px 12px', background: 'var(--bg-panel)', minWidth: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+    <div
+      className={styles.root}
+      style={{
+        ['--leader-color' as string]: sideColor,
+        ['--leader-bg' as string]: sideBg,
+        ['--leader-border' as string]: sideBorder,
+      }}
+    >
+      <div className={styles.headerRow}>
         {archetype && (
-          <span style={{
-            fontSize: '9px', padding: '2px 8px', borderRadius: '3px', fontWeight: 800,
-            fontFamily: 'var(--mono)', color: sideColor, background: sideBg,
-            border: `1px solid ${sideBorder}`, flexShrink: 0, letterSpacing: '0.5px',
-          }}>
+          <span className={styles.archetypeChip}>
             {archetype.toUpperCase().replace(/^THE\s+/i, '')}
           </span>
         )}
         {verdictPlacement && (
           <span
             title={verdictPlacement === 'winner' ? 'Verdict: this leader won' : verdictPlacement === 'tie' ? 'Verdict: tie' : 'Verdict: runner-up'}
-            style={{
-              fontSize: '9px', padding: '2px 8px', borderRadius: '3px', fontWeight: 800,
-              fontFamily: 'var(--mono)', letterSpacing: '0.5px', flexShrink: 0,
-              color: verdictPlacement === 'winner' ? 'var(--green)' : verdictPlacement === 'tie' ? 'var(--amber)' : 'var(--text-3)',
-              background: verdictPlacement === 'winner'
-                ? 'rgba(106,173,72,0.14)'
-                : verdictPlacement === 'tie'
-                ? 'rgba(232,180,74,0.12)'
-                : 'var(--bg-card)',
-              border: `1px solid ${
-                verdictPlacement === 'winner' ? 'rgba(106,173,72,0.4)'
-                  : verdictPlacement === 'tie' ? 'var(--amber-dim)'
-                  : 'var(--border)'
-              }`,
-            }}
+            className={verdictClass}
           >
             {verdictPlacement === 'winner' ? '★ WINNER' : verdictPlacement === 'tie' ? '= TIE' : '2ND'}
           </span>
         )}
         <Tooltip dot content={
           <div>
-            <b style={{ color: sideColor, fontSize: '14px', display: 'block', marginBottom: '6px' }}>{archetype ? `${archetype}: ` : ''}{name}</b>
+            <b className={styles.tooltipHeading}>
+              {archetype ? `${archetype}: ` : ''}{name}
+            </b>
             {unit && <div>Unit: {unit}</div>}
-            {leader?.instructions && <div style={{ fontSize: '11px', color: 'var(--text-2)', marginTop: '6px', fontStyle: 'italic' }}>{leader.instructions}</div>}
+            {leader?.instructions && (
+              <div className={styles.tooltipInstructions}>{leader.instructions}</div>
+            )}
             {hasHexaco && (
-              <div style={{ fontFamily: 'var(--mono)', fontSize: '11px', marginTop: '8px', lineHeight: 1.8 }}>
-                {keys.map((trait, i) => (
-                  <div key={trait} style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--text-2)' }}>{trait.charAt(0).toUpperCase() + trait.slice(1).replace(/([A-Z])/g, ' $1')}</span>
-                    <span style={{ color: sideColor }}>{(h[trait] ?? 0).toFixed(2)}</span>
+              <div className={styles.tooltipTraitBlock}>
+                {keys.map((trait) => (
+                  <div key={trait} className={styles.tooltipTraitRow}>
+                    <span className={styles.tooltipTraitLabel}>
+                      {trait.charAt(0).toUpperCase() + trait.slice(1).replace(/([A-Z])/g, ' $1')}
+                    </span>
+                    <span className={styles.tooltipTraitValue}>
+                      {(h[trait] ?? 0).toFixed(2)}
+                    </span>
                   </div>
                 ))}
               </div>
             )}
           </div>
         }>
-          <span style={{ fontSize: '14px', fontWeight: 800, color: sideColor, whiteSpace: 'nowrap' }}>{name}</span>
+          <span className={styles.name}>{name}</span>
         </Tooltip>
-        {unit && (
-          <span style={{ fontSize: '10px', color: 'var(--text-3)', whiteSpace: 'nowrap', marginLeft: '6px', paddingLeft: '6px', borderLeft: '1px solid var(--border)' }}>
-            {unit}
-          </span>
-        )}
+        {unit && <span className={styles.unitTag}>{unit}</span>}
         {traitLine && (
-          <span className="leader-traits" style={{ display: 'contents' }}>
-            <span style={{ color: 'var(--border)', margin: '0 2px' }}>|</span>
-            <span style={{
-              fontFamily: 'var(--mono)', fontSize: '9px', color: sideColor,
-              letterSpacing: 0, opacity: 0.9,
-              minWidth: 0,
-            }}>
-              {traitLine}
-            </span>
+          <span className={`leader-traits ${styles.traits}`}>
+            <span className={styles.traitsSep}>|</span>
+            <span className={styles.traitsLine}>{traitLine}</span>
           </span>
         )}
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '3px' }}>
-        <span style={{ fontStyle: 'italic', fontSize: '11px', color: 'var(--text-2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <div className={styles.subRow}>
+        <span className={styles.quote}>
           {(() => {
             if (leader?.quote) return `"${leader.quote}"`;
             if (!leader?.instructions) return '';
@@ -128,7 +120,7 @@ export function LeaderBar({ leaderIndex, leader, popHistory, moraleHistory, verd
             return bio ? `"${bio.slice(0, 80)}${bio.length > 80 ? '...' : ''}"` : '';
           })()}
         </span>
-        <span className="leader-sparklines" style={{ fontFamily: 'var(--mono)', fontSize: '10px', whiteSpace: 'nowrap', flexShrink: 0 }}>
+        <span className={`leader-sparklines ${styles.sparklines}`}>
           <SparkLine data={popHistory} label="POP" color={sideColor} />
           {'  '}
           <SparkLine data={moraleHistory} label="MORALE" suffix="%" color="var(--amber)" />

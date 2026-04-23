@@ -1,0 +1,95 @@
+// StatsBar styles — F4 batch 2 migration from inline style objects.
+// Per-leader color is fed in via `--leader-color-a` / `--leader-color-b`
+// CSS custom properties on the root so per-pill color references stay
+// in CSS rather than inline JS.
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: nowrap;
+  padding: 3px 8px;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  font-family: var(--mono);
+}
+
+.crisis {
+  flex-shrink: 1;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--rust);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.pill {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding-left: 6px;
+  border-left: 1px solid var(--border);
+}
+
+.label {
+  font-size: 9px;
+  color: var(--text-1);
+  letter-spacing: 0.6px;
+  font-weight: 800;
+  margin-right: 1px;
+  opacity: 0.7;
+}
+
+.value {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.valueA {
+  @extend .value;
+  color: var(--leader-color-a);
+}
+
+.valueB {
+  @extend .value;
+  color: var(--leader-color-b);
+}
+
+.delta {
+  font-size: 8px;
+}
+
+.deltaPositive {
+  @extend .delta;
+  color: var(--green);
+}
+
+.deltaNegative {
+  @extend .delta;
+  color: var(--rust);
+}
+
+.deltaNeutral {
+  @extend .delta;
+  color: var(--text-3);
+}
+
+.sep {
+  color: var(--text-3);
+  font-size: 9px;
+}
+
+.causesChip {
+  font-size: 8px;
+  color: var(--text-3);
+  font-style: italic;
+  margin-left: 4px;
+}
