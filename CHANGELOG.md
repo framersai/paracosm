@@ -2,6 +2,64 @@
 
 All notable changes to paracosm are documented here. Format follows the spirit of [Keep a Changelog](https://keepachangelog.com/), grouped by major.minor version. Each `0.M.<run_number>` npm publish rolls into the matching major.minor entry. Per-publish detail lives in each [GitHub Release](https://github.com/framersai/paracosm/releases).
 
+## 0.6.0 (2026-04-22)
+
+Universal JSON result schema. `runSimulation()` now returns `Promise<RunArtifact>` — one Zod-validated shape covering civilization sims (turn-loop), digital-twin simulations (batch-trajectory), and one-shot forecasts (batch-point). Public primitives + schemas live under the new `paracosm/schema` subpath export. Digital-twin's `SimulationResponse` maps 1:1 via field rename. Five SSE event types renamed for consistency with the primitive vocabulary.
+
+### Breaking Changes
+
+- `runSimulation()` return type is `Promise<RunArtifact>` (was an anonymous inline object). Field rebucketing:
+  - `turnArtifacts[]` → `trajectory.timepoints[]` (each with `worldSnapshot.metrics`)
+  - `commanderDecisions[]` → `decisions[]`
+  - `forgedToolbox[]` → `forgedTools[]`
+  - `citationCatalog[]` → `citations[]`
+  - `totalCitations` / `totalToolsForged` → compute from array lengths
+  - `finalState.systems` → `finalState.metrics`
+  - `leader.{hexaco,hexacoBaseline,hexacoHistory}` + internal fields (`toolRegistries`, `agentTrajectories`, `directorEvents`, `forgeAttempts`, `outcomeClassifications`, raw `turnArtifacts`) stash under `scenarioExtensions.paracosmInternal` for internal callers who need them
+- SSE event types renamed:
+  - `dept_start` → `specialist_start`
+  - `dept_done` → `specialist_done`
+  - `commander_deciding` → `decision_pending`
+  - `commander_decided` → `decision_made`
+  - `drift` → `personality_drift`
+- `writeRunOutput` signature widened to accept `RunArtifact` (internal; affects only library consumers that called it directly)
+
+### Features
+
+- new subpath export `paracosm/schema` with 11 Zod v4 primitives + `RunArtifactSchema` + `StreamEventSchema` (17-variant discriminated union) + inferred TypeScript types
+- mode discriminator `metadata.mode: 'turn-loop' | 'batch-trajectory' | 'batch-point'` so consumers pattern-match cleanly
+- `scenarioExtensions?: Record<string, unknown>` escape hatch on every primitive for domain-specific payloads
+- `npm run export:json-schema` emits `schema/run-artifact.schema.json` + `schema/stream-event.schema.json` for non-TS consumers via Zod v4's native `toJSONSchema()`
+- digital-twin `SimulationResponse` shape-compat: renaming `timepoints` → `trajectory.timepoints`, `leverage_points` → `leveragePoints`, `risk_flags` → `riskFlags`, `specialist_notes` → `specialistNotes`, `health_score: int` → `score: { value, min: 0, max: 100, label }`, `body_description` → `narrative` produces a valid `batch-trajectory` artifact
+- runtime validator `emitStreamEvent()` parses SSE events against `StreamEventSchema` in dev (`NODE_ENV !== 'production'`) so malformed payloads throw at the emit site instead of surfacing as dashboard reducer crashes
+- dashboard SSE ingress aliases new event type names back to legacy names so internal reducers + viz components keep working without the full rename
+
+### Migration
+
+External TypeScript consumers:
+
+```ts
+// Before:
+const result = await runSimulation(leader, [], options);
+console.log(result.finalState.systems.population);
+console.log(result.totalCitations, result.totalToolsForged);
+console.log(result.turnArtifacts[0].departmentReports[0].summary);
+
+// After:
+import type { RunArtifact } from 'paracosm/schema';
+const artifact: RunArtifact = await runSimulation(leader, [], options);
+console.log(artifact.finalState?.metrics.population);
+console.log(artifact.citations?.length ?? 0, artifact.forgedTools?.length ?? 0);
+console.log(artifact.specialistNotes?.[0]?.summary);
+// Internal fields still accessible for paracosm-internal tooling:
+const internal = artifact.scenarioExtensions?.paracosmInternal as any;
+console.log(internal?.turnArtifacts[0].departmentReports[0].summary);
+```
+
+SSE event handlers: the five legacy type names still fire if the server is pre-0.6.0, but new consumers should switch on the new names. Runtime 0.6.0+ emits only the new names.
+
+Pre-0.6.0 dashboard save files (`schemaVersion: 2`) load unchanged — the dashboard's save format is built from SSE events via reducer state, which preserves legacy field names internally via the ingress alias. A follow-up commit can flip the dashboard to consume `RunArtifact` natively and drop the alias.
+
 ## 0.5.0 (2026-04-21)
 
 Domain-agnostic schema rename. `LeaderConfig.colony` renamed to `.unit`, `SimulationState.colony` renamed to `.systems`, every `SimEvent` payload field renamed in lockstep, the `'colony_snapshot'` event type renamed to `'systems_snapshot'`, public types `ColonyPatch` and `applyColonyDeltas` renamed to `SystemsPatch` and `applySystemDeltas`, CLI flag `--colony` renamed to `--unit`. Saved-run migration helper aliases legacy field names on read so pre-0.5 output JSON and stored sessions still load cleanly. Cache busted via `COMPILE_SCHEMA_VERSION` bump, forcing regeneration of every pre-0.5 compiled scenario hook on next run.
