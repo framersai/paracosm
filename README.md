@@ -41,7 +41,7 @@ Same seed, same starting conditions, different leaders, different civilizations.
 npm install paracosm      # also works: pnpm add paracosm / bun add paracosm
 ```
 
-Paracosm ships as pure ESM with subpath exports (`paracosm/compiler`, `paracosm/runtime`, `paracosm/mars`, `paracosm/lunar`, `paracosm/core`). Node 20+, Bun 1.x, and any TypeScript runner with ESM + import-attributes support (`tsx`, `ts-node --esm`) resolve them out of the box. If `import ... from 'paracosm/compiler'` fails with a module-not-found error, the dependency was never installed in that project — `cd` into the right directory and run one of the commands above.
+Paracosm ships as pure ESM with subpath exports (`paracosm/compiler`, `paracosm/runtime`, `paracosm/mars`, `paracosm/lunar`, `paracosm/core`, `paracosm/schema`). Node 20+, Bun 1.x, and any TypeScript runner with ESM + import-attributes support (`tsx`, `ts-node --esm`) resolve them out of the box. If `import ... from 'paracosm/compiler'` fails with a module-not-found error, the dependency was never installed in that project — `cd` into the right directory and run one of the commands above.
 
 ### 1. Define your world
 
@@ -177,11 +177,11 @@ const results = await Promise.all(
 // The return value is a full run artifact. A few of the fields most
 // consumers want right away:
 for (const r of results) {
-  console.log(r.leader.name, '→', r.fingerprint);
-  console.log('  cost   $', r.cost.totalCostUSD.toFixed(2), `(${r.cost.llmCalls} LLM calls)`);
-  console.log('  final    ', r.finalState.systems);       // population, morale, foodMonthsReserve, powerKw, …
-  console.log('  tools    ', r.forgedToolbox.length,      // deduped forge ledger
-               'citations', r.citationCatalog.length);     // DOI-linked references
+  console.log(r.metadata.scenario.name, '→', r.fingerprint);
+  console.log('  cost   $', r.cost?.totalUSD.toFixed(2), `(${r.cost?.llmCalls} LLM calls)`);
+  console.log('  final    ', r.finalState?.metrics);       // population, morale, foodMonthsReserve, powerKw, …
+  console.log('  tools    ', r.forgedTools?.length ?? 0,   // deduped forge catalog
+               'citations', r.citations?.length ?? 0);     // DOI-linked references
   if (r.providerError) {
     console.error('  provider error:', r.providerError.kind, r.providerError.message);
   }
@@ -189,6 +189,32 @@ for (const r of results) {
 ```
 
 Each call to `runSimulation` takes one leader. Run one, two, or twenty. The dashboard runs two side-by-side for comparison, but the API has no limit. Leaders don't need to be people. They can model competing strategies, policy frameworks, organizational philosophies, or autonomous systems responding to the same events with different decision profiles.
+
+### The universal result contract
+
+Every simulation returns a `RunArtifact` — one universal Zod-validated shape exported from `paracosm/schema`. The same shape covers civilization sims (turn-loop), digital-twin digital-twin simulations (batch-trajectory), and one-shot forecasts (batch-point).
+
+```typescript
+import { RunArtifactSchema, type RunArtifact } from 'paracosm/schema';
+import { runSimulation } from 'paracosm/runtime';
+
+const artifact: RunArtifact = await runSimulation(leader, [], { scenario, maxTurns: 6 });
+
+// Optional runtime validation (dev mode, untrusted JSON, replays, etc.):
+const parsed = RunArtifactSchema.parse(artifact);
+
+switch (artifact.metadata.mode) {
+  case 'turn-loop':         // paracosm civ-sims: per-turn trajectory + decisions
+  case 'batch-trajectory':  // digital-twin: labeled timepoints over a horizon
+  case 'batch-point':       // one-shot forecast: overview + risk flags only
+}
+
+artifact.trajectory?.timepoints?.forEach((tp) => {
+  console.log(tp.label, tp.score?.value, tp.narrative);
+});
+```
+
+For non-TypeScript consumers: `npm run export:json-schema` emits `schema/run-artifact.schema.json` + `schema/stream-event.schema.json`. Python projects generate Pydantic types via `datamodel-codegen`. Any ecosystem with a JSON-Schema code generator adopts cleanly.
 
 ### 3. Or use the dashboard
 

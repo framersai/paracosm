@@ -324,6 +324,44 @@ Agents are created lazily on first chat message (~2-3s init) and pooled (max 10,
 
 ## API
 
+### Universal Schema (`paracosm/schema`)
+
+Every `runSimulation()` call returns a `RunArtifact` — one Zod-validated shape covering all simulation modes. The subpath `paracosm/schema` exports the schemas + inferred TypeScript types:
+
+```typescript
+import { RunArtifactSchema, StreamEventSchema, type RunArtifact } from 'paracosm/schema';
+```
+
+**Eleven content primitives:**
+
+| Primitive | Role |
+|---|---|
+| `RunMetadata` | runId, scenario, mode, seed, timestamps |
+| `WorldSnapshot` | 5-bag state (metrics / capacities / statuses / politics / environment) |
+| `Score` | bounded numeric score with explicit min/max/label |
+| `HighlightMetric` | featured metric card (label + formatted value + direction) |
+| `Timepoint` | labeled snapshot: narrative + score + highlight metrics + world snapshot |
+| `TrajectoryPoint` | lightweight metric sample (sparkline-ready) |
+| `Trajectory` | time-unit-labeled series (`points[]` + `timepoints[]`) |
+| `SpecialistNote` | thin domain analysis (summary + trajectory + confidence) + optional thick detail |
+| `RiskFlag` | callout with severity (low / medium / high) |
+| `Decision` | chosen action (commander decision, intervention, policy) |
+| `Citation` | DOI-linked evidence |
+
+**Plus operational:** `Cost` (USD + token breakdown) and `ProviderError` (classified terminal error).
+
+**Mode discriminator on `metadata.mode`:**
+
+- `turn-loop` — paracosm civ-sims. Populates `trajectory.timepoints[]`, `decisions[]`, per-turn specialist notes.
+- `batch-trajectory` — digital-twin digital twins. Populates `trajectory.timepoints[]` as a forecast + specialist notes + risk flags.
+- `batch-point` — one-shot forecast. Overview + risk flags, no trajectory.
+
+**`StreamEvent`** is a 17-variant discriminated union over every SSE event type the runtime emits (`turn_start`, `event_start`, `specialist_start`, `specialist_done`, `forge_attempt`, `decision_pending`, `decision_made`, `outcome`, `personality_drift`, `agent_reactions`, `bulletin`, `turn_done`, `promotion`, `systems_snapshot`, `provider_error`, `validation_fallback`, `sim_aborted`).
+
+**Scenario-specific extensions.** Every primitive carries an optional `scenarioExtensions?: Record<string, unknown>` escape hatch. Mars radiation fields, digital-twin genome markers, game inventory state — all live here without polluting the universal shape.
+
+**JSON Schema export.** `npm run export:json-schema` regenerates `schema/run-artifact.schema.json` + `schema/stream-event.schema.json` so non-TypeScript consumers (Python `datamodel-codegen`, Go, Rust, etc.) can generate equivalent types.
+
 ### HTTP Endpoints
 
 | Method | Path | Description |
