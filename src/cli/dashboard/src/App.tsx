@@ -5,6 +5,7 @@ import { useSSE } from './hooks/useSSE';
 import { useGameState } from './hooks/useGameState';
 import { useGamePersistence } from './hooks/useGamePersistence';
 import { useLoadPreview } from './hooks/useLoadPreview';
+import { useLoadFromUrl } from './hooks/useLoadFromUrl';
 import { useDashboardDropZone } from './hooks/useDashboardDropZone';
 import { LoadPreviewModal } from './components/layout/LoadPreviewModal';
 import { DropZoneOverlay } from './components/layout/DropZoneOverlay';
@@ -196,6 +197,14 @@ function AppContent() {
     },
   });
   const handleLoad = loadPreview.openPicker;
+
+  // ?load=<url> query-param auto-fetch. Runs once on mount; if the
+  // param isn't present, the hook is a no-op.
+  useLoadFromUrl({
+    openFromFile: (file) => loadPreview.openFromFile(file),
+    onInfo: (title, body) => toast('info', title, body),
+    onError: (title, body) => toast('error', title, body),
+  });
 
   // Drag-and-drop a .json save file anywhere on the dashboard. Uses the
   // same preview + parse pipeline as the file-picker flow.
