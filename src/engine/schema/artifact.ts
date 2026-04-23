@@ -14,11 +14,13 @@ import {
   CitationSchema,
   CostSchema,
   DecisionSchema,
+  InterventionConfigSchema,
   ProviderErrorSchema,
   RiskFlagSchema,
   RunMetadataSchema,
   ScenarioExtensionsSchema,
   SpecialistNoteSchema,
+  SubjectConfigSchema,
   TrajectorySchema,
   WorldSnapshotSchema,
 } from './primitives.js';
@@ -128,6 +130,16 @@ export const RunArtifactSchema = z.object({
    * least one populated in `turn-loop` and `batch-trajectory` modes.
    */
   trajectory: TrajectorySchema.optional(),
+
+  // -----------------------------------------------------------------------
+  // Input primitives (batch-trajectory / batch-point modes populate these;
+  // turn-loop stores them verbatim when passed via RunOptions)
+  // -----------------------------------------------------------------------
+
+  /** Subject being simulated (person, character, organism, vessel, etc.). */
+  subject: SubjectConfigSchema.optional(),
+  /** Intervention being tested on the subject. */
+  intervention: InterventionConfigSchema.optional(),
 
   // -----------------------------------------------------------------------
   // Content primitives

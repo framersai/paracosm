@@ -36,6 +36,35 @@ const digital-twinShaped = {
     startedAt: '2026-04-22T10:00:00.000Z',
     completedAt: '2026-04-22T10:00:04.500Z',
   },
+  subject: {
+    id: 'user-abc-123',
+    name: 'Alice Johnson',
+    profile: {
+      age: 34,
+      gender: 'female',
+      diet: 'mediterranean',
+      goals: ['improve HRV', 'better sleep quality'],
+    },
+    signals: [
+      { label: 'HRV', value: '45 ms', recordedAt: '2026-04-21T08:00:00.000Z' },
+      { label: 'Sleep', value: '7.2 hrs', recordedAt: '2026-04-21T08:00:00.000Z' },
+    ],
+    markers: [
+      { id: 'rs4680', category: 'genome', value: 'AA', interpretation: 'Slow catecholamine clearance.' },
+    ],
+  },
+  intervention: {
+    id: 'intv-creatine-sleep',
+    name: 'Creatine + Sleep Hygiene Protocol',
+    description: '5g creatine daily + consistent 11pm-7am sleep schedule.',
+    category: 'supplementation',
+    targetBehaviors: ['Take 5g creatine with breakfast', 'Lights out by 11pm'],
+    duration: { value: 12, unit: 'weeks' },
+    adherenceProfile: {
+      expected: 0.7,
+      risks: ['Travel disrupts schedule'],
+    },
+  },
   overview: 'Creatine supplementation combined with consistent sleep hygiene yields gradual HRV recovery over 3 months. COMT slow metabolizer status increases stimulant sensitivity risk.',
   assumptions: [
     'Adherence stays reasonably consistent across the simulation window.',
@@ -195,5 +224,22 @@ test('digital-twin scenarioExtensions.genomeSignals survives round-trip', () => 
     assert.equal(Array.isArray(genome), true);
     assert.equal(genome[0].rsid, 'rs4680');
     assert.equal(genome[0].gene, 'COMT');
+  }
+});
+
+test('digital-twin fixture carries subject + intervention through RunArtifactSchema.parse', () => {
+  const result = RunArtifactSchema.safeParse(digital-twinShaped);
+  assert.equal(result.success, true);
+  if (result.success) {
+    assert.equal(result.data.subject?.id, 'user-abc-123');
+    assert.equal(result.data.subject?.name, 'Alice Johnson');
+    assert.equal(result.data.subject?.markers?.[0].id, 'rs4680');
+    assert.equal(result.data.subject?.markers?.[0].category, 'genome');
+    assert.equal(result.data.subject?.signals?.length, 2);
+    assert.equal(result.data.intervention?.name, 'Creatine + Sleep Hygiene Protocol');
+    assert.equal(result.data.intervention?.category, 'supplementation');
+    assert.equal(result.data.intervention?.adherenceProfile?.expected, 0.7);
+    assert.equal(result.data.intervention?.duration?.value, 12);
+    assert.equal(result.data.intervention?.duration?.unit, 'weeks');
   }
 });
