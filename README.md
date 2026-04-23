@@ -216,6 +216,40 @@ artifact.trajectory?.timepoints?.forEach((tp) => {
 
 For non-TypeScript consumers: `npm run export:json-schema` emits `schema/run-artifact.schema.json` + `schema/stream-event.schema.json`. Python projects generate Pydantic types via `datamodel-codegen`. Any ecosystem with a JSON-Schema code generator adopts cleanly.
 
+### Digital twins: subjects + interventions
+
+For simulations built around a single subject (a person, character, organism, vessel) under a counterfactual intervention, paracosm exposes `SubjectConfig` + `InterventionConfig` as first-class input primitives under `paracosm/schema`. Pass them through `RunOptions` and they land on the returned `RunArtifact.subject` / `RunArtifact.intervention` for downstream consumers:
+
+```typescript
+import {
+  SubjectConfigSchema,
+  InterventionConfigSchema,
+  type SubjectConfig,
+  type InterventionConfig,
+} from 'paracosm/schema';
+
+const subject: SubjectConfig = SubjectConfigSchema.parse({
+  id: 'user-42',
+  name: 'Alice',
+  profile: { age: 34, diet: 'mediterranean' },
+  signals: [{ label: 'HRV', value: 48.2, unit: 'ms', recordedAt: '2026-04-21T08:00:00Z' }],
+  markers: [{ id: 'rs4680', category: 'genome', value: 'AA' }],
+});
+
+const intervention: InterventionConfig = InterventionConfigSchema.parse({
+  id: 'intv-1',
+  name: 'Creatine + Sleep Hygiene',
+  description: '5g daily + 11pm bedtime.',
+  duration: { value: 12, unit: 'weeks' },
+  adherenceProfile: { expected: 0.7 },
+});
+
+const artifact = await runSimulation(leader, [], { scenario, maxTurns: 6, subject, intervention });
+// artifact.subject + artifact.intervention carry through to any consumer
+```
+
+Turn-loop mode stashes both verbatim without semantic consumption; external batch-trajectory executors (digital-twin LangGraph pipelines) populate them from their own flow. Full adoption worked example at [docs/adoption/digital-twin.md](docs/adoption/digital-twin.md).
+
 ### 3. Or use the dashboard
 
 ```bash

@@ -474,8 +474,8 @@ const result = await runSimulation(leader, [], {
   onEvent(e) { console.log(e.type, e.data?.title); },
 });
 
-console.log(result.finalState.systems.population);
-console.log(result.totalToolsForged);
+console.log(result.finalState?.metrics.population);
+console.log(result.forgedTools?.length ?? 0);
 ```
 
 ## Built on AgentOS
