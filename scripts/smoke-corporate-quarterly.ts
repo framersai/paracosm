@@ -107,15 +107,22 @@ async function main(): Promise<void> {
   log(`[compile] done in ${((Date.now() - compileStart) / 1000).toFixed(1)}s`);
 
   // 4. Run both leaders in parallel for 2 turns on economy preset.
+  //    Pass startTime + timePerTurn explicitly so the kernel uses the
+  //    scenario's declared cadence (otherwise opts.startTime falls back
+  //    to 2035, a Mars-era hardcode that predates F23's generic units).
   const MAX_TURNS = 2;
   const SEED = 42;
-  log(`\n[run] launching ${leaders.length} leaders in parallel for ${MAX_TURNS} turns (seed=${SEED})`);
+  const START_TIME = setup.defaultStartTime as number;
+  const TIME_PER_TURN = setup.defaultTimePerTurn as number;
+  log(`\n[run] launching ${leaders.length} leaders in parallel for ${MAX_TURNS} turns (seed=${SEED}, startTime=${START_TIME}, timePerTurn=${TIME_PER_TURN})`);
   const runStart = Date.now();
   const artifacts: RunArtifact[] = await Promise.all(
     leaders.map(leader => runSimulation(leader, [], {
       scenario,
       maxTurns: MAX_TURNS,
       seed: SEED,
+      startTime: START_TIME,
+      timePerTurn: TIME_PER_TURN,
       costPreset: 'economy',
       provider: 'openai',
       onEvent: (e) => {
@@ -143,7 +150,6 @@ async function main(): Promise<void> {
 
   // 6. Assertions per artifact.
   log('\n[assert] validating both artifacts');
-  const expectedFinalTime = (setup.defaultStartTime as number) + MAX_TURNS * (setup.defaultTimePerTurn as number);
   for (let i = 0; i < artifacts.length; i++) {
     const a = artifacts[i];
     const leaderName = leaders[i].name;
@@ -160,11 +166,19 @@ async function main(): Promise<void> {
       `${leaderName}: trajectory.timeUnit.plural expected "${labels.timeUnitNounPlural}", got "${a.trajectory?.timeUnit?.plural}"`);
     log(`    timeUnit      ✓ (${a.trajectory!.timeUnit.singular}/${a.trajectory!.timeUnit.plural})`);
 
-    // 6c. metadata.currentTime + startTime (post-F23 names).
-    const meta = a.metadata as unknown as { currentTime?: number; startTime?: number };
-    assert(typeof meta.currentTime === 'number' && meta.currentTime === expectedFinalTime,
-      `${leaderName}: metadata.currentTime expected ${expectedFinalTime}, got ${meta.currentTime}`);
-    log(`    currentTime   ✓ (${meta.currentTime})`);
+    // 6c. Trajectory timepoints advance monotonically by `timePerTurn`.
+    //     `Timepoint.time` stamps the start of each turn (pre-advance), so
+    //     for N turns starting at startTime with step k, we expect
+    //     times = [startTime, startTime+k, ..., startTime+(N-1)*k].
+    const timepoints = a.trajectory?.timepoints ?? [];
+    assert(timepoints.length === MAX_TURNS,
+      `${leaderName}: expected ${MAX_TURNS} timepoints, got ${timepoints.length}`);
+    for (let j = 0; j < timepoints.length; j++) {
+      const expected = START_TIME + j * TIME_PER_TURN;
+      assert(timepoints[j].time === expected,
+        `${leaderName}: timepoint[${j}].time expected ${expected}, got ${timepoints[j].time}`);
+    }
+    log(`    timepoints    ✓ (${timepoints.map(tp => tp.time).join(' -> ')})`);
 
     // 6d. finalState.metrics populated (rebucketed from .systems).
     assert(typeof a.finalState?.metrics?.population === 'number',
