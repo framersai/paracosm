@@ -414,7 +414,7 @@ export function extractColonistMemories(
     }
 
     // Department reports (for departments the colonist might work in)
-    if (evt.type === 'dept_done') {
+    if (evt.type === 'specialist_done') {
       memories.push({
         type: 'department',
         turn, year,
@@ -424,7 +424,7 @@ export function extractColonistMemories(
     }
 
     // Commander decisions
-    if (evt.type === 'commander_decided') {
+    if (evt.type === 'decision_made') {
       memories.push({
         type: 'decision',
         turn, year,
