@@ -4,6 +4,7 @@ import { useScenario, type ScenarioClientPayload } from './hooks/useScenario';
 import { useSSE } from './hooks/useSSE';
 import { useGameState } from './hooks/useGameState';
 import { useGamePersistence } from './hooks/useGamePersistence';
+import { useLocalHistory } from './hooks/useLocalHistory';
 import { useLoadPreview } from './hooks/useLoadPreview';
 import { useLoadFromUrl } from './hooks/useLoadFromUrl';
 import { useDashboardDropZone } from './hooks/useDashboardDropZone';
@@ -166,6 +167,7 @@ function AppContent() {
     version: scenario.version,
     shortName: scenario.labels.shortName,
   });
+  const history = useLocalHistory({ scenarioShortName: scenario.labels.shortName });
   const [activeTab, setActiveTabState] = useState<DashboardTab>(() => getDashboardTabFromHref(window.location.href));
   const setActiveTab = useCallback((tab: DashboardTab) => {
     if (tab === 'about') {
@@ -459,14 +461,19 @@ function AppContent() {
     } catch {
       /* silent */
     }
-    persistence.cacheEvents(sse.events, sse.results);
+    history.push({
+      events: sse.events,
+      results: sse.results,
+      verdict: sse.verdict,
+    });
   }, [
     sse.isComplete,
     sse.isAborted,
     sse.events,
     sse.results,
+    sse.verdict,
     scenario.labels.shortName,
-    persistence,
+    history,
     tourActive,
   ]);
 
@@ -553,7 +560,22 @@ function AppContent() {
           {replaySessionId && sse.status !== 'replay_not_found' ? (
             <ReplayBanner replaySessionId={replaySessionId} />
           ) : null}
-          <TopBar scenario={scenario} sse={sse} gameState={gameState} onSave={handleSave} onLoad={handleLoad} onClear={handleClear} onRun={handleRun} onTour={handleTourStart} onCopy={handleCopySummary} launching={launching} />
+          <TopBar
+            scenario={scenario}
+            sse={sse}
+            gameState={gameState}
+            onSave={handleSave}
+            onLoad={handleLoad}
+            onClear={handleClear}
+            onRun={handleRun}
+            onTour={handleTourStart}
+            onCopy={handleCopySummary}
+            launching={launching}
+            history={history.entries}
+            onRestoreHistory={(entry) => history.restore(entry, sse.loadEvents)}
+            onDeleteHistory={history.remove}
+            onClearHistory={history.clear}
+          />
           <TabBar active={activeTab} onTabChange={setActiveTab} scenario={scenario} />
           <VerdictBanner
             verdict={sse.verdict}

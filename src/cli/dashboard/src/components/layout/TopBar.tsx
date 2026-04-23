@@ -6,6 +6,7 @@ import type { useSSE } from '../../hooks/useSSE';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { Tooltip } from '../shared/Tooltip';
 import { RunMenu } from './RunMenu';
+import type { LocalHistoryEntry } from '../../hooks/useLocalHistory.helpers';
 
 /**
  * Mirror the full useSSE return shape so TopBar can read providerError,
@@ -24,6 +25,11 @@ interface TopBarProps {
   onRun?: () => void;
   onTour?: () => void;
   onCopy?: () => void;
+  /** F14 local-history props, forwarded to the RunMenu's history section. */
+  history?: LocalHistoryEntry[];
+  onRestoreHistory?: (entry: LocalHistoryEntry) => void;
+  onDeleteHistory?: (id: number) => void;
+  onClearHistory?: () => void;
   /** True while the /setup request is in flight but the first SSE
    *  event hasn't yet arrived. Hides the RUN button so users can't
    *  double-launch. `gameState.isRunning` already hides it after
@@ -63,7 +69,7 @@ const toolBtnStyle: React.CSSProperties = {
   fontFamily: 'var(--mono)',
 };
 
-export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRun, onTour, onCopy, launching = false }: TopBarProps) {
+export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRun, onTour, onCopy, launching = false, history, onRestoreHistory, onDeleteHistory, onClearHistory }: TopBarProps) {
   const { resolved, setTheme } = useTheme();
   const hasEvents = Object.values(gameState.leaders).some(s => s.events.length > 0);
 
@@ -379,7 +385,15 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
             during the launching window so the UI doesn't appear
             frozen — prior behaviour silently showed nothing. */}
         {onRun && !gameState.isRunning && !launching && (
-          <RunMenu onRun={onRun} onLoadFromFile={onLoad} />
+          <RunMenu
+            onRun={onRun}
+            onLoadFromFile={onLoad}
+            history={history}
+            onRestoreHistory={onRestoreHistory}
+            onDeleteHistory={onDeleteHistory}
+            onClearHistory={onClearHistory}
+            liveStateHasEvents={sse.events.length > 0}
+          />
         )}
         {launching && !gameState.isRunning && (
           <span

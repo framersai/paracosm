@@ -1,0 +1,151 @@
+// Styles for the RunMenu history section added in F14. Scoped only to
+// the new section; the rest of RunMenu's legacy inline styles stay as
+// they are (F4 migration tracks their cleanup separately).
+
+.historyRow {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-family: var(--mono);
+  font-weight: 700;
+  color: var(--text-1);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+
+  &:hover {
+    background: var(--bg-panel);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent, var(--amber));
+    outline-offset: 1px;
+  }
+}
+
+.historyRowLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.historyRowBadge {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--text-3);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+}
+
+.historyList {
+  margin-top: 6px;
+  max-height: 320px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.historyCardWrap {
+  position: relative;
+}
+
+.historyCard {
+  width: 100%;
+  text-align: left;
+  padding: 8px 32px 8px 10px;
+  font-family: var(--mono);
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-1);
+  cursor: pointer;
+  display: block;
+
+  &:hover {
+    background: var(--bg-panel);
+    border-color: var(--accent, var(--amber));
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent, var(--amber));
+    outline-offset: 1px;
+  }
+}
+
+.historyCardTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-1);
+  margin-bottom: 2px;
+}
+
+.historyCardLine2 {
+  font-size: 10px;
+  color: var(--text-2);
+  margin-bottom: 2px;
+}
+
+.historyCardLine3 {
+  font-size: 10px;
+  color: var(--text-3);
+}
+
+.historyDelete {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  line-height: 1;
+  font-size: 14px;
+  background: transparent;
+  border: none;
+  color: var(--text-3);
+  cursor: pointer;
+  border-radius: 4px;
+
+  &:hover {
+    color: var(--text-1);
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent, var(--amber));
+    outline-offset: 1px;
+  }
+}
+
+.historyClearAll {
+  margin-top: 2px;
+  padding: 6px 10px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  color: var(--text-3);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: 4px;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--rust);
+    border-color: var(--rust);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent, var(--amber));
+    outline-offset: 1px;
+  }
+}

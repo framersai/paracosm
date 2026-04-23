@@ -18,13 +18,30 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSessions, type StoredSessionMeta } from '../../hooks/useSessions';
 import { resolveSetupRedirectHref } from '../../tab-routing';
 import { buildReplayHref, cacheExpandedBody } from './LoadMenu.helpers';
+import type { LocalHistoryEntry } from '../../hooks/useLocalHistory.helpers';
 import { Tooltip } from '../shared/Tooltip';
+import historyStyles from './RunMenu.module.scss';
 
 export interface RunMenuProps {
   /** Fires when the user picks "Run New Simulation". */
   onRun?: () => void;
   /** Fires when the user picks "Load from file". */
   onLoadFromFile?: () => void;
+  /**
+   * Client-side local-history ring (F14). When non-empty, RunMenu
+   * shows a collapsible "Local history" section below the saved-run
+   * cards. Omit or pass an empty array + no-op handlers to hide.
+   */
+  history?: LocalHistoryEntry[];
+  onRestoreHistory?: (entry: LocalHistoryEntry) => void;
+  onDeleteHistory?: (id: number) => void;
+  onClearHistory?: () => void;
+  /**
+   * True when the live SSE state has events. When true, restoring a
+   * history entry fires a native `confirm()` before dispatch to avoid
+   * silently replacing an in-flight run.
+   */
+  liveStateHasEvents?: boolean;
 }
 
 function formatRelative(ts: number): string {
@@ -80,9 +97,18 @@ function SessionCard({ s, onPick }: { s: StoredSessionMeta; onPick: () => void }
   );
 }
 
-export function RunMenu({ onRun, onLoadFromFile }: RunMenuProps) {
+export function RunMenu({
+  onRun,
+  onLoadFromFile,
+  history = [],
+  onRestoreHistory,
+  onDeleteHistory,
+  onClearHistory,
+  liveStateHasEvents = false,
+}: RunMenuProps) {
   const [open, setOpen] = useState(false);
   const [savedExpanded, setSavedExpanded] = useState(false);
+  const [historyExpanded, setHistoryExpanded] = useState(true);
   const rootRef = useRef<HTMLDivElement>(null);
   const { sessions, status, refresh } = useSessions();
   const cacheAvailable = sessions.length > 0;
@@ -286,6 +312,109 @@ export function RunMenu({ onRun, onLoadFromFile }: RunMenuProps) {
                 </div>
               )}
             </div>
+          )}
+
+          {/* Local history (F14). Collapsible list of runs cached in
+              this browser. Hidden entirely when the ring is empty so
+              the menu stays tidy before the user's first save. */}
+          {history.length > 0 && (
+            <>
+              <button
+                type="button"
+                role="menuitem"
+                className={historyStyles.historyRow}
+                onClick={() => setHistoryExpanded((v) => !v)}
+                aria-expanded={historyExpanded}
+              >
+                <span className={historyStyles.historyRowLabel}>
+                  <span aria-hidden="true">🕘</span>
+                  <span>Local history</span>
+                </span>
+                <span className={historyStyles.historyRowBadge}>
+                  {history.length} recent · {historyExpanded ? 'hide' : 'show'}
+                </span>
+              </button>
+              {historyExpanded && (
+                <div className={historyStyles.historyList}>
+                  {history.map((entry) => {
+                    const ts = Date.parse(entry.createdAt) || entry.id;
+                    const leaders =
+                      entry.summary.leaderNames.join(' vs ') ||
+                      entry.scenarioShortName;
+                    const turns = entry.summary.turnCount
+                      ? `${entry.summary.turnCount} turn${entry.summary.turnCount === 1 ? '' : 's'}`
+                      : '';
+                    const line2 = [leaders, entry.scenarioShortName, turns]
+                      .filter(Boolean)
+                      .join(' · ');
+                    const line3 = `${formatRelative(ts)} · ${entry.summary.eventCount} ev · ${formatCost(entry.summary.totalCostUSD)}`;
+                    return (
+                      <div
+                        key={entry.id}
+                        className={historyStyles.historyCardWrap}
+                      >
+                        <button
+                          type="button"
+                          className={historyStyles.historyCard}
+                          onClick={() => {
+                            if (
+                              liveStateHasEvents &&
+                              !window.confirm(
+                                'Replace current simulation with this history entry?',
+                              )
+                            ) {
+                              return;
+                            }
+                            onRestoreHistory?.(entry);
+                            close();
+                          }}
+                        >
+                          <div className={historyStyles.historyCardTitle}>
+                            {leaders}
+                          </div>
+                          <div className={historyStyles.historyCardLine2}>
+                            {line2}
+                          </div>
+                          <div className={historyStyles.historyCardLine3}>
+                            {line3}
+                          </div>
+                        </button>
+                        {onDeleteHistory && (
+                          <button
+                            type="button"
+                            className={historyStyles.historyDelete}
+                            aria-label={`Delete history entry from ${formatRelative(ts)}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDeleteHistory(entry.id);
+                            }}
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {onClearHistory && (
+                    <button
+                      type="button"
+                      className={historyStyles.historyClearAll}
+                      onClick={() => {
+                        if (
+                          window.confirm(
+                            'Clear all local history? This cannot be undone.',
+                          )
+                        ) {
+                          onClearHistory();
+                        }
+                      }}
+                    >
+                      Clear local history
+                    </button>
+                  )}
+                </div>
+              )}
+            </>
           )}
 
           {/* Load from file — tertiary action, muted but still
