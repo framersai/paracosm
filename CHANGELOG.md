@@ -33,6 +33,7 @@ Universal JSON result schema. `runSimulation()` now returns `Promise<RunArtifact
 - digital-twin `SimulationResponse` shape-compat: renaming `timepoints` → `trajectory.timepoints`, `leverage_points` → `leveragePoints`, `risk_flags` → `riskFlags`, `specialist_notes` → `specialistNotes`, `health_score: int` → `score: { value, min: 0, max: 100, label }`, `body_description` → `narrative` produces a valid `batch-trajectory` artifact
 - runtime validator `emitStreamEvent()` parses SSE events against `StreamEventSchema` in dev (`NODE_ENV !== 'production'`) so malformed payloads throw at the emit site instead of surfacing as dashboard reducer crashes
 - dashboard SSE ingress aliases new event type names back to legacy names so internal reducers + viz components keep working without the full rename
+- `SubjectConfig` + `InterventionConfig` input primitives under `paracosm/schema` (additive; no breaking change). `SubjectConfig` carries id + name + optional profile / signals / markers / personality / conditions; `InterventionConfig` carries id + name + description + optional category / mechanism / targetBehaviors / duration / adherenceProfile. Threaded through `RunOptions` → `buildRunArtifact` → `RunArtifact.subject` / `RunArtifact.intervention` (both optional). Turn-loop mode stashes them verbatim without semantic consumption; batch-trajectory / batch-point modes (external executors) populate them from their own pipelines. See [docs/adoption/digital-twin.md](docs/adoption/digital-twin.md) for the digital-twin worked example.
 
 ### Migration
 
