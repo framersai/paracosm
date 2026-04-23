@@ -845,7 +845,7 @@ function ToolDetailModal({ entry, fallbackName, onClose }: {
                       >
                         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
                           <span style={{ color: 'var(--amber)', fontWeight: 800 }}>T{h.turn}</span>
-                          <span style={{ color: 'var(--text-3)' }}>{h.year}</span>
+                          <span style={{ color: 'var(--text-3)' }}>{h.time}</span>
                           <span style={{ color: 'var(--text-2)', fontWeight: 700 }}>{h.department}</span>
                           <span style={{ color: 'var(--text-3)' }}>· {h.eventTitle}</span>
                           <span style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>

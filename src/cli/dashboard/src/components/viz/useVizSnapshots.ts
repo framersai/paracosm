@@ -64,7 +64,7 @@ export function useVizSnapshots(state: GameState): Record<string, TurnSnapshot[]
 
         result[leaderName].push({
           turn: turnNum,
-          year: (dd.year as number) || 0,
+          time: (dd.time as number) || 0,
           cells,
           population: (dd.population as number) || cells.filter(c => c.alive).length,
           morale: (dd.morale as number) || 0,

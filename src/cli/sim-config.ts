@@ -59,8 +59,8 @@ export interface SimulationSetupPayload {
   provider?: LlmProvider;
   turns?: number;
   seed?: number;
-  startYear?: number;
-  yearsPerTurn?: number;
+  startTime?: number;
+  timePerTurn?: number;
   population?: number;
   liveSearch?: boolean;
   activeDepartments?: Department[];
@@ -96,8 +96,8 @@ export interface NormalizedSimulationConfig {
   provider: LlmProvider;
   turns: number;
   seed: number;
-  startYear: number;
-  yearsPerTurn?: number;
+  startTime: number;
+  timePerTurn?: number;
   initialPopulation: number;
   liveSearch: boolean;
   activeDepartments: Department[];
@@ -516,7 +516,7 @@ export function normalizeSimulationConfig(input: SimulationSetupPayload): Normal
     inferProviderFromModel(input.models?.departments) ??
     inferProviderFromModel(input.models?.judge) ??
     'openai';
-  const startYear = input.startYear ?? 2035;
+  const startTime = input.startTime ?? 2035;
   const economics = resolveEconomicsProfile({
     profileId: input.economics?.profileId,
     provider: inferredProvider,
@@ -530,8 +530,8 @@ export function normalizeSimulationConfig(input: SimulationSetupPayload): Normal
     provider: inferredProvider,
     turns: input.turns ?? 12,
     seed: input.seed ?? 950,
-    startYear,
-    yearsPerTurn: input.yearsPerTurn,
+    startTime,
+    timePerTurn: input.timePerTurn,
     initialPopulation: input.population ?? 100,
     liveSearch: economics.search.mode === 'off' ? false : (input.liveSearch ?? false),
     activeDepartments: normalizeActiveDepartments(input.activeDepartments),

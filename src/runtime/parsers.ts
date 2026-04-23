@@ -50,7 +50,7 @@ export function decisionToPolicy(
   decision: CommanderDecision,
   reports: DepartmentReport[],
   turn: number,
-  year: number,
+  time: number,
 ): PolicyEffect {
   const patches: PolicyEffect['patches'] = {};
 
@@ -87,6 +87,6 @@ export function decisionToPolicy(
   return {
     description: decision.decision,
     patches,
-    events: [{ turn, year, type: 'decision', description: decision.decision.slice(0, 200), data: { policies: decision.selectedPolicies } }],
+    events: [{ turn, time, type: 'decision', description: decision.decision.slice(0, 200), data: { policies: decision.selectedPolicies } }],
   };
 }

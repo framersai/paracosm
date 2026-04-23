@@ -24,14 +24,14 @@ export interface PromotionRecord {
 
 export interface HexacoSnapshot {
   turn: number;
-  year: number;
+  time: number;
   hexaco: HexacoProfile;
 }
 
 export type TurnOutcome = 'risky_success' | 'risky_failure' | 'conservative_success' | 'conservative_failure';
 
 export interface LifeEvent {
-  year: number;
+  time: number;
   event: string;
   source: Department | 'kernel' | 'commander';
 }
@@ -39,7 +39,7 @@ export interface LifeEvent {
 export interface AgentCore {
   id: string;
   name: string;
-  birthYear: number;
+  birthTime: number;
   marsborn: boolean;
   department: Department;
   role: string;
@@ -47,7 +47,7 @@ export interface AgentCore {
 
 export interface AgentHealth {
   alive: boolean;
-  deathYear?: number;
+  deathTime?: number;
   deathCause?: string;
   psychScore: number;
   conditions: string[];
@@ -83,8 +83,8 @@ export interface AgentNarrative {
 export interface AgentMemoryEntry {
   /** Turn when this memory was formed */
   turn: number;
-  /** Simulated year */
-  year: number;
+  /** Simulated time (year/hour/quarter/tick per scenario's timeUnitNoun) */
+  time: number;
   /** What the agent remembers (1-2 sentences) */
   content: string;
   /** Emotional valence of the memory */
@@ -187,14 +187,14 @@ export interface SimulationMetadata {
   simulationId: string;
   leaderId: string;
   seed: number;
-  startYear: number;
-  currentYear: number;
+  startTime: number;
+  currentTime: number;
   currentTurn: number;
 }
 
 export interface TurnEvent {
   turn: number;
-  year: number;
+  time: number;
   type: 'crisis' | 'decision' | 'birth' | 'death' | 'promotion' | 'relationship' | 'tool_forge' | 'system';
   description: string;
   agentId?: string;

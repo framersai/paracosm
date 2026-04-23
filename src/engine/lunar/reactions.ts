@@ -3,7 +3,7 @@
  */
 export function lunarReactionContext(colonist: any, ctx: any): string {
   const lines: string[] = [];
-  lines.push(`Stationed at lunar outpost. ${ctx.year - 2030} years on the Moon.`);
+  lines.push(`Stationed at lunar outpost. ${ctx.time - 2030} years on the Moon.`);
 
   if (colonist.health?.boneDensityPct < 65) {
     lines.push('Severe muscle and bone atrophy from 1/6g.');

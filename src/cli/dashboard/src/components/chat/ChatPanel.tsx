@@ -12,7 +12,7 @@ interface AgentMemoryInfo {
   beliefs: string[];
   stances: Array<{ topic: string; value: number }>;
   relationships: Array<{ name: string; sentiment: number }>;
-  recentMemories: Array<{ year: number; content: string; valence: string }>;
+  recentMemories: Array<{ time: number; content: string; valence: string }>;
 }
 
 interface AgentInfo {
@@ -51,7 +51,7 @@ const moodColors: Record<string, string> = {
 
 function EventContext({ memory, events, scenario }: { memory: AgentMemoryInfo; events: GameState; scenario: { labels: { eventNoun?: string; eventNounSingular?: string } } }) {
   // Collect event titles from every leader's timeline, deduped by turn.
-  const eventTimeline: Array<{ turn: number; year: number; title: string; category: string }> = [];
+  const eventTimeline: Array<{ turn: number; time: number; title: string; category: string }> = [];
   for (const leaderName of events.leaderIds) {
     const sideState = events.leaders[leaderName];
     if (!sideState) continue;
@@ -61,7 +61,7 @@ function EventContext({ memory, events, scenario }: { memory: AgentMemoryInfo; e
         if (!eventTimeline.some(e => e.turn === turn)) {
           eventTimeline.push({
             turn,
-            year: evt.data.year as number || 0,
+            time: evt.data.time as number || 0,
             title: String(evt.data.title),
             category: String(evt.data.category || ''),
           });
@@ -90,7 +90,7 @@ function EventContext({ memory, events, scenario }: { memory: AgentMemoryInfo; e
           </div>
           {eventTimeline.map(e => (
             <div key={e.turn} style={{ display: 'flex', gap: 6, marginBottom: 2 }}>
-              <span style={{ fontFamily: 'var(--mono)', color: 'var(--text-3)', flexShrink: 0, minWidth: 45 }}>T{e.turn} {e.year}</span>
+              <span style={{ fontFamily: 'var(--mono)', color: 'var(--text-3)', flexShrink: 0, minWidth: 45 }}>T{e.turn} {e.time}</span>
               <span style={{ color: 'var(--text-1)', fontWeight: 600 }}>{e.title}</span>
               {e.category && <span style={{ color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>{e.category}</span>}
             </div>
@@ -104,7 +104,7 @@ function EventContext({ memory, events, scenario }: { memory: AgentMemoryInfo; e
           </div>
           {memory.recentMemories.slice(0, 3).map((m, i) => (
             <div key={i} style={{ color: 'var(--text-2)', paddingLeft: 6, borderLeft: `2px solid ${m.valence === 'positive' ? 'var(--green)' : m.valence === 'negative' ? 'var(--rust)' : 'var(--border)'}`, marginBottom: 2 }}>
-              <span style={{ fontFamily: 'var(--mono)', color: 'var(--text-3)' }}>Y{m.year}</span> {m.content}
+              <span style={{ fontFamily: 'var(--mono)', color: 'var(--text-3)' }}>Y{m.time}</span> {m.content}
             </div>
           ))}
         </div>

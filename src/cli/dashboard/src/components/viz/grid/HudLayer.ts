@@ -15,8 +15,8 @@ export interface HudOpts {
   previousSnapshot?: TurnSnapshot | undefined;
   /** Leader archetype chip rendered next to the name. */
   leaderArchetype?: string;
-  /** First year of the scenario (for "Yr N of colony" math). */
-  startYear?: number;
+  /** First time of the scenario (for "Yr N of colony" math). */
+  startTime?: number;
   /** Theme-resolved label box background (bg-deep CSS variable at
    *  resolve time). Defaults to a dark rgba fallback. */
   labelBg?: string;
@@ -89,13 +89,13 @@ export function drawHud(
     ctx.font = '10px ui-monospace, monospace';
   }
 
-  // Turn + year + colony-age line.
+  // Turn + time + colony-age line.
   ctx.fillStyle = opts.textMuted ?? 'rgba(216, 204, 176, 0.75)';
-  const year = snapshot?.year;
-  const yearLabel = typeof year === 'number'
-    ? typeof opts.startYear === 'number'
-      ? `T${snapshot?.turn ?? 0} · ${year} · Yr ${Math.max(0, year - opts.startYear)}`
-      : `T${snapshot?.turn ?? 0} · ${year}`
+  const time = snapshot?.time;
+  const yearLabel = typeof time === 'number'
+    ? typeof opts.startTime === 'number'
+      ? `T${snapshot?.turn ?? 0} · ${time} · Yr ${Math.max(0, time - opts.startTime)}`
+      : `T${snapshot?.turn ?? 0} · ${time}`
     : `T${snapshot?.turn ?? 0}`;
   ctx.fillText(yearLabel, 10, 24);
 

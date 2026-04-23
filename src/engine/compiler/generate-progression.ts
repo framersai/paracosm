@@ -26,15 +26,15 @@ DEPARTMENTS: ${depts}
 
 Function signature: (ctx: ProgressionHookContext) => void
 ctx shape:
-- ctx.agents: array of { core: { marsborn, birthYear, name }, health: { alive, boneDensityPct, cumulativeRadiationMsv, psychScore } }
-- ctx.yearDelta: number (simulated years since last turn)
-- ctx.year, ctx.turn, ctx.startYear: number
+- ctx.agents: array of { core: { marsborn, birthTime, name }, health: { alive, boneDensityPct, cumulativeRadiationMsv, psychScore } }
+- ctx.timeDelta: number (simulated years since last turn)
+- ctx.time, ctx.turn, ctx.startTime: number
 - ctx.rng: { chance(p): bool, next(): number, pick<T>(arr): T, int(min, max): number }
 
 Rules:
 1. Only modify health on ALIVE agents (check c.health.alive)
 2. Domain-appropriate degradation for this scenario
-3. Multiply time-scaled effects by ctx.yearDelta
+3. Multiply time-scaled effects by ctx.timeDelta
 4. Use Math.max/Math.min to keep: boneDensityPct in [0,100], psychScore in [0,1], cumulativeRadiationMsv >= 0
 5. NO external imports, NO require
 6. Use ctx.rng.chance(p) for probabilistic effects, not Math.random`;
@@ -64,15 +64,15 @@ export function parseResponse(text: string): ProgressionFn | null {
 
 function smokeTest(fn: ProgressionFn): void {
   const testColonists = [
-    { core: { marsborn: false, birthYear: 2010, name: 'Test' }, health: { alive: true, boneDensityPct: 95, cumulativeRadiationMsv: 100, psychScore: 0.7 }, career: {}, social: {}, narrative: {}, hexaco: {} },
-    { core: { marsborn: false, birthYear: 2010, name: 'Dead' }, health: { alive: false, boneDensityPct: 80, cumulativeRadiationMsv: 50, psychScore: 0.5 }, career: {}, social: {}, narrative: {}, hexaco: {} },
+    { core: { marsborn: false, birthTime: 2010, name: 'Test' }, health: { alive: true, boneDensityPct: 95, cumulativeRadiationMsv: 100, psychScore: 0.7 }, career: {}, social: {}, narrative: {}, hexaco: {} },
+    { core: { marsborn: false, birthTime: 2010, name: 'Dead' }, health: { alive: false, boneDensityPct: 80, cumulativeRadiationMsv: 50, psychScore: 0.5 }, career: {}, social: {}, narrative: {}, hexaco: {} },
   ];
   fn({
     agents: testColonists as any,
-    yearDelta: 4,
-    year: 2045,
+    timeDelta: 4,
+    time: 2045,
     turn: 3,
-    startYear: 2035,
+    startTime: 2035,
     rng: { chance: () => false, next: () => 0.5, pick: (arr: any) => arr[0], int: (min: number, _max: number) => min },
   } as ProgressionHookContext);
 }

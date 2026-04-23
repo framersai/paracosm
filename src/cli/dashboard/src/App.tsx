@@ -357,7 +357,7 @@ function AppContent() {
 
     const lines: string[] = [
       `## ${scenario.labels.name} — Simulation Report`,
-      `**Turns**: ${gameState.turn}/${gameState.maxTurns} | **Seed**: ${gameState.seed} | **Year**: ${gameState.year}`,
+      `**Turns**: ${gameState.turn}/${gameState.maxTurns} | **Seed**: ${gameState.seed} | **Year**: ${gameState.time}`,
       '',
       `### ${nameA}${archA ? ` (${archA})` : ''}`,
       `Unit: ${unitA} | Pop: ${a?.systems?.population ?? '?'} | Morale: ${a?.systems ? Math.round(a.systems.morale * 100) : '?'}% | Deaths: ${a?.deaths ?? 0}`,
@@ -519,9 +519,9 @@ function AppContent() {
           leaders,
           provider: 'openai',
           turns: scenario.setup.defaultTurns,
-          yearsPerTurn: scenario.setup.defaultYearsPerTurn,
+          timePerTurn: scenario.setup.defaultTimePerTurn,
           seed: scenario.setup.defaultSeed,
-          startYear: scenario.setup.defaultStartYear,
+          startTime: scenario.setup.defaultStartTime,
           population: scenario.setup.defaultPopulation,
           activeDepartments: scenario.departments.map(d => d.id),
         }),

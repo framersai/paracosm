@@ -21,7 +21,7 @@ function cell(id: string, alive = true, dept = 'medical'): CellSnapshot {
 
 function snap(turn: number, cells: CellSnapshot[]): TurnSnapshot {
   return {
-    turn, year: 2040 + turn, cells,
+    turn, time: 2040 + turn, cells,
     population: cells.filter(c => c.alive).length,
     morale: 0.5, foodReserve: 6, deaths: 0, births: 0,
   };

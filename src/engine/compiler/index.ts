@@ -302,7 +302,7 @@ export async function compileScenario(
     engineArchetype: json.engineArchetype ?? 'closed_turn_based_settlement',
     labels: json.labels ?? { name: 'Compiled Scenario', shortName: 'compiled', populationNoun: 'members', settlementNoun: 'settlement', currency: 'credits' },
     theme: json.theme ?? { primaryColor: '#6366f1', accentColor: '#818cf8', cssVariables: {} },
-    setup: json.setup ?? { defaultTurns: 8, defaultSeed: 100, defaultStartYear: 2040, defaultPopulation: 50, configurableSections: ['leaders', 'departments', 'models'] },
+    setup: json.setup ?? { defaultTurns: 8, defaultSeed: 100, defaultStartTime: 2040, defaultPopulation: 50, configurableSections: ['leaders', 'departments', 'models'] },
     world,
     departments: json.departments ?? [],
     metrics: json.metrics ?? [],

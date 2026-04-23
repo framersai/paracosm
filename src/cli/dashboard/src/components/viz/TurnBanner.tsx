@@ -16,7 +16,7 @@ interface LeaderTurnSummary {
   moraleDelta: number;
   eventTitle: string;
   eventCategory: string;
-  year: number;
+  time: number;
 }
 
 function summarize(side: LeaderSideState, turn: number): LeaderTurnSummary | null {
@@ -30,7 +30,7 @@ function summarize(side: LeaderSideState, turn: number): LeaderTurnSummary | nul
   let moraleDelta = 0;
   let eventTitle = '';
   let eventCategory = '';
-  let year = 0;
+  let time = 0;
 
   for (const evt of side.events) {
     const t = (evt.data?.turn as number | undefined) ?? -1;
@@ -38,7 +38,7 @@ function summarize(side: LeaderSideState, turn: number): LeaderTurnSummary | nul
     if (evt.type === 'turn_start' || evt.type === 'event_start') {
       eventTitle = String(evt.data?.title ?? eventTitle);
       eventCategory = String(evt.data?.category ?? eventCategory);
-      year = Number(evt.data?.year ?? year);
+      time = Number(evt.data?.time ?? time);
     }
     if (evt.type === 'commander_decided') {
       decision = String(evt.data?.decision ?? decision);
@@ -51,11 +51,11 @@ function summarize(side: LeaderSideState, turn: number): LeaderTurnSummary | nul
     }
   }
 
-  return { leaderName, decision, outcome, deaths, dominantCause, moraleDelta, eventTitle, eventCategory, year };
+  return { leaderName, decision, outcome, deaths, dominantCause, moraleDelta, eventTitle, eventCategory, time };
 }
 
 /**
- * Banner above the grid: turn number, year, event title + category,
+ * Banner above the grid: turn number, time, event title + category,
  * and one humanized outcome line per leader. Generated from existing
  * events only; no LLM call.
  */
@@ -69,7 +69,7 @@ export function TurnBanner({ state, currentTurn }: TurnBannerProps) {
 
   const headline = a?.eventTitle || b?.eventTitle || '';
   const category = a?.eventCategory || b?.eventCategory || '';
-  const year = a?.year || b?.year || 0;
+  const time = a?.time || b?.time || 0;
 
   if (!headline) return null;
 
@@ -84,7 +84,7 @@ export function TurnBanner({ state, currentTurn }: TurnBannerProps) {
       }}
     >
       <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', color: 'var(--text-2)', flexWrap: 'wrap' }}>
-        <span style={{ color: 'var(--text-3)' }}>T{currentTurn + 1}{year ? ` \u00b7 ${year}` : ''}</span>
+        <span style={{ color: 'var(--text-3)' }}>T{currentTurn + 1}{time ? ` \u00b7 ${time}` : ''}</span>
         <span style={{ fontWeight: 700, color: 'var(--text-1)' }}>{headline}</span>
         {category && (
           <span style={{

@@ -9,7 +9,7 @@ interface TimelineProps {
 
 interface TurnEntry {
   turn: number;
-  year: number;
+  time: number;
   title: string;
   summary?: string;
   outcome?: string;
@@ -27,7 +27,7 @@ function extractTurns(sideState: LeaderSideState, isComplete: boolean): TurnEntr
     if (evt.type === 'turn_start' && evt.data.title && evt.data.title !== 'Director generating...') {
       turns.push({
         turn: evt.data.turn as number,
-        year: evt.data.year as number,
+        time: evt.data.time as number,
         title: evt.data.title as string,
         summary: (evt.data.turnSummary as string) || (evt.data.crisis as string) || '',
         category: evt.data.category as string || '',
@@ -85,7 +85,7 @@ function TurnTooltipContent({ t, sideColor }: { t: TurnEntry; sideColor: string 
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
         <b style={{ color: sideColor, fontSize: '15px' }}>Turn {t.turn}</b>
-        <span style={{ fontFamily: 'var(--mono)', fontSize: '12px', color: 'var(--text-2)' }}>Y{t.year}</span>
+        <span style={{ fontFamily: 'var(--mono)', fontSize: '12px', color: 'var(--text-2)' }}>Y{t.time}</span>
         {t.category && (
           <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '3px', background: 'var(--bg-deep)', color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
             {t.category}
@@ -147,7 +147,7 @@ function SideTimeline({ turns, leaderIndex }: { turns: TurnEntry[]; leaderIndex:
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', minWidth: 0 }}>
               <span style={{ fontWeight: 800, fontFamily: 'var(--mono)', color: sideColor, flexShrink: 0, fontSize: '10px' }}>
-                T{t.turn} {t.year}
+                T{t.turn} {t.time}
               </span>
               <span style={{ flex: 1, color: 'var(--text-1)', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
                 {t.title}

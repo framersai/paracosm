@@ -20,7 +20,7 @@ export const TOUR_STEPS: TourStep[] = [
     target: '.topbar',
     tab: 'sim',
     title: 'Top Bar',
-    description: 'Scenario name on the left, RUN + status + theme toggle on the right. The T / Y / S tokens in the center show turn, in-sim year, and deterministic seed — hover each for what they mean. A "⋯" menu reveals Save / Copy / Clear once a run has started.',
+    description: 'Scenario name on the left, RUN + status + theme toggle on the right. The T / Y / S tokens in the center show turn, in-sim time, and deterministic seed — hover each for what they mean. A "⋯" menu reveals Save / Copy / Clear once a run has started.',
   },
   {
     target: '.tab-bar',

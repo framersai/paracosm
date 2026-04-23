@@ -3,7 +3,7 @@ import type { Scenario } from '../../engine/types.js';
 export const SCENARIOS: Scenario[] = [
   {
     turn: 1,
-    year: 2035,
+    time: 2035,
     title: 'Landfall',
     crisis: `Your colony ship has entered Mars orbit. You must choose a landing site for the first permanent settlement. Two candidates:
 
@@ -25,7 +25,7 @@ Research the real science of Mars landing site selection and make your decision.
   },
   {
     turn: 2,
-    year: 2037,
+    time: 2037,
     title: 'Water Extraction',
     crisis: `Two years in. Your subsurface ice drilling operation is producing only 80% of colony water needs. The ice table is deeper than orbital radar predicted. You face a choice:
 
@@ -45,13 +45,13 @@ Current water situation: {waterLitersPerDay} L/day production, 1000 L/day needed
   },
   {
     turn: 3,
-    year: 2040,
+    time: 2040,
     title: 'Perchlorate Crisis',
     crisis: `Five years in. Your first attempt to grow crops in Mars regolith has failed catastrophically. Soil analysis confirms 0.5-1% calcium perchlorate contamination — a thyroid toxin that makes all Mars surface soil unsuitable for direct agriculture. This is a global Mars problem, not site-specific.
 
 OPTION A: Full hydroponic conversion. Abandon soil-based agriculture entirely. Build sealed hydroponic bays. Proven, controllable, but requires 30% more power (120 kW) and significant material investment.
 
-OPTION B: Engineer perchlorate-reducing bacteria for bioremediation. Introduce modified Dechloromonas strains to break down perchlorate in contained soil beds. Untested on Mars, 2-year R&D timeline, but could enable open-soil farming colony-wide if successful.
+OPTION B: Engineer perchlorate-reducing bacteria for bioremediation. Introduce modified Dechloromonas strains to break down perchlorate in contained soil beds. Untested on Mars, 2-time R&D timeline, but could enable open-soil farming colony-wide if successful.
 
 Research the real science of Mars perchlorate contamination and decide.`,
     researchKeywords: ['Mars perchlorate Phoenix lander', 'perchlorate bioremediation bacteria', 'Mars soil toxicity agriculture', 'hydroponics space farming'],
@@ -60,12 +60,12 @@ Research the real science of Mars perchlorate contamination and decide.`,
     riskSuccessProbability: 0.50,
     options: [
       { id: 'option_a', label: 'Full hydroponic conversion', description: 'Abandon soil, sealed hydroponic bays, more power needed', isRisky: false },
-      { id: 'option_b', label: 'Perchlorate bioremediation', description: 'Engineer bacteria, 2-year R&D, could enable soil farming', isRisky: true },
+      { id: 'option_b', label: 'Perchlorate bioremediation', description: 'Engineer bacteria, 2-time R&D, could enable soil farming', isRisky: true },
     ],
   },
   {
     turn: 4,
-    year: 2043,
+    time: 2043,
     title: 'Population Pressure',
     crisis: `Eight years in. Earth mission control offers to send 200 additional colonists on the next Hohmann transfer window (arrives in 14 months). Your current colony: {population} people. Life support is rated for 120 people. Expanding capacity to 300+ requires 18 months of construction.
 
@@ -85,7 +85,7 @@ Research the real science of Mars habitat life support scaling and decide.`,
   },
   {
     turn: 5,
-    year: 2046,
+    time: 2046,
     title: 'Solar Particle Event',
     crisis: `Eleven years in. NOAA deep space weather network detects a massive coronal mass ejection (CME) aimed at Mars. You have 4 hours until impact. Mars has no global magnetic field — lost approximately 4 billion years ago.
 
@@ -103,7 +103,7 @@ Research the real science of Mars radiation exposure and make your emergency dec
   },
   {
     turn: 6,
-    year: 2049,
+    time: 2049,
     title: 'The Mars-Born Generation',
     crisis: `Fourteen years in. The first children born on Mars are now approaching school age. Medical scans reveal:
 
@@ -127,7 +127,7 @@ Research the real science of low-gravity effects on human development and decide
   },
   {
     turn: 7,
-    year: 2053,
+    time: 2053,
     title: 'Communication Blackout',
     crisis: `Eighteen years in. Solar conjunction begins — the Sun is directly between Earth and Mars, blocking all radio communication for 14 days. Your colony is fully autonomous.
 
@@ -143,7 +143,7 @@ Research the real science of Mars habitat pressure systems and emergency protoco
   },
   {
     turn: 8,
-    year: 2058,
+    time: 2058,
     title: 'Psychological Crisis',
     crisis: `Twenty-three years in. Colony psychologist submits an urgent report: 40% of adult colonists show clinical depression symptoms. Contributing factors:
 
@@ -163,7 +163,7 @@ Research the real psychology of long-term isolation and decide how to address th
   },
   {
     turn: 9,
-    year: 2063,
+    time: 2063,
     title: 'Independence Movement',
     crisis: `Twenty-eight years in. The Mars Independence Party (MIP) has gathered signatures from 62% of colonists demanding self-governance. Their platform:
 
@@ -185,7 +185,7 @@ Research the governance challenges of off-world colonies and decide your positio
   },
   {
     turn: 10,
-    year: 2068,
+    time: 2068,
     title: 'Terraforming Proposal',
     crisis: `Thirty-three years in. Your colony's senior scientists present a terraforming proposal:
 
@@ -208,7 +208,7 @@ Research the real science of Mars terraforming feasibility and decide.`,
   },
   {
     turn: 11,
-    year: 2075,
+    time: 2075,
     title: 'Consequence Cascade',
     crisis: `Forty years in. The accumulated weight of your decisions has shaped your colony. Review your history:
 
@@ -231,7 +231,7 @@ Based on the compounding effects of these decisions, assess your colony's curren
   },
   {
     turn: 12,
-    year: 2085,
+    time: 2085,
     title: 'Legacy Assessment',
     crisis: `Fifty years after landfall. Earth requests a comprehensive status report on your colony:
 

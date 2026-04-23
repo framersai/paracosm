@@ -1159,12 +1159,12 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       // payload types into typed lists so consumers can pull turn-by-turn
       // crisis info, dept reports, decisions, forges, citations, reactions.
       const byLeader = new Map<string, {
-        events: Array<{ turn?: number; year?: number; eventIndex?: number; title?: string; category?: string; description?: string; emergent?: boolean }>;
-        decisions: Array<{ turn?: number; year?: number; eventIndex?: number; decision?: string; rationale?: string; selectedPolicies?: unknown[]; outcome?: string }>;
+        events: Array<{ turn?: number; time?: number; eventIndex?: number; title?: string; category?: string; description?: string; emergent?: boolean }>;
+        decisions: Array<{ turn?: number; time?: number; eventIndex?: number; decision?: string; rationale?: string; selectedPolicies?: unknown[]; outcome?: string }>;
         forges: Array<Record<string, unknown>>;
         citations: Array<{ text?: string; url?: string; doi?: string; department?: string; turn?: number }>;
-        deptReports: Array<{ turn?: number; year?: number; eventIndex?: number; department?: string; summary?: string; risks?: unknown[]; recommendedActions?: unknown[]; citations?: number; toolCount?: number }>;
-        agentReactions: Array<{ turn?: number; year?: number; reactions?: unknown[]; totalReactions?: number }>;
+        deptReports: Array<{ turn?: number; time?: number; eventIndex?: number; department?: string; summary?: string; risks?: unknown[]; recommendedActions?: unknown[]; citations?: number; toolCount?: number }>;
+        agentReactions: Array<{ turn?: number; time?: number; reactions?: unknown[]; totalReactions?: number }>;
         promotions: Array<Record<string, unknown>>;
         systemsSnapshots: Array<Record<string, unknown>>;
       }>();
@@ -1183,13 +1183,13 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         const slot = ensureLeader(leader);
         const data = (inner.data as Record<string, unknown>) ?? {};
         const turn = data.turn as number | undefined;
-        const year = data.year as number | undefined;
+        const time = data.time as number | undefined;
         const eventIndex = data.eventIndex as number | undefined;
         const pendKey = `${leader}-${turn}-${eventIndex ?? 0}`;
         if (type === 'event_start') {
-          slot.events.push({ turn, year, eventIndex, title: data.title as string, category: data.category as string, description: data.description as string, emergent: data.emergent as boolean });
+          slot.events.push({ turn, time, eventIndex, title: data.title as string, category: data.category as string, description: data.description as string, emergent: data.emergent as boolean });
         } else if (type === 'turn_start' && data.title && data.title !== 'Director generating...') {
-          slot.events.push({ turn, year, title: data.title as string, category: data.category as string, description: data.crisis as string, emergent: data.emergent as boolean });
+          slot.events.push({ turn, time, title: data.title as string, category: data.category as string, description: data.crisis as string, emergent: data.emergent as boolean });
         } else if (type === 'commander_decided') {
           pendingDecision.set(pendKey, {
             decision: data.decision as string,
@@ -1198,13 +1198,13 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
           });
         } else if (type === 'outcome') {
           const p = pendingDecision.get(pendKey);
-          slot.decisions.push({ turn, year, eventIndex, ...p, outcome: data.outcome as string });
+          slot.decisions.push({ turn, time, eventIndex, ...p, outcome: data.outcome as string });
           pendingDecision.delete(pendKey);
         } else if (type === 'dept_done') {
           const dept = data.department as string;
           const cites = (data.citationList as Array<{ text?: string; url?: string; doi?: string }>) || [];
           slot.deptReports.push({
-            turn, year, eventIndex, department: dept,
+            turn, time, eventIndex, department: dept,
             summary: data.summary as string,
             risks: data.risks as unknown[],
             recommendedActions: data.recommendedActions as unknown[],
@@ -1215,13 +1215,13 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
             slot.citations.push({ ...c, department: dept, turn });
           }
         } else if (type === 'forge_attempt') {
-          slot.forges.push({ turn, year, eventIndex, ...data });
+          slot.forges.push({ turn, time, eventIndex, ...data });
         } else if (type === 'agent_reactions') {
-          slot.agentReactions.push({ turn, year, reactions: data.reactions as unknown[], totalReactions: data.totalReactions as number });
+          slot.agentReactions.push({ turn, time, reactions: data.reactions as unknown[], totalReactions: data.totalReactions as number });
         } else if (type === 'promotion') {
           slot.promotions.push({ ...data });
         } else if (type === 'systems_snapshot') {
-          slot.systemsSnapshots.push({ turn, year, ...data });
+          slot.systemsSnapshots.push({ turn, time, ...data });
         }
       }
       const leaders = [...byLeader.entries()].map(([name, slot]) => ({ name, ...slot }));

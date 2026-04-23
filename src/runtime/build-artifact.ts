@@ -59,7 +59,7 @@ export interface BuildArtifactInputs {
   /** Raw per-turn internal state (today's TurnArtifact shape). */
   turnArtifacts: Array<{
     turn: number;
-    year: number;
+    time: number;
     stateSnapshotAfter: Record<string, number>;
     departmentReports: Array<{
       department: string;
@@ -82,7 +82,7 @@ export interface BuildArtifactInputs {
   /** Flat list of commander decisions across turns. */
   commanderDecisions: Array<{
     turn: number;
-    year: number;
+    time: number;
     actor?: string;
     decision: string;
     rationale: string;
@@ -127,15 +127,15 @@ export interface BuildArtifactInputs {
 
 export function buildRunArtifact(inputs: BuildArtifactInputs): RunArtifact {
   const timepoints: Timepoint[] = inputs.turnArtifacts.map((ta) => ({
-    time: ta.year,
-    label: `${inputs.timeUnit.singular.charAt(0).toUpperCase()}${inputs.timeUnit.singular.slice(1)} ${ta.year}`,
+    time: ta.time,
+    label: `${inputs.timeUnit.singular.charAt(0).toUpperCase()}${inputs.timeUnit.singular.slice(1)} ${ta.time}`,
     worldSnapshot: {
       metrics: ta.stateSnapshotAfter,
     } satisfies WorldSnapshot,
   }));
 
   const points: TrajectoryPoint[] = inputs.turnArtifacts.map((ta) => ({
-    time: ta.year,
+    time: ta.time,
     metrics: ta.stateSnapshotAfter,
   }));
 
@@ -170,7 +170,7 @@ export function buildRunArtifact(inputs: BuildArtifactInputs): RunArtifact {
   );
 
   const decisions: Decision[] = inputs.commanderDecisions.map((d) => ({
-    time: d.year,
+    time: d.time,
     actor: d.actor,
     choice: d.decision,
     rationale: d.rationale,

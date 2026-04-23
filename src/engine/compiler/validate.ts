@@ -9,7 +9,7 @@ import type { ProgressionHookContext, ScenarioHooks } from '../types.js';
 /** Minimal synthetic colonist for validation. */
 function makeTestColonist(overrides: Record<string, any> = {}): any {
   return {
-    core: { name: 'Test', birthYear: 2010, marsborn: false, ...overrides.core },
+    core: { name: 'Test', birthTime: 2010, marsborn: false, ...overrides.core },
     health: { alive: true, boneDensityPct: 95, cumulativeRadiationMsv: 100, psychScore: 0.7, ...overrides.health },
     career: { department: 'engineering', role: 'engineer', promoted: false, promotionTurn: 0 },
     social: { partnerId: null, childrenIds: [], earthContacts: 3 },
@@ -22,13 +22,13 @@ function makeTestColonist(overrides: Record<string, any> = {}): any {
 export function validateProgressionHook(hook: ScenarioHooks['progressionHook']): { ok: boolean; error?: string } {
   if (!hook) return { ok: true };
   try {
-    const colonists = [makeTestColonist(), makeTestColonist({ core: { marsborn: true, birthYear: 2040 } }), makeTestColonist({ health: { alive: false } })];
+    const colonists = [makeTestColonist(), makeTestColonist({ core: { marsborn: true, birthTime: 2040 } }), makeTestColonist({ health: { alive: false } })];
     const ctx: ProgressionHookContext = {
       agents: colonists,
-      yearDelta: 4,
-      year: 2045,
+      timeDelta: 4,
+      time: 2045,
       turn: 3,
-      startYear: 2035,
+      startTime: 2035,
       rng: { chance: () => false, next: () => 0.5, pick: (arr: any) => arr[0], int: (min: number, max: number) => min },
     };
     hook(ctx);
@@ -90,10 +90,10 @@ export function validateFingerprint(fn: ScenarioHooks['fingerprintHook']): { ok:
       agents: [makeTestColonist()],
       systems: { morale: 0.6, population: 80, foodMonthsReserve: 6, powerKw: 300, infrastructureModules: 10, scienceOutput: 5, lifeSupportCapacity: 100, pressurizedVolumeM3: 2000, waterLitersPerDay: 500 },
       politics: { earthDependencyPct: 50, governanceStatus: 'earth-governed' as const, independencePressure: 0.3 },
-      metadata: { simulationId: 'test', leaderId: 'test', seed: 100, startYear: 2035, currentYear: 2070, currentTurn: 8 },
+      metadata: { simulationId: 'test', leaderId: 'test', seed: 100, startTime: 2035, currentTime: 2070, currentTurn: 8 },
       eventLog: [],
     };
-    const log = [{ turn: 1, year: 2035, outcome: 'conservative_success' }, { turn: 2, year: 2039, outcome: 'risky_success' }];
+    const log = [{ turn: 1, time: 2035, outcome: 'conservative_success' }, { turn: 2, time: 2039, outcome: 'risky_success' }];
     const leader = { name: 'Test', archetype: 'test', unit: 'Test', instructions: '', hexaco: { openness: 0.5, conscientiousness: 0.5, extraversion: 0.5, agreeableness: 0.5, emotionality: 0.5, honestyHumility: 0.5 } };
     const result = fn(mockState, log, leader, { engineering: ['tool1'] }, 8);
     if (typeof result !== 'object' || !result.summary) {
@@ -125,7 +125,7 @@ export function validatePolitics(fn: ScenarioHooks['politicsHook']): { ok: boole
 export function validateReactionContext(fn: ScenarioHooks['reactionContextHook']): { ok: boolean; error?: string } {
   if (!fn) return { ok: true };
   try {
-    const result = fn(makeTestColonist(), { year: 2045, turn: 3 });
+    const result = fn(makeTestColonist(), { time: 2045, turn: 3 });
     if (typeof result !== 'string') return { ok: false, error: 'Reaction context must return a string' };
     return { ok: true };
   } catch (err) {

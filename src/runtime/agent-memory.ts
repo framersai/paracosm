@@ -28,7 +28,7 @@ export function recordReactionMemory(
   eventCategory: string,
   outcome: string,
   turn: number,
-  year: number,
+  time: number,
 ): void {
   if (!agent.memory) {
     agent.memory = { shortTerm: [], longTerm: [], stances: {}, relationships: {} };
@@ -36,7 +36,7 @@ export function recordReactionMemory(
 
   const entry: AgentMemoryEntry = {
     turn,
-    year,
+    time,
     content: `Event "${eventTitle}": ${reaction.quote}`,
     valence: reaction.mood === 'positive' || reaction.mood === 'hopeful' ? 'positive'
            : reaction.mood === 'neutral' ? 'neutral'
@@ -207,7 +207,7 @@ export function buildMemoryContext(agent: Agent, allColonists?: Agent[]): string
   if (recent.length > 0) {
     lines.push('YOUR RECENT MEMORIES:');
     for (const entry of recent) {
-      lines.push(`- Year ${entry.year}: ${entry.content}`);
+      lines.push(`- Year ${entry.time}: ${entry.content}`);
     }
   }
 

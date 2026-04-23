@@ -41,7 +41,7 @@ export function isRunnableScenarioPackage(value: unknown): value is ScenarioPack
   if (!hasString(theme, 'primaryColor') || !hasString(theme, 'accentColor') || !isRecord(theme.cssVariables)) return false;
 
   if (!isRecord(setup)) return false;
-  if (!hasNumber(setup, 'defaultTurns') || !hasNumber(setup, 'defaultSeed') || !hasNumber(setup, 'defaultStartYear') || !hasNumber(setup, 'defaultPopulation') || !Array.isArray(setup.configurableSections)) return false;
+  if (!hasNumber(setup, 'defaultTurns') || !hasNumber(setup, 'defaultSeed') || !hasNumber(setup, 'defaultStartTime') || !hasNumber(setup, 'defaultPopulation') || !Array.isArray(setup.configurableSections)) return false;
 
   if (!isRecord(world) || !isRecord(world.metrics) || !isRecord(world.capacities) || !isRecord(world.statuses) || !isRecord(world.politics) || !isRecord(world.environment)) return false;
 

@@ -31,8 +31,14 @@ const DEFAULT_CACHE_DIR = '.paracosm/cache';
  *   to ctx.state.systems as part of the 0.5.0 domain-agnostic schema
  *   rename. Every cached progression / reactions / politics hook from
  *   v2 references the old path and must regenerate.
+ * - v4 (2026-04-23): F23 time-units rename. Progression/reactions/
+ *   fingerprint hook contexts swap `year`/`yearDelta`/`startYear`/
+ *   `currentYear` for `time`/`timeDelta`/`startTime`/`currentTime`;
+ *   agent core swaps `birthYear`/`deathYear` for `birthTime`/
+ *   `deathTime`. Every cached hook references the old names and must
+ *   regenerate (one-time ~$0.10 per previously-compiled scenario).
  */
-export const COMPILE_SCHEMA_VERSION = 3;
+export const COMPILE_SCHEMA_VERSION = 4;
 
 /** SHA-256 hash of the scenario JSON, used for cache invalidation. */
 export function hashScenario(scenarioJson: Record<string, unknown>): string {

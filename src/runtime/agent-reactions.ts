@@ -48,7 +48,7 @@ interface ReactionContext {
    *  because the prompt already carries the full event context. */
   outcome: TurnOutcome | null;
   decision: string;
-  year: number;
+  time: number;
   turn: number;
   colonyMorale: number;
   colonyPopulation: number;
@@ -69,7 +69,7 @@ function buildBatchSystemPrompt(ctx: ReactionContext): string {
   return `You are each of several colony members reacting to what just happened at your settlement. Based on each person's personality, health, relationships, and memories, give a short reaction in their voice.
 
 SHARED SITUATION:
-Turn ${ctx.turn}, Year ${ctx.year}. Event: "${ctx.eventTitle}" (${ctx.eventCategory}).
+Turn ${ctx.turn}, Year ${ctx.time}. Event: "${ctx.eventTitle}" (${ctx.eventCategory}).
 Commander decided: ${ctx.decision.slice(0, 200)}
 Outcome: ${ctx.outcome}. Current morale: ${Math.round(ctx.colonyMorale * 100)}%. Population: ${ctx.colonyPopulation}.
 
@@ -92,7 +92,7 @@ One entry per agent, in the same order, matching each agentId EXACTLY as given. 
  * user prompt; even small per-agent inflation compounds fast.
  */
 function buildBatchAgentBlock(c: Agent, ctx: ReactionContext, reactionContextHook?: (agent: any, ctx: any) => string): string {
-  const age = ctx.year - c.core.birthYear;
+  const age = ctx.time - c.core.birthTime;
   const h = c.hexaco;
   const bornLine = reactionContextHook ? reactionContextHook(c, ctx) : (c.core.marsborn ? 'Native-born.' : 'Arrived from outside.');
 
@@ -105,7 +105,7 @@ function buildBatchAgentBlock(c: Agent, ctx: ReactionContext, reactionContextHoo
   if ((c.health.cumulativeRadiationMsv ?? 0) > 1500) socialBits.push('high rad exposure');
   if (c.health.psychScore < 0.4) socialBits.push('depressed');
 
-  const recentLine = c.narrative.lifeEvents.slice(-2).map(e => `Y${e.year}: ${e.event}`).join('; ');
+  const recentLine = c.narrative.lifeEvents.slice(-2).map(e => `Y${e.time}: ${e.event}`).join('; ');
   const recentMem = (c.memory?.shortTerm ?? []).slice(-2).map(m => m.content.slice(0, 80)).join(' | ');
   const beliefs = (c.memory?.longTerm ?? []).slice(-2).join(' | ');
 
@@ -146,7 +146,7 @@ interface ReactionEntryPayload {
 function hydrateBatchReactions(
   entries: ReactionEntryPayload[],
   agents: Agent[],
-  year: number,
+  time: number,
 ): AgentReaction[] {
   const agentById = new Map(agents.map(a => [a.core.id, a]));
   const reactions: AgentReaction[] = [];
@@ -156,7 +156,7 @@ function hydrateBatchReactions(
     reactions.push({
       agentId: agent.core.id,
       name: agent.core.name,
-      age: year - agent.core.birthYear,
+      age: time - agent.core.birthTime,
       department: agent.core.department,
       role: agent.core.role,
       specialization: agent.career.specialization,
@@ -295,7 +295,7 @@ export async function generateAgentReactions(
           if (firstBatchError == null) firstBatchError = new Error('reactions schema fallback');
           return [] as AgentReaction[];
         }
-        return hydrateBatchReactions(object.reactions as ReactionEntryPayload[], chunk, ctx.year);
+        return hydrateBatchReactions(object.reactions as ReactionEntryPayload[], chunk, ctx.time);
       } catch (err) {
         if (firstBatchError == null) firstBatchError = err;
         return [] as AgentReaction[];

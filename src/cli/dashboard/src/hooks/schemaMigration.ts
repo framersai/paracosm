@@ -22,7 +22,7 @@ import { migrateLegacyEventShape } from './migrateLegacyEventShape';
  * shipping a breaking saved-file change AND add a matching `migrations`
  * entry for the previous version.
  */
-export const CURRENT_SCHEMA_VERSION = 2;
+export const CURRENT_SCHEMA_VERSION = 3;
 
 /** Minimal data shape the chain reads/writes. Mirrors GameData loosely. */
 export interface MigratableSaveData {
@@ -72,9 +72,13 @@ type MigrationStep = (data: MigratableSaveData) => MigratableSaveData;
 
 /**
  * Registered per-step migrations. Keys are the starting version;
- * the step converts vN to vN+1. Extending: add `migrations[2]` when
- * bumping CURRENT_SCHEMA_VERSION to 3 (reserved for F23's
- * year → time rename).
+ * the step converts vN to vN+1.
+ *
+ * v2 → v3 (F23, 0.7.0): aliases the pre-F23 `year`/`yearDelta`/
+ * `startYear`/`currentYear`/`birthYear`/`deathYear` field names to
+ * their post-F23 equivalents (`time`/`timeDelta`/`startTime`/
+ * `currentTime`/`birthTime`/`deathTime`). Aliases only where the new
+ * key is absent, so a file that somehow carries both keys is safe.
  */
 export const migrations: Record<number, MigrationStep> = {
   1: (data) => {
@@ -89,7 +93,49 @@ export const migrations: Record<number, MigrationStep> = {
       schemaVersion: 2,
     };
   },
+  2: (data) => {
+    return {
+      ...data,
+      events: (data.events ?? []).map((evt) => aliasTimeFields(evt)) as SimEvent[],
+      results: (data.results ?? []).map((r) => aliasTimeFields(r)) as unknown[],
+      schemaVersion: 3,
+    };
+  },
 };
+
+/** Recursively aliases pre-F23 `year`-family fields onto their
+ *  post-F23 `time`-family equivalents. Only sets the new key when
+ *  absent; leaves the old key in place for forward-compat debugging.
+ *  Operates on events, result records, nested metadata, and agent
+ *  cores anywhere in the tree. */
+function aliasTimeFields<T>(node: T): T {
+  if (node === null || typeof node !== 'object') return node;
+  if (Array.isArray(node)) {
+    return node.map((item) => aliasTimeFields(item)) as unknown as T;
+  }
+  const obj = node as Record<string, unknown>;
+  const next: Record<string, unknown> = { ...obj };
+  const aliases: Array<[string, string]> = [
+    ['year', 'time'],
+    ['yearDelta', 'timeDelta'],
+    ['startYear', 'startTime'],
+    ['currentYear', 'currentTime'],
+    ['birthYear', 'birthTime'],
+    ['deathYear', 'deathTime'],
+  ];
+  for (const [oldKey, newKey] of aliases) {
+    if (oldKey in next && !(newKey in next)) {
+      next[newKey] = next[oldKey];
+    }
+  }
+  for (const key of Object.keys(next)) {
+    const value = next[key];
+    if (value !== null && typeof value === 'object') {
+      next[key] = aliasTimeFields(value);
+    }
+  }
+  return next as T;
+}
 
 /**
  * Walk a save file from its declared version up to

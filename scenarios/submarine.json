@@ -8,7 +8,9 @@
     "shortName": "ocean",
     "populationNoun": "crew members",
     "settlementNoun": "station",
-    "currency": "credits"
+    "currency": "credits",
+    "timeUnitNoun": "year",
+    "timeUnitNounPlural": "years"
   },
 
   "theme": {
@@ -25,7 +27,7 @@
   "setup": {
     "defaultTurns": 8,
     "defaultSeed": 200,
-    "defaultStartYear": 2038,
+    "defaultStartTime": 2038,
     "defaultPopulation": 50,
     "configurableSections": ["leaders", "personnel", "resources", "departments", "events", "models"]
   },

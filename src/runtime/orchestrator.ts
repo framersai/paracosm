@@ -55,7 +55,7 @@ import {
   type StartingResources,
 } from '../cli/sim-config.js';
 import { resolveProviderWithFallback } from '../engine/provider-resolver.js';
-import { applyCustomEventToCrisis, buildYearSchedule } from './runtime-helpers.js';
+import { applyCustomEventToCrisis, buildTimeSchedule } from './runtime-helpers.js';
 import { classifyProviderError, shouldAbortRun, type ClassifiedProviderError } from './provider-errors.js';
 import { EffectRegistry } from '../engine/effect-registry.js';
 import { marsScenario } from '../engine/mars/index.js';
@@ -244,7 +244,7 @@ export type SimEvent = {
     type: K;
     leader: string;
     turn?: number;
-    year?: number;
+    time?: number;
     data: SimEventPayloadMap[K] & SimEventCostPayload;
   };
 }[SimEventType];
@@ -343,8 +343,8 @@ export function buildEventSummary(type: SimEventType, data: Record<string, unkno
 export interface RunOptions {
   maxTurns?: number;
   seed?: number;
-  startYear?: number;
-  yearsPerTurn?: number;
+  startTime?: number;
+  timePerTurn?: number;
   liveSearch?: boolean;
   activeDepartments?: Department[];
   provider?: LlmProvider;
@@ -405,7 +405,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   const { agent } = await import('@framers/agentos');
   const sc = opts.scenario ?? marsScenario;
   const maxTurns = opts.maxTurns ?? 12;
-  const startYear = opts.startYear ?? 2035;
+  const startTime = opts.startTime ?? 2035;
   const requestedProvider = opts.provider ?? 'openai';
   // Preflight env check. Falls back to the other supported provider if
   // the requested one has no key; throws ProviderKeyMissingError when
@@ -544,7 +544,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
 
   const seed = opts.seed ?? 950;
   const kernel = new SimulationKernel(seed, leader.name, keyPersonnel, {
-    startYear,
+    startTime,
     initialPopulation: opts.initialPopulation,
     // StartingResources / StartingPolitics are subsets of the kernel's
     // Partial<WorldSystems / WorldPolitics> shape. The kernel's types
@@ -603,7 +603,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   // commander's current personality goes through commanderHexacoLive.
   const commanderHexacoLive: HexacoProfile = { ...leader.hexaco };
   const commanderHexacoHistory: HexacoSnapshot[] = [
-    { turn: 0, year: startYear, hexaco: { ...leader.hexaco } },
+    { turn: 0, time: startTime, hexaco: { ...leader.hexaco } },
   ];
 
   // Commander does NOT use systemBlocks caching because AgentOS's
@@ -655,7 +655,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
       kernel,
       scenario: sc,
       leader,
-      startYear,
+      startTime,
       sendToCommander: (prompt) => cmdSess.send(prompt),
       trackUsage,
       recordSchemaAttempt,
@@ -671,7 +671,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   const deptForgeBuckets = new Map<Department, CapturedForge[]>();
   // Track current event/turn for forge_attempt SSE emission so each
   // real-time forge can be attributed to the surrounding event.
-  let currentEmitContext: { turn: number; year: number; eventIndex: number } = { turn: 0, year: startYear, eventIndex: 0 };
+  let currentEmitContext: { turn: number; time: number; eventIndex: number } = { turn: 0, time: startTime, eventIndex: 0 };
   const captureForge = (dept: Department) => (record: CapturedForge) => {
     const bucket = deptForgeBuckets.get(dept) ?? [];
     bucket.push(record);
@@ -695,7 +695,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
       : [];
     emit('forge_attempt', {
       turn: currentEmitContext.turn,
-      year: currentEmitContext.year,
+      time: currentEmitContext.time,
       eventIndex: currentEmitContext.eventIndex,
       department: dept,
       name: record.name,
@@ -874,18 +874,18 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
   console.log(`  Promoted ${promoted.length} department heads. Agents created.\n`);
 
   const artifacts: TurnArtifact[] = [];
-  const yearSchedule = buildYearSchedule(startYear, maxTurns, opts.yearsPerTurn);
-  const outcomeLog: Array<{ turn: number; year: number; outcome: TurnOutcome }> = [];
+  const timeSchedule = buildTimeSchedule(startTime, maxTurns, opts.timePerTurn);
+  const outcomeLog: Array<{ turn: number; time: number; outcome: TurnOutcome }> = [];
   const eventHistory: DirectorContext['previousEvents'] = [];
   let lastTurnToolOutputs: Array<{ name: string; department: string; output: string }> = [];
   let lastTurnMoodSummary: string | undefined;
   // Run-wide accumulators surfaced in the final runSimulation() result so
   // programmatic consumers see the same data the dashboard sees via SSE.
-  const allDepartmentReports: Array<{ turn: number; year: number; eventIndex: number; eventTitle: string; report: DepartmentReport }> = [];
-  const allCommanderDecisions: Array<{ turn: number; year: number; eventIndex: number; eventTitle: string; decision: CommanderDecision; outcome: TurnOutcome }> = [];
-  const allForges: Array<CapturedForge & { turn: number; year: number; eventIndex: number }> = [];
-  const allAgentReactions: Array<{ turn: number; year: number; reactions: import('./agent-reactions.js').AgentReaction[] }> = [];
-  const allDirectorEvents: Array<{ turn: number; year: number; eventIndex: number; event: DirectorEvent; pacing: string }> = [];
+  const allDepartmentReports: Array<{ turn: number; time: number; eventIndex: number; eventTitle: string; report: DepartmentReport }> = [];
+  const allCommanderDecisions: Array<{ turn: number; time: number; eventIndex: number; eventTitle: string; decision: CommanderDecision; outcome: TurnOutcome }> = [];
+  const allForges: Array<CapturedForge & { turn: number; time: number; eventIndex: number }> = [];
+  const allAgentReactions: Array<{ turn: number; time: number; reactions: import('./agent-reactions.js').AgentReaction[] }> = [];
+  const allDirectorEvents: Array<{ turn: number; time: number; eventIndex: number; event: DirectorEvent; pacing: string }> = [];
   // Per-turn slots that fill during the inner event loop and then get
   // merged into TurnArtifact at the end of the turn.
   let turnDeptReports: DepartmentReport[] = [];
@@ -907,7 +907,7 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
   let externallyAborted = false;
 
   for (let turn = 1; turn <= maxTurns; turn++) {
-    const year = yearSchedule[turn - 1] ?? (yearSchedule[yearSchedule.length - 1] + (turn - yearSchedule.length) * 5);
+    const time = timeSchedule[turn - 1] ?? (timeSchedule[timeSchedule.length - 1] + (turn - timeSchedule.length) * 5);
 
     // ── External-abort gate ─────────────────────────────────────────
     // Fired when opts.signal flips (client disconnected and grace
@@ -919,7 +919,7 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
     if (opts.signal?.aborted && !externallyAborted) {
       externallyAborted = true;
       emit('sim_aborted', {
-        turn, year,
+        turn, time,
         reason: 'client_disconnected',
         completedTurns: turn - 1,
         systems: kernel.getState().systems,
@@ -942,7 +942,7 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
       // narrow through control-flow re-analysis).
       const pe = providerErrorState as ClassifiedProviderError | null;
       emit('turn_done', {
-        turn, year,
+        turn, time,
         systems: kernel.getState().systems,
         toolsForged: Object.values(toolRegs).flat().length,
         aborted: true,
@@ -968,7 +968,7 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
       const preState = kernel.getState();
       const alive = preState.agents.filter(c => c.health.alive);
       const dirCtx: DirectorContext = {
-        turn, year,
+        turn, time,
         leaderName: leader.name, leaderArchetype: leader.archetype, leaderHexaco: commanderHexacoLive,
         leaderHexacoHistory: commanderHexacoHistory,
         state: preState.systems as unknown as Record<string, number>,
@@ -991,7 +991,7 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
         knowledgeTopics: Object.keys(sc.knowledge?.topics ?? {}),
         knowledgeCategories: Object.keys(sc.knowledge?.categoryMapping ?? {}),
       };
-      emit('turn_start', { turn, year, title: 'Director generating...', crisis: '', births: 0, deaths: 0, systems: preState.systems });
+      emit('turn_start', { turn, time, title: 'Director generating...', crisis: '', births: 0, deaths: 0, systems: preState.systems });
       // Abort gate: if the client already left during the gap between
       // the kernel advance and the director call, skip the director's
       // flagship LLM call. The inner event loop then has nothing to
@@ -1024,16 +1024,16 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
     }
 
     // ── Kernel advance (once per turn, before events) ─────────────────
-    const state = kernel.advanceTurn(turn, year, sc.hooks.progressionHook);
+    const state = kernel.advanceTurn(turn, time, sc.hooks.progressionHook);
     const births = state.eventLog.filter(e => e.turn === turn && e.type === 'birth').length;
     const deaths = state.eventLog.filter(e => e.turn === turn && e.type === 'death').length;
     console.log(`  Kernel: +${births} births, -${deaths} deaths → pop ${state.systems.population}`);
 
     console.log(`\n${'─'.repeat(50)}`);
-    console.log(`  Turn ${turn}/${maxTurns} — Year ${year}: ${turnEvents.length} event(s) [${milestone ? 'MILESTONE' : 'EMERGENT'}]`);
+    console.log(`  Turn ${turn}/${maxTurns} — Year ${time}: ${turnEvents.length} event(s) [${milestone ? 'MILESTONE' : 'EMERGENT'}]`);
     console.log(`${'─'.repeat(50)}`);
 
-    emit('turn_start', { turn, year, title: turnEvents[0]?.title || '', crisis: turnEvents[0]?.description?.slice(0, 200) || '', category: turnEvents[0]?.category || '', births, deaths, systems: state.systems, emergent: !milestone, turnSummary: turnEvents[0]?.turnSummary || '', totalEvents: turnEvents.length, pacing: batchPacing });
+    emit('turn_start', { turn, time, title: turnEvents[0]?.title || '', crisis: turnEvents[0]?.description?.slice(0, 200) || '', category: turnEvents[0]?.category || '', births, deaths, systems: state.systems, emergent: !milestone, turnSummary: turnEvents[0]?.turnSummary || '', totalEvents: turnEvents.length, pacing: batchPacing });
 
     // ── Inner event loop ──────────────────────────────────────────────
     let reactions: import('./agent-reactions.js').AgentReaction[] = [];
@@ -1053,10 +1053,10 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
 
       // Update context so any forge_attempt SSE emitted during this event
       // (from inside parallel dept calls) is attributed to the right slot.
-      currentEmitContext = { turn, year, eventIndex: ei };
+      currentEmitContext = { turn, time, eventIndex: ei };
 
       console.log(`  Event ${ei + 1}/${turnEvents.length}: ${event.title} (${event.category})`);
-      emit('event_start', { turn, year, eventIndex: ei, totalEvents: turnEvents.length, title: event.title, description: event.description?.slice(0, 200), category: event.category, emergent: !milestone, turnSummary: event.turnSummary, pacing: batchPacing });
+      emit('event_start', { turn, time, eventIndex: ei, totalEvents: turnEvents.length, title: event.title, description: event.description?.slice(0, 200), category: event.category, emergent: !milestone, turnSummary: event.turnSummary, pacing: batchPacing });
       turnEventTitles.push(event.title);
 
       // Research
@@ -1110,7 +1110,7 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
       }
 
       const scenario = {
-        turn, year, title: event.title, crisis: event.description,
+        turn, time, title: event.title, crisis: event.description,
         researchKeywords: event.researchKeywords, snapshotHints: {} as any,
         riskyOption: event.options.find(o => o.isRisky)?.label || '',
         riskSuccessProbability: event.riskSuccessProbability,
@@ -1142,7 +1142,7 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
           ? '\n\nTURN 1 IS A BOOTSTRAP TURN. You MUST call forge_tool at least once this turn to contribute a reusable computational tool to the shared toolbox. Later turns will reuse what you forge here. Pick a quantifiable aspect of THIS event (e.g. a risk score, a capacity calculator, a resource allocator) and forge a tool that computes it. Do not skip the forge — the whole run depends on building a toolbox every turn can draw from.\n'
           : '';
         const ctx = baseCtx + bootstrapDirective + availableToolsBlock;
-        emit('specialist_start', { turn, year, department: dept, eventIndex: ei });
+        emit('specialist_start', { turn, time, department: dept, eventIndex: ei });
         // Snapshot the dept's forge bucket index BEFORE the LLM call so we
         // can attribute new forges to this specific dept_done. The LLM
         // self-reports `forgedToolsUsed` in JSON but frequently omits tools
@@ -1317,7 +1317,7 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
             );
             if (!alreadyLoggedThisEvent) {
               ledgerEntry.history.push({
-                turn, year, eventIndex: ei, eventTitle: event.title,
+                turn, time, eventIndex: ei, eventTitle: event.title,
                 department: dept,
                 output: rawOutput?.slice(0, 400) || null,
                 isReforge: captureMatched,
@@ -1353,7 +1353,7 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
               history: ledgerEntry.history,
             };
           });
-          emit('specialist_done', { turn, year, department: dept, summary: report.summary, eventIndex: ei, citations: report.citations.length, citationList: report.citations.slice(0, 5).map(c => ({ text: c.text, url: c.url, doi: c.doi })), risks: report.risks, forgedTools: validTools, recommendedActions: report.recommendedActions?.slice(0, 2) });
+          emit('specialist_done', { turn, time, department: dept, summary: report.summary, eventIndex: ei, citations: report.citations.length, citationList: report.citations.slice(0, 5).map(c => ({ text: c.text, url: c.url, doi: c.doi })), risks: report.risks, forgedTools: validTools, recommendedActions: report.recommendedActions?.slice(0, 2) });
           if (validTools.length) {
             const names = validTools.map(t => t.name).filter(Boolean);
             if (names.length) toolRegs[dept] = [...(toolRegs[dept] || []), ...names];
@@ -1383,7 +1383,7 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
       // full department report payloads (programmatic API parity with SSE).
       turnDeptReports.push(...reports);
       for (const r of reports) {
-        allDepartmentReports.push({ turn, year, eventIndex: ei, eventTitle: event.title, report: r });
+        allDepartmentReports.push({ turn, time, eventIndex: ei, eventTitle: event.title, report: r });
       }
       // Pull THIS event's captured forges into the run-wide ledger.
       // Use the per-dept eventBucketStarts snapshot instead of scanning
@@ -1393,7 +1393,7 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
         const bucket = deptForgeBuckets.get(dept) ?? [];
         const start = eventBucketStarts.get(dept) ?? 0;
         for (const forge of bucket.slice(start)) {
-          allForges.push({ ...forge, turn, year, eventIndex: ei });
+          allForges.push({ ...forge, turn, time, eventIndex: ei });
         }
       }
 
@@ -1402,7 +1402,7 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
 
       // Department memory
       for (const r of reports) {
-        const mem = { turn, year, crisis: event.title, summary: r.summary, recommendedActions: r.recommendedActions?.slice(0, 3) || [], outcome: '', toolsForged: (r.forgedToolsUsed || []).map(t => t?.name || '').filter(Boolean) };
+        const mem = { turn, time, crisis: event.title, summary: r.summary, recommendedActions: r.recommendedActions?.slice(0, 3) || [], outcome: '', toolsForged: (r.forgedToolsUsed || []).map(t => t?.name || '').filter(Boolean) };
         const existing = deptMemory.get(r.department) || [];
         existing.push(mem);
         deptMemory.set(r.department, existing);
@@ -1441,7 +1441,7 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
       // and trade tradeoffs instead of generic risk-averse hedging).
       const trajectoryCue = buildTrajectoryCue(commanderHexacoHistory, commanderHexacoLive);
       const cmdPrompt =
-`TURN ${turn}${eventLabel} — ${year}: ${event.title}
+`TURN ${turn}${eventLabel} — ${time}: ${event.title}
 
 ${event.description}
 ${trajectoryCue ? `\n${trajectoryCue}\n` : ''}
@@ -1468,7 +1468,7 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
         console.log(`  [abort] Skipping commander decision for turn ${turn} event ${ei + 1}.`);
         break;
       }
-      emit('decision_pending', { turn, year, eventIndex: ei });
+      emit('decision_pending', { turn, time, eventIndex: ei });
       const cmdResult = await sendAndValidate({
         session: cmdSess,
         prompt: cmdPrompt,
@@ -1487,7 +1487,7 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
       const decision = decisionParsed as unknown as CommanderDecision;
       console.log(`  [commander] ${decision.decision.slice(0, 120)}...`);
       emit('decision_made', {
-        turn, year,
+        turn, time,
         decision: decision.decision,
         rationale: decision.rationale,
         /** Full stepwise CoT preserved from the schema's reasoning field.
@@ -1498,7 +1498,7 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
         eventIndex: ei,
       });
 
-      kernel.applyPolicy(decisionToPolicy(decision, reports, turn, year));
+      kernel.applyPolicy(decisionToPolicy(decision, reports, turn, time));
       const agentUpdates = reports.flatMap(r => (r.featuredAgentUpdates || []).filter(u => u && u.agentId && u.updates).map(u => ({ agentId: u.agentId, health: u.updates?.health, career: u.updates?.career, narrativeEvent: u.updates?.narrative?.event })));
       if (agentUpdates.length) kernel.applyAgentUpdates(agentUpdates);
 
@@ -1567,12 +1567,12 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
         noise: outcomeEffectRng.next() * 0.2 - 0.1,
         toolModifiers: eventForges,
       });
-      kernel.applySystemDeltas(systemDeltas as any, [{ turn, year, type: 'system', description: `Outcome effect (${outcome}): ${Object.entries(systemDeltas).map(([k, v]) => `${k} ${v >= 0 ? '+' : ''}${v}`).join(', ')}` }]);
+      kernel.applySystemDeltas(systemDeltas as any, [{ turn, time, type: 'system', description: `Outcome effect (${outcome}): ${Object.entries(systemDeltas).map(([k, v]) => `${k} ${v >= 0 ? '+' : ''}${v}`).join(', ')}` }]);
 
       const polDelta = sc.hooks.politicsHook?.(event.category, outcome);
       if (polDelta) kernel.applyPoliticsDeltas(polDelta);
 
-      outcomeLog.push({ turn, year, outcome });
+      outcomeLog.push({ turn, time, outcome });
       eventHistory.push({ turn, title: event.title, category: event.category, selectedOptionId: resolvedOptionId, decision: decision.decision.slice(0, 200), outcome });
       // Accumulate full decision + outcome + event for the API result so
       // programmatic consumers don't have to scrape SSE event buffers.
@@ -1580,13 +1580,13 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
       if (decision.selectedPolicies?.length) {
         turnPolicyEffects.push(...decision.selectedPolicies.map(p => typeof p === 'string' ? p : JSON.stringify(p)));
       }
-      allCommanderDecisions.push({ turn, year, eventIndex: ei, eventTitle: event.title, decision, outcome });
-      allDirectorEvents.push({ turn, year, eventIndex: ei, event, pacing: batchPacing });
+      allCommanderDecisions.push({ turn, time, eventIndex: ei, eventTitle: event.title, decision, outcome });
+      allDirectorEvents.push({ turn, time, eventIndex: ei, event, pacing: batchPacing });
       lastOutcome = outcome;
       lastEventCategory = event.category;
 
       console.log(`  [outcome] ${outcome} (${event.category}) effects: ${JSON.stringify(systemDeltas)}`);
-      emit('outcome', { turn, year, outcome, category: event.category, emergent: !milestone, systemDeltas, eventIndex: ei });
+      emit('outcome', { turn, time, outcome, category: event.category, emergent: !milestone, systemDeltas, eventIndex: ei });
       } catch (err) {
         // Classify event-loop errors. If the commander call threw a
         // quota/auth error, this is where it lands. `reportProviderError`
@@ -1599,14 +1599,14 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
     } // end inner event loop
 
     // ── Post-events: drift, reactions, memory, artifacts ──────────────
-    const prevYear = turn === 1 ? startYear : yearSchedule[turn - 2] ?? startYear;
-    const yearDelta = Math.max(1, year - prevYear);
-    kernel.applyDrift(commanderHexacoLive, lastOutcome, yearDelta);
+    const prevTime = turn === 1 ? startTime : timeSchedule[turn - 2] ?? startTime;
+    const timeDelta = Math.max(1, time - prevTime);
+    kernel.applyDrift(commanderHexacoLive, lastOutcome, timeDelta);
     // Commander drifts alongside their agents. Outcome-pull only (no
     // leader-pull since commander IS the leader; no role-pull since
     // they have no department). Mutates commanderHexacoLive in place
     // and appends this turn's snapshot to commanderHexacoHistory.
-    driftCommanderHexaco(commanderHexacoLive, lastOutcome, yearDelta, turn, year, commanderHexacoHistory);
+    driftCommanderHexaco(commanderHexacoLive, lastOutcome, timeDelta, turn, time, commanderHexacoHistory);
 
     const drifted = kernel.getState().agents.filter(c => c.promotion && c.health.alive);
     const driftData: Record<string, { name: string; hexaco: any }> = {};
@@ -1623,7 +1623,7 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
       emotionality: +commanderHexacoLive.emotionality.toFixed(3),
       honestyHumility: +commanderHexacoLive.honestyHumility.toFixed(3),
     };
-    emit('personality_drift', { turn, year, agents: driftData, commander: commanderHexacoSnapshot });
+    emit('personality_drift', { turn, time, agents: driftData, commander: commanderHexacoSnapshot });
 
     // Agent reactions (once per turn, reacting to ALL events). Runs the
     // full roster on turn 1; turn 2+ uses progressive reactions to pick
@@ -1639,7 +1639,7 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
     const reactionResult = await runReactionStep({
       kernel,
       scenario: sc,
-      turn, year, seed,
+      turn, time, seed,
       turnEvents,
       turnEventTitles,
       lastEventCategory,
@@ -1657,7 +1657,7 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
 
     // Accumulate reactions for the run-wide log (also surfaced via SSE).
     if (reactions.length) {
-      allAgentReactions.push({ turn, year, reactions });
+      allAgentReactions.push({ turn, time, reactions });
     }
 
     const after = kernel.getState();
@@ -1679,7 +1679,7 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
           emptyDecision(sc.departments.map(d => d.id as Department)),
         );
     artifacts.push({
-      turn, year, crisis: turnEventTitles.join(' / '),
+      turn, time, crisis: turnEventTitles.join(' / '),
       departmentReports: turnDeptReports.slice(),
       commanderDecision: mergedDecision,
       policyEffectsApplied: turnPolicyEffects.slice(),
@@ -1705,7 +1705,7 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
       deathCauses[key] = (deathCauses[key] ?? 0) + 1;
     }
     emit('turn_done', {
-      turn, year,
+      turn, time,
       systems: after.systems,
       toolsForged: Object.values(toolRegs).flat().length,
       totalEvents: turnEvents.length,
@@ -1750,7 +1750,7 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
       alive: a.health.alive,
       marsborn: a.core.marsborn,
       psychScore: a.health.psychScore,
-      age: Math.max(0, year - a.core.birthYear),
+      age: Math.max(0, time - a.core.birthTime),
       generation: computeGeneration(a.core.id),
       partnerId: a.social.partnerId,
       childrenIds: a.social.childrenIds,
@@ -1759,7 +1759,7 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
       shortTermMemory: (a.memory?.shortTerm || []).slice(-2).map(m => m.content),
     }));
     emit('systems_snapshot', {
-      turn, year,
+      turn, time,
       agents: snapshotAgents,
       population: after.systems.population,
       morale: after.systems.morale,
@@ -1777,20 +1777,20 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
         agentId: a.core.id, name: a.core.name, department: a.core.department, role: a.core.role,
         rank: a.career.rank, alive: a.health.alive, marsborn: a.core.marsborn,
         psychScore: a.health.psychScore,
-        age: Math.max(0, year - a.core.birthYear),
+        age: Math.max(0, time - a.core.birthTime),
         generation: a.core.marsborn ? 1 : 0,
         partnerId: a.social.partnerId,
         childrenIds: a.social.childrenIds, featured: a.narrative.featured,
         mood: 'neutral', shortTermMemory: [],
       }));
       emit('systems_snapshot', {
-        turn, year, agents: fallbackAgents,
+        turn, time, agents: fallbackAgents,
         population: kernel.getState().systems.population,
         morale: kernel.getState().systems.morale,
         foodReserve: kernel.getState().systems.foodMonthsReserve,
         births: 0, deaths: 0,
       });
-      emit('turn_done', { turn, year, systems: kernel.getState().systems, toolsForged: Object.values(toolRegs).flat().length, error: String(err) });
+      emit('turn_done', { turn, time, systems: kernel.getState().systems, toolsForged: Object.values(toolRegs).flat().length, error: String(err) });
     }
   }
 
@@ -1844,7 +1844,7 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
   // the cast names the target type instead of the `never` escape hatch.
   const commanderDecisionsForArtifact = allCommanderDecisions.map((cd) => ({
     turn: cd.turn,
-    year: cd.year,
+    time: cd.time,
     actor: leader.name,
     decision: cd.decision.decision,
     rationale: cd.decision.rationale ?? '',
@@ -1865,7 +1865,7 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
     startedAt: startedAtIso,
     completedAt: new Date().toISOString(),
     timeUnit: {
-      singular: (labelsRecord.timeUnitNoun as string) ?? 'year',
+      singular: (labelsRecord.timeUnitNoun as string) ?? 'time',
       plural: (labelsRecord.timeUnitNounPlural as string) ?? 'years',
     },
     turnArtifacts: artifacts as never,

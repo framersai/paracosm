@@ -91,7 +91,7 @@ export function collectMetricSeries(state: GameState): MetricSeries[] {
 
 export interface RunStripCell {
   turn: number;
-  year?: number;
+  time?: number;
   diverged: boolean;
   a: { title?: string; outcome?: string; category?: string };
   b: { title?: string; outcome?: string; category?: string };
@@ -100,8 +100,8 @@ export interface RunStripCell {
 /** Build a cell per turn from the existing `turns` map ReportView already derives. */
 export function collectRunStripData(
   turns: Array<[number, {
-    a: { year?: number; events: Map<number, { title?: string; outcome?: string; category?: string }> };
-    b: { year?: number; events: Map<number, { title?: string; outcome?: string; category?: string }> };
+    a: { time?: number; events: Map<number, { title?: string; outcome?: string; category?: string }> };
+    b: { time?: number; events: Map<number, { title?: string; outcome?: string; category?: string }> };
   }]>,
 ): RunStripCell[] {
   return turns.map(([turnNum, sides]) => {
@@ -109,7 +109,7 @@ export function collectRunStripData(
     const bFirst = sides.b.events.get(0);
     return {
       turn: turnNum,
-      year: sides.a.year ?? sides.b.year,
+      time: sides.a.time ?? sides.b.time,
       diverged: classifyTurn(aFirst?.title, bFirst?.title) === 'divergent',
       a: { title: aFirst?.title, outcome: aFirst?.outcome, category: aFirst?.category },
       b: { title: bFirst?.title, outcome: bFirst?.outcome, category: bFirst?.category },

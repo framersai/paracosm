@@ -14,7 +14,7 @@ export function marsDepartmentPromptLines(dept: string, state: SimulationState):
       const avgRad = alive.length ? alive.reduce((s, c) => s + (c.health.cumulativeRadiationMsv ?? 0), 0) / alive.length : 0;
       const avgBone = alive.length ? alive.reduce((s, c) => s + (c.health.boneDensityPct ?? 0), 0) / alive.length : 0;
       lines.push('HEALTH:', `Avg radiation: ${avgRad.toFixed(0)} mSv | Avg bone: ${avgBone.toFixed(1)}% | Mars-born: ${alive.filter(c => c.core.marsborn).length}`, '');
-      lines.push('FEATURED:', ...featured.slice(0, 6).map(c => `- ${c.core.name} (${state.metadata.currentYear - c.core.birthYear}y): bone ${(c.health.boneDensityPct ?? 0).toFixed(0)}% rad ${(c.health.cumulativeRadiationMsv ?? 0).toFixed(0)}mSv psych ${c.health.psychScore.toFixed(2)}`));
+      lines.push('FEATURED:', ...featured.slice(0, 6).map(c => `- ${c.core.name} (${state.metadata.currentTime - c.core.birthTime}y): bone ${(c.health.boneDensityPct ?? 0).toFixed(0)}% rad ${(c.health.cumulativeRadiationMsv ?? 0).toFixed(0)}mSv psych ${c.health.psychScore.toFixed(2)}`));
       break;
     }
     case 'engineering':

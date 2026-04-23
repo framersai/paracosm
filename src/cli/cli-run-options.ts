@@ -3,7 +3,7 @@ import type { LlmProvider, SimulationModelConfig } from './sim-config.js';
 export interface CliRunOptions {
   maxTurns?: number;
   seed?: number;
-  startYear?: number;
+  startTime?: number;
   liveSearch: boolean;
   provider?: LlmProvider;
   models?: Partial<SimulationModelConfig>;
@@ -28,8 +28,8 @@ export function parseCliRunOptions(argv: string[]): CliRunOptions {
       case '--seed':
         options.seed = Number.parseInt(argv[++index] ?? '', 10);
         break;
-      case '--start-year':
-        options.startYear = Number.parseInt(argv[++index] ?? '', 10);
+      case '--start-time':
+        options.startTime = Number.parseInt(argv[++index] ?? '', 10);
         break;
       case '--provider':
         options.provider = (argv[++index] as LlmProvider | undefined);

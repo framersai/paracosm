@@ -30,6 +30,8 @@ export const myScenario: ScenarioPackage = {
     populationNoun: 'members',
     settlementNoun: 'settlement',
     currency: 'credits',
+    timeUnitNoun: 'year',
+    timeUnitNounPlural: 'years',
   },
 
   theme: {
@@ -41,7 +43,7 @@ export const myScenario: ScenarioPackage = {
   setup: {
     defaultTurns: 8,
     defaultSeed: 100,
-    defaultStartYear: 2040,
+    defaultStartTime: 2040,
     defaultPopulation: 50,
     configurableSections: ['leaders', 'personnel', 'resources', 'departments', 'events', 'models', 'advanced'],
   },

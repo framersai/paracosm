@@ -10,7 +10,9 @@
     "settlementNoun": "outpost",
     "currency": "credits",
     "eventNoun": "incidents",
-    "eventNounSingular": "incident"
+    "eventNounSingular": "incident",
+    "timeUnitNoun": "year",
+    "timeUnitNounPlural": "years"
   },
 
   "theme": {
@@ -28,7 +30,7 @@
     "defaultTurns": 8,
     "maxEventsPerTurn": 2,
     "defaultSeed": 1200,
-    "defaultStartYear": 2030,
+    "defaultStartTime": 2030,
     "defaultPopulation": 50,
     "configurableSections": ["leaders", "personnel", "resources", "departments", "events", "models", "advanced"]
   },

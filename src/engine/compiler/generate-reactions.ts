@@ -18,13 +18,13 @@ function buildSystemBlock(scenarioJson: Record<string, any>): string {
 
 SCENARIO: ${labels.name ?? 'Unknown'} — ${labels.settlementNoun ?? 'settlement'} simulation
 POPULATION NOUN: ${labels.populationNoun ?? 'members'}
-START YEAR: ${scenarioJson.setup?.defaultStartYear ?? 2035}
+START YEAR: ${scenarioJson.setup?.defaultStartTime ?? 2035}
 
 Function signature: (colonist, ctx) => string
 
 Inputs:
-- colonist: { core: { marsborn, birthYear, name }, health: { alive, boneDensityPct, cumulativeRadiationMsv, psychScore } }
-- ctx: { year, turn }
+- colonist: { core: { marsborn, birthTime, name }, health: { alive, boneDensityPct, cumulativeRadiationMsv, psychScore } }
+- ctx: { time, turn }
 
 Return a 1-3 sentence string providing identity + health context for a ${labels.populationNoun ?? 'member'} reaction prompt.
 
@@ -51,8 +51,8 @@ export function parseResponse(text: string): ReactionContextFn | null {
 
 function smokeTest(fn: ReactionContextFn): void {
   const result = fn(
-    { core: { marsborn: false, birthYear: 2010, name: 'Test' }, health: { alive: true, boneDensityPct: 80, cumulativeRadiationMsv: 200, psychScore: 0.6 } },
-    { year: 2045, turn: 3 },
+    { core: { marsborn: false, birthTime: 2010, name: 'Test' }, health: { alive: true, boneDensityPct: 80, cumulativeRadiationMsv: 200, psychScore: 0.6 } },
+    { time: 2045, turn: 3 },
   );
   if (typeof result !== 'string') throw new Error('Must return a string');
 }
@@ -64,7 +64,7 @@ function buildFallback(scenarioJson: Record<string, any>): ReactionContextFn {
     if (colonist.core?.marsborn) {
       lines.push(`Born at the ${labels.settlementNoun ?? 'settlement'}.`);
     } else {
-      lines.push(`Arrived ${ctx.year - (scenarioJson.setup?.defaultStartYear ?? 2035)} years ago.`);
+      lines.push(`Arrived ${ctx.time - (scenarioJson.setup?.defaultStartTime ?? 2035)} years ago.`);
     }
     if (colonist.health?.psychScore < 0.4) lines.push('Struggling with low morale.');
     return lines.join(' ');

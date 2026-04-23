@@ -34,7 +34,7 @@ export interface CellSnapshot {
   alive: boolean;
   marsborn: boolean;
   psychScore: number;
-  /** Age in years at this turn (computed from year - birthYear). */
+  /** Age in years at this turn (computed from time - birthTime). */
   age?: number;
   /** Generation depth: 0 = earth-born, 1+ = native-born depth. */
   generation?: number;
@@ -47,7 +47,7 @@ export interface CellSnapshot {
 
 export interface TurnSnapshot {
   turn: number;
-  year: number;
+  time: number;
   cells: CellSnapshot[];
   population: number;
   morale: number;

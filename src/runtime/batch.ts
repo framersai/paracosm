@@ -12,7 +12,7 @@ export interface BatchConfig {
   keyPersonnel?: KeyPersonnel[];
   turns: number;
   seed: number;
-  startYear?: number;
+  startTime?: number;
   provider?: LlmProvider;
   models?: Partial<SimulationModelConfig>;
   /**
@@ -93,7 +93,7 @@ export async function runBatch(config: BatchConfig): Promise<BatchManifest> {
       const output = await runSimulation(leader, config.keyPersonnel ?? [], {
         maxTurns: config.turns,
         seed: config.seed,
-        startYear: config.startYear,
+        startTime: config.startTime,
         provider: config.provider,
         models: config.models,
         costPreset: config.costPreset,

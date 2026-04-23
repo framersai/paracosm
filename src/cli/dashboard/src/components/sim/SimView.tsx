@@ -191,7 +191,7 @@ export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: l
   // Build turn-event text for the shared stats bar
   const eventA = sideA?.event;
   const crisisText = eventA
-    ? `T${eventA.turn} \u2014 ${eventA.year}: ${eventA.title}`
+    ? `T${eventA.turn} \u2014 ${eventA.time}: ${eventA.title}`
     : '';
 
   const verdictPlacementFor = useMemo(() => {
