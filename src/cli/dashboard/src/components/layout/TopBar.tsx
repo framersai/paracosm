@@ -223,21 +223,21 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
               content={
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--amber)', marginBottom: 6 }}>
-                    In-sim year {gameState.year}
+                    In-sim time {gameState.time}
                   </div>
                   <div>
-                    The year the colony thinks it's living in. Advances by
-                    the scenario's <code>yearsPerTurn</code> (usually 5-10)
+                    The time the colony thinks it's living in. Advances by
+                    the scenario's <code>timePerTurn</code> (usually 5-10)
                     each decision cycle. Drives aging, childbirth,
                     retirement, and long-arc narrative. Real wall-clock
-                    time doesn't matter — only the in-sim year.
+                    time doesn't matter — only the in-sim time.
                   </div>
                 </div>
               }
             >
               <span style={{ display: 'inline-flex', alignItems: 'baseline' }}>
                 <span style={{ color: 'var(--text-3)' }}>Y</span>
-                <strong style={{ color: 'var(--text-1)' }}>{gameState.year}</strong>
+                <strong style={{ color: 'var(--text-1)' }}>{gameState.time}</strong>
               </span>
             </Tooltip>
             <Tooltip

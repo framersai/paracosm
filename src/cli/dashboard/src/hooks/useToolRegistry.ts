@@ -6,7 +6,7 @@ export interface ToolUseEvent {
    *  the SSE event stream). Was `side: 'a' | 'b'` pre-F1. */
   leaderName: string;
   turn: number;
-  year: number;
+  time: number;
   eventIndex: number;
   eventTitle: string;
   department: string;
@@ -149,7 +149,7 @@ export function useToolRegistry(state: GameState): ToolRegistry {
           entry.leaderNames.add(leaderName);
 
           const serverHistory = (t.history as Array<{
-            turn: number; year: number; eventIndex: number; eventTitle: string;
+            turn: number; time: number; eventIndex: number; eventTitle: string;
             department: string; output: string | null;
             isReforge: boolean; rejected: boolean; confidence?: number;
           }>) || null;
@@ -205,7 +205,7 @@ export function useToolRegistry(state: GameState): ToolRegistry {
           history: [
             {
               turn: Number(d.turn ?? evt.turn ?? 0),
-              year: Number(d.year ?? 0),
+              time: Number(d.time ?? 0),
               eventIndex: Number(d.eventIndex ?? 0),
               eventTitle: '',
               department: String(d.department || ''),

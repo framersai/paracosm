@@ -27,7 +27,7 @@ function cell(overrides: Partial<CellSnapshot> & { agentId: string }): CellSnaps
 function snap(cells: CellSnapshot[]): TurnSnapshot {
   return {
     turn: 1,
-    year: 2040,
+    time: 2040,
     cells,
     population: cells.filter(c => c.alive).length,
     morale: 0.5,

@@ -17,7 +17,7 @@
 /** A single invocation of a forged tool, appended to the tool's history. */
 export interface ToolUseRecord {
   turn: number;
-  year: number;
+  time: number;
   eventIndex: number;
   eventTitle: string;
   department: string;

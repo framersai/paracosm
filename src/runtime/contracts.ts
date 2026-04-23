@@ -85,7 +85,7 @@ export interface CrisisResearchPacket {
 
 export interface TurnArtifact {
   turn: number;
-  year: number;
+  time: number;
   crisis: string;
   departmentReports: DepartmentReport[];
   commanderDecision: CommanderDecision;

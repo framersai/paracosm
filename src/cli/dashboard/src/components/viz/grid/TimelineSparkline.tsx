@@ -248,7 +248,7 @@ export function TimelineSparkline({
               }}
             >
               T{hoveredTurn + 1}
-              {a?.year ? ` · ${a.year}` : ''}
+              {a?.time ? ` · ${a.time}` : ''}
             </div>
             {a && (
               <div style={{ color: 'var(--vis)', display: 'flex', gap: 6, flexWrap: 'wrap' }}>

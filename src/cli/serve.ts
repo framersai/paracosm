@@ -73,7 +73,7 @@ server.listen(PORT, async () => {
     leaders,
     turns: cliOptions.maxTurns,
     seed: cliOptions.seed,
-    startYear: cliOptions.startYear,
+    startTime: cliOptions.startTime,
     liveSearch: cliOptions.liveSearch,
     provider: cliOptions.provider,
     models: cliOptions.models,

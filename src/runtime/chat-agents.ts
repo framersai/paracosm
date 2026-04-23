@@ -39,7 +39,7 @@ export interface ColonistProfile {
 export interface ColonistMemoryEntry {
   type: 'reaction' | 'crisis' | 'department' | 'decision' | 'outcome' | 'roster';
   turn: number;
-  year: number;
+  time: number;
   text: string;
   tags: string[];
 }
@@ -338,7 +338,7 @@ function buildInstructions(
   );
   lines.push(
     `Ground every answer in specific turns, years, decisions, people, or events from your ` +
-    `memory. Cite turn numbers and years (e.g. "Turn 3, year 2043"). Name the ` +
+    `memory. Cite turn numbers and years (e.g. "Turn 3, time 2043"). Name the ` +
     `commander's choice that affected you. Name the people involved. ` +
     `If you have no relevant memory, say so and pivot to the closest event you do recall.`
   );
@@ -386,7 +386,7 @@ export function extractColonistMemories(
   for (const evt of simEvents) {
     const d = evt.data || {};
     const turn = (d.turn as number) || 0;
-    const year = (d.year as number) || 0;
+    const time = (d.time as number) || 0;
 
     // Personal reactions
     if (evt.type === 'agent_reactions') {
@@ -395,8 +395,8 @@ export function extractColonistMemories(
         if (r.agentId === agentId || String(r.name || '').toLowerCase().includes(agentId.toLowerCase())) {
           memories.push({
             type: 'reaction',
-            turn, year,
-            text: `Turn ${turn} (Year ${year}): I felt ${r.mood}. My reaction: "${r.quote}"`,
+            turn, time,
+            text: `Turn ${turn} (Year ${time}): I felt ${r.mood}. My reaction: "${r.quote}"`,
             tags: ['personal', 'reaction', `turn-${turn}`],
           });
         }
@@ -407,8 +407,8 @@ export function extractColonistMemories(
     if (evt.type === 'turn_start' && d.title && d.title !== 'Director generating...') {
       memories.push({
         type: 'crisis',
-        turn, year,
-        text: `Turn ${turn} (Year ${year}): Crisis "${d.title}" (${d.category}). ${String(d.crisis || d.turnSummary || '').slice(0, 300)}`,
+        turn, time,
+        text: `Turn ${turn} (Year ${time}): Crisis "${d.title}" (${d.category}). ${String(d.crisis || d.turnSummary || '').slice(0, 300)}`,
         tags: ['crisis', String(d.category), `turn-${turn}`],
       });
     }
@@ -417,7 +417,7 @@ export function extractColonistMemories(
     if (evt.type === 'specialist_done') {
       memories.push({
         type: 'department',
-        turn, year,
+        turn, time,
         text: `Turn ${turn} ${d.department} department report: ${String(d.summary || '').slice(0, 300)}`,
         tags: ['department', String(d.department), `turn-${turn}`],
       });
@@ -427,7 +427,7 @@ export function extractColonistMemories(
     if (evt.type === 'decision_made') {
       memories.push({
         type: 'decision',
-        turn, year,
+        turn, time,
         text: `Turn ${turn}: The commander decided: ${String(d.decision || '').slice(0, 300)}`,
         tags: ['decision', `turn-${turn}`],
       });
@@ -437,7 +437,7 @@ export function extractColonistMemories(
     if (evt.type === 'outcome') {
       memories.push({
         type: 'outcome',
-        turn, year,
+        turn, time,
         text: `Turn ${turn}: Outcome was ${d.outcome}. Colony effects applied.`,
         tags: ['outcome', `turn-${turn}`],
       });

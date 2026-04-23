@@ -33,6 +33,10 @@ export interface ScenarioLabels {
   eventNoun?: string;
   /** What to call a single turn event (e.g., "crisis", "event", "incident"). Default: "event" */
   eventNounSingular?: string;
+  /** Singular display word for one simulation time-unit (e.g., "year", "hour", "quarter", "tick"). Default when absent: "tick". */
+  timeUnitNoun?: string;
+  /** Plural form of `timeUnitNoun` (e.g., "years", "hours", "quarters", "ticks"). Default when absent: "ticks". */
+  timeUnitNounPlural?: string;
 }
 
 /** Visual theme for a scenario. Applied to the dashboard via CSS custom properties. */
@@ -51,8 +55,8 @@ export interface ScenarioTheme {
 export interface ScenarioSetupSchema {
   defaultTurns: number;
   defaultSeed: number;
-  defaultStartYear: number;
-  defaultYearsPerTurn?: number;
+  defaultStartTime: number;
+  defaultTimePerTurn?: number;
   defaultPopulation: number;
   /** Maximum events the Event Director can generate per turn. Default: 3 */
   maxEventsPerTurn?: number;
@@ -234,10 +238,10 @@ export interface ScenarioPreset {
 export interface ProgressionHookContext {
   /** All agents (mutable: the hook modifies health fields in place) */
   agents: Agent[];
-  yearDelta: number;
-  year: number;
+  timeDelta: number;
+  time: number;
   turn: number;
-  startYear: number;
+  startTime: number;
   /** Seeded RNG for deterministic random operations */
   rng: { chance(probability: number): boolean; next(): number; pick<T>(arr: readonly T[]): T; int(min: number, max: number): number };
 }
@@ -267,9 +271,9 @@ export interface ScenarioHooks {
   /** Builds the Event Director's per-turn context prompt */
   directorPromptHook?: (ctx: Record<string, unknown>) => string;
   /** Returns location/identity/health phrasing for agent reaction prompts */
-  reactionContextHook?: (colonist: Agent, ctx: { year: number; turn: number }) => string;
+  reactionContextHook?: (colonist: Agent, ctx: { time: number; turn: number }) => string;
   /** Computes a timeline fingerprint classification from final simulation state */
-  fingerprintHook?: (finalState: SimulationState, outcomeLog: Array<{ turn: number; year: number; outcome: string }>, leader: LeaderConfig, toolRegs: Record<string, string[]>, maxTurns: number) => Record<string, string>;
+  fingerprintHook?: (finalState: SimulationState, outcomeLog: Array<{ turn: number; time: number; outcome: string }>, leader: LeaderConfig, toolRegs: Record<string, string[]>, maxTurns: number) => Record<string, string>;
   /** Returns a milestone event for narrative anchor turns (turn 1, final turn) */
   getMilestoneEvent?: (turn: number, maxTurns: number) => MilestoneEventDef | null;
   /** Returns politics deltas for political/social events, null if not applicable */
@@ -306,7 +310,7 @@ export interface MilestoneEventDef {
 /** Legacy turn-based scenario (used by static SCENARIOS array and department context). */
 export interface Scenario {
   turn: number;
-  year: number;
+  time: number;
   title: string;
   crisis: string;
   researchKeywords: string[];

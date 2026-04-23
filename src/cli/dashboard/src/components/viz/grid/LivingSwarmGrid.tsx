@@ -44,8 +44,8 @@ interface LivingSwarmGridProps {
   leaderName: string;
   leaderArchetype: string;
   leaderUnit?: string;
-  /** First year of the scenario for HUD "Yr N" readout. */
-  startYear?: number;
+  /** First time of the scenario for HUD "Yr N" readout. */
+  startTime?: number;
   sideColor: string;
   side: 'a' | 'b';
   lagTurns?: number;
@@ -138,7 +138,7 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
     snapshotHistory,
     leaderName,
     leaderArchetype,
-    startYear,
+    startTime,
     sideColor,
     side,
     lagTurns,
@@ -526,7 +526,7 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
     drawHud(ctx, snapshot, {
       leaderName,
       leaderArchetype,
-      startYear,
+      startTime,
       sideColor: resolvedSide,
       width: size.w,
       height: size.h,
@@ -637,7 +637,7 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
     cursor,
     settings,
     leaderArchetype,
-    startYear,
+    startTime,
     forgeAttempts,
     eventFilter,
   ]);

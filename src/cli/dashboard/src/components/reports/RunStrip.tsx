@@ -84,7 +84,7 @@ export function RunStrip(props: RunStripProps) {
             type="button"
             role="listitem"
             onClick={() => handleClick(cell.turn)}
-            aria-label={`Jump to turn ${cell.turn}${cell.year ? ', year ' + cell.year : ''}${cell.diverged ? ', divergent' : ''}`}
+            aria-label={`Jump to turn ${cell.turn}${cell.time ? ', time ' + cell.time : ''}${cell.diverged ? ', divergent' : ''}`}
             style={{
               display: 'flex', flexDirection: 'column', gap: 4,
               padding: '6px 8px',
@@ -96,7 +96,7 @@ export function RunStrip(props: RunStripProps) {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-3)' }}>
               <span style={{ fontWeight: 700 }}>T{cell.turn}</span>
-              {cell.year && <span>Y{cell.year}</span>}
+              {cell.time && <span>Y{cell.time}</span>}
             </div>
             <Badge outcome={cell.a.outcome} sideColor="var(--vis)" />
             <Badge outcome={cell.b.outcome} sideColor="var(--eng)" />

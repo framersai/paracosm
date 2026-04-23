@@ -38,7 +38,7 @@ export interface SystemsSnapshot {
 
 export interface TurnResult {
   turn: number;
-  year: number;
+  time: number;
   title: string;
   crisis: string;
   decision: string;
@@ -68,7 +68,7 @@ export interface SimulationLog {
 
 export interface Scenario {
   turn: number;
-  year: number;
+  time: number;
   title: string;
   crisis: string;
   researchKeywords: string[];

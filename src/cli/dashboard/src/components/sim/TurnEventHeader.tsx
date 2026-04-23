@@ -39,7 +39,7 @@ export function TurnEventHeader({ leaderIndex, event }: TurnEventHeaderProps) {
           </span>
         )}
         <span style={{ fontSize: '11px', color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
-          Year {event.year} &middot; Leader {String.fromCharCode(65 + leaderIndex)}
+          Year {event.time} &middot; Leader {String.fromCharCode(65 + leaderIndex)}
         </span>
       </div>
       {fullText && (

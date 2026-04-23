@@ -23,7 +23,7 @@ ${depts}
 Function signature: (ctx) => string[]
 ctx shape:
 - ctx.department: string (department ID)
-- ctx.state: { agents, systems, politics, metadata: { currentYear } }
+- ctx.state: { agents, systems, politics, metadata: { currentTime } }
 - ctx.scenario: any
 - ctx.researchPacket: { canonicalFacts[], counterpoints[], departmentNotes }
 
@@ -59,7 +59,7 @@ function buildSmokeTest(scenarioJson: Record<string, any>): (fn: DepartmentPromp
         agents: [{ core: { name: 'Test' }, health: { alive: true, boneDensityPct: 90, cumulativeRadiationMsv: 100, psychScore: 0.7 } }],
         systems: { morale: 0.6, population: 80, foodMonthsReserve: 6, powerKw: 300, infrastructureModules: 10, scienceOutput: 5, lifeSupportCapacity: 100 },
         politics: { earthDependencyPct: 50, governanceStatus: 'colonial' },
-        metadata: { currentYear: 2045 },
+        metadata: { currentTime: 2045 },
       },
       scenario: scenarioJson,
       researchPacket: { canonicalFacts: [], counterpoints: [], departmentNotes: {} },

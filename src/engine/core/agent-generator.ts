@@ -62,7 +62,7 @@ export interface KeyPersonnel {
 
 export function generateInitialPopulation(
   seed: number,
-  startYear: number,
+  startTime: number,
   keyPersonnel: KeyPersonnel[],
   totalPopulation: number = 100,
 ): Agent[] {
@@ -72,7 +72,7 @@ export function generateInitialPopulation(
 
   for (const kp of keyPersonnel) {
     usedNames.add(kp.name);
-    colonists.push(createColonist(kp.name, startYear - kp.age, kp.department, kp.role, kp.specialization, false, kp.featured, randomHexaco(rng), startYear));
+    colonists.push(createColonist(kp.name, startTime - kp.age, kp.department, kp.role, kp.specialization, false, kp.featured, randomHexaco(rng), startTime));
   }
 
   const remaining = Math.max(0, totalPopulation - keyPersonnel.length);
@@ -89,9 +89,9 @@ export function generateInitialPopulation(
     const rank = age > 40 ? (rng.chance(0.3) ? 'lead' : 'senior') : (rng.chance(0.2) ? 'senior' : 'junior');
 
     const c = createColonist(
-      name, startYear - age, dept,
+      name, startTime - age, dept,
       `${rank.charAt(0).toUpperCase() + rank.slice(1)} ${spec} Specialist`,
-      spec, false, false, randomHexaco(rng), startYear,
+      spec, false, false, randomHexaco(rng), startTime,
     );
     c.career.rank = rank as 'junior' | 'senior' | 'lead';
     c.career.yearsExperience = rng.int(2, age - 22);
@@ -102,18 +102,18 @@ export function generateInitialPopulation(
 }
 
 function createColonist(
-  name: string, birthYear: number, department: Department,
+  name: string, birthTime: number, department: Department,
   role: string, specialization: string, marsborn: boolean, featured: boolean,
-  hexaco: HexacoProfile, startYear: number,
+  hexaco: HexacoProfile, startTime: number,
 ): Agent {
   return {
-    core: { id: `col-${name.toLowerCase().replace(/\s+/g, '-')}`, name, birthYear, marsborn, department, role },
+    core: { id: `col-${name.toLowerCase().replace(/\s+/g, '-')}`, name, birthTime, marsborn, department, role },
     health: { alive: true, boneDensityPct: marsborn ? 88 : 100, cumulativeRadiationMsv: 0, psychScore: 0.8, conditions: [] },
     career: { specialization, yearsExperience: 0, rank: 'senior', achievements: [] },
     social: { childrenIds: [], friendIds: [], earthContacts: marsborn ? 0 : 5 },
     narrative: { lifeEvents: [], featured },
     hexaco,
-    hexacoHistory: [{ turn: 0, year: startYear, hexaco: { ...hexaco } }],
+    hexacoHistory: [{ turn: 0, time: startTime, hexaco: { ...hexaco } }],
     memory: { shortTerm: [], longTerm: [], stances: {}, relationships: {} },
   };
 }

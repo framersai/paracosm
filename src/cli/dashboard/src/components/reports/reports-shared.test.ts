@@ -76,23 +76,23 @@ test('collectMetricSeries drops events without a systems payload', () => {
 
 test('collectRunStripData builds a cell per turn with per-side outcome + diverged flag', () => {
   const turns: Array<[number, {
-    a: { year?: number; events: Map<number, { title?: string; outcome?: string; category?: string }> };
-    b: { year?: number; events: Map<number, { title?: string; outcome?: string; category?: string }> };
+    a: { time?: number; events: Map<number, { title?: string; outcome?: string; category?: string }> };
+    b: { time?: number; events: Map<number, { title?: string; outcome?: string; category?: string }> };
   }]> = [
     [1, {
-      a: { year: 2035, events: new Map([[0, { title: 'Landfall', outcome: 'risky_success', category: 'infrastructure' }]]) },
-      b: { year: 2035, events: new Map([[0, { title: 'Landfall', outcome: 'conservative_success', category: 'infrastructure' }]]) },
+      a: { time: 2035, events: new Map([[0, { title: 'Landfall', outcome: 'risky_success', category: 'infrastructure' }]]) },
+      b: { time: 2035, events: new Map([[0, { title: 'Landfall', outcome: 'conservative_success', category: 'infrastructure' }]]) },
     }],
     [2, {
-      a: { year: 2043, events: new Map([[0, { title: 'Perchlorate', outcome: 'conservative_failure', category: 'resource' }]]) },
-      b: { year: 2043, events: new Map([[0, { title: 'Solar storm', outcome: 'conservative_failure', category: 'environmental' }]]) },
+      a: { time: 2043, events: new Map([[0, { title: 'Perchlorate', outcome: 'conservative_failure', category: 'resource' }]]) },
+      b: { time: 2043, events: new Map([[0, { title: 'Solar storm', outcome: 'conservative_failure', category: 'environmental' }]]) },
     }],
   ];
 
   const cells = collectRunStripData(turns);
   assert.equal(cells.length, 2);
   assert.equal(cells[0].turn, 1);
-  assert.equal(cells[0].year, 2035);
+  assert.equal(cells[0].time, 2035);
   assert.equal(cells[0].diverged, false);
   assert.equal(cells[0].a.outcome, 'risky_success');
   assert.equal(cells[0].b.outcome, 'conservative_success');

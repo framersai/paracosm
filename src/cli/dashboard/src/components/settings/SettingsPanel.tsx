@@ -127,8 +127,8 @@ export function SettingsPanel() {
   }, [scenario.id, scenario.presets.length]);
   const [turns, setTurns] = useState(scenario.setup.defaultTurns);
   const [seed, setSeed] = useState(scenario.setup.defaultSeed);
-  const [startYear, setStartYear] = useState(scenario.setup.defaultStartYear);
-  const [yearsPerTurn, setYearsPerTurn] = useState(scenario.setup.defaultYearsPerTurn || 0);
+  const [startTime, setStartTime] = useState(scenario.setup.defaultStartTime);
+  const [timePerTurn, setTimePerTurn] = useState(scenario.setup.defaultTimePerTurn || 0);
   const [population, setPopulation] = useState(scenario.setup.defaultPopulation);
   const [provider, setProvider] = useState('openai');
   const [liveSearch, setLiveSearch] = useState(false);
@@ -257,7 +257,7 @@ export function SettingsPanel() {
           { ...leaderA, hexaco: leaderA.hexaco },
           { ...leaderB, hexaco: leaderB.hexaco },
         ],
-        provider, turns, seed, startYear, yearsPerTurn: yearsPerTurn || undefined, population, liveSearch,
+        provider, turns, seed, startTime, timePerTurn: timePerTurn || undefined, population, liveSearch,
         activeDepartments: scenario.departments.map(d => d.id),
         economics: { profileId: effectiveEconomicsProfile },
       };
@@ -306,7 +306,7 @@ export function SettingsPanel() {
       setStatus(`Failed: ${err}`);
       setLaunching(false);
     }
-  }, [leaderA, leaderB, turns, seed, startYear, population, provider, liveSearch, navigateTab, scenario, keyOverrides, tierModels, hasUserLlmKey, effectiveEconomicsProfile]);
+  }, [leaderA, leaderB, turns, seed, startTime, population, provider, liveSearch, navigateTab, scenario, keyOverrides, tierModels, hasUserLlmKey, effectiveEconomicsProfile]);
 
   return (
     <div className="settings-content" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '20px 24px', background: 'var(--bg-deep)' }}>
@@ -427,12 +427,12 @@ export function SettingsPanel() {
             <input
               id="ypt-input"
               type="number"
-              value={yearsPerTurn}
-              onChange={e => setYearsPerTurn(parseInt(e.target.value) || 0)}
+              value={timePerTurn}
+              onChange={e => setTimePerTurn(parseInt(e.target.value) || 0)}
               min={0}
               max={50}
               placeholder="auto"
-              title="Years per turn. 0 = accelerating schedule (default). 1 = 1 year per turn. 5 = 5 years per turn."
+              title="Years per turn. 0 = accelerating schedule (default). 1 = 1 time per turn. 5 = 5 years per turn."
               style={inputStyle}
             />
           </div>
@@ -441,8 +441,8 @@ export function SettingsPanel() {
             <input id="seed-input" type="number" value={seed} onChange={e => setSeed(parseInt(e.target.value) || 950)} style={inputStyle} />
           </div>
           <div>
-            <label htmlFor="year-input" style={SETTINGS_LABEL_STYLE}>Start Year</label>
-            <input id="year-input" type="number" value={startYear} onChange={e => setStartYear(parseInt(e.target.value) || 2035)} style={inputStyle} />
+            <label htmlFor="time-input" style={SETTINGS_LABEL_STYLE}>Start Year</label>
+            <input id="time-input" type="number" value={startTime} onChange={e => setStartTime(parseInt(e.target.value) || 2035)} style={inputStyle} />
           </div>
           <div>
             <label htmlFor="pop-input" style={SETTINGS_LABEL_STYLE}>

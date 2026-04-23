@@ -6,7 +6,7 @@ import { buildTrajectoryCue } from './hexaco-cues/trajectory.js';
 /** Summary of a department's previous turn for session continuity */
 export interface DepartmentTurnMemory {
   turn: number;
-  year: number;
+  time: number;
   crisis: string;
   summary: string;
   recommendedActions: string[];
@@ -99,7 +99,7 @@ export function buildDepartmentContext(
   if (previousTurns?.length) {
     memoryBlock.push('', 'YOUR PREVIOUS ANALYSES (remember what you recommended and what happened):');
     for (const m of previousTurns.slice(-3)) {
-      memoryBlock.push(`  Turn ${m.turn} (${m.year}): "${m.crisis}" → ${m.outcome}`);
+      memoryBlock.push(`  Turn ${m.turn} (${m.time}): "${m.crisis}" → ${m.outcome}`);
       if (m.summary) memoryBlock.push(`    Your analysis: ${m.summary.slice(0, 120)}`);
       if (m.recommendedActions.length) memoryBlock.push(`    You recommended: ${m.recommendedActions.slice(0, 2).join('; ')}`);
       if (m.toolsForged.length) memoryBlock.push(`    Tools you forged: ${m.toolsForged.join(', ')}`);
@@ -108,7 +108,7 @@ export function buildDepartmentContext(
   }
 
   const lines = [
-    `TURN ${state.metadata.currentTurn} — YEAR ${state.metadata.currentYear}: ${scenario.title}`,
+    `TURN ${state.metadata.currentTurn} — YEAR ${state.metadata.currentTime}: ${scenario.title}`,
     ...hexacoBlock,
     ...memoryBlock,
     '', scenario.crisis, '',

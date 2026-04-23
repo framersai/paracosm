@@ -10,7 +10,9 @@
     "settlementNoun": "colony",
     "currency": "credits",
     "eventNoun": "crises",
-    "eventNounSingular": "crisis"
+    "eventNounSingular": "crisis",
+    "timeUnitNoun": "year",
+    "timeUnitNounPlural": "years"
   },
 
   "theme": {
@@ -28,8 +30,8 @@
     "defaultTurns": 6,
     "maxEventsPerTurn": 2,
     "defaultSeed": 950,
-    "defaultStartYear": 2035,
-    "defaultYearsPerTurn": 8,
+    "defaultStartTime": 2035,
+    "defaultTimePerTurn": 8,
     "defaultPopulation": 100,
     "configurableSections": ["leaders", "personnel", "resources", "departments", "events", "models", "advanced"]
   },

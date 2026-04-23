@@ -108,7 +108,7 @@ export interface RunPromotionArgs {
   kernel: PromotionKernel;
   scenario: ScenarioPackage;
   leader: LeaderConfig;
-  startYear: number;
+  startTime: number;
   /** Commander session `.send(prompt)` — returns whatever AgentOS returns. */
   sendToCommander: (prompt: string) => Promise<{ text: string; usage?: CallUsage }>;
   /** Tagged cost-tracker entry point so the commander bucket gets charged. */
@@ -128,7 +128,7 @@ export interface RunPromotionArgs {
  * fallback so no department enters turn 1 without a head.
  */
 export async function runDepartmentPromotions(args: RunPromotionArgs): Promise<void> {
-  const { kernel, scenario, leader, startYear, sendToCommander, trackUsage, recordSchemaAttempt, emit } = args;
+  const { kernel, scenario, leader, startTime, sendToCommander, trackUsage, recordSchemaAttempt, emit } = args;
 
   console.log('  [Turn 0] Commander evaluating roster for promotions...');
   const promotionDepts: Department[] = scenario.departments.map(d => d.id as Department);
@@ -136,7 +136,7 @@ export async function runDepartmentPromotions(args: RunPromotionArgs): Promise<v
   const candidateSummaries = promotionDepts.map(dept => {
     const candidates = kernel.getCandidates(dept, 5);
     return `## ${dept.toUpperCase()} — Top 5 Candidates:\n${candidates.map(c => {
-      const age = startYear - c.core.birthYear;
+      const age = startTime - c.core.birthTime;
       const h = c.hexaco;
       return `- ${c.core.name} (${c.core.id}), age ${age}, spec: ${c.career.specialization}, O:${h.openness.toFixed(2)} C:${h.conscientiousness.toFixed(2)} E:${h.extraversion.toFixed(2)} A:${h.agreeableness.toFixed(2)} Em:${h.emotionality.toFixed(2)} HH:${h.honestyHumility.toFixed(2)}`;
     }).join('\n')}`;

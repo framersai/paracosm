@@ -52,7 +52,7 @@ export async function runPairSimulations(
    */
   scenario: ScenarioPackage = marsScenario,
 ): Promise<void> {
-  const { leaders, turns, seed, startYear, liveSearch, customEvents } = simConfig;
+  const { leaders, turns, seed, startTime, liveSearch, customEvents } = simConfig;
   broadcast('status', { phase: 'starting', maxTurns: turns, customEvents });
 
   const { runSimulation } = await import('../runtime/orchestrator.js');
@@ -74,8 +74,8 @@ export async function runPairSimulations(
     return runSimulation(leader, simConfig.keyPersonnel ?? DEFAULT_KEY_PERSONNEL, {
       maxTurns: turns,
       seed,
-      startYear,
-      yearsPerTurn: simConfig.yearsPerTurn,
+      startTime,
+      timePerTurn: simConfig.timePerTurn,
       liveSearch,
       activeDepartments: simConfig.activeDepartments,
       onEvent,

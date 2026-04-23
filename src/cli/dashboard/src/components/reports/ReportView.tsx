@@ -64,7 +64,7 @@ interface EventBlock {
 }
 
 interface TurnData {
-  year?: number;
+  time?: number;
   systems?: Record<string, unknown>;
   events: Map<number, EventBlock>;
   reactions: Array<Record<string, unknown>>;
@@ -120,7 +120,7 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
         const totalEvents = Number(evt.data?.totalEvents ?? 1);
 
         if (evt.type === 'turn_start') {
-          if (evt.data?.year != null) t.year = evt.data.year as number;
+          if (evt.data?.time != null) t.time = evt.data.time as number;
           if (evt.data?.systems) t.systems = evt.data.systems as Record<string, unknown>;
           // Legacy single-event turn_start: also seed event 0
           if (evt.data?.title && evt.data?.title !== 'Director generating...' && !evt.data?.totalEvents) {
@@ -513,7 +513,7 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
       {turns.map(([turnNum, sides]) => {
         const a = sides.a;
         const b = sides.b;
-        const year = a.year || b.year || '?';
+        const time = a.time || b.time || '?';
         const eventCount = Math.max(
           ...[...a.events.values()].map(e => e.totalEvents),
           ...[...b.events.values()].map(e => e.totalEvents),
@@ -536,7 +536,7 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
               <span style={{ fontSize: '18px', fontWeight: 800, fontFamily: 'var(--mono)', color: 'var(--text-1)' }}>
-                Turn {turnNum} &mdash; Y{year}
+                Turn {turnNum} &mdash; Y{time}
                 {eventCount > 1 && (
                   <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-3)', marginLeft: 8, fontFamily: 'var(--mono)' }}>
                     {eventCount} events

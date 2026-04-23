@@ -45,11 +45,11 @@ export interface LeaderInfo {
  * `turn_start` and `event_start` events. The scenario layer calls these
  * "events" generically; the default label noun is `crisis` (Mars-
  * heritage) but scenarios override via `labels.eventNounSingular`. Field
- * `year` is legacy — tracked in audit F23 (generic time units).
+ * `time` is legacy — tracked in audit F23 (generic time units).
  */
 export interface TurnEventInfo {
   turn: number;
-  year?: number;
+  time?: number;
   title: string;
   description?: string;
   category: string;
@@ -101,7 +101,7 @@ export interface ProcessedEvent {
   id: string;
   type: string;
   turn?: number;
-  year?: number;
+  time?: number;
   data: Record<string, unknown>;
 }
 
@@ -145,7 +145,7 @@ export interface GameState {
    *  F2/F3 will generalize to N-column rendering against the full list. */
   leaderIds: string[];
   turn: number;
-  year: number;
+  time: number;
   maxTurns: number;
   seed: number;
   isRunning: boolean;
@@ -195,7 +195,7 @@ export function computeGameState(sseEvents: SimEvent[], isComplete: boolean): Ga
   const state: GameState = {
     leaders: {},
     leaderIds: [],
-    turn: 0, year: 0, maxTurns: 6, seed: 950,
+    turn: 0, time: 0, maxTurns: 6, seed: 950,
     isRunning: false, isComplete,
     cost: emptyCost(),
     costByLeader: {},
@@ -344,7 +344,7 @@ export function computeGameState(sseEvents: SimEvent[], isComplete: boolean): Ga
       id: `${i}-${evt.type}`,
       type: evt.type,
       turn: dd.turn as number | undefined,
-      year: dd.year as number | undefined,
+      time: dd.time as number | undefined,
       data: dd,
     };
 
@@ -360,7 +360,7 @@ export function computeGameState(sseEvents: SimEvent[], isComplete: boolean): Ga
         if (info.totalEvents > 1) {
           s.event = {
             turn: dd.turn as number,
-            year: dd.year as number,
+            time: dd.time as number,
             title: `${info.eventIndex + 1}/${info.totalEvents}: ${info.title}`,
             description: dd.description as string || '',
             category: info.category,
@@ -375,11 +375,11 @@ export function computeGameState(sseEvents: SimEvent[], isComplete: boolean): Ga
       case 'turn_start':
         s.currentEvents = [];
         if (dd.turn) state.turn = dd.turn as number;
-        if (dd.year) state.year = dd.year as number;
+        if (dd.time) state.time = dd.time as number;
         if (dd.title && dd.title !== 'Director generating...') {
           s.event = {
             turn: dd.turn as number,
-            year: dd.year as number,
+            time: dd.time as number,
             title: dd.title as string,
             description: dd.crisis as string || '',
             category: dd.category as string || '',

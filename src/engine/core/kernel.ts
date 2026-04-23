@@ -21,7 +21,7 @@ export interface PolicyEffect {
 }
 
 export interface SimulationInitOverrides {
-  startYear?: number;
+  startTime?: number;
   initialPopulation?: number;
   startingResources?: Partial<WorldSystems>;
   startingPolitics?: Partial<WorldPolitics>;
@@ -33,14 +33,14 @@ export class SimulationKernel {
 
   constructor(seed: number, leaderId: string, keyPersonnel: KeyPersonnel[], init: SimulationInitOverrides = {}) {
     this.rng = new SeededRng(seed);
-    const startYear = init.startYear ?? 2035;
-    const agents = generateInitialPopulation(seed, startYear, keyPersonnel, init.initialPopulation ?? 100);
+    const startTime = init.startTime ?? 2035;
+    const agents = generateInitialPopulation(seed, startTime, keyPersonnel, init.initialPopulation ?? 100);
 
     this.state = {
       metadata: {
         simulationId: `sim-${seed}-${leaderId.toLowerCase().replace(/\s+/g, '-')}`,
         leaderId, seed,
-        startYear, currentYear: startYear, currentTurn: 0,
+        startTime, currentTime: startTime, currentTurn: 0,
       },
       systems: {
         population: agents.length,
@@ -127,16 +127,16 @@ export class SimulationKernel {
   }
 
   /** Advance to the next turn. Runs between-turn progression. */
-  advanceTurn(nextTurn: number, nextYear: number, progressionHook?: (ctx: { agents: any[]; yearDelta: number; year: number; turn: number; startYear: number; rng: any }) => void): SimulationState {
-    const prevYear = this.state.metadata.currentYear;
-    const yearDelta = nextYear - prevYear;
+  advanceTurn(nextTurn: number, nextTime: number, progressionHook?: (ctx: { agents: any[]; timeDelta: number; time: number; turn: number; startTime: number; rng: any }) => void): SimulationState {
+    const prevTime = this.state.metadata.currentTime;
+    const timeDelta = nextTime - prevTime;
     const turnRng = this.rng.turnSeed(nextTurn);
 
     // Update metadata FIRST so progression stamps events correctly
-    this.state.metadata.currentYear = nextYear;
+    this.state.metadata.currentTime = nextTime;
     this.state.metadata.currentTurn = nextTurn;
 
-    const { state: progressed, events } = progressBetweenTurns(this.state, yearDelta, turnRng, progressionHook);
+    const { state: progressed, events } = progressBetweenTurns(this.state, timeDelta, turnRng, progressionHook);
     this.state = progressed;
     this.state.systems.population = this.getAliveCount();
     this.updateFeaturedAgents(events);
@@ -181,13 +181,13 @@ export class SimulationKernel {
     c.career.rank = 'chief';
     c.narrative.featured = true;
     c.narrative.lifeEvents.push({
-      year: this.state.metadata.currentYear,
+      time: this.state.metadata.currentTime,
       event: `Promoted to ${role} by ${promotedBy}`,
       source: 'commander',
     });
     this.state.eventLog.push({
       turn: this.state.metadata.currentTurn,
-      year: this.state.metadata.currentYear,
+      time: this.state.metadata.currentTime,
       type: 'promotion',
       description: `${c.core.name} promoted to ${role}`,
       agentId,
@@ -226,10 +226,10 @@ export class SimulationKernel {
   }
 
   /** Apply personality drift to all promoted colonists. */
-  applyDrift(commanderHexaco: HexacoProfile, outcome: TurnOutcome | null, yearDelta: number): void {
+  applyDrift(commanderHexaco: HexacoProfile, outcome: TurnOutcome | null, timeDelta: number): void {
     applyPersonalityDrift(
-      this.state.agents, commanderHexaco, outcome, yearDelta,
-      this.state.metadata.currentTurn, this.state.metadata.currentYear,
+      this.state.agents, commanderHexaco, outcome, timeDelta,
+      this.state.metadata.currentTurn, this.state.metadata.currentTime,
     );
   }
 
@@ -257,7 +257,7 @@ export class SimulationKernel {
       }
       if (u.narrativeEvent) {
         col.narrative.lifeEvents.push({
-          year: this.state.metadata.currentYear,
+          time: this.state.metadata.currentTime,
           event: u.narrativeEvent,
           source: col.core.department,
         });

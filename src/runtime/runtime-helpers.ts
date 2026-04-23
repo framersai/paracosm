@@ -26,14 +26,14 @@ export function applyCustomEventToCrisis<T extends { description: string; turnSu
   };
 }
 
-export function buildYearSchedule(startYear: number, maxTurns: number, yearsPerTurn?: number): number[] {
-  if (yearsPerTurn != null && yearsPerTurn > 0) {
-    return Array.from({ length: maxTurns }, (_, i) => startYear + i * yearsPerTurn);
+export function buildTimeSchedule(startTime: number, maxTurns: number, timePerTurn?: number): number[] {
+  if (timePerTurn != null && timePerTurn > 0) {
+    return Array.from({ length: maxTurns }, (_, i) => startTime + i * timePerTurn);
   }
-  // Default: accelerating schedule (2, 3, 3, 3, 3, 4, 5, 5, 5, 7, 10 year gaps)
+  // Default: accelerating schedule (2, 3, 3, 3, 3, 4, 5, 5, 5, 7, 10 time gaps)
   const offsets = [0, 2, 5, 8, 11, 14, 18, 23, 28, 33, 40, 50];
   return Array.from({ length: maxTurns }, (_, index) => {
     const offset = offsets[index] ?? (offsets[offsets.length - 1] + (index - offsets.length + 1) * 5);
-    return startYear + offset;
+    return startTime + offset;
   });
 }

@@ -1,7 +1,7 @@
 interface VizControlsProps {
   currentTurn: number;
   maxTurn: number;
-  year: number;
+  time: number;
   playing: boolean;
   speed: number;
   onTurnChange: (turn: number) => void;
@@ -20,7 +20,7 @@ const SPEEDS = [0.5, 1, 2, 4];
  * shortcut.
  */
 export function VizControls({
-  currentTurn, maxTurn, year, playing, speed,
+  currentTurn, maxTurn, time, playing, speed,
   onTurnChange, onPlayPause, onStepBack, onStepForward, onSpeedChange,
 }: VizControlsProps) {
   const buttonStyle: React.CSSProperties = {
@@ -60,7 +60,7 @@ export function VizControls({
         aria-label="Scrub timeline"
       />
       <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--text-3)', whiteSpace: 'nowrap' }}>
-        T{currentTurn + 1}/{maxTurn} {year ? `\u00b7 ${year}` : ''}
+        T{currentTurn + 1}/{maxTurn} {time ? `\u00b7 ${time}` : ''}
       </span>
       <select
         aria-label="Playback speed"

@@ -45,7 +45,7 @@ export const DEMO_EVENTS: SimEvent[] = [
     type: 'turn_start',
     leader: 'Commander Elena Vasquez',
     data: {
-      turn: 1, year: 2035,
+      turn: 1, time: 2035,
       title: 'Dust Storm Season Begins',
       crisis: 'A massive dust storm system approaching from the Hellas basin threatens solar panel efficiency and outdoor operations for the next several months.',
       category: 'environmental', emergent: false,
@@ -125,7 +125,7 @@ export const DEMO_EVENTS: SimEvent[] = [
     type: 'turn_start',
     leader: 'Commander Hiroshi Tanaka',
     data: {
-      turn: 1, year: 2035,
+      turn: 1, time: 2035,
       title: 'Dust Storm Season Begins',
       crisis: 'A massive dust storm system approaching from the Hellas basin threatens solar panel efficiency and outdoor operations for the next several months.',
       category: 'environmental', emergent: false,
@@ -205,7 +205,7 @@ export const DEMO_EVENTS: SimEvent[] = [
     type: 'turn_start',
     leader: 'Commander Elena Vasquez',
     data: {
-      turn: 2, year: 2036,
+      turn: 2, time: 2036,
       title: 'Water Recycler Contamination',
       crisis: 'Trace perchlorate contamination detected in the primary water recycling system. Secondary filters are catching it but operating at 150% rated capacity.',
       category: 'infrastructure', emergent: true,
@@ -289,7 +289,7 @@ export const DEMO_EVENTS: SimEvent[] = [
     type: 'turn_start',
     leader: 'Commander Hiroshi Tanaka',
     data: {
-      turn: 2, year: 2036,
+      turn: 2, time: 2036,
       title: 'Water Recycler Contamination',
       crisis: 'Trace perchlorate contamination detected in the primary water recycling system. Secondary filters are catching it but operating at 150% rated capacity.',
       category: 'infrastructure', emergent: true,
@@ -360,7 +360,7 @@ export const DEMO_EVENTS: SimEvent[] = [
     type: 'turn_start',
     leader: 'Commander Elena Vasquez',
     data: {
-      turn: 3, year: 2037,
+      turn: 3, time: 2037,
       title: 'First Marsborn Generation',
       crisis: 'Three colonists are pregnant. Colony must decide on birthing protocols, education infrastructure, and whether to allocate scarce resources to a pediatric wing.',
       category: 'social', emergent: true,
@@ -440,7 +440,7 @@ export const DEMO_EVENTS: SimEvent[] = [
     type: 'turn_start',
     leader: 'Commander Hiroshi Tanaka',
     data: {
-      turn: 3, year: 2037,
+      turn: 3, time: 2037,
       title: 'First Marsborn Generation',
       crisis: 'Three colonists are pregnant. Colony must decide on birthing protocols, education infrastructure, and whether to allocate scarce resources to a pediatric wing.',
       category: 'social', emergent: true,

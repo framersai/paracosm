@@ -10,7 +10,7 @@ export function marsReactionContext(colonist: any, ctx: any): string {
   if (colonist.core.marsborn) {
     lines.push('Mars-born, never seen Earth.');
   } else {
-    lines.push(`Earth-born, ${ctx.year - 2035} years on Mars.`);
+    lines.push(`Earth-born, ${ctx.time - 2035} years on Mars.`);
   }
 
   // Domain-specific health context

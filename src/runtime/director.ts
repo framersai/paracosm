@@ -51,7 +51,7 @@ export type DirectorCrisis = DirectorEvent & { crisis?: string };
 /** Context passed to the Event Director for generating turn events. */
 export interface DirectorContext {
   turn: number;
-  year: number;
+  time: number;
   leaderName: string;
   leaderArchetype: string;
   leaderHexaco: HexacoProfile;
@@ -178,7 +178,7 @@ function buildDirectorPrompt(ctx: DirectorContext, maxEvents: number = 3): strin
     );
   }
 
-  return `GENERATE EVENT FOR TURN ${ctx.turn}, YEAR ${ctx.year}
+  return `GENERATE EVENT FOR TURN ${ctx.turn}, YEAR ${ctx.time}
 
 SIMULATION STATE:
 - Commander: ${ctx.leaderName} (${ctx.leaderArchetype})

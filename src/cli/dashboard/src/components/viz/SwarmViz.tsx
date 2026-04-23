@@ -1195,7 +1195,7 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
             searchQuery={searchQuery}
             palette={palette === 'cool' ? 1 : palette === 'mono' ? 2 : 0}
             settings={gridSettings}
-            startYear={scenario.setup?.defaultStartYear}
+            startTime={scenario.setup?.defaultStartTime}
             focusedSide={effectiveFocusedSide}
             onToggleFocus={phone ? undefined : toggleFocus}
             onOpenChat={handleOpenChat}
@@ -1239,7 +1239,7 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
             searchQuery={searchQuery}
             palette={palette === 'cool' ? 1 : palette === 'mono' ? 2 : 0}
             settings={gridSettings}
-            startYear={scenario.setup?.defaultStartYear}
+            startTime={scenario.setup?.defaultStartTime}
             focusedSide={effectiveFocusedSide}
             onToggleFocus={phone ? undefined : toggleFocus}
             onOpenChat={handleOpenChat}
@@ -1251,7 +1251,7 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
         <VizControls
           currentTurn={currentTurn}
           maxTurn={maxTurn}
-          year={snapA?.year ?? snapB?.year ?? 0}
+          time={snapA?.time ?? snapB?.time ?? 0}
           playing={playing}
           speed={speed}
           onTurnChange={handleTurnChange}

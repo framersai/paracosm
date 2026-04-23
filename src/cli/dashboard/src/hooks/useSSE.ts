@@ -62,7 +62,7 @@ export interface SimEvent {
   type: SimEventType;
   leader: string;
   turn?: number;
-  year?: number;
+  time?: number;
   data?: Record<string, unknown>;
 }
 

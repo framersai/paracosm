@@ -44,7 +44,7 @@ export interface ReactionContext {
   eventCategory: string;
   outcome: TurnOutcome | null;
   decision: string;
-  year: number;
+  time: number;
   turn: number;
   colonyMorale: number;
   colonyPopulation: number;
@@ -54,7 +54,7 @@ export interface RunReactionStepArgs {
   kernel: SimulationKernel;
   scenario: ScenarioPackage;
   turn: number;
-  year: number;
+  time: number;
   seed: number;
   turnEvents: Array<{ relevantDepartments?: string[] }>;
   turnEventTitles: string[];
@@ -89,7 +89,7 @@ export interface ReactionStepResult {
  */
 export async function runReactionStep(args: RunReactionStepArgs): Promise<ReactionStepResult> {
   const {
-    kernel, scenario, turn, year, seed,
+    kernel, scenario, turn, time, seed,
     turnEvents, turnEventTitles, lastEventCategory, lastOutcome,
     provider, modelConfig, execution,
     trackUsage, reportProviderError, recordSchemaAttempt, emit,
@@ -100,7 +100,7 @@ export async function runReactionStep(args: RunReactionStepArgs): Promise<Reacti
     eventCategory: turnEvents.map(e => (e as { category?: string }).category || '').filter(Boolean).join(', '),
     outcome: lastOutcome,
     decision: turnEventTitles.join('. '),
-    year, turn,
+    time, turn,
     colonyMorale: kernel.getState().systems.morale,
     colonyPopulation: kernel.getState().systems.population,
   };
@@ -170,7 +170,7 @@ export async function runReactionStep(args: RunReactionStepArgs): Promise<Reacti
   const agentMap = new Map(kernel.getState().agents.map(c => [c.core.id, c]));
 
   emit('agent_reactions', {
-    turn, year,
+    turn, time,
     reactions: reactions.slice(0, 8).map(r => {
       const agent = agentMap.get(r.agentId);
       const mem = agent?.memory;
@@ -181,7 +181,7 @@ export async function runReactionStep(args: RunReactionStepArgs): Promise<Reacti
         hexaco: r.hexaco, psychScore: r.psychScore, boneDensity: r.boneDensity, radiation: r.radiation,
         agentId: r.agentId,
         memory: mem ? {
-          recentMemories: mem.shortTerm.slice(-3).map(m => ({ year: m.year, content: m.content, valence: m.valence })),
+          recentMemories: mem.shortTerm.slice(-3).map(m => ({ time: m.time, content: m.content, valence: m.valence })),
           beliefs: mem.longTerm.slice(-3),
           stances: Object.entries(mem.stances).filter(([, v]) => Math.abs(v) > 0.2).map(([k, v]) => ({ topic: k, value: v })),
           relationships: Object.entries(mem.relationships).filter(([, v]) => Math.abs(v) > 0.2).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1])).slice(0, 3).map(([id, v]) => ({ name: agentMap.get(id)?.core.name || id, sentiment: v })),
@@ -201,7 +201,7 @@ export async function runReactionStep(args: RunReactionStepArgs): Promise<Reacti
   const outcomeLabel: string = lastOutcome ?? 'unknown';
   for (const r of reactions) {
     const c = agentMap.get(r.agentId);
-    if (c) recordReactionMemory(c, r, turnEventTitles.join(' / '), lastEventCategory, outcomeLabel, turn, year);
+    if (c) recordReactionMemory(c, r, turnEventTitles.join(' / '), lastEventCategory, outcomeLabel, turn, time);
   }
   updateRelationshipsFromReactions(kernel.getState().agents, reactions);
   for (const c of kernel.getState().agents) if (c.health.alive) consolidateMemory(c);
@@ -224,7 +224,7 @@ export async function runReactionStep(args: RunReactionStepArgs): Promise<Reacti
     likes: Math.floor(r.intensity * 20 + bulletinRng.next() * 10),
     replies: Math.floor(r.intensity * 5 + bulletinRng.next() * 3),
   }));
-  emit('bulletin', { turn, year, posts: bulletinPosts });
+  emit('bulletin', { turn, time, posts: bulletinPosts });
 
   return { reactions, moodSummary };
 }

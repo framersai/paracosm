@@ -16,7 +16,7 @@ import type { LeaderConfig } from '../engine/types.js';
 
 export function genericFingerprint(
   finalState: SimulationState,
-  outcomeLog: Array<{ turn: number; year: number; outcome: TurnOutcome }>,
+  outcomeLog: Array<{ turn: number; time: number; outcome: TurnOutcome }>,
   leader: LeaderConfig,
   toolRegs: Record<string, string[]>,
   maxTurns: number,

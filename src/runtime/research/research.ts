@@ -42,7 +42,7 @@ export const RESEARCH_PACKETS: Record<number, CrisisResearchPacket> = {
     ],
     departmentNotes: {
       medical: 'Perchlorate exposure pathway: ingestion via contaminated crops. Thyroid disruption risk.',
-      agriculture: 'Hydroponics eliminates soil contact entirely. Bioremediation requires 2-year R&D.',
+      agriculture: 'Hydroponics eliminates soil contact entirely. Bioremediation requires 2-time R&D.',
     },
   },
   4: {

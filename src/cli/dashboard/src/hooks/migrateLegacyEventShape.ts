@@ -20,7 +20,7 @@ interface LooseEvent {
   type: string;
   leader?: string;
   turn?: number;
-  year?: number;
+  time?: number;
   data?: Record<string, unknown>;
 }
 
