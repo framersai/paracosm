@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { HexacoSlider } from './HexacoSlider';
 import styles from './LeaderConfig.module.scss';
 
@@ -36,6 +37,15 @@ const PERSONALITY_PRESETS = [
 ];
 
 export function LeaderConfig({ label, sideColor, data, onChange }: LeaderConfigProps) {
+  // One id prefix per component instance so two LeaderConfig components
+  // on the same page (Commander A + Commander B) never collide.
+  const idPrefix = useId();
+  const nameId = `${idPrefix}-name`;
+  const archetypeId = `${idPrefix}-archetype`;
+  const unitId = `${idPrefix}-unit`;
+  const instructionsId = `${idPrefix}-instructions`;
+  const presetId = `${idPrefix}-preset`;
+
   const update = (field: keyof LeaderFormData, value: string) =>
     onChange({ ...data, [field]: value });
 
@@ -50,32 +60,33 @@ export function LeaderConfig({ label, sideColor, data, onChange }: LeaderConfigP
       <h3 className={styles.heading}>{label}</h3>
       <div className={`responsive-stack ${styles.fieldRow}`}>
         <div className={styles.field}>
-          <label className={styles.label}>Name</label>
-          <input value={data.name} onChange={e => update('name', e.target.value)} className={styles.input} />
+          <label htmlFor={nameId} className={styles.label}>Name</label>
+          <input id={nameId} value={data.name} onChange={e => update('name', e.target.value)} className={styles.input} />
         </div>
         <div className={styles.field}>
-          <label className={styles.label}>Archetype</label>
-          <input value={data.archetype} onChange={e => update('archetype', e.target.value)} className={styles.input} />
+          <label htmlFor={archetypeId} className={styles.label}>Archetype</label>
+          <input id={archetypeId} value={data.archetype} onChange={e => update('archetype', e.target.value)} className={styles.input} />
         </div>
         <div className={styles.field}>
-          <label className={styles.label}>Unit</label>
-          <input value={data.unit} onChange={e => update('unit', e.target.value)} className={styles.input} />
+          <label htmlFor={unitId} className={styles.label}>Unit</label>
+          <input id={unitId} value={data.unit} onChange={e => update('unit', e.target.value)} className={styles.input} />
         </div>
       </div>
       <div className={styles.textareaBlock}>
-        <label className={styles.label}>Instructions</label>
+        <label htmlFor={instructionsId} className={styles.label}>Instructions</label>
         <textarea
+          id={instructionsId}
           value={data.instructions}
           onChange={e => update('instructions', e.target.value)}
           rows={3}
-          aria-label={`${label} instructions`}
           className={styles.textarea}
         />
       </div>
       {/* Personality Presets */}
       <div className={styles.presetRow}>
-        <label className={styles.presetLabel}>Personality</label>
+        <label htmlFor={presetId} className={styles.presetLabel}>Personality</label>
         <select
+          id={presetId}
           className={`pc-select ${styles.presetSelect}`}
           onChange={e => {
             const p = PERSONALITY_PRESETS.find(p => p.id === e.target.value);
