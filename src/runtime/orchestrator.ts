@@ -1588,12 +1588,21 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
       console.log(`  [outcome] ${outcome} (${event.category}) effects: ${JSON.stringify(systemDeltas)}`);
       emit('outcome', { turn, time, outcome, category: event.category, emergent: !milestone, systemDeltas, eventIndex: ei });
       } catch (err) {
-        // Classify event-loop errors. If the commander call threw a
-        // quota/auth error, this is where it lands. `reportProviderError`
-        // flips the run abort flag and the next turn iteration short-
-        // circuits via the isAborted() gate at the top of the loop.
-        reportProviderError(err, `event-loop:turn${turn}:event${ei + 1}`);
-        console.error(`  [event ${ei + 1}/${turnEvents.length}] Failed: ${err}`);
+        // Classify event-loop errors. Provider-side failures (auth,
+        // quota, rate_limit, network) route through reportProviderError
+        // so the abort gate fires on terminal kinds (auth/quota) and
+        // telemetry captures the rest. Everything that classifies as
+        // 'unknown' is a local runtime error (compiled hook bug,
+        // unexpected data shape, etc.) — log it with full stack so the
+        // root cause is visible in the output, and make clear it is
+        // NOT a provider issue.
+        const classified = reportProviderError(err, `event-loop:turn${turn}:event${ei + 1}`);
+        const detail = err instanceof Error ? err.stack ?? err.message : String(err);
+        if (classified.kind === 'unknown') {
+          console.error(`  [event ${ei + 1}/${turnEvents.length}] Runtime error (not a provider issue): ${detail}`);
+        } else {
+          console.error(`  [event ${ei + 1}/${turnEvents.length}] Provider error (${classified.kind}): ${classified.message}`);
+        }
         // Continue to next event; don't kill the turn on transient errors
       }
     } // end inner event loop
