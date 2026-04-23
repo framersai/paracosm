@@ -181,7 +181,7 @@ test('TrajectoryPointSchema accepts sparkline-style sample', () => {
 
 test('TrajectorySchema accepts both points and timepoints populated', () => {
   const traj = {
-    timeUnit: { singular: 'time', plural: 'years' },
+    timeUnit: { singular: 'year', plural: 'years' },
     points: [{ time: 0, metrics: { x: 1 } }, { time: 1, metrics: { x: 2 } }],
     timepoints: [{ time: 0, label: 'Start' }],
   };

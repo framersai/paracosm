@@ -89,7 +89,7 @@ export const LUNAR_KNOWLEDGE_BUNDLE: KnowledgeBundle = {
         { claim: 'ESA demonstrated 3D-printed structures using simulated lunar regolith', source: 'ESA 3D Printing on the Moon', url: 'https://www.esa.int/Enabling_Support/Space_Engineering_Technology/Building_a_lunar_base_with_3D_printing' },
       ],
       counterpoints: [
-        { claim: 'Micrometeorite flux on the lunar surface averages 1 impact/m2/time for particles >1mm', source: 'Grun et al. 2011', url: 'https://doi.org/10.1016/j.pss.2011.04.011' },
+        { claim: 'Micrometeorite flux on the lunar surface averages 1 impact/m2/year for particles >1mm', source: 'Grun et al. 2011', url: 'https://doi.org/10.1016/j.pss.2011.04.011' },
       ],
       departmentNotes: {
         engineering: 'Regolith sintering and 3D printing for habitat construction under active development. Lava tubes offer pre-built volume.',
@@ -98,7 +98,7 @@ export const LUNAR_KNOWLEDGE_BUNDLE: KnowledgeBundle = {
     },
     radiation: {
       canonicalFacts: [
-        { claim: 'Lunar surface receives approximately 380 mSv/time from galactic cosmic rays (no magnetic field or atmosphere)', source: 'Reitz et al. 2012, Planetary and Space Science', url: 'https://doi.org/10.1016/j.pss.2012.02.005', doi: '10.1016/j.pss.2012.02.005' },
+        { claim: 'Lunar surface receives approximately 380 mSv/year from galactic cosmic rays (no magnetic field or atmosphere)', source: 'Reitz et al. 2012, Planetary and Space Science', url: 'https://doi.org/10.1016/j.pss.2012.02.005', doi: '10.1016/j.pss.2012.02.005' },
         { claim: 'Solar particle events can deliver 100+ mSv in hours on the unshielded lunar surface', source: 'Townsend et al. 2011', url: 'https://doi.org/10.1016/j.asr.2011.04.017', doi: '10.1016/j.asr.2011.04.017' },
         { claim: 'CRaTER instrument on LRO measured lunar surface dose equivalent of 57-75 mrad/day', source: 'Spence et al. 2010, Space Science Reviews', url: 'https://doi.org/10.1007/s11214-009-9584-8', doi: '10.1007/s11214-009-9584-8' },
       ],
