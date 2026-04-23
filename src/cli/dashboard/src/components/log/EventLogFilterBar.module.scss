@@ -1,0 +1,201 @@
+// Filter-bar styles for the Event Log tab (F15). Scoped; does not
+// affect the legacy per-event rows.
+
+.bar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: var(--sans);
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.topRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.searchWrap {
+  flex: 1 1 200px;
+  min-width: 160px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.searchIcon {
+  color: var(--text-3);
+  font-size: 13px;
+}
+
+.searchInput {
+  flex: 1;
+  padding: 5px 8px;
+  background: var(--bg-canvas);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-1);
+  font-family: var(--mono);
+  font-size: 12px;
+
+  &:focus {
+    outline: none;
+    border-color: var(--accent, var(--amber));
+  }
+}
+
+.resetButton {
+  padding: 5px 10px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-3);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:hover {
+    color: var(--text-1);
+    border-color: var(--accent, var(--amber));
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent, var(--amber));
+    outline-offset: 1px;
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
+.facetsRow {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.facetLabel {
+  font-size: 10px;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-right: 4px;
+}
+
+.checkboxGroup {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  background: var(--bg-canvas);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-2);
+
+  &.active {
+    color: var(--text-1);
+    border-color: var(--accent, var(--amber));
+    background: rgba(212, 154, 60, 0.08);
+  }
+
+  &:hover {
+    border-color: var(--accent, var(--amber));
+  }
+
+  input[type='checkbox'] {
+    margin: 0;
+    cursor: pointer;
+  }
+}
+
+.leaderSelect {
+  padding: 4px 8px;
+  background: var(--bg-canvas);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-1);
+  font-family: var(--mono);
+  font-size: 11px;
+
+  &:focus {
+    outline: none;
+    border-color: var(--accent, var(--amber));
+  }
+}
+
+.rangeWrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-2);
+}
+
+.rangeInput {
+  width: 60px;
+  padding: 3px 6px;
+  background: var(--bg-canvas);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-1);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.toolChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: rgba(212, 154, 60, 0.12);
+  border: 1px solid rgba(212, 154, 60, 0.4);
+  border-radius: 3px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-1);
+
+  .chipClear {
+    background: none;
+    border: none;
+    color: var(--text-3);
+    cursor: pointer;
+    padding: 0 2px;
+    font-size: 12px;
+
+    &:hover { color: var(--text-1); }
+  }
+}
+
+.emptyHint {
+  padding: 8px 10px;
+  background: rgba(200, 140, 60, 0.1);
+  border: 1px dashed rgba(200, 140, 60, 0.4);
+  border-radius: 4px;
+  color: var(--text-2);
+  font-family: var(--mono);
+  font-size: 11px;
+}

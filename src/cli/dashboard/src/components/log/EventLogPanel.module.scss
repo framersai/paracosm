@@ -78,6 +78,10 @@
 .type {
   font-weight: 700;
   min-width: 120px;
+  // Per-event-type color is set via the `--log-type-color` CSS custom
+  // property on the parent <details>. Fallback stays `--text-3` for
+  // any type not in the TYPE_COLORS map.
+  color: var(--log-type-color, var(--text-3));
 }
 
 .leader {

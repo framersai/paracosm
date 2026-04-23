@@ -1,10 +1,20 @@
 /**
  * Event Log tab content. Scrollable list of every SSE event with
- * per-type color coding, a hash-driven tool filter (`#log=<toolName>`
- * set by the ToolboxSection CTA), and auto-pin-to-bottom behaviour.
+ * per-type color coding, a rich filter bar (F15) covering text search,
+ * event-type toggles, per-leader filter, and turn range. Legacy
+ * `#log=<toolName>` hash filter (set by the ToolboxSection CTA) is
+ * preserved and surfaced as a chip in the bar. Auto-pin-to-bottom
+ * stays live as events stream in.
  */
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import type { SimEvent } from '../../hooks/useSSE';
+import { EventLogFilterBar } from './EventLogFilterBar';
+import {
+  applyLogFilters,
+  parseFiltersFromUrl,
+  serializeFiltersToUrl,
+  type LogFilters,
+} from './EventLogPanel.helpers';
 import styles from './EventLogPanel.module.scss';
 
 const TYPE_COLORS: Record<string, string> = {
@@ -23,21 +33,28 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 interface EventLogPanelProps {
-  /** Full event stream to render. Filtering by tool-name happens
-   *  inside the panel using the hash param. */
   events: SimEvent[];
 }
 
-function readLogFilterFromHash(): string {
-  if (typeof window === 'undefined') return '';
-  const h = window.location.hash.replace(/^#/, '');
-  const match = h.match(/(?:^|&)log=([^&]+)/);
-  return match ? decodeURIComponent(match[1]) : '';
+function readFiltersFromWindow(): LogFilters {
+  if (typeof window === 'undefined') {
+    return parseFiltersFromUrl('', '');
+  }
+  return parseFiltersFromUrl(window.location.search, window.location.hash);
 }
 
 export function EventLogPanel({ events }: EventLogPanelProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const pinnedRef = useRef(true);
+  const [filters, setFilters] = useState<LogFilters>(readFiltersFromWindow);
+
+  // Listen for hash changes so the legacy `#log=` chip updates when
+  // ToolboxSection clicks set the hash.
+  useEffect(() => {
+    const onHash = () => setFilters(readFiltersFromWindow());
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
 
   const onScroll = useCallback(() => {
     const el = scrollRef.current;
@@ -52,21 +69,28 @@ export function EventLogPanel({ events }: EventLogPanelProps) {
     el.scrollTop = el.scrollHeight;
   }, [events.length]);
 
-  const hashTool = readLogFilterFromHash();
-  const logFilter = hashTool.toLowerCase();
-  const filteredEvents = logFilter
-    ? events.filter((e) => {
-        const d = (e.data ?? {}) as Record<string, unknown>;
-        const name = typeof d.name === 'string' ? d.name.toLowerCase() : '';
-        if (name && name.includes(logFilter)) return true;
-        const tools = Array.isArray(d.forgedTools) ? d.forgedTools : [];
-        return tools.some((t) => {
-          const tt = t as Record<string, unknown>;
-          const tn = typeof tt.name === 'string' ? tt.name.toLowerCase() : '';
-          return tn.includes(logFilter);
-        });
-      })
-    : events;
+  // Sync non-hash filters back to the URL so a refresh / share link
+  // preserves the filter state. Legacy hash is left alone.
+  const handleFiltersChange = useCallback((next: LogFilters) => {
+    setFilters(next);
+    try {
+      const qs = serializeFiltersToUrl(next);
+      const base = window.location.pathname;
+      const hash = window.location.hash;
+      const target = base + qs + (hash || '');
+      window.history.replaceState({}, '', target);
+    } catch {
+      // Best-effort; filter state still lives in React.
+    }
+  }, []);
+
+  const filteredEvents = applyLogFilters(events, filters);
+  const hasActiveFilter =
+    filters.query !== '' ||
+    filters.types.size > 0 ||
+    filters.leader !== null ||
+    filters.turnRange !== null ||
+    filters.toolHash !== '';
 
   return (
     <div
@@ -80,32 +104,18 @@ export function EventLogPanel({ events }: EventLogPanelProps) {
       <div className={styles.header}>
         <h2 className={styles.heading}>
           Event Log ({filteredEvents.length}
-          {logFilter ? ` of ${events.length}` : ''} events)
+          {hasActiveFilter ? ` of ${events.length}` : ''} events)
         </h2>
-        {logFilter && (
-          <div className={styles.filterBar}>
-            <span className={styles.filterLabel}>filtered to tool</span>
-            <span className={styles.filterValue}>{hashTool}</span>
-            <button
-              type="button"
-              onClick={() => {
-                const url = new URL(window.location.href);
-                url.hash = '';
-                window.history.replaceState({}, '', url.toString());
-                window.dispatchEvent(new HashChangeEvent('hashchange'));
-              }}
-              className={styles.clearFilterButton}
-              aria-label="Clear log filter"
-            >
-              Clear filter
-            </button>
-          </div>
-        )}
       </div>
+      <EventLogFilterBar
+        events={events}
+        filters={filters}
+        onFiltersChange={handleFiltersChange}
+      />
       {filteredEvents.length === 0 && (
         <div className={styles.emptyState}>
-          {logFilter
-            ? `No events matched "${hashTool}". Clear the filter or check the tool name spelling.`
+          {hasActiveFilter
+            ? 'No events matched the current filter. Adjust or press Reset.'
             : 'No events yet. Run a simulation to see the raw SSE event stream.'}
         </div>
       )}
@@ -113,10 +123,14 @@ export function EventLogPanel({ events }: EventLogPanelProps) {
         const color = TYPE_COLORS[e.type] || 'var(--text-3)';
         const hasData = e.data && Object.keys(e.data).length > 0;
         return (
-          <details key={i} className={styles.event}>
+          <details
+            key={i}
+            className={styles.event}
+            style={{ ['--log-type-color' as string]: color }}
+          >
             <summary className={styles.eventSummary}>
               <span className={styles.index}>{i}</span>
-              <span className={styles.type} style={{ color }}>{e.type}</span>
+              <span className={styles.type}>{e.type}</span>
               <span className={styles.leader}>{e.leader}</span>
               {e.data?.turn != null && <span className={styles.turn}>T{String(e.data.turn)}</span>}
               {!!e.data?.title && <span className={styles.title}>{String(e.data.title)}</span>}
