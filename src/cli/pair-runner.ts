@@ -93,12 +93,12 @@ export async function runPairSimulations(
       broadcast('result', {
         leader: tag,
         summary: {
-          population: result.finalState?.systems?.population,
-          morale: result.finalState?.systems?.morale,
-          toolsForged: result.totalToolsForged,
-          citations: result.totalCitations,
+          population: result.finalState?.metrics?.population,
+          morale: result.finalState?.metrics?.morale,
+          toolsForged: result.forgedTools?.length ?? 0,
+          citations: result.citations?.length ?? 0,
         },
-        fingerprint: (result as any).fingerprint || null,
+        fingerprint: result.fingerprint ?? null,
       });
       return { tag, leader, result };
     }, error => {

@@ -11,6 +11,7 @@
 
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import type { RunArtifact } from '../engine/schema/index.js';
 
 /**
  * Resolve the output directory to write run snapshots into.
@@ -52,11 +53,7 @@ function resolveOutputDir(): string {
  * millisecond (e.g. `v3-the-engineer-...` vs `v3-the-visionary-...`).
  */
 export function writeRunOutput(
-  output: {
-    totalCitations: number;
-    totalToolsForged: number;
-    finalState: { systems: { population: number; morale: number } };
-  } & Record<string, unknown>,
+  output: RunArtifact,
   args: {
     leaderName: string;
     leaderArchetype: string;
@@ -71,11 +68,19 @@ export function writeRunOutput(
   const path = resolve(outDir, `v3-${tag}-${ts}.json`);
   writeFileSync(path, JSON.stringify(output, null, 2));
 
+  const citations = output.citations?.length ?? 0;
+  const tools = output.forgedTools?.length ?? 0;
+  const pop = (output.finalState?.metrics?.population as number | undefined) ?? 0;
+  const moralePct =
+    output.finalState?.metrics?.morale != null
+      ? Math.round(Number(output.finalState.metrics.morale) * 100)
+      : 0;
+
   console.log(`\n${'═'.repeat(60)}`);
   console.log(`  COMPLETE — ${args.leaderName}`);
   console.log(`  Output: ${path}`);
-  console.log(`  Turns: ${args.turns} | Citations: ${output.totalCitations} | Tools: ${output.totalToolsForged}`);
-  console.log(`  Final: Pop ${output.finalState.systems.population} | Morale ${Math.round(output.finalState.systems.morale * 100)}%`);
+  console.log(`  Turns: ${args.turns} | Citations: ${citations} | Tools: ${tools}`);
+  console.log(`  Final: Pop ${pop} | Morale ${moralePct}%`);
   console.log(`  Registries: ${JSON.stringify(args.toolRegs)}`);
   console.log(`${'═'.repeat(60)}\n`);
 

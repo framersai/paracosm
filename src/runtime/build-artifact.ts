@@ -85,6 +85,14 @@ export interface BuildArtifactInputs {
   assumptions?: string[];
   leveragePoints?: string[];
   disclaimer?: string;
+  /**
+   * Additional payloads to merge into `scenarioExtensions`. Paracosm's
+   * orchestrator stashes internal-only fields here (leader HEXACO
+   * history, forgeAttempts detail, tool registries, director events,
+   * outcome log) so consumers that need them can reach in without
+   * polluting the universal top-level shape.
+   */
+  scenarioExtensionsExtra?: Record<string, unknown>;
 }
 
 export function buildRunArtifact(inputs: BuildArtifactInputs): RunArtifact {
@@ -138,6 +146,11 @@ export function buildRunArtifact(inputs: BuildArtifactInputs): RunArtifact {
 
   const trajectoryPopulated = timepoints.length > 0 || points.length > 0;
 
+  const mergedExtensions: Record<string, unknown> = {
+    ...(inputs.agentReactions.length > 0 ? { reactions: inputs.agentReactions } : {}),
+    ...(inputs.scenarioExtensionsExtra ?? {}),
+  };
+
   const artifact: RunArtifact = {
     metadata: {
       runId: inputs.runId,
@@ -166,7 +179,7 @@ export function buildRunArtifact(inputs: BuildArtifactInputs): RunArtifact {
     providerError: inputs.providerError ?? null,
     aborted: inputs.aborted ?? false,
     scenarioExtensions:
-      inputs.agentReactions.length > 0 ? { reactions: inputs.agentReactions } : undefined,
+      Object.keys(mergedExtensions).length > 0 ? mergedExtensions : undefined,
   };
 
   return artifact;

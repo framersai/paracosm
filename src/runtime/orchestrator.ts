@@ -1,4 +1,6 @@
 import { writeRunOutput } from './output-writer.js';
+import { buildRunArtifact } from './build-artifact.js';
+import type { RunArtifact } from '../engine/schema/index.js';
 import type { ITool } from '@framers/agentos';
 import {
   webSearchTool,
@@ -381,7 +383,8 @@ export interface RunOptions {
   signal?: AbortSignal;
 }
 
-export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPersonnel[], opts: RunOptions = {}) {
+export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPersonnel[], opts: RunOptions = {}): Promise<RunArtifact> {
+  const startedAtIso = new Date().toISOString();
   const { agent } = await import('@framers/agentos');
   const sc = opts.scenario ?? marsScenario;
   const maxTurns = opts.maxTurns ?? 12;
@@ -1811,71 +1814,87 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
   // dedup key; each entry carries the departments + turns that cited it.
   const citationCatalog = buildCitationCatalog(allDepartmentReports);
 
-  const output = {
-    simulation: `${sc.id}-v3`,
-    leader: {
-      name: leader.name,
-      archetype: leader.archetype,
-      unit: leader.unit,
-      /** Drifted current profile — matches the Agent type convention where hexaco is the live value. */
-      hexaco: commanderHexacoLive,
-      /** Original config the caller passed in — immutable baseline for trajectory comparison. */
-      hexacoBaseline: { ...leader.hexaco },
-      /** Per-turn snapshots of commander HEXACO evolution. */
-      hexacoHistory: commanderHexacoHistory,
+  // Build the public RunArtifact. Internal paracosm fields (tool
+  // registries, director events, forge attempts, outcome log, agent
+  // trajectories, leader HEXACO history) stash under
+  // scenarioExtensions.paracosmInternal so internal callers (pair-runner,
+  // save files, tests) keep their access paths while the universal
+  // top-level shape stays consumer-friendly.
+  // Flatten commander decisions into the public-shape DecisionSchema
+  // (top-level fields, not nested under `.decision.*`).
+  const commanderDecisionsForArtifact = allCommanderDecisions.map((cd) => ({
+    turn: cd.turn,
+    year: cd.year,
+    actor: leader.name,
+    decision: cd.decision.decision,
+    rationale: cd.decision.rationale ?? '',
+    reasoning: cd.decision.reasoning,
+    outcome: cd.outcome as never,
+  }));
+
+  const peSnapshot = providerErrorState as ClassifiedProviderError | null;
+  const labelsRecord = sc.labels as unknown as Record<string, unknown>;
+  const finalCost = costTracker.finalCost();
+
+  const output: RunArtifact = buildRunArtifact({
+    runId: `${sc.labels.shortName}-${leader.archetype.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`,
+    scenarioId: sc.id,
+    scenarioName: sc.labels.name,
+    seed: opts.seed,
+    mode: 'turn-loop',
+    startedAt: startedAtIso,
+    completedAt: new Date().toISOString(),
+    timeUnit: {
+      singular: (labelsRecord.timeUnitNoun as string) ?? 'year',
+      plural: (labelsRecord.timeUnitNounPlural as string) ?? 'years',
     },
-    /** Per-turn artifacts — now carry the full department reports +
-     *  merged commander decision + applied policies (was previously
-     *  just empty placeholders). */
-    turnArtifacts: artifacts,
-    finalState: final,
-    toolRegistries: toolRegs,
-    agentTrajectories: trajectories,
-    outcomeClassifications: outcomeLog,
-    fingerprint,
-    /** All director-generated events with options + research keywords. */
-    directorEvents: allDirectorEvents,
-    /** All commander decisions tied to their event + outcome. */
-    commanderDecisions: allCommanderDecisions,
-    /** All forge_tool attempts with schemas, success/failure, judge confidence. */
-    forgeAttempts: allForges,
-    /** Canonical deduplicated forged toolbox (parity with dashboard ToolboxSection). */
-    forgedToolbox,
-    /** Canonical deduplicated citation catalog (parity with References). */
-    citationCatalog,
-    /** Per-turn agent reactions with mood + quote + memory snippets. */
+    turnArtifacts: artifacts as never,
+    commanderDecisions: commanderDecisionsForArtifact,
+    forgedToolbox: forgedToolbox as never,
+    citationCatalog: citationCatalog as never,
     agentReactions: allAgentReactions,
-    /** Cost telemetry for the run. */
-    cost: costTracker.finalCost(),
-    /**
-     * When a terminal provider error (quota exhausted, invalid API key)
-     * was hit during the run, this carries the classified reason. `null`
-     * on a healthy run. Programmatic consumers should check this BEFORE
-     * consuming `finalState` or `turnArtifacts` because those will be
-     * partial/degraded from the turn the error was hit.
-     */
-    providerError: ((pe: ClassifiedProviderError | null) =>
-      pe
-        ? {
-            kind: pe.kind,
-            provider: pe.provider,
-            message: pe.message,
-            actionUrl: pe.actionUrl,
-          }
-        : null
-    )(providerErrorState),
-    /**
-     * True when the run was cancelled by an external AbortSignal
-     * (typically: the server's cancel-on-disconnect watchdog fired
-     * because the user navigated away). Distinct from providerError:
-     * provider failures are classified and actionable, external aborts
-     * are clean stops. Both leave the sim incomplete; consumers should
-     * treat either as "partial results only."
-     */
+    finalState: { systems: final.systems as unknown as Record<string, number>, metadata: final.metadata },
+    fingerprint,
+    cost: {
+      totalUSD: finalCost.totalCostUSD,
+      llmCalls: finalCost.llmCalls,
+      inputTokens: undefined,
+      outputTokens: undefined,
+      cachedReadTokens: undefined,
+    },
+    providerError: peSnapshot
+      ? {
+          kind: peSnapshot.kind,
+          provider: peSnapshot.provider ?? 'unknown',
+          message: peSnapshot.message,
+          actionUrl: peSnapshot.actionUrl,
+        }
+      : null,
     aborted: externallyAborted,
-    totalCitations: citationCatalog.length,
-    totalToolsForged: forgedToolbox.length,
-  };
+    scenarioExtensionsExtra: {
+      paracosmInternal: {
+        simulation: `${sc.id}-v3`,
+        leader: {
+          name: leader.name,
+          archetype: leader.archetype,
+          unit: leader.unit,
+          hexaco: commanderHexacoLive,
+          hexacoBaseline: { ...leader.hexaco },
+          hexacoHistory: commanderHexacoHistory,
+        },
+        turnArtifacts: artifacts,
+        finalState: final,
+        toolRegistries: toolRegs,
+        agentTrajectories: trajectories,
+        outcomeClassifications: outcomeLog,
+        directorEvents: allDirectorEvents,
+        commanderDecisions: allCommanderDecisions,
+        forgeAttempts: allForges,
+        totalCitations: citationCatalog.length,
+        totalToolsForged: forgedToolbox.length,
+      },
+    },
+  });
 
   writeRunOutput(output, {
     leaderName: leader.name,
