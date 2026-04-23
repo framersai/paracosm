@@ -22,6 +22,24 @@ import type {
 } from '../engine/schema/index.js';
 
 /**
+ * Whitelist guards for risk/opportunity classification values. Zod
+ * validates these at the DepartmentReport LLM-output boundary, but an
+ * upstream caller could bypass that path (tests, direct construction)
+ * and produce out-of-domain strings. Filtering here rather than casting
+ * keeps the RunArtifact valid even when the inputs are degraded — the
+ * Zod parse at the public boundary would reject otherwise.
+ */
+const VALID_RISK_SEVERITIES = ['low', 'medium', 'high', 'critical'] as const;
+type RiskSeverity = (typeof VALID_RISK_SEVERITIES)[number];
+const isRiskSeverity = (v: string): v is RiskSeverity =>
+  (VALID_RISK_SEVERITIES as readonly string[]).includes(v);
+
+const VALID_OPPORTUNITY_IMPACTS = ['low', 'medium', 'high'] as const;
+type OpportunityImpact = (typeof VALID_OPPORTUNITY_IMPACTS)[number];
+const isOpportunityImpact = (v: string): v is OpportunityImpact =>
+  (VALID_OPPORTUNITY_IMPACTS as readonly string[]).includes(v);
+
+/**
  * Input bag for {@link buildRunArtifact}. Shapes match paracosm's
  * current internal run state; this function is the single place where
  * the internal shape meets the public one.
@@ -115,14 +133,18 @@ export function buildRunArtifact(inputs: BuildArtifactInputs): RunArtifact {
       summary: r.summary,
       confidence: r.confidence,
       detail: {
-        risks: r.risks.map((risk) => ({
-          severity: risk.severity as 'low' | 'medium' | 'high' | 'critical',
-          description: risk.description,
-        })),
-        opportunities: r.opportunities.map((o) => ({
-          impact: o.impact as 'low' | 'medium' | 'high',
-          description: o.description,
-        })),
+        risks: r.risks
+          .filter((risk) => isRiskSeverity(risk.severity))
+          .map((risk) => ({
+            severity: risk.severity as RiskSeverity,
+            description: risk.description,
+          })),
+        opportunities: r.opportunities
+          .filter((o) => isOpportunityImpact(o.impact))
+          .map((o) => ({
+            impact: o.impact as OpportunityImpact,
+            description: o.description,
+          })),
         recommendedActions: r.recommendedActions,
         citations: r.citations.map((c) => ({
           text: c.text,

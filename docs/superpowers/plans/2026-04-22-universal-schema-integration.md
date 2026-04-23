@@ -193,7 +193,8 @@ test('buildRunArtifact produces valid batch-point artifact without trajectory', 
 - [ ] **Step 2: Run test — expect ALL failures (module not defined)**
 
 ```bash
-cd /Users/johnn/Documents/git/voice-chat-assistant/apps/paracosm
+# From monorepo root; substitute your local path if different:
+cd apps/paracosm
 node --import tsx --test tests/runtime/build-artifact.test.ts 2>&1 | tail -10
 ```
 
