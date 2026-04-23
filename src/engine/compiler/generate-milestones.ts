@@ -13,6 +13,8 @@ import { generateValidatedJson } from './llm-invocations/generateValidatedJson.j
 function buildSystemBlock(scenarioJson: Record<string, any>): string {
   const labels = scenarioJson.labels ?? {};
   const depts = (scenarioJson.departments ?? []).map((d: any) => d.id).join(', ');
+  const timeUnit = labels.timeUnitNoun ?? 'tick';
+  const timeUnitPlural = labels.timeUnitNounPlural ?? 'ticks';
   return `You are generating milestone events for a simulation engine.
 
 SCENARIO: ${labels.name ?? 'Unknown'}
@@ -20,6 +22,7 @@ SETTLEMENT TYPE: ${labels.settlementNoun ?? 'settlement'}
 POPULATION NOUN: ${labels.populationNoun ?? 'members'}
 DEPARTMENTS: ${depts}
 DEFAULT TURNS: ${scenarioJson.setup?.defaultTurns ?? 12}
+TIME UNIT: ${timeUnit} (plural: ${timeUnitPlural}). Use this vocabulary in turn descriptions, never hardcode "year"/"years".
 
 Output shape:
 {

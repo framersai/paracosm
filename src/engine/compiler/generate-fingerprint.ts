@@ -8,6 +8,8 @@
 import type { GenerateTextFn } from './types.js';
 import type { CompilerTelemetry } from './telemetry.js';
 import { generateValidatedCode } from './llm-invocations/generateValidatedCode.js';
+import { buildScenarioFixture } from './scenario-fixture.js';
+import { buildStateShapeBlock } from './state-shape-block.js';
 
 type FingerprintFn = (finalState: any, outcomeLog: any[], leader: any, toolRegs: Record<string, string[]>, maxTurns: number) => Record<string, string>;
 
@@ -22,19 +24,22 @@ DEPARTMENTS: ${depts}
 Function signature: (finalState, outcomeLog, leader, toolRegs, maxTurns) => Record<string, string>
 
 Inputs:
-- finalState: { agents, systems, politics, metadata: { currentTime, startTime } }
+- finalState: { agents, systems, capacities, politics, statuses, environment, metadata: { currentTime, startTime, currentTurn } }
 - outcomeLog: [{ turn, time, outcome: 'risky_success' | 'risky_failure' | 'conservative_success' | 'conservative_failure' }]
 - leader: { name, archetype, hexaco }
 - toolRegs: Record<dept, string[]> (department -> tool names)
 - maxTurns: number
 
+${buildStateShapeBlock(scenarioJson)}
+
 Output: object with 5-7 classification dimensions (each 2-3 possible values e.g. "resilient" | "brittle") PLUS a "summary" key joining them with " · ".
 
 Rules:
 1. Scenario-relevant classification names (not Mars-specific)
-2. Base classifications on final state, outcome patterns, leader personality
-3. Always include "summary"
-4. NO external imports`;
+2. Reference only keys listed in AVAILABLE STATE SHAPE. Bad key access throws.
+3. Base classifications on final state, outcome patterns, leader personality
+4. Always include "summary"
+5. NO external imports`;
 }
 
 const userPrompt = 'Return ONLY the arrow function. No markdown fences.';
@@ -51,17 +56,20 @@ export function parseResponse(text: string): FingerprintFn | null {
   }
 }
 
-function smokeTest(fn: FingerprintFn): void {
-  const result = fn(
-    { agents: [], systems: { morale: 0.6, population: 80 }, politics: { earthDependencyPct: 50 }, metadata: { currentTime: 2070, startTime: 2035 } },
-    [{ turn: 1, time: 2035, outcome: 'conservative_success' }],
-    { name: 'Test', archetype: 'test', hexaco: { openness: 0.5, conscientiousness: 0.5, extraversion: 0.5, agreeableness: 0.5, emotionality: 0.5, honestyHumility: 0.5 } },
-    { engineering: ['tool1'] },
-    8,
-  );
-  if (typeof result !== 'object' || !result.summary) {
-    throw new Error('Fingerprint must return object with summary key');
-  }
+function buildSmokeTest(scenarioJson: Record<string, any>): (fn: FingerprintFn) => void {
+  return (fn) => {
+    const fixture = buildScenarioFixture(scenarioJson);
+    const result = fn(
+      fixture,
+      [{ turn: 1, time: fixture.metadata.startTime, outcome: 'conservative_success' }],
+      { name: 'Test', archetype: 'test', hexaco: { openness: 0.5, conscientiousness: 0.5, extraversion: 0.5, agreeableness: 0.5, emotionality: 0.5, honestyHumility: 0.5 } },
+      { engineering: ['tool1'] },
+      8,
+    );
+    if (typeof result !== 'object' || !result.summary) {
+      throw new Error('Fingerprint must return object with summary key');
+    }
+  };
 }
 
 const fallback: FingerprintFn = (_fs, outcomeLog, leader, toolRegs, maxTurns) => {
@@ -90,7 +98,7 @@ export async function generateFingerprintHook(
     systemCacheable: buildSystemBlock(scenarioJson),
     prompt: userPrompt,
     parse: parseResponse,
-    smokeTest,
+    smokeTest: buildSmokeTest(scenarioJson),
     fallback,
     fallbackSource: '// Fallback fingerprint',
     // Fingerprint is a small classifier function (~800 output tokens);

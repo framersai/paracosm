@@ -14,11 +14,14 @@ type ReactionContextFn = (colonist: any, ctx: any) => string;
 
 function buildSystemBlock(scenarioJson: Record<string, any>): string {
   const labels = scenarioJson.labels ?? {};
+  const timeUnit = labels.timeUnitNoun ?? 'tick';
+  const timeUnitPlural = labels.timeUnitNounPlural ?? 'ticks';
   return `You are generating a reaction context hook for a simulation engine.
 
 SCENARIO: ${labels.name ?? 'Unknown'} — ${labels.settlementNoun ?? 'settlement'} simulation
 POPULATION NOUN: ${labels.populationNoun ?? 'members'}
-START YEAR: ${scenarioJson.setup?.defaultStartTime ?? 2035}
+START TIME: ${scenarioJson.setup?.defaultStartTime ?? 0}
+TIME UNIT: ${timeUnit} (plural: ${timeUnitPlural})
 
 Function signature: (colonist, ctx) => string
 
@@ -32,7 +35,8 @@ Rules:
 1. Return a string, not an object
 2. 1-3 short sentences
 3. Reference scenario-specific health concerns
-4. NO external imports`;
+4. When mentioning elapsed time, use "${timeUnit}" / "${timeUnitPlural}" — never hardcode "year" / "years"
+5. NO external imports`;
 }
 
 const userPrompt = 'Return ONLY the arrow function. No markdown fences.';

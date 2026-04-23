@@ -8,6 +8,8 @@
 import type { GenerateTextFn } from './types.js';
 import type { CompilerTelemetry } from './telemetry.js';
 import { generateValidatedCode } from './llm-invocations/generateValidatedCode.js';
+import { buildScenarioFixture } from './scenario-fixture.js';
+import { buildStateShapeBlock } from './state-shape-block.js';
 
 type DepartmentPromptFn = (ctx: any) => string[];
 
@@ -23,17 +25,20 @@ ${depts}
 Function signature: (ctx) => string[]
 ctx shape:
 - ctx.department: string (department ID)
-- ctx.state: { agents, systems, politics, metadata: { currentTime } }
+- ctx.state: { agents, systems, capacities, politics, statuses, environment, metadata: { currentTime, startTime, currentTurn } }
 - ctx.scenario: any
 - ctx.researchPacket: { canonicalFacts[], counterpoints[], departmentNotes }
+
+${buildStateShapeBlock(scenarioJson)}
 
 For each department, compute and return 2-4 lines of scenario-relevant stats from ctx.state.
 
 Rules:
 1. Switch on ctx.department with a case per department ID listed above.
-2. Access ctx.state.agents (filter alive), ctx.state.systems, ctx.state.politics.
-3. Return string[]; empty array for unknown departments.
-4. NO external imports.`;
+2. Access ctx.state.agents (filter alive), and any of the five state bags (systems, capacities, politics, statuses, environment).
+3. Reference only the keys listed in AVAILABLE STATE SHAPE. Bad key access throws at validation or runtime.
+4. Return string[]; empty array for unknown departments.
+5. NO external imports, NO async.`;
 }
 
 const userPrompt = 'Return ONLY the arrow function. No markdown fences, no explanation.';
@@ -53,14 +58,10 @@ export function parseResponse(text: string): DepartmentPromptFn | null {
 function buildSmokeTest(scenarioJson: Record<string, any>): (fn: DepartmentPromptFn) => void {
   return (fn) => {
     const deptId = (scenarioJson.departments ?? [])[0]?.id ?? 'engineering';
+    const fixture = buildScenarioFixture(scenarioJson);
     const result = fn({
       department: deptId,
-      state: {
-        agents: [{ core: { name: 'Test' }, health: { alive: true, boneDensityPct: 90, cumulativeRadiationMsv: 100, psychScore: 0.7 } }],
-        systems: { morale: 0.6, population: 80, foodMonthsReserve: 6, powerKw: 300, infrastructureModules: 10, scienceOutput: 5, lifeSupportCapacity: 100 },
-        politics: { earthDependencyPct: 50, governanceStatus: 'colonial' },
-        metadata: { currentTime: 2045 },
-      },
+      state: fixture,
       scenario: scenarioJson,
       researchPacket: { canonicalFacts: [], counterpoints: [], departmentNotes: {} },
     });

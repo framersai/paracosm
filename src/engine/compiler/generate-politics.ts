@@ -17,10 +17,14 @@ function buildSystemBlock(scenarioJson: Record<string, any>): string {
   const categories = typeof effects === 'object' && !Array.isArray(effects)
     ? Object.keys(effects)
     : [];
+  const timeUnit = labels.timeUnitNoun ?? 'tick';
+  const politicsKeys = Object.keys((scenarioJson.world?.politics ?? {}) as Record<string, unknown>);
   return `You are generating a politics hook for a simulation engine.
 
 SCENARIO: ${labels.name ?? 'Unknown'} — ${labels.settlementNoun ?? 'settlement'} simulation
 EVENT CATEGORIES: ${categories.join(', ')}
+TIME UNIT: ${timeUnit}
+DECLARED POLITICS KEYS: ${politicsKeys.length ? politicsKeys.join(', ') : '(none declared; hook should return null)'}
 
 Function signature: (category, outcome) => Record<string, number> | null
 
@@ -32,8 +36,9 @@ Rules:
 1. Success → push toward independence/autonomy
 2. Failure → push toward dependency/instability
 3. 1-3 politics fields appropriate to this scenario
-4. Small deltas (0.01-0.10 for pct, 1-5 for ints)
-5. NO external imports`;
+4. Only return keys listed under DECLARED POLITICS KEYS above; other keys are ignored by the kernel
+5. Small deltas (0.01-0.10 for pct, 1-5 for ints)
+6. NO external imports`;
 }
 
 const userPrompt = 'Return ONLY the arrow function. No markdown fences.';
