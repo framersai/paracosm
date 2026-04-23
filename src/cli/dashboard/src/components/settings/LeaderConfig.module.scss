@@ -1,0 +1,97 @@
+// LeaderConfig styles — F4 batch 3 migration from inline style objects.
+// Dynamic per-side color flows in via `--side-color` CSS custom property
+// set on the root.
+
+.root {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  min-width: 0;
+  overflow: hidden;
+  box-shadow: var(--card-shadow);
+}
+
+.heading {
+  font-size: 16px;
+  font-family: var(--mono);
+  margin-bottom: 12px;
+  color: var(--side-color);
+}
+
+.fieldRow {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.field {
+  flex: 1;
+}
+
+.label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.input {
+  width: 100%;
+  background: var(--bg-card);
+  color: var(--text-1);
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-family: var(--sans);
+  font-size: 14px;
+  box-sizing: border-box;
+  min-width: 0;
+
+  &:focus {
+    outline: none;
+    border-color: var(--side-color);
+  }
+}
+
+.textareaBlock {
+  margin-bottom: 10px;
+}
+
+.textarea {
+  @extend .input;
+  min-height: 60px;
+  resize: vertical;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.presetRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  margin-bottom: 6px;
+}
+
+.presetLabel {
+  @extend .label;
+  margin-bottom: 0;
+}
+
+.presetSelect {
+  @extend .input;
+  width: auto;
+  flex: 1;
+  font-size: 12px;
+  padding: 4px 8px;
+}
+
+.hexacoGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px 14px;
+}

@@ -20,7 +20,11 @@ import { resolveSetupRedirectHref } from '../../tab-routing';
 import { buildReplayHref, cacheExpandedBody } from './LoadMenu.helpers';
 import type { LocalHistoryEntry } from '../../hooks/useLocalHistory.helpers';
 import { Tooltip } from '../shared/Tooltip';
-import historyStyles from './RunMenu.module.scss';
+import styles from './RunMenu.module.scss';
+
+// Alias kept for minimal-diff readability within the history section
+// that landed earlier in F14; all classes live in the same module.
+const historyStyles = styles;
 
 export interface RunMenuProps {
   /** Fires when the user picks "Run New Simulation". */
@@ -78,21 +82,10 @@ function SessionCard({ s, onPick }: { s: StoredSessionMeta; onPick: () => void }
   const line2 = [leaders, scenarioSub, turns].filter(Boolean).join(' · ');
   const line3 = `${new Date(s.createdAt).toLocaleString()} (${formatRelative(s.createdAt)}) · ${formatDuration(s.durationMs)} · ${formatCost(s.totalCostUSD)}`;
   return (
-    <button
-      type="button"
-      onClick={onPick}
-      style={{
-        display: 'block', textAlign: 'left', width: '100%',
-        padding: '10px 12px', marginBottom: 6,
-        fontSize: 11, fontFamily: 'var(--sans)',
-        color: 'var(--text-1)', background: 'var(--bg-canvas)',
-        border: '1px solid var(--border)', borderRadius: 4,
-        cursor: 'pointer',
-      }}
-    >
-      <div style={{ fontWeight: 700, color: 'var(--text-1)', marginBottom: 2 }}>{title}</div>
-      {line2 && <div style={{ fontSize: 10, color: 'var(--text-2)', marginBottom: 4 }}>{line2}</div>}
-      <div style={{ fontSize: 10, fontFamily: 'var(--mono)', color: 'var(--text-3)' }}>{line3}</div>
+    <button type="button" onClick={onPick} className={styles.sessionCard}>
+      <div className={styles.sessionCardTitle}>{title}</div>
+      {line2 && <div className={styles.sessionCardLine2}>{line2}</div>}
+      <div className={styles.sessionCardLine3}>{line3}</div>
     </button>
   );
 }
@@ -158,13 +151,11 @@ export function RunMenu({
   const body = cacheExpandedBody(status, sessions);
 
   return (
-    <div ref={rootRef} style={{ position: 'relative', display: 'inline-block' }}>
+    <div ref={rootRef} className={styles.root}>
       <Tooltip
         content={
           <div>
-            <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--amber)', marginBottom: 6 }}>
-              Run
-            </div>
+            <div className={styles.tooltipHeading}>Run</div>
             <div>
               Launches a fresh simulation, replays a cached one, or
               loads a saved JSON from disk. Click to open the menu.
@@ -177,39 +168,15 @@ export function RunMenu({
           onClick={() => setOpen(o => !o)}
           aria-haspopup="menu"
           aria-expanded={open}
-          style={{
-            background: 'linear-gradient(135deg, var(--rust), #c44a1e)',
-            color: '#fff', border: 'none',
-            padding: '3px 14px', borderRadius: '4px',
-            fontSize: '11px', fontWeight: 700, cursor: 'pointer',
-            fontFamily: 'var(--mono)', letterSpacing: '0.5px',
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-          }}
+          className={styles.triggerButton}
         >
           <span aria-hidden="true">▶</span>
           RUN
-          <span aria-hidden="true" style={{ fontSize: 9, opacity: 0.8 }}>▾</span>
+          <span aria-hidden="true" className={styles.triggerCaret}>▾</span>
         </button>
       </Tooltip>
       {open && (
-        <div
-          role="menu"
-          aria-label="Run actions"
-          style={{
-            position: 'absolute',
-            top: 'calc(100% + 6px)',
-            right: 0,
-            width: 'min(520px, calc(100vw - 32px))',
-            maxHeight: 'min(70vh, 520px)',
-            overflowY: 'auto',
-            background: 'var(--bg-panel)',
-            border: '1px solid var(--border)',
-            borderRadius: 6,
-            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)',
-            padding: 8,
-            zIndex: 60,
-          }}
-        >
+        <div role="menu" aria-label="Run actions" className={styles.menuPopover}>
           {/* Run New Simulation — primary action, loudest styling.
               Hardcoded near-black text on the rust gradient so the
               label stays high-contrast in both dark and light
@@ -218,31 +185,13 @@ export function RunMenu({
             type="button"
             role="menuitem"
             onClick={handleRunNew}
-            style={{
-              display: 'flex', width: '100%',
-              justifyContent: 'space-between', alignItems: 'center',
-              gap: 10, padding: '10px 12px', marginBottom: 6,
-              fontSize: 12, fontFamily: 'var(--mono)', fontWeight: 800,
-              color: '#1a0d08',
-              background: 'linear-gradient(135deg, var(--rust), #c44a1e)',
-              border: 'none', borderRadius: 4,
-              cursor: 'pointer', letterSpacing: '0.04em',
-              textShadow: '0 1px 0 rgba(255, 230, 210, 0.35)',
-            }}
+            className={styles.runNewButton}
           >
-            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span aria-hidden="true" style={{ fontSize: 13 }}>▶</span>
+            <span className={styles.menuButtonInnerLeft}>
+              <span aria-hidden="true" className={styles.menuButtonIcon}>▶</span>
               <span>Run New Simulation</span>
             </span>
-            <span style={{
-              fontSize: 9, fontWeight: 800,
-              padding: '2px 7px', borderRadius: 3,
-              background: 'rgba(26, 13, 8, 0.85)', color: '#fff7ec',
-              letterSpacing: '0.08em', textTransform: 'uppercase',
-              textShadow: 'none',
-            }}>
-              spends credits
-            </span>
+            <span className={styles.runNewBadge}>spends credits</span>
           </button>
 
           {/* Run Saved Simulation — expandable row, disabled when empty.
@@ -253,36 +202,13 @@ export function RunMenu({
             role="menuitem"
             onClick={() => cacheAvailable && setSavedExpanded(e => !e)}
             disabled={!cacheAvailable}
-            style={{
-              display: 'flex', width: '100%',
-              justifyContent: 'space-between', alignItems: 'center',
-              gap: 10, padding: '10px 12px', marginBottom: 6,
-              fontSize: 12, fontFamily: 'var(--mono)', fontWeight: 800,
-              color: cacheAvailable ? '#1a0d08' : 'var(--text-3)',
-              background: cacheAvailable
-                ? 'linear-gradient(135deg, var(--amber), #b88a1f)'
-                : 'var(--bg-card)',
-              border: cacheAvailable ? 'none' : '1px solid var(--border)',
-              borderRadius: 4,
-              cursor: cacheAvailable ? 'pointer' : 'not-allowed',
-              opacity: cacheAvailable ? 1 : 0.75,
-              letterSpacing: '0.04em',
-              textShadow: cacheAvailable ? '0 1px 0 rgba(255, 240, 215, 0.4)' : 'none',
-            }}
+            className={[styles.runSavedButton, cacheAvailable ? '' : styles.disabled].filter(Boolean).join(' ')}
           >
-            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span aria-hidden="true" style={{ fontSize: 13 }}>↻</span>
+            <span className={styles.menuButtonInnerLeft}>
+              <span aria-hidden="true" className={styles.menuButtonIcon}>↻</span>
               <span>Run Saved Simulation</span>
             </span>
-            <span style={{
-              fontSize: 9, fontWeight: 800,
-              padding: '2px 7px', borderRadius: 3,
-              background: cacheAvailable ? 'rgba(26, 13, 8, 0.85)' : 'var(--bg-deep)',
-              color: cacheAvailable ? '#fff7ec' : 'var(--text-3)',
-              letterSpacing: '0.08em', textTransform: 'uppercase',
-              textShadow: 'none',
-              border: cacheAvailable ? 'none' : '1px solid var(--border)',
-            }}>
+            <span className={[styles.runSavedBadge, cacheAvailable ? '' : styles.disabled].filter(Boolean).join(' ')}>
               {cacheAvailable
                 ? `${sessions.length} cached · ${savedExpanded ? 'hide' : 'pick'}`
                 : 'no cache yet'}
@@ -292,22 +218,20 @@ export function RunMenu({
           {/* Expanded saved-run cards. Reuses the old LoadMenu cache
               body states so loading / empty / error render consistently. */}
           {savedExpanded && cacheAvailable && (
-            <div style={{ marginBottom: 6 }}>
+            <div className={styles.savedCardsWrap}>
               {body === 'cards' && sessions.map(s => (
                 <SessionCard key={s.id} s={s} onPick={() => handlePickSession(s.id)} />
               ))}
               {body === 'loading' && (
-                <div style={{ padding: 10, fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
-                  Loading cached runs…
-                </div>
+                <div className={styles.savedStatus}>Loading cached runs…</div>
               )}
               {body === 'error' && (
-                <div style={{ padding: 10, fontSize: 11, color: 'var(--rust)', fontFamily: 'var(--mono)' }}>
+                <div className={styles.savedError}>
                   Could not reach /sessions. Try again in a moment.
                 </div>
               )}
               {body === 'unavailable' && (
-                <div style={{ padding: 10, fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
+                <div className={styles.savedStatus}>
                   Session cache is disabled on this server.
                 </div>
               )}
@@ -432,29 +356,13 @@ export function RunMenu({
               type="button"
               role="menuitem"
               onClick={handleFile}
-              style={{
-                display: 'flex', width: '100%',
-                justifyContent: 'space-between', alignItems: 'center',
-                gap: 10, padding: '10px 12px',
-                fontSize: 12, fontFamily: 'var(--mono)', fontWeight: 700,
-                color: 'var(--text-1)',
-                background: 'var(--bg-card)',
-                border: '1px solid var(--border)', borderRadius: 4,
-                cursor: 'pointer', letterSpacing: '0.04em',
-              }}
+              className={styles.loadFileButton}
             >
-              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span aria-hidden="true" style={{ fontSize: 13 }}>📁</span>
+              <span className={styles.menuButtonInnerLeft}>
+                <span aria-hidden="true" className={styles.menuButtonIcon}>📁</span>
                 <span>Load from file…</span>
               </span>
-              <span style={{
-                fontSize: 9, fontWeight: 700, color: 'var(--text-3)',
-                letterSpacing: '0.08em', textTransform: 'uppercase',
-                padding: '2px 7px', borderRadius: 3,
-                border: '1px solid var(--border)',
-              }}>
-                json export
-              </span>
+              <span className={styles.loadFileBadge}>json export</span>
             </button>
           )}
         </div>
