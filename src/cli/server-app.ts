@@ -1086,7 +1086,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         };
 
         // Extract simulation memories for this colonist
-        const memories = extractColonistMemories(agentId, simEvents);
+        const memories = extractColonistMemories(agentId, simEvents, activeScenario.labels?.timeUnitNoun);
         // Extract the full agent roster from the latest systems_snapshot so
         // the chat agent knows who else exists. Without this, the agent
         // confabulates fake bios for any name the user invents.

@@ -380,8 +380,18 @@ function buildInstructions(
 export function extractColonistMemories(
   agentId: string,
   simEvents: Array<{ type: string; leader: string; data: Record<string, unknown> }>,
+  /**
+   * Scenario's time-unit noun (e.g. "year", "quarter", "day", "tick").
+   * Used to render "Turn N (Year T)" style memory lines with the
+   * right unit for the simulated domain. Defaults to "tick" so
+   * scenarios that omit `labels.timeUnitNoun` still produce readable
+   * memory text without leaking Mars-specific "Year" phrasing.
+   */
+  timeUnitNoun?: string,
 ): ColonistMemoryEntry[] {
   const memories: ColonistMemoryEntry[] = [];
+  const timeNounRaw = timeUnitNoun ?? 'tick';
+  const TimeNoun = timeNounRaw.charAt(0).toUpperCase() + timeNounRaw.slice(1);
 
   for (const evt of simEvents) {
     const d = evt.data || {};
@@ -396,7 +406,7 @@ export function extractColonistMemories(
           memories.push({
             type: 'reaction',
             turn, time,
-            text: `Turn ${turn} (Year ${time}): I felt ${r.mood}. My reaction: "${r.quote}"`,
+            text: `Turn ${turn} (${TimeNoun} ${time}): I felt ${r.mood}. My reaction: "${r.quote}"`,
             tags: ['personal', 'reaction', `turn-${turn}`],
           });
         }
@@ -408,7 +418,7 @@ export function extractColonistMemories(
       memories.push({
         type: 'crisis',
         turn, time,
-        text: `Turn ${turn} (Year ${time}): Crisis "${d.title}" (${d.category}). ${String(d.crisis || d.turnSummary || '').slice(0, 300)}`,
+        text: `Turn ${turn} (${TimeNoun} ${time}): Crisis "${d.title}" (${d.category}). ${String(d.crisis || d.turnSummary || '').slice(0, 300)}`,
         tags: ['crisis', String(d.category), `turn-${turn}`],
       });
     }

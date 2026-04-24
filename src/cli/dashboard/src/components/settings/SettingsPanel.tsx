@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useDashboardNavigation, useScenarioContext } from '../../App';
+import { useScenarioLabels } from '../../hooks/useScenarioLabels';
 import { LeaderConfig, type LeaderFormData } from './LeaderConfig';
 import { ScenarioEditor } from './ScenarioEditor';
 import { LoadPriorRunsCTA } from './LoadPriorRunsCTA';
@@ -89,6 +90,7 @@ const inputStyle = {
 
 export function SettingsPanel() {
   const scenario = useScenarioContext();
+  const labels = useScenarioLabels();
   const navigateTab = useDashboardNavigation();
 
   const defaultPreset = scenario.presets.find(p => p.id === 'default');
@@ -423,7 +425,7 @@ export function SettingsPanel() {
             />
           </div>
           <div>
-            <label htmlFor="ypt-input" style={SETTINGS_LABEL_STYLE}>Yrs/Turn</label>
+            <label htmlFor="ypt-input" style={SETTINGS_LABEL_STYLE}>{labels.Times}/Turn</label>
             <input
               id="ypt-input"
               type="number"
@@ -432,7 +434,7 @@ export function SettingsPanel() {
               min={0}
               max={50}
               placeholder="auto"
-              title="Years per turn. 0 = accelerating schedule (default). 1 = 1 time per turn. 5 = 5 years per turn."
+              title={`${labels.Times} per turn. 0 = accelerating schedule (default). 1 = 1 ${labels.time} per turn. 5 = 5 ${labels.times} per turn.`}
               style={inputStyle}
             />
           </div>
@@ -441,7 +443,7 @@ export function SettingsPanel() {
             <input id="seed-input" type="number" value={seed} onChange={e => setSeed(parseInt(e.target.value) || 950)} style={inputStyle} />
           </div>
           <div>
-            <label htmlFor="time-input" style={SETTINGS_LABEL_STYLE}>Start Year</label>
+            <label htmlFor="time-input" style={SETTINGS_LABEL_STYLE}>Start {labels.Time}</label>
             <input id="time-input" type="number" value={startTime} onChange={e => setStartTime(parseInt(e.target.value) || 2035)} style={inputStyle} />
           </div>
           <div>

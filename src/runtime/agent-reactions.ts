@@ -44,7 +44,7 @@ interface ReactionContext {
   eventCategory: string;
   /** Null on the first turn before the outcome roll, or when the
    *  director batch produced zero events. String-interpolated into
-   *  the per-agent prompt so null renders as "null" — acceptable
+   *  the per-agent prompt so null renders as "null", acceptable
    *  because the prompt already carries the full event context. */
   outcome: TurnOutcome | null;
   decision: string;
@@ -52,6 +52,11 @@ interface ReactionContext {
   turn: number;
   colonyMorale: number;
   colonyPopulation: number;
+  /** Scenario's time-unit noun (e.g. "year", "quarter", "day", "tick");
+   *  threaded through from the caller so the reaction system prompt
+   *  reads "Turn N, Quarter T" for scenarios that aren't Mars-year
+   *  shaped. Default `tick` when absent. */
+  timeUnitNoun?: string;
 }
 
 /**
@@ -66,10 +71,12 @@ interface ReactionContext {
  * via `buildBatchAgentBlock` so it does NOT invalidate the cache.
  */
 function buildBatchSystemPrompt(ctx: ReactionContext): string {
+  const timeNounRaw = ctx.timeUnitNoun ?? 'tick';
+  const TimeNoun = timeNounRaw.charAt(0).toUpperCase() + timeNounRaw.slice(1);
   return `You are each of several colony members reacting to what just happened at your settlement. Based on each person's personality, health, relationships, and memories, give a short reaction in their voice.
 
 SHARED SITUATION:
-Turn ${ctx.turn}, Year ${ctx.time}. Event: "${ctx.eventTitle}" (${ctx.eventCategory}).
+Turn ${ctx.turn}, ${TimeNoun} ${ctx.time}. Event: "${ctx.eventTitle}" (${ctx.eventCategory}).
 Commander decided: ${ctx.decision.slice(0, 200)}
 Outcome: ${ctx.outcome}. Current morale: ${Math.round(ctx.colonyMorale * 100)}%. Population: ${ctx.colonyPopulation}.
 

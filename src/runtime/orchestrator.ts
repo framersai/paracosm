@@ -1036,7 +1036,9 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
     console.log(`  Kernel: +${births} births, -${deaths} deaths → pop ${state.systems.population}`);
 
     console.log(`\n${'─'.repeat(50)}`);
-    console.log(`  Turn ${turn}/${maxTurns} — Year ${time}: ${turnEvents.length} event(s) [${milestone ? 'MILESTONE' : 'EMERGENT'}]`);
+    const timeNounRaw = sc.labels?.timeUnitNoun ?? 'tick';
+    const TimeNoun = timeNounRaw.charAt(0).toUpperCase() + timeNounRaw.slice(1);
+    console.log(`  Turn ${turn}/${maxTurns}. ${TimeNoun} ${time}: ${turnEvents.length} event(s) [${milestone ? 'MILESTONE' : 'EMERGENT'}]`);
     console.log(`${'─'.repeat(50)}`);
 
     emit('turn_start', { turn, time, title: turnEvents[0]?.title || '', crisis: turnEvents[0]?.description?.slice(0, 200) || '', category: turnEvents[0]?.category || '', births, deaths, systems: state.systems, emergent: !milestone, turnSummary: turnEvents[0]?.turnSummary || '', totalEvents: turnEvents.length, pacing: batchPacing });

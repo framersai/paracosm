@@ -537,6 +537,7 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
       labelBg,
       textMuted,
       deptLabels: settings.deptLabels,
+      timeUnitShort: scenarioLabels.Time,
     });
 
     // Hover ring on top of HUD so it reads as "selected".

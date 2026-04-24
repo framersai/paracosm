@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef, createContext, useContext, Component, type ReactNode, type ErrorInfo } from 'react';
 import { ThemeProvider } from './theme/ThemeProvider';
 import { useScenario, type ScenarioClientPayload } from './hooks/useScenario';
+import { deriveLabels } from './hooks/useScenarioLabels.helpers';
 import { useSSE } from './hooks/useSSE';
 import { useGameState } from './hooks/useGameState';
 import { useGamePersistence } from './hooks/useGamePersistence';
@@ -355,9 +356,10 @@ function AppContent() {
     const unitA = a?.leader?.unit || '';
     const unitB = b?.leader?.unit || '';
 
+    const labels = deriveLabels(scenario);
     const lines: string[] = [
       `## ${scenario.labels.name} — Simulation Report`,
-      `**Turns**: ${gameState.turn}/${gameState.maxTurns} | **Seed**: ${gameState.seed} | **Year**: ${gameState.time}`,
+      `**Turns**: ${gameState.turn}/${gameState.maxTurns} | **Seed**: ${gameState.seed} | **${labels.Time}**: ${gameState.time}`,
       '',
       `### ${nameA}${archA ? ` (${archA})` : ''}`,
       `Unit: ${unitA} | Pop: ${a?.systems?.population ?? '?'} | Morale: ${a?.systems ? Math.round(a.systems.morale * 100) : '?'}% | Deaths: ${a?.deaths ?? 0}`,

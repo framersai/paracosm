@@ -1,4 +1,5 @@
 import type { TurnEventInfo } from '../../hooks/useGameState';
+import { useScenarioLabels } from '../../hooks/useScenarioLabels';
 import { Tooltip } from '../shared/Tooltip';
 
 interface TurnEventHeaderProps {
@@ -17,6 +18,7 @@ interface TurnEventHeaderProps {
  * `-webkit-line-clamp: 2`. Hover popover shows the full context.
  */
 export function TurnEventHeader({ leaderIndex, event }: TurnEventHeaderProps) {
+  const labels = useScenarioLabels();
   if (!event) return null;
 
   const fullText = event.description || event.turnSummary || '';
@@ -39,7 +41,7 @@ export function TurnEventHeader({ leaderIndex, event }: TurnEventHeaderProps) {
           </span>
         )}
         <span style={{ fontSize: '11px', color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
-          Year {event.time} &middot; Leader {String.fromCharCode(65 + leaderIndex)}
+          {labels.Time} {event.time} &middot; Leader {String.fromCharCode(65 + leaderIndex)}
         </span>
       </div>
       {fullText && (

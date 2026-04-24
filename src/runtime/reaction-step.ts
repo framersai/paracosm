@@ -48,6 +48,14 @@ export interface ReactionContext {
   turn: number;
   colonyMorale: number;
   colonyPopulation: number;
+  /**
+   * Scenario's time-unit noun (e.g. "year", "quarter", "day", "tick").
+   * Threaded into the shared reaction-batch system prompt so each
+   * agent reads "Turn N, Quarter T" instead of the pre-F23 hardcoded
+   * "Year" for scenarios where year-based phrasing is wrong
+   * (corporate-quarterly, submarine-daily, benchmark-tick).
+   */
+  timeUnitNoun?: string;
 }
 
 export interface RunReactionStepArgs {
@@ -103,6 +111,7 @@ export async function runReactionStep(args: RunReactionStepArgs): Promise<Reacti
     time, turn,
     colonyMorale: kernel.getState().systems.morale,
     colonyPopulation: kernel.getState().systems.population,
+    timeUnitNoun: scenario.labels?.timeUnitNoun,
   };
 
   // Progressive reactions: turn 1 always runs the full colony so

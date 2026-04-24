@@ -15,8 +15,15 @@ export interface HudOpts {
   previousSnapshot?: TurnSnapshot | undefined;
   /** Leader archetype chip rendered next to the name. */
   leaderArchetype?: string;
-  /** First time of the scenario (for "Yr N of colony" math). */
+  /** First time of the scenario (for "age of settlement" math). */
   startTime?: number;
+  /**
+   * Short label for one time-unit (e.g. "Yr", "Qtr", "Day", "Tick"),
+   * used in the "age since startTime" corner readout. Derived from
+   * `scenario.labels.timeUnitNoun` by the caller (see
+   * `useScenarioLabels().Time`). Defaults to `"t"` when unset.
+   */
+  timeUnitShort?: string;
   /** Theme-resolved label box background (bg-deep CSS variable at
    *  resolve time). Defaults to a dark rgba fallback. */
   labelBg?: string;
@@ -89,15 +96,16 @@ export function drawHud(
     ctx.font = '10px ui-monospace, monospace';
   }
 
-  // Turn + time + colony-age line.
+  // Turn + time + settlement-age line.
   ctx.fillStyle = opts.textMuted ?? 'rgba(216, 204, 176, 0.75)';
   const time = snapshot?.time;
-  const yearLabel = typeof time === 'number'
+  const unit = opts.timeUnitShort ?? 't';
+  const timeLabel = typeof time === 'number'
     ? typeof opts.startTime === 'number'
-      ? `T${snapshot?.turn ?? 0} · ${time} · Yr ${Math.max(0, time - opts.startTime)}`
+      ? `T${snapshot?.turn ?? 0} · ${time} · ${unit} ${Math.max(0, time - opts.startTime)}`
       : `T${snapshot?.turn ?? 0} · ${time}`
     : `T${snapshot?.turn ?? 0}`;
-  ctx.fillText(yearLabel, 10, 24);
+  ctx.fillText(timeLabel, 10, 24);
 
   if (!snapshot) {
     ctx.restore();

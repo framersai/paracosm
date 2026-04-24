@@ -182,7 +182,7 @@ export function updateRelationshipsFromReactions(
  * @param agent - The agent whose memory to render
  * @param allColonists - Optional full agent list for resolving relationship names
  */
-export function buildMemoryContext(agent: Agent, allColonists?: Agent[]): string {
+export function buildMemoryContext(agent: Agent, allColonists?: Agent[], timeUnitNoun?: string): string {
   if (!agent.memory) return '';
 
   const lines: string[] = [];
@@ -205,9 +205,11 @@ export function buildMemoryContext(agent: Agent, allColonists?: Agent[]): string
   // Recent memories (last 3, most recent first)
   const recent = mem.shortTerm.slice(-3).reverse();
   if (recent.length > 0) {
+    const timeNounRaw = timeUnitNoun ?? 'tick';
+    const TimeNoun = timeNounRaw.charAt(0).toUpperCase() + timeNounRaw.slice(1);
     lines.push('YOUR RECENT MEMORIES:');
     for (const entry of recent) {
-      lines.push(`- Year ${entry.time}: ${entry.content}`);
+      lines.push(`- ${TimeNoun} ${entry.time}: ${entry.content}`);
     }
   }
 
