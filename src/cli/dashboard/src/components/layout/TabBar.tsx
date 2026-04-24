@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { ScenarioClientPayload } from '../../hooks/useScenario';
 
-type Tab = 'sim' | 'viz' | 'settings' | 'reports' | 'branches' | 'chat' | 'log' | 'about';
+type Tab = 'quickstart' | 'sim' | 'viz' | 'settings' | 'reports' | 'branches' | 'chat' | 'log' | 'about';
 
 interface TabBarProps {
   active: Tab;
@@ -13,6 +13,8 @@ function TabIcon({ id, size = 16 }: { id: Tab; size?: number }) {
   const s = size;
   const props = { width: s, height: s, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
   switch (id) {
+    case 'quickstart':
+      return <svg {...props}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>;
     case 'sim':
       return <svg {...props}><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" /></svg>;
     case 'viz':
@@ -33,6 +35,7 @@ function TabIcon({ id, size = 16 }: { id: Tab; size?: number }) {
 }
 
 const TABS: Array<{ id: Tab; label: string }> = [
+  { id: 'quickstart', label: 'QUICKSTART' },
   { id: 'sim', label: 'SIM' },
   { id: 'viz', label: 'VIZ' },
   { id: 'settings', label: 'SETTINGS' },

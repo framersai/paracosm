@@ -1,13 +1,13 @@
 # Paracosm and the World-Model Landscape
 
-**Status:** current as of 2026-04-23.
+**Status:** current as of 2026-04-24.
 **Purpose:** place paracosm on the April 2026 world-model taxonomy so readers can map it correctly in under 15 seconds.
 
 ---
 
 ## One sentence
 
-Paracosm is a **structured world model** for AI agents: JSON-defined state, deterministic seeded kernel, LLM-driven events and specialist analyses, HEXACO-personality leaders, and a universal Zod-validated run artifact that spans turn-loop civilization simulations, batch-trajectory digital twins, and batch-point forecasts.
+Paracosm is a **structured counterfactual world model** for AI agents: prompts, briefs, URLs, or JSON drafts ground a typed `ScenarioPackage`; the deterministic seeded kernel, LLM-driven events, specialist analyses, HEXACO-personality leaders, and universal Zod-validated run artifact turn that contract into reproducible forked futures.
 
 ## Why "structured world model" is the right frame
 
@@ -21,6 +21,20 @@ Eric Xing's paper ["Critiques of World Models"](https://arxiv.org/abs/2507.05169
 > A world model is NOT about generating videos for viewing-pleasure, but IS about simulating all actionable possibilities of the world to serve as a sandbox for general-purpose reasoning via thought-experiments.
 
 Paracosm is exactly that sandbox. Every turn, the engine simulates an *actionable possibility* ("what does this leader decide given this event, this state, these specialist analyses") and the deterministic kernel applies consequences. Two runs against the same seed with two different leaders surface the counterfactual directly.
+
+[Yang et al, 2026](https://openreview.net/forum?id=XmYCERErcD) is the closest implementation anchor for the LLM version of this claim: it evaluates LLM-based world models as decision-making systems through policy verification, action proposal, and policy planning. [Gurnee and Tegmark, ICLR 2024](https://arxiv.org/abs/2310.02207) is the representation anchor: modern LLMs show structured space/time representations, which is evidence for basic world-model ingredients without proving full grounded understanding. Paracosm's product stance is therefore conservative: do not trust hidden model weights alone. Externalize the world into a typed schema, citations, tools, snapshots, and a seeded kernel, then let the LLM reason over that explicit structure.
+
+## Input model: source material vs contract
+
+Paracosm should not be described as "from JSON" as if JSON were the whole product. JSON is the durable contract.
+
+| Layer | What users provide | What Paracosm does |
+|---|---|---|
+| Source material | Prompt, pasted brief, PDF text, policy memo, fiction, web URL, or hand-written scenario JSON | Extracts topics, facts, citations, constraints, and likely dynamics. Today this is exposed through `seedText` / `seedUrl`; the roadmap API should expose it as `compileWorld()` or `WorldModel.fromPrompt()`. |
+| Canonical contract | `ScenarioPackage` / scenario JSON draft | Validates five state bags, labels, departments, metrics, setup defaults, and generated hooks. This is the checkpointable world model the kernel can replay. |
+| Simulation state | Kernel snapshot + `RunArtifact` | Persists deterministic replay state, fork lineage, decisions, timepoints, citations, forged tools, costs, and final world snapshot. |
+
+The rule is strict: prompt-only authoring may generate the contract, but it may not bypass the contract. If the LLM cannot produce a valid `ScenarioPackage`, there is no world to simulate.
 
 ## The five approaches, and where paracosm sits
 
@@ -40,10 +54,14 @@ Inside the "structured / LLM-based" branch, paracosm's specific research lineage
 
 Paracosm operationalizes CWSMs:
 
-- **The constant:** scenario JSON + seeded PRNG + kernel lifecycle. Same inputs → identical agent rosters, lifecycles, promotions.
+- **The constant:** compiled scenario contract + seeded PRNG + kernel lifecycle. Same inputs → identical agent rosters, lifecycles, promotions.
 - **The counterfactual:** leader HEXACO personality profile. Swap one leader for another and every LLM-driven stage diverges.
 - **The measurement:** `fingerprint` + per-turn `stateSnapshotAfter` + `specialistNotes[]` + `decisions[]` + final `worldSnapshot` across all five state bags.
 - **The API:** `WorldModel.fork()` (shipped in 0.7.x) lets callers branch a run at any past turn. Parent runs created with `captureSnapshots: true` carry per-turn kernel snapshots in `scenarioExtensions.kernelSnapshotsPerTurn`; `WorldModel.forkFromArtifact(artifact, atTurn)` reads one, restores the kernel verbatim, and returns a fresh `WorldModel` ready to simulate from `atTurn + 1` with a supplied leader. `metadata.forkedFrom` on the child artifact links back to the parent for chain reconstruction.
+
+### Onboarding: prompt or document is the authoring surface, JSON is the contract
+
+Paracosm accepts prompt text, briefs, URLs, and PDFs as seed source material. `WorldModel.fromPrompt` asks an LLM to propose a scenario draft against `DraftScenarioSchema`, validates it, and routes it into the canonical `compileScenario` pipeline. No prompt-only path bypasses the kernel or the schema. This keeps the ingestion surface permissive while preserving every reproducibility guarantee (seeded PRNG, deterministic transitions, Zod-validated artifacts) that the structured-world-model positioning rests on. The dashboard's Quickstart tab composes `fromPrompt` + `wm.quickstart` into a one-click "seed in, three HEXACO counterfactuals out" experience; external consumers integrate the same two calls programmatically. A curated library of 10 HEXACO archetypes at `paracosm/leader-presets` provides default leaders for `runBatch` sweeps and the dashboard's Swap control.
 
 Related academic work on LLM-counterfactual simulation:
 
@@ -76,7 +94,7 @@ LangGraph, AutoGen / AG2, CrewAI, OpenAI Agents SDK, Google ADK, Mastra: these b
 | Direction | Bottom-up, emergent | Top-down, leader-driven |
 | Scale | 1,000s to 1,000,000 agents | ~100 agents + 5 specialists + 1 commander |
 | Determinism | Emergent / non-deterministic | Seeded kernel; divergence is purely from leader personality |
-| Input | Seed document (news, policy, fiction) | JSON scenario + HEXACO leader |
+| Input | Seed document (news, policy, fiction) | Prompt/document/URL or JSON draft → `ScenarioPackage` + HEXACO leader |
 | Output | Aggregate prediction report | Universal `RunArtifact` (trajectory, decisions, specialist notes, forged tools, citations, cost) |
 | Primary use | Forecasting | Decision support, counterfactual analysis, digital twins |
 | Language | Python | TypeScript / ESM |
@@ -95,7 +113,7 @@ Every public paracosm surface: README, landing page, feature docs, blog posts, n
 
 ### 1. Structured
 
-State is JSON-declared, five-bag: `metrics` (numeric gauges), `capacities` (upper bounds), `statuses` (categorical), `politics` (social pressure), `environment` (external conditions). Schemas live in [`src/engine/types.ts`](../../src/engine/types.ts) and the universal public contract lives in [`src/engine/schema/`](../../src/engine/schema/).
+State is JSON-declared after compilation, five-bag: `metrics` (numeric gauges), `capacities` (upper bounds), `statuses` (categorical), `politics` (social pressure), `environment` (external conditions). Prompt text, briefs, documents, and URLs are source material; the compiled JSON / `ScenarioPackage` is the replayable contract. Schemas live in [`src/engine/types.ts`](../../src/engine/types.ts) and the universal public contract lives in [`src/engine/schema/`](../../src/engine/schema/).
 
 ### 2. Reproducible
 
@@ -132,8 +150,9 @@ JSON Schema export via `npm run export:json-schema` for non-TypeScript consumers
 - [Critiques of World Models: Xing, arXiv 2507.05169](https://arxiv.org/abs/2507.05169): the structured-vs-generative split.
 - [Understanding World or Predicting Future? A Comprehensive Survey of World Models: ACM CSUR 2025](https://dl.acm.org/doi/full/10.1145/3746449): the two-branch taxonomy.
 - [When AI meets counterfactuals: the ethical implications of counterfactual world simulation models: Kirfel et al, 2025](https://link.springer.com/article/10.1007/s43681-025-00718-4): the CWSM term and use cases.
+- [LLM-Based World Models Can Make Decisions Solely, But Rigorous Evaluations are Needed: Yang et al, TMLR 2026](https://openreview.net/forum?id=XmYCERErcD): LLM-based world models evaluated through verification, proposal, and planning.
+- [Language Models Represent Space and Time: Gurnee and Tegmark, ICLR 2024](https://arxiv.org/abs/2310.02207): evidence that LLMs learn structured spatiotemporal representations, with limits.
 - [Large Language Model Based Multi-agents: A Survey of Progress and Challenges: IJCAI 2024](https://www.ijcai.org/proceedings/2024/890): LLM-MA as world simulation.
-- [LLM-Based World Models Can Make Decisions Solely: arXiv 2411.08794](https://arxiv.org/html/2411.08794v2)
 - [Large language models empowered agent-based modeling and simulation: Nature HSSC 2024](https://www.nature.com/articles/s41599-024-03611-3)
 - [On the limits of agency in agent-based models: MIT Media Lab](https://arxiv.org/abs/2409.10568)
 - [World Models: Five Competing Approaches: Themesis 2026-01-07](https://themesis.com/2026/01/07/world-models-five-competing-approaches/)

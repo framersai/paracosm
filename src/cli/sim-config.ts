@@ -102,6 +102,13 @@ export interface SimulationSetupPayload {
    * for programmatic consumers (per Spec 2A). Spec 2B.
    */
   captureSnapshots?: boolean;
+  /**
+   * Optional Quickstart metadata. When present, the run is a quickstart
+   * session: leaders were LLM-generated from a seed, and the dashboard
+   * routes the completion to the Quickstart tab instead of the Reports
+   * tab. Tier 5.
+   */
+  quickstart?: { scenarioId: string };
 }
 
 export interface NormalizedSimulationConfig {
@@ -131,6 +138,8 @@ export interface NormalizedSimulationConfig {
   forkFrom?: { parentArtifact: import('../engine/schema/index.js').RunArtifact; atTurn: number };
   /** Whether the orchestrator should stash per-turn kernel snapshots. */
   captureSnapshots?: boolean;
+  /** Quickstart metadata; populated from SimulationSetupPayload.quickstart. */
+  quickstart?: { scenarioId: string };
 }
 
 export const DEFAULT_KEY_PERSONNEL: KeyPersonnel[] = [
@@ -506,12 +515,17 @@ export function applyDemoCaps(config: NormalizedSimulationConfig): NormalizedSim
 export function normalizeSimulationConfig(input: SimulationSetupPayload): NormalizedSimulationConfig {
   // Fork setups take exactly one leader (the override for the forked
   // branch); regular pair setups take exactly two. Spec 2B.
+  // Spec 2B: fork setup takes exactly one leader (the override for the
+  // forked branch). Tier 5 Quickstart: 3 to 6 leaders dispatch to the
+  // batch runner. Regular pair setup still takes two.
   if (input.forkFrom) {
     if (!Array.isArray(input.leaders) || input.leaders.length !== 1) {
       throw new Error('Fork setup requires exactly one leader');
     }
   } else if (!Array.isArray(input.leaders) || input.leaders.length < 2) {
-    throw new Error('Two leaders required');
+    throw new Error('Simulation requires at least 2 leaders');
+  } else if (input.leaders.length > 6) {
+    throw new Error(`Simulation accepts at most 6 leaders per run, got ${input.leaders.length}`);
   }
 
   // Priority for provider resolution:
@@ -591,5 +605,6 @@ export function normalizeSimulationConfig(input: SimulationSetupPayload): Normal
     cohereKey: input.cohereKey,
     forkFrom: input.forkFrom,
     captureSnapshots: input.captureSnapshots === true,
+    quickstart: input.quickstart,
   };
 }

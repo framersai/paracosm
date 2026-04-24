@@ -4,6 +4,7 @@
 **Status:** Approved for execution (see Q1a / Q2i / Q3x from the brainstorm)
 **Supersedes:** the implicit "AI agent swarm simulation engine" positioning used across 0.1–0.7.x copy.
 **Code impact:** additive. No breaking changes to `paracosm`, `paracosm/runtime`, `paracosm/compiler`, `paracosm/schema`, `paracosm/core`, `paracosm/mars`, or `paracosm/lunar`.
+**2026-04-24 amendment:** JSON remains the canonical contract, but the product positioning should no longer imply JSON is the only authoring surface. Prompt text, briefs, documents, and URLs are first-class source material that compile or ground into the same typed `ScenarioPackage`.
 
 ---
 
@@ -35,7 +36,7 @@ Paracosm is NOT any of these and should be named as not-any-of-these in public c
 
 **Primary positioning line:**
 
-> **Paracosm: the structured world model for AI agents. Reproducible counterfactual simulations from JSON.**
+> **Paracosm: the structured counterfactual world model for AI agents. From prompt to world model to forked futures.**
 
 **Supporting slogan (retained from existing copy, it was already good):**
 
@@ -43,7 +44,7 @@ Paracosm is NOT any of these and should be named as not-any-of-these in public c
 
 **Category claim (verbatim for README, landing page, features/paracosm.md, npm description):**
 
-> Paracosm is a **structured world model** (Xing 2025; ACM CSUR 2025) and a **counterfactual world simulation model** (Kirfel et al, 2025). It is NOT a generative visual / spatial world model (Sora, Genie 3, World Labs Marble), NOT a JEPA-style predictive-representation model (LeCun / AMI Labs), NOT a multi-agent task orchestration framework (LangGraph, AutoGen, CrewAI, OpenAI Agents SDK), NOT a bottom-up swarm intelligence simulator (MiroFish, OASIS), and NOT a generative agent-based modeling library (Concordia, Stanford Generative Agents). It IS a JSON-defined state space + deterministic seeded kernel + LLM-driven events and specialist analyses + HEXACO-personality leaders + universal Zod-validated run artifact spanning turn-loop civilization simulations, batch-trajectory digital twins, and batch-point forecasts.
+> Paracosm is a **structured world model** (Xing 2025; ACM CSUR 2025) and a **counterfactual world simulation model** (Kirfel et al, 2025). It is NOT a generative visual / spatial world model (Sora, Genie 3, World Labs Marble), NOT a JEPA-style predictive-representation model (LeCun / AMI Labs), NOT a multi-agent task orchestration framework (LangGraph, AutoGen, CrewAI, OpenAI Agents SDK), NOT a bottom-up swarm intelligence simulator (MiroFish, OASIS), and NOT a generative agent-based modeling library (Concordia, Stanford Generative Agents). It IS a prompt/document/URL-grounded, JSON-contract-backed state space + deterministic seeded kernel + LLM-driven events and specialist analyses + HEXACO-personality leaders + universal Zod-validated run artifact spanning turn-loop civilization simulations, batch-trajectory digital twins, and batch-point forecasts.
 
 **Why this specific phrasing:**
 
@@ -51,13 +52,36 @@ Paracosm is NOT any of these and should be named as not-any-of-these in public c
 - **"World model"**: academically defensible (Xing 2025, ACM CSUR 2025), rides the $1B+ category narrative, and is the load-bearing phrase for 2026 discovery.
 - **"For AI agents"**: scopes it to LLM / agent infrastructure so developer audiences self-identify. Disambiguates from human-facing spatial-WM products (Sora for filmmakers, Marble for 3D artists).
 - **"Reproducible counterfactual simulations"**: names the unique mechanism (seeded kernel + swap one variable) and attaches to the CWSM research lineage without needing to spell out HEXACO up front.
-- **"From JSON"**: shows the API surface immediately; differentiates from MiroFish (doc-upload UI) and from Sora (text-prompt) and from Concordia (Python library requiring code).
+- **"From prompt to world model to forked futures"**: names the authoring flow without pretending prompt text is the runtime state. The LLM can help produce the world contract; the kernel only runs the validated contract.
+
+## 3.1 Authoring surface vs canonical contract
+
+This is the important correction after the first positioning pass.
+
+Paracosm should not be explained as "a JSON simulator" except when discussing the low-level API. JSON is the checkpointable, replayable contract that makes reproducibility possible. The user-facing product should start earlier:
+
+1. User provides a prompt, brief, document text, URL, or hand-written scenario draft.
+2. The compiler extracts facts, constraints, citations, metrics, labels, departments, and dynamics.
+3. The compiler emits or grounds a typed `ScenarioPackage`.
+4. Zod validation rejects invalid worlds.
+5. The deterministic kernel and LLM stages simulate only the validated world.
+
+The shipped API already exposes step 2 for source grounding through `seedText` and `seedUrl`, while `compileScenario()` still requires the scenario JSON draft. The next API should be additive:
+
+```typescript
+const wm = await WorldModel.fromPrompt(
+  'Simulate a mid-market robotics company navigating a China export-control shock.',
+  { provider: 'openai', model: 'gpt-5.4' },
+);
+```
+
+Internally, that wrapper should still emit a scenario JSON draft, validate it against `ScenarioWorldSchema`, pass it through `compileScenario()`, and return the same `WorldModel` façade. No separate artifact shape, no separate runtime semantics.
 
 ## 4. The seven claim pillars (used consistently across all copy)
 
 Every paracosm surface (README, landing, docs, blog, npm, GitHub topics) leads with one or more of these, and no surface contradicts them. Each is verifiable against the source:
 
-1. **Structured.** JSON-defined state space across five bags: `metrics` / `capacities` / `statuses` / `politics` / `environment`. See `ScenarioWorldSchema` in `src/engine/types.ts`.
+1. **Structured.** Prompt/document/URL source material grounds a JSON-defined state space across five bags: `metrics` / `capacities` / `statuses` / `politics` / `environment`. See `ScenarioWorldSchema` in `src/engine/types.ts`.
 2. **Reproducible.** Mulberry32-seeded PRNG for kernel state transitions. Same seed → identical agent rosters, lifecycle schedules, promotions. Divergence is *purely* from LLM leader-personality decisions. See `SeededRng` in `src/engine/core/`.
 3. **Counterfactual-first.** The product is shipping two leaders against the same seed and surfacing the divergence. `runBatch` lets you do this at N scenarios × M leaders. See `src/runtime/batch.ts`.
 4. **Personality-grounded.** HEXACO-PI-R six-factor model (Ashton & Lee 2007, PSPR 11(2)) with drift under three forces: leader-pull, role-activation, outcome-reinforcement. See `src/engine/core/state.ts` + `src/runtime/hexaco-cues/`.
@@ -73,11 +97,11 @@ All landing points get updated in lockstep so a search hit on any one matches th
 
 ### 5.1 `package.json`
 
-- `description` → "Structured world model for AI agents: reproducible counterfactual simulations with deterministic kernels, HEXACO-personality leaders, LLM-driven events, and runtime tool forging. Built on AgentOS."
+- `description` → "Prompt/document/URL-grounded structured world model for AI agents: typed ScenarioPackages, deterministic kernels, HEXACO leaders, LLM events, runtime tool forging, and reproducible counterfactual RunArtifacts. Built on AgentOS."
 - `keywords` → extend from
   `paracosm, simulation, multi-agent, ai-agents, emergent-behavior, tool-forging, hexaco, personality, agentos, typescript`
   to
-  `paracosm, world-model, structured-world-model, llm-world-model, counterfactual-simulation, cwsm, digital-twin, decision-simulation, simulation, multi-agent, ai-agents, llm-agents, emergent-behavior, tool-forging, hexaco, personality, agentos, typescript`
+  `paracosm, world-model, structured-world-model, llm-world-model, llm-readable-world-model, prompt-to-world-model, prompt-to-simulation, counterfactual-simulation, cwsm, digital-twin, decision-simulation, simulation, multi-agent, ai-agents, llm-agents, emergent-behavior, tool-forging, hexaco, personality, agentos, typescript`
 - `homepage` unchanged (still https://agentos.sh).
 - A new subpath export `paracosm/world-model` → `./dist/engine/world-model/index.js` once the façade lands (see §7).
 
@@ -152,7 +176,7 @@ Concretely:
 Ship is judged on four checks:
 
 1. **Category match on a cold read.** A developer who never saw paracosm before lands on the README or landing page and can correctly answer "what category is this" within 15 seconds (structured / LLM-based / counterfactual world model, not a multi-agent framework, not a Sora competitor, not a MiroFish clone). Validated by hand-reading the README + landing + features page end-to-end and asking "would I explain it right now."
-2. **No contradictions.** Every surface (README / landing / features/paracosm.md / npm description / GitHub description / new blog post / positioning doc / façade JSDoc) uses the seven claim pillars consistently. Hand-grep for "AI agent swarm simulation engine" returns zero results outside the old-blog-post editor's notes.
+2. **No contradictions.** Every surface (README / landing / features/paracosm.md / npm description / GitHub description / new blog post / positioning doc / façade JSDoc) uses the seven claim pillars consistently. Hand-grep for "AI agent swarm simulation engine" returns only historical positioning-spec / roadmap context. Hand-grep for "from JSON" returns no current-product top-line claims.
 3. **Tests stay green.** `npm test` baseline `567 pass / 0 fail / 1 skip` stays green after the façade lands. Façade adds one targeted test; no existing test modified unless a string literal changed.
 4. **Type check stays clean.** `npx tsc --noEmit -p tsconfig.build.json` has no new errors beyond the pre-existing Zod-v4 warnings in `src/runtime/llm-invocations/*` and `src/engine/compiler/llm-invocations/*`.
 
@@ -188,8 +212,9 @@ Steps 2–9 are commits in `apps/paracosm` and `apps/agentos.sh` (the latter is 
 - [Critiques of World Models: Eric Xing, arXiv:2507.05169](https://arxiv.org/abs/2507.05169)
 - [Understanding World or Predicting Future? A Comprehensive Survey of World Models: ACM CSUR 2025](https://dl.acm.org/doi/full/10.1145/3746449)
 - [When AI meets counterfactuals: the ethical implications of counterfactual world simulation models: Kirfel et al, 2025](https://link.springer.com/article/10.1007/s43681-025-00718-4)
+- [LLM-Based World Models Can Make Decisions Solely, But Rigorous Evaluations are Needed: Yang et al, TMLR 2026](https://openreview.net/forum?id=XmYCERErcD)
+- [Language Models Represent Space and Time: Gurnee and Tegmark, ICLR 2024](https://arxiv.org/abs/2310.02207)
 - [Large Language Model Based Multi-agents: A Survey of Progress and Challenges: IJCAI 2024](https://www.ijcai.org/proceedings/2024/890)
-- [LLM-Based World Models Can Make Decisions Solely: arXiv:2411.08794](https://arxiv.org/html/2411.08794v2)
 - [Large language models empowered agent-based modeling and simulation: Nature HSSC 2024](https://www.nature.com/articles/s41599-024-03611-3)
 - [World Models: Five Competing Approaches: Themesis, 2026-01-07](https://themesis.com/2026/01/07/world-models-five-competing-approaches/)
 - [Yann LeCun's AMI Labs raises $1.03B: TechCrunch 2026-03-09](https://techcrunch.com/2026/03/09/yann-lecuns-ami-labs-raises-1-03-billion-to-build-world-models/)

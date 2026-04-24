@@ -1,7 +1,7 @@
 {
   "name": "paracosm",
   "version": "0.7.0",
-  "description": "Structured world model for AI agents: reproducible counterfactual simulations with deterministic kernels, HEXACO-personality leaders, LLM-driven events, and runtime tool forging. Covers turn-loop civ sims, batch-trajectory digital twins, and batch-point forecasts via one universal Zod-validated RunArtifact. Built on AgentOS.",
+  "description": "Prompt/document/URL-grounded structured world model for AI agents: typed ScenarioPackages, deterministic kernels, HEXACO leaders, LLM events, runtime tool forging, and reproducible counterfactual RunArtifacts. Built on AgentOS.",
   "type": "module",
   "main": "dist/engine/index.js",
   "types": "dist/engine/index.d.ts",
@@ -41,6 +41,10 @@
     "./world-model": {
       "import": "./dist/runtime/world-model/index.js",
       "types": "./dist/runtime/world-model/index.d.ts"
+    },
+    "./leader-presets": {
+      "import": "./dist/engine/leader-presets.js",
+      "types": "./dist/engine/leader-presets.d.ts"
     }
   },
   "files": [
@@ -72,9 +76,10 @@
     "leader:b": "npx tsx src/cli/run-b.ts"
   },
   "dependencies": {
-    "@framers/agentos": "^0.2.1",
+    "@framers/agentos": "^0.2.4",
     "@framers/sql-storage-adapter": "^0.6.3",
     "better-sqlite3": "^12.9.0",
+    "pdfjs-dist": "^4.10.38",
     "zod": "^4.3.6"
   },
   "devDependencies": {
@@ -88,6 +93,9 @@
     "world-model",
     "structured-world-model",
     "llm-world-model",
+    "llm-readable-world-model",
+    "prompt-to-world-model",
+    "prompt-to-simulation",
     "counterfactual-simulation",
     "cwsm",
     "digital-twin",

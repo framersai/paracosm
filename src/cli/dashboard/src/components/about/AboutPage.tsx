@@ -9,7 +9,7 @@ interface FaqItem {
 const FAQ: FaqItem[] = [
   {
     q: 'What is Paracosm?',
-    a: 'Paracosm is a scenario-driven multi-agent simulation engine. Define a world as JSON with departments, metrics, events, and progression hooks. Assign AI leaders with distinct HEXACO personality profiles. The engine handles event generation, department analysis, runtime tool forging, personality drift, and deterministic state transitions. Leaders can be colony commanders, CEOs, generals, governing councils, AI systems, or any top-down decision maker.',
+    a: 'Paracosm is a structured world model for AI agents. Start from a prompt, brief, URL, or scenario JSON draft, compile or ground it into a typed ScenarioPackage, then assign AI leaders with distinct HEXACO personality profiles. The engine handles event generation, department analysis, runtime tool forging, personality drift, and deterministic state transitions. Leaders can be colony commanders, CEOs, generals, governing councils, AI systems, or any top-down decision maker.',
   },
   {
     q: 'How does the simulation work?',
@@ -21,7 +21,7 @@ const FAQ: FaqItem[] = [
   },
   {
     q: 'What is the Scenario Compiler?',
-    a: 'The Scenario Compiler is the zero-code authoring path for Paracosm: a JSON world definition that generates runtime hooks via LLM calls instead of hand-written TypeScript. It already works in the open-source CLI and local dashboard today. The polished hosted self-serve product surface is still planned rather than generally available.',
+    a: 'The Scenario Compiler is the zero-code authoring path for Paracosm: a scenario JSON draft plus optional prompt, brief, or URL grounding generates runtime hooks via LLM calls instead of hand-written TypeScript. It already works in the open-source CLI and local dashboard today. A prompt-only wrapper should generate the same typed contract before simulation; the polished hosted self-serve product surface is still planned rather than generally available.',
   },
   {
     q: 'How many simulations can I run?',
@@ -223,8 +223,9 @@ export function AboutPage() {
             PARA<span style={{ color: 'var(--amber)' }}>COSM</span>
           </h1>
           <p style={{ color: 'var(--text-2)', lineHeight: 1.8, fontSize: '14px' }}>
-            Scenario-driven multi-agent simulation engine. Define a world as JSON. Assign AI leaders with
-            distinct personalities. Watch their decisions compound into divergent outcomes from identical starting
+            Structured world model for AI agents. Start from a prompt, brief, URL, or scenario JSON draft,
+            compile or ground it into a typed world contract, then assign AI leaders with distinct personalities.
+            Watch their decisions compound into divergent outcomes from identical starting
             conditions. Leaders can be commanders, CEOs, generals, councils, AI systems, or any top-down
             decision maker. The engine handles event generation, department analysis, tool forging, personality
             drift, and state transitions. Currently running: <strong style={{ color: 'var(--amber)' }}>{scenario.labels.name}</strong>.

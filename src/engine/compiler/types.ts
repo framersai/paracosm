@@ -47,9 +47,9 @@ export interface CompileOptions {
   generateText?: GenerateTextFn;
   /** Progress callback for each hook being generated. */
   onProgress?: (hookName: string, status: 'generating' | 'cached' | 'done' | 'fallback') => void;
-  /** Seed text to ingest into the scenario's knowledge bundle via LLM extraction + optional web search. */
+  /** Prompt, brief, or document text to ingest into the scenario's knowledge bundle via LLM extraction + optional web search. */
   seedText?: string;
-  /** Seed URL to fetch and ingest. If set, seedText is ignored. */
+  /** URL to fetch and ingest as source material. If set, seedText is ignored. */
   seedUrl?: string;
   /** Enable live web search during seed ingestion. Requires search API keys. Default: true. */
   webSearch?: boolean;

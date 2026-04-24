@@ -44,3 +44,15 @@ test('branchesReducer: branch completion reports absolute final turn after fork 
   assert.equal(next.branches[0].status, 'complete');
   assert.equal(next.branches[0].currentTurn, 6);
 });
+
+test('reducer: SET_PARENT replaces current parent and clears branches', () => {
+  const firstArtifact = { metadata: { runId: 'r1', scenario: { id: 's', name: 'S' }, mode: 'turn-loop', startedAt: '' }, finalState: {} } as unknown as Parameters<typeof branchesReducer>[1] extends { artifact: infer A } ? A : never;
+  const secondArtifact = { metadata: { runId: 'r2', scenario: { id: 's', name: 'S' }, mode: 'turn-loop', startedAt: '' }, finalState: {} } as unknown as typeof firstArtifact;
+  const starting = {
+    parent: firstArtifact,
+    branches: [{ localId: 'b1', forkedAtTurn: 3, leaderName: 'X', leaderArchetype: 'A', status: 'complete' as const, currentTurn: 6 }],
+  };
+  const next = branchesReducer(starting, { type: 'SET_PARENT', artifact: secondArtifact });
+  assert.equal(next.parent, secondArtifact);
+  assert.deepEqual(next.branches, []);
+});

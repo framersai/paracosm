@@ -3,7 +3,11 @@ import { readFileSync, writeFileSync, existsSync, readdirSync, statSync, unlinkS
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { normalizeSimulationConfig, applyDemoCaps, type NormalizedSimulationConfig } from './sim-config.js';
-import { runPairSimulations, runForkSimulation, type BroadcastFn } from './pair-runner.js';
+import { runPairSimulations, runForkSimulation, runBatchSimulations, type BroadcastFn } from './pair-runner.js';
+import {
+  handleFetchSeed, handleCompileFromSeed, handleGenerateLeaders,
+  type QuickstartDeps,
+} from './quickstart-routes.js';
 import { marsScenario } from '../engine/mars/index.js';
 import { lunarScenario } from '../engine/lunar/index.js';
 import type { ScenarioPackage } from '../engine/types.js';
@@ -851,6 +855,59 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         simConfig = null;
         res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
         res.end(JSON.stringify({ active: activeScenario.id, name: activeScenario.labels?.name }));
+      } catch (err) {
+        writeJsonError(res, err);
+      }
+      return;
+    }
+
+    // Tier 5 Quickstart onboarding endpoints.
+    if (req.url?.startsWith('/api/quickstart/') && req.method === 'POST') {
+      try {
+        const body = JSON.parse(await readBody(req, maxRequestBodyBytes));
+        const quickstartDeps: QuickstartDeps = {
+          setActiveScenario: (sc) => {
+            activeScenario = sc;
+            // Quickstart-compiled scenarios reuse the 'compiled' source
+            // tag; same post-compile semantics, no new source state
+            // required.
+            customScenarioCatalog.set(sc.id, { scenario: sc, source: 'compiled' });
+          },
+          getScenarioById: (id) => {
+            if (id === activeScenario.id) return activeScenario;
+            return customScenarioCatalog.get(id)?.scenario;
+          },
+          fetchSeedFromUrl: async (url) => {
+            // Lazy-import AgentOS's WebSearchService to keep the cold
+            // start path lean. The service throws on fetch failures;
+            // the route handler catches and returns 502.
+            const agentos = await import('@framers/agentos');
+            const WebSearchService = (agentos as unknown as { WebSearchService: new (opts: unknown) => { fetchSingleUrl: (u: string) => Promise<{ markdown?: string; text?: string; title?: string }> } }).WebSearchService;
+            const service = new WebSearchService({});
+            const fetched = await service.fetchSingleUrl(url);
+            return {
+              text: fetched.markdown || fetched.text || '',
+              title: fetched.title || '',
+              sourceUrl: url,
+            };
+          },
+          defaultProvider: 'anthropic',
+          defaultModel: 'claude-sonnet-4-6',
+        };
+        if (req.url === '/api/quickstart/fetch-seed') {
+          await handleFetchSeed(req, res, body, quickstartDeps);
+          return;
+        }
+        if (req.url === '/api/quickstart/compile-from-seed') {
+          await handleCompileFromSeed(req, res, body, quickstartDeps);
+          return;
+        }
+        if (req.url === '/api/quickstart/generate-leaders') {
+          await handleGenerateLeaders(req, res, body, quickstartDeps);
+          return;
+        }
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: `Unknown quickstart route: ${req.url}` }));
       } catch (err) {
         writeJsonError(res, err);
       }
@@ -1983,6 +2040,10 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         // config carries a forkFrom reference.
         if (config.forkFrom) {
           await runForkSimulation(config, broadcast, controller.signal, activeScenario);
+        } else if (config.leaders.length >= 3) {
+          // Tier 5 Quickstart dispatches N >= 3 leaders to the batch
+          // runner (same SSE contract per leader, no verdict).
+          await runBatchSimulations(config, broadcast, controller.signal, activeScenario);
         } else {
           await startSimulations(config, broadcast, controller.signal, activeScenario);
         }

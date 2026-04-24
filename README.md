@@ -5,7 +5,7 @@
 <h1 align="center">PARACOSM</h1>
 
 <p align="center">
-  <em>The structured world model for AI agents. Reproducible counterfactual simulations from JSON.</em>
+  <em>From prompt to world model to forked futures. Structured counterfactual simulations for AI agents.</em>
 </p>
 
 <p align="center">
@@ -27,13 +27,15 @@
 
 ## What paracosm is
 
-A JSON file describes a world. A leader with a HEXACO personality profile runs it. A deterministic kernel drives state, time, and randomness. An LLM generates events, specialist analyses, and the leader's decisions. Specialists can forge new computational tools at runtime inside a V8 sandbox; an LLM judge approves each forge before it enters the decision pipeline. The kernel applies consequences. Personality traits drift. One turn ends, the next begins.
+Paracosm starts from a prompt, brief, URL, or hand-written scenario draft; every path compiles down to an LLM-readable world contract before simulation. The durable contract is still JSON: a typed `ScenarioPackage` with five state bags, labels, departments, metrics, setup defaults, and generated hooks. A leader with a HEXACO personality profile runs that world. A deterministic kernel drives state, time, and randomness. An LLM generates events, specialist analyses, and the leader's decisions. Specialists can forge new computational tools at runtime inside a V8 sandbox; an LLM judge approves each forge before it enters the decision pipeline. The kernel applies consequences. Personality traits drift. One turn ends, the next begins.
+
+**JSON is the contract, not the product boundary.** Today, `compileScenario()` accepts a scenario JSON draft and can ground it with `seedText` or `seedUrl`. The next API layer should be a one-call prompt/document wrapper that asks an LLM to propose that same JSON contract, validates it, then compiles and runs it. It should not bypass the schema, the kernel, or the artifact.
 
 **Same seed. Different leader. Different world.**
 
-Two runs against an identical seed, starting from the same JSON, produce measurably divergent trajectories when you swap one variable: the leader's personality. The kernel's side is reproducible. The divergence comes from the LLM stages reading HEXACO profiles and deciding differently. That structural contrast is the product.
+Two runs against an identical seed, starting from the same compiled world contract, produce measurably divergent trajectories when you swap one variable: the leader's personality. The kernel's side is reproducible. The divergence comes from the LLM stages reading HEXACO profiles and deciding differently. That structural contrast is the product.
 
-Paracosm is a **structured world model** in the sense of [Xing 2025](https://arxiv.org/abs/2507.05169) and the [ACM CSUR 2025 world-model survey](https://dl.acm.org/doi/full/10.1145/3746449): a simulator for *actionable possibilities*, not a video generator. It is also a **counterfactual world simulation model** ([Kirfel et al, 2025](https://link.springer.com/article/10.1007/s43681-025-00718-4)): a substrate for replaying an event with one variable changed and surfacing the effect. Full taxonomy mapping in [`docs/positioning/world-model-mapping.md`](docs/positioning/world-model-mapping.md).
+Paracosm is a **structured world model** in the sense of [Xing 2025](https://arxiv.org/abs/2507.05169) and the [ACM CSUR 2025 world-model survey](https://dl.acm.org/doi/full/10.1145/3746449): a simulator for *actionable possibilities*, not a video generator. It is also a **counterfactual world simulation model** ([Kirfel et al, 2025](https://link.springer.com/article/10.1007/s43681-025-00718-4)): a substrate for replaying an event with one variable changed and surfacing the effect. The closest LLM-world-model implementation anchor is [Yang et al, 2026](https://openreview.net/forum?id=XmYCERErcD), which evaluates LLM-based world models through policy verification, action proposal, and policy planning. Paracosm takes the safe product version of that idea: externalize the world into schema, citations, tools, snapshots, and seeded transitions, then let the LLM reason over that structure. Full taxonomy mapping in [`docs/positioning/world-model-mapping.md`](docs/positioning/world-model-mapping.md).
 
 ### Not these things
 
@@ -76,7 +78,25 @@ The kernel round-trips through `JSON.stringify`, so snapshots persist to disk cl
 
 The paracosm dashboard exposes the same mechanism end-to-end. Every UI-initiated run captures snapshots by default, so the Reports tab shows a `↳ Fork at {Time} N` button on each completed turn. Clicking it opens a fork modal (leader override, optional seed, optional custom events), POSTs to `/setup` with the full parent artifact, and routes the user to a new **Branches** tab where all forks launched from the current parent accumulate as cards with per-metric deltas rendered live as each branch streams to completion.
 
-## Quickstart
+### Quickstart: prompt or document to running simulation
+
+`WorldModel.fromPrompt` compiles a scenario from seed source material (paste, URL, or extracted PDF text), then `wm.quickstart` generates N contextual HEXACO leaders and runs them in parallel. Every prompt/document path validates against `DraftScenarioSchema` and routes into the existing `compileScenario` pipeline: the canonical `ScenarioPackage` contract is never bypassed.
+
+```typescript
+import { WorldModel } from 'paracosm/world-model';
+
+const wm = await WorldModel.fromPrompt({
+  seedText: 'Q3 board brief: the company must decide between...',
+  domainHint: 'corporate strategic decision',
+});
+
+const { leaders, artifacts } = await wm.quickstart({ leaderCount: 3 });
+artifacts.forEach((a, i) => console.log(leaders[i].name, a.fingerprint));
+```
+
+In the dashboard, the Quickstart tab is the default landing view. A user pastes a brief (or drops a PDF, or supplies a URL) and receives three streaming-live leaders plus per-card Download JSON, Copy shareable link, and Fork-in-Branches actions within a minute of first click. A curated library of 10 HEXACO archetypes is exported at `paracosm/leader-presets` for programmatic `runBatch` sweeps or Swap-leader controls in downstream UIs.
+
+## Install
 
 ```bash
 npm install paracosm      # also works: pnpm add paracosm / bun add paracosm
@@ -85,6 +105,8 @@ npm install paracosm      # also works: pnpm add paracosm / bun add paracosm
 Paracosm ships as pure ESM with subpath exports (`paracosm/compiler`, `paracosm/runtime`, `paracosm/mars`, `paracosm/lunar`, `paracosm/core`, `paracosm/schema`). Node 20+, Bun 1.x, and any TypeScript runner with ESM + import-attributes support (`tsx`, `ts-node --esm`) resolve them out of the box. If `import ... from 'paracosm/compiler'` fails with a module-not-found error, the dependency was never installed in that project. `cd` into the right directory and run one of the commands above.
 
 ### 1. Define your world
+
+The canonical authoring contract is JSON because JSON can be validated, diffed, cached, snapshotted, and exported as schema. You can write that draft directly, or ground it with natural-language source material through `seedText` / `seedUrl` during compilation. A future prompt-only wrapper should generate this same contract first, then compile it.
 
 Every scenario declares its own vocabulary via `labels.populationNoun`
 (plural, e.g. `"colonists"` / `"crew"` / `"citizens"`) and
@@ -166,7 +188,7 @@ import { compileScenario } from 'paracosm/compiler';
 import { runSimulation } from 'paracosm/runtime';
 import worldJson from './my-world.json' with { type: 'json' };
 
-// Compile JSON into a runnable scenario (~$0.10, cached to disk)
+// Compile a typed world draft into a runnable scenario (~$0.10, cached to disk)
 const scenario = await compileScenario(worldJson, {
   provider: 'anthropic',
   model: 'claude-sonnet-4-6',
@@ -335,7 +357,7 @@ Then edit the HEXACO sliders and `instructions` fields to describe your own lead
 
 ## Scenario Compiler
 
-The compiler turns your JSON into a runnable scenario by generating TypeScript hooks via LLM calls:
+The compiler turns a typed world draft plus optional prompt/document/URL grounding into a runnable scenario by generating TypeScript hooks via LLM calls:
 
 ```bash
 npm run compile -- scenarios/submarine.json \
@@ -343,7 +365,7 @@ npm run compile -- scenarios/submarine.json \
   --no-web-search
 ```
 
-Options: `--seed-text`, `--seed-url`, `--no-web-search`, `--max-searches`. Compiled scenarios appear in the dashboard selector. Cost is roughly $0.10 per compile, cached to disk after first generation.
+Options: `--seed-text`, `--seed-url`, `--no-web-search`, `--max-searches`. Use `--seed-text` for a pasted brief or prompt, and `--seed-url` for a report, paper, or web page. The JSON file remains the contract that gets validated and cached; seed material grounds the world before hook generation. Compiled scenarios appear in the dashboard selector. Cost is roughly $0.10 per compile, cached to disk after first generation.
 
 ### Programmatic compiler options
 
@@ -743,7 +765,7 @@ The commander sees all department reports and makes a decision. Different comman
 src/
   engine/         the npm package
     core/         deterministic kernel (RNG, state, progression, personality drift)
-    compiler/     JSON -> ScenarioPackage compiler
+    compiler/     scenario draft + source grounding -> ScenarioPackage compiler
     mars/         Mars Genesis scenario
     lunar/        Lunar Outpost scenario
 

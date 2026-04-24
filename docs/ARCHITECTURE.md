@@ -1,6 +1,6 @@
 # Paracosm Architecture
 
-Paracosm is a structured world model for AI agents. It runs parallel simulations with AI leaders that have different HEXACO personality profiles, and produces measurably different outcomes from identical starting conditions. Fits the structured / LLM-based / counterfactual branch of the 2026 world-model taxonomy; see [`docs/positioning/world-model-mapping.md`](positioning/world-model-mapping.md) for the placement against adjacent categories.
+Paracosm is a prompt/document/URL-grounded structured world model for AI agents. It compiles source material into a typed `ScenarioPackage`, runs parallel simulations with AI leaders that have different HEXACO personality profiles, and produces measurably different outcomes from identical starting conditions. Fits the structured / LLM-based / counterfactual branch of the 2026 world-model taxonomy; see [`docs/positioning/world-model-mapping.md`](positioning/world-model-mapping.md) for the placement against adjacent categories.
 
 This document covers the full system: how scenarios become simulations, how agents make decisions, how tools get forged at runtime, how the chat system maintains character consistency, and how the API enables arbitrary scenario types.
 
@@ -8,14 +8,14 @@ This document covers the full system: how scenarios become simulations, how agen
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                         Scenario JSON                        │
-│  Defines: departments, metrics, events, labels, setup        │
+│                   World Source Material                       │
+│  Prompt / brief / URL / scenario JSON draft                  │
 └─────────────────┬───────────────────────────────────────────┘
                   │
                   ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                      Scenario Compiler                       │
-│  JSON → LLM-generated hooks (progression, prompts, politics) │
+│  Validated ScenarioPackage + LLM-generated runtime hooks      │
 │  Cost: ~$0.10. Cached to disk after first compile.           │
 └─────────────────┬───────────────────────────────────────────┘
                   │
@@ -44,7 +44,7 @@ This document covers the full system: how scenarios become simulations, how agen
 
 ### Scenario Definition
 
-A scenario is a JSON file that describes the simulation domain. It does not contain any code. The engine handles crisis generation, state transitions, tool forging, and personality drift. The scenario handles domain vocabulary and structure.
+A scenario JSON file is the runtime contract that describes the simulation domain. It does not contain any code. Prompt text, briefs, and URLs can ground the contract through the compiler, but the kernel only runs the validated `ScenarioPackage`. The engine handles crisis generation, state transitions, tool forging, and personality drift. The scenario handles domain vocabulary and structure.
 
 ```json
 {
@@ -62,7 +62,7 @@ A scenario is a JSON file that describes the simulation domain. It does not cont
 }
 ```
 
-**Any domain works.** Mars colonies, submarine habitats, space stations, medieval kingdoms. The engine is domain-agnostic. The scenario JSON defines what gets simulated.
+**Any domain works.** Mars colonies, submarine habitats, space stations, medieval kingdoms. The engine is domain-agnostic. The compiled scenario contract defines what gets simulated.
 
 **Terminology.** The `labels.populationNoun` (plural, e.g. `colonists` → `crew` → `subjects`) and `labels.settlementNoun` (singular, e.g. `colony` → `habitat` → `kingdom`) fields flavour every user-facing string in the dashboard: help legends, roster headers, empty states, ARIA labels, report copy. The engine defaults to `colonists` / `colony` when omitted (Mars heritage), but non-Mars scenarios should override both. Singular/capitalized variants are derived automatically by the dashboard's `useScenarioLabels()` hook.
 
@@ -101,7 +101,7 @@ The Event Director also receives the knowledge bundle's `topics` and `categories
 
 ### Scenario Compiler
 
-The compiler turns JSON into a runnable `ScenarioPackage` by generating TypeScript hook functions via LLM calls:
+The compiler turns a scenario JSON draft plus optional prompt/document/URL grounding into a runnable `ScenarioPackage` by generating TypeScript hook functions via LLM calls:
 
 | Hook | What it generates | Called when |
 |------|-------------------|------------|
@@ -112,7 +112,7 @@ The compiler turns JSON into a runnable `ScenarioPackage` by generating TypeScri
 | `getMilestoneEvent` | Fixed narrative events (Turn 1 founding, final assessment) | Turn 1 and final turn |
 | `reactionsHook` | Colonist personality-aware reactions | After each commander decision |
 
-Compilation costs ~$0.10 and is cached to disk. The compiler accepts `--seed-text` and `--seed-url` for domain research, and `--no-web-search` to skip web enrichment.
+Compilation costs ~$0.10 and is cached to disk. The compiler accepts `--seed-text` and `--seed-url` for domain research, and `--no-web-search` to skip web enrichment. A future prompt-only wrapper should first generate this same JSON contract, then validate and compile it.
 
 ### Deterministic Kernel
 
@@ -372,7 +372,7 @@ import { RunArtifactSchema, StreamEventSchema, type RunArtifact } from 'paracosm
 | `POST` | `/chat` | Chat with a colonist agent |
 | `GET` | `/results` | Full simulation results including verdict |
 | `GET` | `/rate-limit` | Check rate limit status |
-| `POST` | `/compile` | Compile a custom scenario from JSON |
+| `POST` | `/compile` | Compile a custom scenario draft with optional `seedText` / `seedUrl` grounding |
 | `GET` | `/retry-stats` | Cross-run reliability rollup (schemas + forges + caches + providerErrors) over the last N completed runs. Query param: `?limit=N` |
 
 ### Reliability telemetry (`/retry-stats`)

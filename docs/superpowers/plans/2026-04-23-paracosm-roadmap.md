@@ -13,7 +13,7 @@
 **Baseline tests:** 572 pass / 0 fail / 1 skipped. `npm run build` exit 0.
 
 **Positioning ship just landed** (this session):
-- Repositioned from "AI agent swarm simulation engine" to "structured world model for AI agents: reproducible counterfactual simulations from JSON"
+- Repositioned from "AI agent swarm simulation engine" to "structured counterfactual world model for AI agents: from prompt to world model to forked futures"
 - New `paracosm/world-model` subpath + `WorldModel` façade (`fromJson`, `fromScenario`, `simulate`, `batch`)
 - Full taxonomy map at `docs/positioning/world-model-mapping.md`
 - Design spec at `docs/superpowers/specs/2026-04-23-structured-world-model-positioning-design.md`
@@ -82,11 +82,13 @@ Historical plan file (kept for audit / bisect context): [`2026-04-23-close-0.7.x
 | # | Item | Origin | Effort | Notes |
 |---|---|---|---|---|
 | T5.1 | **Dashboard viz kit: `<TimepointCard>`, `<HealthScoreGauge>`, `<RiskFlagList>`, `<TrajectoryStrip>`** | handoff T3.9 | 1 day | Composable primitives so batch-trajectory digital-twin and batch-point forecast artifacts render, not just turn-loop. Each mode-aware via `metadata.mode`. |
-| T5.2 | **`paracosm init --mode <m> --domain <d>` CLI scaffolding wizard** | handoff T1.3 | half-day | Ask for domain, populationNoun, settlementNoun, timeUnitNoun, metrics; emit a valid world JSON skeleton. |
-| T5.3 | **Scenario author wizard (web)** | handoff T3.11 | 1-2 days | Dashboard page that walks a user through creating a scenario JSON visually. |
+| T5.2 | **`paracosm init --mode <m> --domain <d>` CLI scaffolding wizard** | handoff T1.3 | half-day | CLI companion to the dashboard Quickstart flow. Open. |
+| T5.3 | **Scenario author wizard (web)** SHIPPED 2026-04-24 | Tier 5 Quickstart | n/a | `/api/quickstart/*` + QuickstartView + `WorldModel.fromPrompt` + `paracosm/leader-presets`. |
 | T5.4 | **`paracosm/digital-twin` subpath** | positioning spec §8 follow-on | half-day | Purpose-built helpers for the `SubjectConfig` + `InterventionConfig` flow. Makes the digital-twin use case first-class in the API, matching the marketing. |
 | T5.5 | **`WorldModel.replay(artifact)`** | Tier 2 follow-on | half-day | Deterministic re-execution of a stored RunArtifact. Audit + regression use case. Naturally falls out of kernel snapshot/fromSnapshot. |
 | T5.6 | **CLI `run-a.ts` positional-arg handling** | handoff T1.3 (partial) | 1 hour | Handoff claims `tsx src/cli/run-a.ts 2` produces 0 turns. Source reads cleanly to me; needs local runtime repro before planning a fix. |
+| T5.7 | **ReportView status/environment drill-down** | Tier 1 residual | half-day | Add a Reports tab sub-section for statuses + environment bags. StatsBar already proves the data is present; this is a richer narrative surface and not needed for the current positioning audit. |
+| T5.8 | **Prompt-to-world compiler API (`compileWorld` / `WorldModel.fromPrompt`)** | 2026-04-24 positioning audit | 1 day | Add a one-call authoring wrapper that takes a prompt, brief, document text, or URL, asks an LLM to propose a scenario JSON draft, validates it against `ScenarioWorldSchema`, then calls `compileScenario()`. This should be additive and must not bypass the typed contract, cache, citations, snapshots, or kernel. |
 
 ---
 
@@ -135,7 +137,7 @@ Historical plan file (kept for audit / bisect context): [`2026-04-23-close-0.7.x
 | # | Item | Origin | Reason for defer |
 |---|---|---|---|
 | T9.1 | **Million-agent mode** | competitive vs OASIS / MiroFish | Narrative/PR value only. Paracosm's differentiation is leader-driven + top-down + reproducible, not scale. Chasing MiroFish's axis is off-strategy. If a customer demands it, reconsider. |
-| T9.2 | **Doc-upload UX** (paracosm builds a scenario from any PDF/URL) | competitive vs MiroFish | Already possible via `--seed-url` to the compiler. A UX would be ~1 day but adds no capability, only smooths onboarding. Pair with T5.3 scenario wizard if we do it. |
+| T9.2 | **Standalone doc-upload-only UX** | competitive vs MiroFish | Superseded by T5.8. Upload, paste, and URL input should route through the prompt-to-world compiler and still emit the same validated `ScenarioPackage`, not become a separate MiroFish-style seed-document product. |
 | T9.3 | **Split `capacities` into its own runtime bag** | handoff T4.12 | Today world.capacities flattens into state.systems. Semantic cleanup, but no downstream consumer is asking for the separation. Ship when a consumer does. |
 | T9.4 | **Concordia interop** (paracosm as Concordia Game Master or vice versa) | new idea | Interesting intellectual exercise. Low near-term user value. |
 | T9.5 | **Fork-and-explore interactive branching dashboard** (Genie-3 style, continuous branching exploration) | new idea | Expensive to build. Tier 2 `WorldModel.fork()` + the simple comparison UX gets us 80% of the value. |
@@ -143,6 +145,10 @@ Historical plan file (kept for audit / bisect context): [`2026-04-23-close-0.7.x
 ---
 
 ## Shipped
+
+### 2026-04-24 session (Tier 5 Quickstart onboarding shipped)
+
+- **[`<TO-FILL>` paracosm](#): Tier 5 Quickstart onboarding flow.** Dashboard Quickstart tab (paste / URL / PDF to 3 contextual HEXACO leaders, live streaming, Download JSON + Copy share link + Fork-in-Branches). New programmatic API `WorldModel.fromPrompt` + `wm.quickstart`. New server endpoints `/api/quickstart/{fetch-seed,compile-from-seed,generate-leaders}`. Generalized `runBatchSimulations` for N >= 3 leader runs. Exported `paracosm/leader-presets` subpath with 10 HEXACO archetypes. `BranchesContext` gains `SET_PARENT` for promoting any Quickstart leader into the Branches fork root. Pure helpers (`computeMedianDeltas`, `validateSeedUrl`, `validateSeedText`, `buildQuickstartShareUrl`, `downloadArtifactJson`) unit-tested in isolation. Default dashboard tab flipped to Quickstart. ~36 new unit tests across server routes, schema, helpers, reducer, and HEXACO library. Spec: [2026-04-24-quickstart-onboarding-design.md](../specs/2026-04-24-quickstart-onboarding-design.md). Plan: [2026-04-24-quickstart-onboarding-implementation.md](2026-04-24-quickstart-onboarding-implementation.md).
 
 ### 2026-04-24 session (Tier 2 Spec 2B shipped, closes Tier 2)
 
@@ -180,4 +186,4 @@ All commits local-only across both sessions. Push order when approved: paracosm 
 - When an item gets deferred: move to Tier 9 with a reason.
 - When a tier becomes full-shipped, drop the table and note the date.
 
-The existing per-item plan file for Tier 1 is [`2026-04-23-close-0.7.x-loop-tier1.md`](2026-04-23-close-0.7.x-loop-tier1.md). Additional per-item plans will be written as sibling files in `docs/superpowers/plans/YYYY-MM-DD-<topic>.md` and linked back here.
+The existing per-item plan file for Tier 1 is [`2026-04-23-close-0.7.x-loop-tier1.md`](2026-04-23-close-0.7.x-loop-tier1.md). Current positioning audit plan: [`2026-04-24-llm-readable-world-model-positioning.md`](2026-04-24-llm-readable-world-model-positioning.md). Additional per-item plans will be written as sibling files in `docs/superpowers/plans/YYYY-MM-DD-<topic>.md` and linked back here.

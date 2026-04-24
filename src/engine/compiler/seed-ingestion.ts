@@ -206,9 +206,9 @@ function assembleKnowledgeBundle(
 }
 
 /**
- * Ingest a seed document and produce a KnowledgeBundle for a scenario.
+ * Ingest prompt, brief, or document text and produce a KnowledgeBundle for a scenario.
  *
- * @param seedText - The raw text content of the seed document
+ * @param seedText - The raw text content of the prompt, brief, or document
  * @param options - Ingestion options (LLM function, web search toggle)
  * @returns A KnowledgeBundle ready to merge into a ScenarioPackage
  */

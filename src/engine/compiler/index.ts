@@ -1,9 +1,12 @@
 /**
  * Paracosm Scenario Compiler
  *
- * Takes a raw scenario JSON (the data portion of a ScenarioPackage) and generates
- * all runtime hooks via LLM calls. Returns a complete ScenarioPackage ready to
- * pass to runSimulation().
+ * Takes a canonical scenario JSON draft (the data portion of a ScenarioPackage)
+ * and generates all runtime hooks via LLM calls. Natural-language prompts,
+ * briefs, and URLs enter today through CompileOptions.seedText / seedUrl,
+ * which ground the draft before hook generation. A prompt-only authoring API
+ * should be a wrapper that first emits this same JSON contract, then calls this
+ * compiler.
  *
  * @example
  * ```typescript
@@ -118,10 +121,10 @@ function restoreHookFromCache(hookName: string, source: string): Partial<Scenari
 }
 
 /**
- * Compile a scenario JSON into a complete ScenarioPackage with generated hooks.
+ * Compile a scenario JSON draft into a complete ScenarioPackage with generated hooks.
  *
- * @param scenarioJson - The data portion of a scenario (labels, departments, metrics, effects, etc.)
- * @param options - Compiler options (provider, model, cache settings)
+ * @param scenarioJson - Canonical world draft (labels, departments, metrics, effects, etc.)
+ * @param options - Compiler options (provider, model, cache settings, seed text / URL grounding)
  * @returns A complete ScenarioPackage ready for runSimulation()
  */
 export async function compileScenario(

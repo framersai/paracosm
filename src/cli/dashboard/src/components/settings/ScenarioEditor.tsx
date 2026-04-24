@@ -245,7 +245,7 @@ export function ScenarioEditor() {
             Scenario Editor
           </h3>
           <p style={{ fontSize: '11px', color: 'var(--text-3)', margin: '4px 0 0' }}>
-            Write or import a scenario JSON. Store in memory, compile, or export.
+            Write or import a scenario JSON draft. Add seed text or a URL to ground it, then compile or export.
             {!adminConfig.adminWrite && ' Disk saves are disabled on this instance.'}
           </p>
         </div>
@@ -297,7 +297,7 @@ export function ScenarioEditor() {
             <textarea
               value={seedText}
               onChange={e => setSeedText(e.target.value)}
-              placeholder="Paste notes, a brief, or source text to turn into research facts and category mapping."
+              placeholder="Paste a prompt, notes, a brief, or source text to turn into research facts and category mapping."
               style={{ ...inputStyle, minHeight: '96px', resize: 'vertical' }}
             />
           </div>

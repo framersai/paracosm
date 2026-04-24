@@ -22,6 +22,7 @@ import { EventLogPanel } from './components/log/EventLogPanel';
 import { BranchesProvider } from './components/branches/BranchesContext';
 import { BranchesSyncer } from './components/branches/BranchesSyncer';
 import { BranchesTab } from './components/branches/BranchesTab';
+import { QuickstartView } from './components/quickstart/QuickstartView';
 import { useCitationRegistry, CitationRegistryContext } from './hooks/useCitationRegistry';
 import { useToolRegistry, ToolRegistryContext } from './hooks/useToolRegistry';
 import { TopBar } from './components/layout/TopBar';
@@ -599,6 +600,8 @@ function AppContent() {
           />
 
           <main id="main-content" className={`flex-1 overflow-hidden ${styles.main}`} role="main" aria-label={`${activeTab} view`}>
+            {activeTab === 'quickstart' && <QuickstartView sse={sse} sessionId={replaySessionId ?? undefined} />}
+
             {activeTab === 'sim' && <SimView state={gameState} sseStatus={sse.status} onRun={handleRun} onTour={handleTourStart} verdict={sse.verdict} launching={launching} />}
 
             {activeTab === 'viz' && <SwarmViz state={gameState} onNavigateToChat={navigateToChat} />}

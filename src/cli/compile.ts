@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * CLI: Compile a scenario JSON into a runnable ScenarioPackage.
+ * CLI: Compile a scenario JSON draft into a runnable ScenarioPackage.
  *
  * Usage:
  *   npx tsx src/cli/compile.ts scenarios/submarine.json
@@ -19,7 +19,7 @@ async function main() {
 
   if (rawArgs.length === 0 || rawArgs.includes('--help') || rawArgs.includes('-h')) {
     console.log(`
-paracosm compile — Generate runtime hooks for a scenario JSON
+paracosm compile - Generate runtime hooks for a scenario JSON draft
 
 Usage:
   npx tsx src/cli/compile.ts <scenario.json> [options]
@@ -29,8 +29,8 @@ Options:
   --model <model>         Model name (default: claude-sonnet-4-6)
   --no-cache              Skip disk cache
   --cache-dir <dir>       Cache directory (default: .paracosm/cache)
-  --seed-text <text>      Seed scenario knowledge from inline text before hook generation
-  --seed-url <url>        Seed scenario knowledge from a URL before hook generation
+  --seed-text <text>      Ground the scenario with an inline prompt, brief, or document
+  --seed-url <url>        Ground the scenario with a URL before hook generation
   --no-web-search         Skip live citation grounding during seed ingestion
   --max-searches <n>      Cap the number of live grounding searches during seed ingestion
   -h, --help              Show this help

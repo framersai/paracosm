@@ -8,7 +8,10 @@
  * for AI agents (see `docs/positioning/world-model-mapping.md`). The
  * existing APIs (`compileScenario`, `runSimulation`, `runBatch`) are all
  * first-class and unchanged. `WorldModel` is an additive thin wrapper
- * that lets consumers write code in the same vocabulary the docs use:
+ * that lets consumers write code in the same vocabulary the docs use.
+ * `fromJson` takes the validated world contract. Prompt, document, and
+ * URL authoring should compile into that same contract before reaching
+ * the runtime:
  *
  * ```ts
  * import { WorldModel } from 'paracosm/world-model';
@@ -32,11 +35,14 @@
 import { runSimulation, type RunOptions, type LeaderConfig } from '../orchestrator.js';
 import { runBatch, type BatchConfig, type BatchManifest } from '../batch.js';
 import { compileScenario } from '../../engine/compiler/index.js';
+import { compileFromSeed, type CompileFromSeedInput, type CompileFromSeedOptions } from '../../engine/compiler/compile-from-seed.js';
 import type { CompileOptions } from '../../engine/compiler/types.js';
 import type { KeyPersonnel } from '../../engine/core/agent-generator.js';
 import type { ScenarioPackage } from '../../engine/types.js';
 import type { RunArtifact } from '../../engine/schema/index.js';
 import type { KernelSnapshot } from '../../engine/core/snapshot.js';
+import { z } from 'zod';
+import { generateValidatedObject } from '../llm-invocations/generateValidatedObject.js';
 
 /**
  * Options accepted by {@link WorldModel.simulate}. Identical to
@@ -51,6 +57,41 @@ export type WorldModelSimulateOptions = Omit<RunOptions, 'scenario'>;
  * Pass `leaders`, `turns`, `seed`, and any other `BatchConfig` fields.
  */
 export type WorldModelBatchOptions = Omit<BatchConfig, 'scenarios'>;
+
+/**
+ * Options for {@link WorldModel.quickstart}. Every field has a sensible
+ * default; callers typically only set `leaderCount`.
+ */
+export interface WorldModelQuickstartOptions {
+  /** How many leaders the quickstart should run in parallel. Default 3. Range 2..6. */
+  leaderCount?: number;
+  /** Scenario-level seed for each leader's run. Default: the scenario's
+   *  `setup.defaultSeed`, else 42. */
+  seed?: number;
+  /** Absolute-final turn index for each leader's run. Default: the
+   *  scenario's `setup.defaultTurns`. */
+  maxTurns?: number;
+  /** Whether to embed per-turn kernel snapshots so the results are
+   *  fork-eligible. Default true. */
+  captureSnapshots?: boolean;
+  /** Provider for the leader-generation LLM call and the per-leader
+   *  simulation. Default 'anthropic'. */
+  provider?: 'openai' | 'anthropic';
+  /** Model for the leader-generation LLM call. Default 'claude-sonnet-4-6'. */
+  model?: string;
+}
+
+/**
+ * Shape returned by {@link WorldModel.quickstart}.
+ */
+export interface WorldModelQuickstartResult {
+  /** The scenario the quickstart ran against. */
+  scenario: ScenarioPackage;
+  /** The leaders the LLM generated for this run. */
+  leaders: LeaderConfig[];
+  /** One {@link RunArtifact} per leader, in the same order as `leaders`. */
+  artifacts: RunArtifact[];
+}
 
 /**
  * Serializable bundle that captures everything needed to reconstruct
@@ -205,6 +246,33 @@ export class WorldModel {
   }
 
   /**
+   * Compile a world model from prompt, brief, or document text (with an
+   * optional domain hint and source URL). Delegates to
+   * {@link compileFromSeed}: the LLM proposes a scenario draft against
+   * `DraftScenarioSchema`, validates it, then routes it into the existing
+   * {@link compileScenario} pipeline so the `seedText` research grounding
+   * and hook generation stages still fire. JSON stays the canonical
+   * contract; this wrapper only makes unstructured source material a
+   * first-class authoring input.
+   *
+   * @example Quickstart from a pasted brief
+   * ```ts
+   * const wm = await WorldModel.fromPrompt({
+   *   seedText: 'Q3 board brief: the company needs to decide between...',
+   *   domainHint: 'corporate strategic decision',
+   * }, { provider: 'anthropic' });
+   * const result = await wm.quickstart({ leaderCount: 3 });
+   * ```
+   */
+  static async fromPrompt(
+    seed: CompileFromSeedInput,
+    options: CompileFromSeedOptions = {},
+  ): Promise<WorldModel> {
+    const scenario = await compileFromSeed(seed, options);
+    return new WorldModel(scenario);
+  }
+
+  /**
    * Run a single simulation through this world with the given leader.
    * Delegates to {@link runSimulation} with `scenario` pinned to this
    * instance.
@@ -279,6 +347,51 @@ export class WorldModel {
       ...options,
       scenarios: [this.scenario],
     });
+  }
+
+  /**
+   * Quickstart: generate N contextual HEXACO leaders for this world and
+   * run them in parallel against the same seed. Leaders are produced by
+   * a structured-output LLM call (Zod schema with HEXACO bounds); each
+   * run is a direct `runSimulation` call so `captureSnapshots: true`
+   * flows through verbatim and the results are fork-eligible.
+   *
+   * Unlike {@link batch}, this path assumes one scenario and same-seed
+   * runs across leaders: the entire product value is "same seed,
+   * different HEXACO, see divergence".
+   *
+   * @example
+   * ```ts
+   * const wm = await WorldModel.fromPrompt({ seedText });
+   * const { leaders, artifacts } = await wm.quickstart({ leaderCount: 3 });
+   * artifacts.forEach((a, i) => console.log(leaders[i].name, a.fingerprint));
+   * ```
+   */
+  async quickstart(options: WorldModelQuickstartOptions = {}): Promise<WorldModelQuickstartResult> {
+    const {
+      leaderCount = 3,
+      seed = this.scenario.setup.defaultSeed ?? 42,
+      maxTurns = this.scenario.setup.defaultTurns,
+      captureSnapshots = true,
+      provider = 'anthropic',
+      model = 'claude-sonnet-4-6',
+    } = options;
+
+    if (leaderCount < 2 || leaderCount > 6) {
+      throw new Error(`WorldModel.quickstart: leaderCount must be between 2 and 6, got ${leaderCount}.`);
+    }
+
+    const leaders = await generateQuickstartLeaders(this.scenario, leaderCount, { provider, model });
+
+    const artifacts = await Promise.all(leaders.map(leader => runSimulation(leader, [], {
+      scenario: this.scenario,
+      maxTurns,
+      seed,
+      captureSnapshots,
+      provider,
+    })));
+
+    return { scenario: this.scenario, leaders, artifacts };
   }
 
   /**
@@ -384,4 +497,63 @@ export class WorldModel {
       opts,
     );
   }
+}
+
+const QuickstartLeaderSchema = z.object({
+  name: z.string().min(2).max(64),
+  archetype: z.string().min(2).max(48),
+  unit: z.string().min(2).max(64),
+  hexaco: z.object({
+    openness: z.number().min(0).max(1),
+    conscientiousness: z.number().min(0).max(1),
+    extraversion: z.number().min(0).max(1),
+    agreeableness: z.number().min(0).max(1),
+    emotionality: z.number().min(0).max(1),
+    honestyHumility: z.number().min(0).max(1),
+  }),
+  instructions: z.string().min(10).max(400),
+});
+
+const QuickstartLeadersSchema = z.object({
+  leaders: z.array(QuickstartLeaderSchema).min(2).max(6),
+});
+
+/**
+ * Generate `count` archetypal HEXACO leaders for `scenario` via a
+ * structured-output LLM call. Exported so the server `/api/quickstart/generate-leaders`
+ * route can reuse the exact same prompt + schema.
+ *
+ * @internal
+ */
+export async function generateQuickstartLeaders(
+  scenario: ScenarioPackage,
+  count: number,
+  opts: { provider?: string; model?: string } = {},
+): Promise<LeaderConfig[]> {
+  const provider = opts.provider ?? 'anthropic';
+  const model = opts.model ?? 'claude-sonnet-4-6';
+  const deptRoles = scenario.departments.map(d => `${d.label} (${d.role})`).join(', ');
+  const systemPrompt = `You generate archetypal decision-maker profiles for paracosm simulation runs.
+Every leader must have a distinct HEXACO profile designed to diverge from the others on at least one high-impact trait (openness, conscientiousness, emotionality).
+Names and units match the scenario domain: for a space settlement use space-appropriate names; for a corporate scenario use corporate names.
+Instructions are short directives the leader internalizes (one to three sentences).`;
+  const prompt = `Scenario: ${scenario.labels.name}
+Population: ${scenario.labels.populationNoun}
+Settlement: ${scenario.labels.settlementNoun}
+Time unit: ${scenario.labels.timeUnitNoun}
+Departments under the leader: ${deptRoles}
+
+Generate exactly ${count} archetypal leaders. Each one makes recognizably different decisions against the same events.`;
+
+  const result = await generateValidatedObject({
+    provider,
+    model,
+    schema: QuickstartLeadersSchema,
+    schemaName: 'QuickstartLeaders',
+    systemCacheable: systemPrompt,
+    prompt,
+    maxRetries: 1,
+  });
+
+  return result.object.leaders as LeaderConfig[];
 }

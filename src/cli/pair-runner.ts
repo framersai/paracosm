@@ -352,3 +352,91 @@ export async function runForkSimulation(
 
   broadcast('complete', { timestamp: new Date().toISOString(), fork: true });
 }
+
+/**
+ * Generalized N-leader batch runner (Tier 5 Quickstart). Three or more
+ * leaders run against the same scenario + seed in parallel, each
+ * emitting per-leader SSE events identical to the pair path. No
+ * verdict generation: verdicts compare exactly two leaders and would
+ * be ambiguous across N >= 3. The dashboard's Quickstart tab surfaces
+ * group-median deltas instead.
+ *
+ * Per-leader tags are derived from archetype (lowercased, kebab-cased).
+ * Duplicate archetype strings get trailing indices for disambiguation.
+ */
+export async function runBatchSimulations(
+  simConfig: NormalizedSimulationConfig,
+  broadcast: BroadcastFn,
+  signal?: AbortSignal,
+  scenario: ScenarioPackage = marsScenario,
+): Promise<void> {
+  const { leaders, turns, seed, startTime, liveSearch, customEvents } = simConfig;
+  broadcast('status', { phase: 'starting', maxTurns: turns, customEvents, batch: true, leaderCount: leaders.length });
+
+  const { runSimulation } = await import('../runtime/orchestrator.js');
+  const onEvent = (event: unknown) => broadcast('sim', event);
+  broadcast('status', {
+    phase: 'parallel',
+    batch: true,
+    leaders: leaders.map(leader => ({
+      name: leader.name,
+      archetype: leader.archetype,
+      unit: leader.unit,
+      hexaco: leader.hexaco,
+    })),
+  });
+
+  console.log(`  Running batch: ${leaders.map(l => l.name).join(' vs ')} | ${turns} turns | seed ${seed}
+`);
+
+  const usedTags = new Map<string, number>();
+  const leadersWithTags = leaders.map((leader, index) => {
+    const base = leader.archetype.toLowerCase().replace(/^the\s+/, '').replace(/\s+/g, '-') || `leader-${index}`;
+    const count = usedTags.get(base) ?? 0;
+    usedTags.set(base, count + 1);
+    const tag = count === 0 ? base : `${base}-${count + 1}`;
+    return { leader, index, tag };
+  });
+
+  await Promise.allSettled(leadersWithTags.map(({ leader, index, tag }) => {
+    return runSimulation(leader, simConfig.keyPersonnel ?? DEFAULT_KEY_PERSONNEL, {
+      maxTurns: turns,
+      seed,
+      startTime,
+      timePerTurn: simConfig.timePerTurn,
+      liveSearch,
+      activeDepartments: simConfig.activeDepartments,
+      onEvent,
+      customEvents,
+      provider: simConfig.provider,
+      models: simConfig.models,
+      economics: simConfig.economics,
+      initialPopulation: simConfig.initialPopulation,
+      startingResources: simConfig.startingResources,
+      startingPolitics: simConfig.startingPolitics,
+      execution: simConfig.execution,
+      scenario,
+      signal,
+      captureSnapshots: simConfig.captureSnapshots ?? false,
+    }).then(result => {
+      broadcast('result', {
+        leader: tag,
+        leaderIndex: index,
+        summary: {
+          population: result.finalState?.metrics?.population,
+          morale: result.finalState?.metrics?.morale,
+          toolsForged: result.forgedTools?.length ?? 0,
+          citations: result.citations?.length ?? 0,
+        },
+        fingerprint: result.fingerprint ?? null,
+        artifact: simConfig.captureSnapshots ? result : undefined,
+      });
+    }, error => {
+      broadcast('sim_error', { leader: tag, leaderIndex: index, error: String(error) });
+      throw error;
+    });
+  }));
+
+  broadcast('complete', { timestamp: new Date().toISOString(), batch: true });
+}
+

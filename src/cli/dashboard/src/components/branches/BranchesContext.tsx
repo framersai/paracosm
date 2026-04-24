@@ -90,6 +90,7 @@ export interface BranchesState {
 export type BranchesAction =
   | { type: 'PARENT_COMPLETE'; artifact: RunArtifact }
   | { type: 'PARENT_RESET' }
+  | { type: 'SET_PARENT'; artifact: RunArtifact }
   | {
       type: 'BRANCH_OPTIMISTIC';
       localId: string;
@@ -114,6 +115,11 @@ export function branchesReducer(state: BranchesState, action: BranchesAction): B
       return { ...state, parent: action.artifact };
     case 'PARENT_RESET':
       return { parent: undefined, branches: [] };
+    case 'SET_PARENT':
+      // Explicit user-initiated parent promotion (Quickstart leader
+      // selected as fork root). Clears any existing branches so the
+      // Branches tab shows a clean slate under the new parent.
+      return { parent: action.artifact, branches: [] };
     case 'BRANCH_OPTIMISTIC':
       return {
         ...state,

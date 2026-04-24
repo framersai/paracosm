@@ -1,4 +1,4 @@
-export const DASHBOARD_TABS = ['sim', 'viz', 'settings', 'reports', 'branches', 'chat', 'log', 'about'] as const;
+export const DASHBOARD_TABS = ['quickstart', 'sim', 'viz', 'settings', 'reports', 'branches', 'chat', 'log', 'about'] as const;
 
 export type DashboardTab = (typeof DASHBOARD_TABS)[number];
 
@@ -18,7 +18,7 @@ export function getDashboardTabFromHref(href: string): DashboardTab {
     return hash;
   }
 
-  return 'sim';
+  return 'quickstart';
 }
 
 export function createDashboardTabHref(currentHref: string, tab: Exclude<DashboardTab, 'about'>): string {
