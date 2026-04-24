@@ -2,54 +2,6 @@
 
 All notable changes to paracosm are documented here. Format follows the spirit of [Keep a Changelog](https://keepachangelog.com/), grouped by major.minor version. Each `0.M.<run_number>` npm publish rolls into the matching major.minor entry. Per-publish detail lives in each [GitHub Release](https://github.com/framersai/paracosm/releases).
 
-## 0.7.x (2026-04-23) — runtime wiring for scenario declarations
-
-Internal correctness fixes surfaced by the F23.2 non-Mars scenario run. Three coupled latent bugs fixed together; additive changes, no schema or API break.
-
-### What changed
-
-- `SimulationState` gains `statuses: Record<string, string | boolean>` and `environment: Record<string, number | string | boolean>`. Every scenario-declared `world.*` bag now has a runtime projection. Empty objects when the scenario declares no such fields.
-- `SimulationKernel` constructor accepts `scenario?: ScenarioPackage` in its init overrides. When present, it seeds all four runtime bags from the scenario's `world.*` declaration `initial` values before applying caller overlays. Precedence: Mars-heritage defaults → scenario declarations → caller overlays (`startingResources` / `startingPolitics` / `startingStatuses` / `startingEnvironment`).
-- `runSimulation()` falls back to `scenario.setup.defaultStartTime` and `scenario.setup.defaultTimePerTurn` when the caller omits them. Was a hardcoded `2035` fallback pre-fix. Callers who already pass explicit values are unaffected.
-- `buildRunArtifact` widens `finalState` mapping so every runtime bag flows through to the returned `RunArtifact.finalState.{metrics,politics,statuses,environment}`.
-- Compiler state-shape block + scenario fixture re-expose `state.statuses` + `state.environment` now that they carry real runtime data (the earlier correction in commit `e866418a` was necessary pre-wiring but is now reversed).
-
-### Why
-
-A non-Mars scenario (corporate-quarterly) declaring `revenueArr` / `burnRate` / `fundingRound` / `marketGrowthPct` under `world.*` ran but departments read `state.systems.revenueArr` as `undefined` at runtime — the kernel only populated Mars-era fields. The F23.2 smoke only passed because it asserted on `population` (Mars-heritage), not on declared scenario keys. Same with `RunOptions.startTime`: the F23.2 smoke had to pass an explicit value because the runtime ignored `scenario.setup.defaultStartTime`. And `state.statuses` / `state.environment` were documented but simply did not exist at runtime.
-
-### Cache invalidation
-
-None. Changes are additive — old cached compiled hooks still validate and run against the new wider state.
-
-### Rollback
-
-`git revert` the five feature commits (engine state extension, kernel seeding, runtime defaults, artifact widening, compiler state-shape) plus the smoke cleanup commit. Additive changes; no persistent state affected.
-
-## 0.7.1 (2026-04-23) — compiler prompt hardening
-
-Internal-only improvement. The scenario compiler's LLM generators now declare the flat state-shape contract explicitly in every system prompt and validate hooks against fixtures derived from the scenario's own `world.*` declarations. No public API surface changes.
-
-### What changed
-
-- New `src/engine/compiler/scenario-fixture.ts`: `buildScenarioFixture(scenarioJson)` builds a `SimulationState`-shaped object populated from the scenario's declared metrics/capacities/statuses/politics/environment bags. Used by `generate-prompts.ts` + `generate-fingerprint.ts` smokeTests.
-- New `src/engine/compiler/state-shape-block.ts`: shared "AVAILABLE STATE SHAPE" block rendered into every state-accessing generator's system prompt. Lists exact keys per bag, asserts the flat `Record<string, T>` contract, tells the LLM not to hallucinate nested paths.
-- `generate-politics.ts` / `generate-reactions.ts` / `generate-milestones.ts` prompts gain the scenario's `timeUnitNoun` vocabulary so generated strings no longer hardcode "year"/"years" for non-year scenarios.
-- `generate-reactions.ts` fixes the pre-F23 "START YEAR" prompt label (drops the 2035 fallback) to "START TIME".
-- Retry-feedback behavior in `generateValidatedCode` is unchanged (already in place via `buildRetryPrompt`). New tests in `tests/engine/compiler/retry-feedback.test.ts` lock the behavior in.
-
-### Why
-
-A consumer hit `TypeError: undefined is not an object (evaluating 'ctx.state.systems.hull.integrity')` at runtime because a generated department prompt hook assumed nested structure on `state.systems`. The hardening makes that specific failure class structurally impossible: every prompt lists the exact flat keys, and every state-accessing generator's smokeTest uses a fixture populated from those same declarations, so a hook that references a nonexistent or nested path fails validation at compile time and either retries (with the failure message appended to the retry prompt) or falls back to a safe no-op.
-
-### Cache invalidation
-
-`COMPILE_SCHEMA_VERSION` bumps 4 → 5. Cached compiled-scenario hooks from 0.6.x / 0.7.0 regenerate on next `compileScenario()` call (one-time ~$0.10 per previously-compiled scenario per user).
-
-### Rollback
-
-`git revert` the 5 commits (spec, plan, helper+tests, wire-into-generators, retry-tests, cache bump). Cached hooks on user disks regenerate harmlessly on next compile.
-
 ## 0.7.0 (2026-04-23)
 
 F23 generic time-units rename. Retires the last Mars-ism from the public type system. `year` becomes `time` across scenario setup, simulation metadata, event payloads, hook contexts, and agent cores. Scenarios whose natural cadence is not yearly (hour-granular habitats, quarterly corporate strategy, real-time arena benchmarks) no longer have to pretend. Mars and Lunar continue to display year-unit copy through the new additive `labels.timeUnitNoun` field.
