@@ -5,7 +5,7 @@
 <h1 align="center">PARACOSM</h1>
 
 <p align="center">
-  <em>AI Agent Swarm Simulation Engine</em>
+  <em>The structured world model for AI agents. Reproducible counterfactual simulations from JSON.</em>
 </p>
 
 <p align="center">
@@ -25,15 +25,25 @@
 
 ---
 
-## What Is Paracosm
+## What paracosm is
 
-Define a world as JSON. Assign AI leaders with distinct personalities. Watch their decisions compound into divergent outcomes from identical starting conditions.
+A JSON file describes a world. A leader with a HEXACO personality profile runs it. A deterministic kernel drives state, time, and randomness. An LLM generates events, specialist analyses, and the leader's decisions. Specialists can forge new computational tools at runtime inside a V8 sandbox; an LLM judge approves each forge before it enters the decision pipeline. The kernel applies consequences. Personality traits drift. One turn ends, the next begins.
 
-Leaders are top-down decision makers. They can be colony commanders, CEOs, generals, ship captains, department heads, AI systems, governing councils, or any entity that receives information, evaluates options, and makes choices that shape the world. The simulation doesn't care what they represent. It cares how they decide.
+**Same seed. Different leader. Different world.**
 
-Each turn: a Event Director generates events based on the world's current state. Department agents analyze the situation and forge computational tools at runtime. Leaders decide. A deterministic kernel applies consequences. Personality traits drift from experience. The world evolves.
+Two runs against an identical seed, starting from the same JSON, produce measurably divergent trajectories when you swap one variable: the leader's personality. The kernel's side is reproducible. The divergence comes from the LLM stages reading HEXACO profiles and deciding differently. That structural contrast is the product.
 
-Same seed, same starting conditions, different leaders, different civilizations.
+Paracosm is a **structured world model** in the sense of [Xing 2025](https://arxiv.org/abs/2507.05169) and the [ACM CSUR 2025 world-model survey](https://dl.acm.org/doi/full/10.1145/3746449): a simulator for *actionable possibilities*, not a video generator. It is also a **counterfactual world simulation model** ([Kirfel et al, Stanford 2025](https://cicl.stanford.edu/papers/kirfel2025when.pdf)): a substrate for replaying an event with one variable changed and surfacing the effect. Full taxonomy mapping in [`docs/positioning/world-model-mapping.md`](docs/positioning/world-model-mapping.md).
+
+### Not these things
+
+- **Not a generative visual world model.** Sora, Genie 3, and World Labs Marble produce pixels or 3D scenes. Paracosm produces a structured `RunArtifact`: metrics, decisions, specialist notes, citations, forged tool summaries.
+- **Not a JEPA-style predictive-representation model.** LeCun's AMI Labs trains neural representations from sensor streams. Paracosm composes a kernel with an LLM reasoner; no training pipeline.
+- **Not a multi-agent task orchestration framework.** LangGraph, AutoGen, CrewAI, OpenAI Agents SDK, Google ADK all build agentic workflows that execute real tasks. Paracosm is a simulation; nothing leaves the run.
+- **Not a bottom-up swarm intelligence simulator.** MiroFish and OASIS simulate thousands to a million emergent agents for aggregate prediction. Paracosm is top-down (one leader decides), runs ~100 agents by design, and outputs a deterministic trajectory plus divergence across leaders.
+- **Not a generative-agents library.** Stanford Generative Agents (Smallville) and Google DeepMind Concordia build emergent social simulacra in open-ended sandboxes. Paracosm ships a deterministic turn loop, personality drift, runtime tool forging, and a universal result schema.
+
+Leaders can be colony commanders, CEOs, generals, ship captains, department heads, AI systems, governing councils, or any entity that receives information, evaluates options, and makes choices that shape the world. The simulation does not care what they represent. It cares how they decide.
 
 ## Quickstart
 
@@ -41,7 +51,7 @@ Same seed, same starting conditions, different leaders, different civilizations.
 npm install paracosm      # also works: pnpm add paracosm / bun add paracosm
 ```
 
-Paracosm ships as pure ESM with subpath exports (`paracosm/compiler`, `paracosm/runtime`, `paracosm/mars`, `paracosm/lunar`, `paracosm/core`, `paracosm/schema`). Node 20+, Bun 1.x, and any TypeScript runner with ESM + import-attributes support (`tsx`, `ts-node --esm`) resolve them out of the box. If `import ... from 'paracosm/compiler'` fails with a module-not-found error, the dependency was never installed in that project — `cd` into the right directory and run one of the commands above.
+Paracosm ships as pure ESM with subpath exports (`paracosm/compiler`, `paracosm/runtime`, `paracosm/mars`, `paracosm/lunar`, `paracosm/core`, `paracosm/schema`). Node 20+, Bun 1.x, and any TypeScript runner with ESM + import-attributes support (`tsx`, `ts-node --esm`) resolve them out of the box. If `import ... from 'paracosm/compiler'` fails with a module-not-found error, the dependency was never installed in that project. `cd` into the right directory and run one of the commands above.
 
 ### 1. Define your world
 
@@ -52,7 +62,7 @@ Every scenario declares its own vocabulary via `labels.populationNoun`
 user-facing copy renders.
 
 If you omit `labels`, Paracosm falls back to `"colonists"` /
-`"colony"` — defaults that read fine across most domains but usually
+`"colony"`. Defaults that read fine across most domains but usually
 feel sharper when you pick your own. "Colony" is the default because
 it's narratively richer than a neutral "group" / "unit" while still
 translating to Mars habitats, medieval holds, corporate teams, or any
@@ -94,7 +104,7 @@ bounded collective under a leader's decisions.
 }
 ```
 
-> **Terminology — `labels.populationNoun` + `settlementNoun` + `timeUnitNoun`**
+> **Terminology: `labels.populationNoun` + `settlementNoun` + `timeUnitNoun`**
 >
 > The engine defaults to **`colonists` / `colony` / `tick`** when a scenario omits these
 > fields, but every scenario can and should override them. The dashboard uses the overridden
@@ -114,9 +124,9 @@ bounded collective under a leader's decisions.
 > `populationNoun` is the **plural** form; the dashboard derives the singular (`colonists` →
 > `colonist`) and capitalised variants automatically. `settlementNoun` is **singular** (`colony`,
 > not `colonies`). `timeUnitNoun` is **singular** and pairs with `timeUnitNounPlural` for
-> grammatical display; both are optional and fall back to `tick` / `ticks`. Paracosm the engine
-> is an "AI agent swarm" at the meta layer; what it simulates inside each run is scenario-
-> flavoured via these fields.
+> grammatical display; both are optional and fall back to `tick` / `ticks`. Paracosm itself
+> is a structured world model at the meta layer; what it simulates inside each run is
+> scenario-flavoured via these fields.
 
 ### 2. Compile and run
 
@@ -165,7 +175,7 @@ const results = await Promise.all(
       seed: 42,
       // costPreset: 'economy',  // uncomment for ~5-10× cheaper iteration on OpenAI
       // Every event carries a universal `e.data.summary` one-liner the
-      // runtime populates for you — prints cleanly for all 17 event
+      // runtime populates for you; prints cleanly for all 17 event
       // types without guessing which fields exist where.
       //
       // For full intellisense on per-event data, narrow via e.type:
@@ -195,7 +205,7 @@ Each call to `runSimulation` takes one leader. Run one, two, or twenty. The dash
 
 ### The universal result contract
 
-Every simulation returns a `RunArtifact` — one universal Zod-validated shape exported from `paracosm/schema`. The same shape covers civilization sims (turn-loop), digital-twin simulations (batch-trajectory), and one-shot forecasts (batch-point).
+Every simulation returns a `RunArtifact`: one universal Zod-validated shape exported from `paracosm/schema`. The same shape covers civilization sims (turn-loop), digital-twin simulations (batch-trajectory), and one-shot forecasts (batch-point).
 
 ```typescript
 import { RunArtifactSchema, type RunArtifact } from 'paracosm/schema';
@@ -290,7 +300,7 @@ cp node_modules/paracosm/config/leaders.example.json leaders.json
 mkdir -p config && cp node_modules/paracosm/config/leaders.example.json config/leaders.json
 ```
 
-Then edit the HEXACO sliders and `instructions` fields to describe your own leaders — the simulation picks up the file on the next run.
+Then edit the HEXACO sliders and `instructions` fields to describe your own leaders. The simulation picks up the file on the next run.
 
 ## Scenario Compiler
 
@@ -326,7 +336,7 @@ const scenario = await compileScenario(worldJson, {
 });
 ```
 
-Cache hits show up as `cached` in the progress callback. First-run cost is roughly $0.10; cached re-runs are free. If neither `OPENAI_API_KEY` nor `ANTHROPIC_API_KEY` is set, the compiler throws `ProviderKeyMissingError` before making any calls — see [Error handling](#error-handling).
+Cache hits show up as `cached` in the progress callback. First-run cost is roughly $0.10; cached re-runs are free. If neither `OPENAI_API_KEY` nor `ANTHROPIC_API_KEY` is set, the compiler throws `ProviderKeyMissingError` before making any calls. See [Error handling](#error-handling).
 
 ## Cost Envelope
 
@@ -337,7 +347,7 @@ Running a simulation calls real LLM APIs against your key. Paracosm assigns a di
 | **`quality`** (default) | `gpt-5.4` / `claude-sonnet-4-6` | `gpt-5.4-mini` / `claude-haiku-4-5-20251001` | `gpt-5.4-nano` / `claude-haiku-4-5-20251001` | **~$1-3** | **~$3-7** |
 | **`economy`** | `gpt-4o` / `claude-sonnet-4-6` | `gpt-5.4-nano` / `claude-haiku-4-5-20251001` | `gpt-5.4-nano` / `claude-haiku-4-5-20251001` | **~$0.20-0.60** | ~$3-5 |
 
-Numbers assume 6 turns, 5 departments, 100 agents, up to 3 events per turn. An 8-turn run on OpenAI `quality` tends to land at ~$1.50-2.00 per leader — the call budget is ~10/turn (1 director + ~5 dept + 1 commander + ~3 reaction batches + 0-2 forges + 0-1 judge), and departments on flagship carry most of the cost.
+Numbers assume 6 turns, 5 departments, 100 agents, up to 3 events per turn. An 8-turn run on OpenAI `quality` tends to land at ~$1.50-2.00 per leader. The call budget is ~10/turn (1 director + ~5 dept + 1 commander + ~3 reaction batches + 0-2 forges + 0-1 judge), and departments on flagship carry most of the cost.
 
 Pick the preset explicitly for quick iteration:
 
@@ -353,13 +363,13 @@ const output = await runSimulation(leader, [], {
 
 Forge approval rate drops roughly 10-20pp on `economy` because the mid-tier department model occasionally violates structured-output schemas the judge rejects. Use `'economy'` for iteration / CI / debugging; use `'quality'` (default) for publishable or production runs.
 
-Explicit `models` entries always win over the preset so you can mix and match — `{ costPreset: 'economy', models: { departments: 'gpt-5.4' } }` gives you cheap everything except departments. Override any single role: `{ models: { judge: 'gpt-5.4' } }` pays for stricter forge review without raising every other tier.
+Explicit `models` entries always win over the preset so you can mix and match. `{ costPreset: 'economy', models: { departments: 'gpt-5.4' } }` gives you cheap everything except departments. Override any single role: `{ models: { judge: 'gpt-5.4' } }` pays for stricter forge review without raising every other tier.
 
 The orchestrator's `runSimulation()` returns a `cost` field with token counts, LLM call counts, and USD spend aggregated from every tracked call (director, departments, commander, judge, agent reactions). The dashboard StatsBar shows this live.
 
 ### Prompt caching
 
-Every LLM call site on both providers routes its stable system prefix through a `cacheBreakpoint: true` block (director instructions, department prompts, reaction batches, compile-time hook generators). On Anthropic, turn 2+ of every run serves the shared prefix from the provider's prompt cache at 0.1× input cost. On OpenAI, any prompt ≥ 1024 tokens auto-caches. The `cost.caches` field reports read / creation tokens and USD saved per run, and `/retry-stats` rolls the numbers up across the last 100 runs so you can verify the cache is actually hitting. No configuration required — the `system: Array<{ text; cacheBreakpoint }>` shape is built into the validated-call wrappers in `src/engine/compiler/llm-invocations/` and `src/runtime/llm-invocations/`.
+Every LLM call site on both providers routes its stable system prefix through a `cacheBreakpoint: true` block (director instructions, department prompts, reaction batches, compile-time hook generators). On Anthropic, turn 2+ of every run serves the shared prefix from the provider's prompt cache at 0.1× input cost. On OpenAI, any prompt ≥ 1024 tokens auto-caches. The `cost.caches` field reports read / creation tokens and USD saved per run, and `/retry-stats` rolls the numbers up across the last 100 runs so you can verify the cache is actually hitting. No configuration required. The `system: Array<{ text; cacheBreakpoint }>` shape is built into the validated-call wrappers in `src/engine/compiler/llm-invocations/` and `src/runtime/llm-invocations/`.
 
 ## Programmatic API
 
@@ -373,7 +383,7 @@ Everything the dashboard does is also available as library calls. The exports fa
 | `paracosm/core`     | Kernel state types (`Agent`, `WorldState`, `HexacoProfile`, …) |
 | `paracosm/mars`, `paracosm/lunar` | Pre-built `ScenarioPackage` constants to use or fork |
 
-### Client — global defaults + env-var config
+### Client: global defaults + env-var config
 
 `createParacosmClient` pins `provider`, `costPreset`, per-role `models`, and compile-time options once, then hands back `runSimulation` / `runBatch` / `compileScenario` methods that inherit those defaults. Per-call overrides still win, merged at the per-role level so `models: { departments: 'gpt-5.4' }` at the client and `models: { judge: 'gpt-5.4' }` at the call combine to pin both roles instead of one replacing the other.
 
@@ -416,7 +426,7 @@ Env vars feed the same defaults and are read once at `createParacosmClient` cons
 | `PARACOSM_COMPILER_PROVIDER` | `compilerProvider` | `openai` / `anthropic` |
 | `PARACOSM_COMPILER_MODEL` | `compilerModel` | any provider-valid model id |
 
-Invalid values (typos, unknown providers) are silently ignored so bad env state can't crash boot — the client falls back to the next layer. Empty or whitespace-only env values are treated as unset.
+Invalid values (typos, unknown providers) are silently ignored so bad env state can't crash boot. The client falls back to the next layer. Empty or whitespace-only env values are treated as unset.
 
 ```bash
 # Zero-code config for hosting / CI:
@@ -431,9 +441,9 @@ PARACOSM_MODEL_DEPARTMENTS=claude-sonnet-4-6 \
 const client = createParacosmClient();   // no args, pulls from env
 ```
 
-Direct `runSimulation(...)` / `runBatch(...)` / `compileScenario(...)` calls without a client are still fully supported — the client is purely additive for multi-run workflows.
+Direct `runSimulation(...)` / `runBatch(...)` / `compileScenario(...)` calls without a client are still fully supported. The client is purely additive for multi-run workflows.
 
-### Batch runner — N scenarios × M leaders
+### Batch runner: N scenarios × M leaders
 
 ```typescript
 import { runBatch } from 'paracosm/runtime';
@@ -441,7 +451,7 @@ import { marsScenario, lunarScenario } from 'paracosm';
 
 const manifest = await runBatch({
   scenarios: [marsScenario, lunarScenario],
-  leaders,                // LeaderConfig[] — same shape as runSimulation
+  leaders,                // LeaderConfig[], same shape as runSimulation
   turns: 6,
   seed: 950,
   maxConcurrency: 2,      // how many sims to run in parallel
@@ -504,7 +514,7 @@ import { runSimulation, ProviderKeyMissingError } from 'paracosm';
 try {
   const output = await runSimulation(leader, [], { scenario, maxTurns: 8, seed: 42 });
   if (output.providerError) {
-    // Terminal provider failure (invalid key, quota exhausted) — the run
+    // Terminal provider failure (invalid key, quota exhausted). The run
     // aborted mid-way. turnArtifacts / finalState are partial.
     console.error(output.providerError.kind,        // 'auth' | 'quota' | 'rate_limit' | 'network' | 'unknown'
                   output.providerError.provider,
@@ -524,7 +534,7 @@ The resolver inspects `process.env` once up front, so a missing key fails loudly
 
 ### Where run output lands
 
-Every finished run writes a JSON snapshot to `<cwd>/output/v3-<archetype>-<timestamp>.json` — the same payload `runSimulation` returns, persisted so you can diff runs, reload them into the dashboard, or feed them into downstream tooling. Set `PARACOSM_OUTPUT_DIR` to redirect (absolute path, or relative to cwd). The directory is created on first write if it doesn't exist.
+Every finished run writes a JSON snapshot to `<cwd>/output/v3-<archetype>-<timestamp>.json`: the same payload `runSimulation` returns, persisted so you can diff runs, reload them into the dashboard, or feed them into downstream tooling. Set `PARACOSM_OUTPUT_DIR` to redirect (absolute path, or relative to cwd). The directory is created on first write if it doesn't exist.
 
 ```bash
 # Default: ./output/v3-the-pragmatist-2026-04-21T16-02-41-550Z.json
@@ -550,14 +560,14 @@ npx paracosm compile scenarios/lunar.json \
 
 Pipeline:
 
-1. **Extract** — LLM reads the seed, returns `topics`, `facts`, `searchQueries`, `crisisCategories`.
-2. **Search** — AgentOS `WebSearchService` queries Firecrawl, Tavily, Serper, and Brave in parallel. Results pass through semantic dedup, RRF fusion, and (with `COHERE_API_KEY`) Cohere `rerank-v3.5` neural reranking.
-3. **Assemble** — extracted facts plus search hits become a `KnowledgeBundle` with `topics[].canonicalFacts[]` and `categoryMapping`.
-4. **Ingest** — at runtime, `initResearchMemory` writes every citation into an AgentOS `AgentMemory.sqlite()` store keyed by topic tags.
-5. **Recall** — for each event, `recallResearch(query, keywords)` runs semantic recall over the memory store. Live web search fills in when memory is sparse.
-6. **Inject** — citations land in each department's prompt under `RESEARCH:` as `[claim](url)` markdown links.
-7. **Surface** — department reports return `citations[]`. The orchestrator guarantees provenance: when the LLM omits citations, the research packet is auto-attached so the report always carries the same sources the agent saw.
-8. **Render** — the dashboard "Reports" tab renders citations as clickable links with optional DOIs.
+1. **Extract.** LLM reads the seed, returns `topics`, `facts`, `searchQueries`, `crisisCategories`.
+2. **Search.** AgentOS `WebSearchService` queries Firecrawl, Tavily, Serper, and Brave in parallel. Results pass through semantic dedup, RRF fusion, and (with `COHERE_API_KEY`) Cohere `rerank-v3.5` neural reranking.
+3. **Assemble.** Extracted facts plus search hits become a `KnowledgeBundle` with `topics[].canonicalFacts[]` and `categoryMapping`.
+4. **Ingest.** At runtime, `initResearchMemory` writes every citation into an AgentOS `AgentMemory.sqlite()` store keyed by topic tags.
+5. **Recall.** For each event, `recallResearch(query, keywords)` runs semantic recall over the memory store. Live web search fills in when memory is sparse.
+6. **Inject.** Citations land in each department's prompt under `RESEARCH:` as `[claim](url)` markdown links.
+7. **Surface.** Department reports return `citations[]`. The orchestrator guarantees provenance: when the LLM omits citations, the research packet is auto-attached so the report always carries the same sources the agent saw.
+8. **Render.** The dashboard "Reports" tab renders citations as clickable links with optional DOIs.
 
 The Event Director also receives the bundle's `topics` and `categories`, so its `researchKeywords` and `category` fields stay grounded in entries that actually exist in your knowledge bundle.
 
@@ -575,7 +585,7 @@ Both are included as `paracosm/mars` and `paracosm/lunar` exports. Use them as r
 The engine is time-unit agnostic. `setup.defaultStartTime` and `setup.defaultTimePerTurn` are plain numbers; whether they mean years, quarters, hours, or ticks is decided by your `labels.timeUnitNoun` pair. The kernel, hooks, and dashboard labels pick that up consistently. Four worked shapes:
 
 ```jsonc
-// A) Corporate strategy — quarterly cadence over 3 years
+// A) Corporate strategy: quarterly cadence over 3 years
 {
   "id": "corp-strategy",
   "labels": {
@@ -588,7 +598,7 @@ The engine is time-unit agnostic. `setup.defaultStartTime` and `setup.defaultTim
   "setup": { "defaultTurns": 12, "defaultStartTime": 1, "defaultTimePerTurn": 1, "defaultPopulation": 40 }
 }
 
-// B) Submarine patrol — daily cadence over six months
+// B) Submarine patrol: daily cadence over six months
 {
   "id": "submarine-daily",
   "labels": {
@@ -601,7 +611,7 @@ The engine is time-unit agnostic. `setup.defaultStartTime` and `setup.defaultTim
   "setup": { "defaultTurns": 24, "defaultStartTime": 1, "defaultTimePerTurn": 7, "defaultPopulation": 60 }
 }
 
-// C) Benchmark arena — abstract tick cadence
+// C) Benchmark arena: abstract tick cadence
 {
   "id": "arena-session",
   "labels": {
@@ -614,7 +624,7 @@ The engine is time-unit agnostic. `setup.defaultStartTime` and `setup.defaultTim
   "setup": { "defaultTurns": 50, "defaultStartTime": 0, "defaultTimePerTurn": 1, "defaultPopulation": 8 }
 }
 
-// D) Mars Genesis — year cadence (the built-in reference)
+// D) Mars Genesis: year cadence (the built-in reference)
 {
   "id": "mars-genesis",
   "labels": {

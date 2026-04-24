@@ -1,7 +1,7 @@
 {
   "name": "paracosm",
   "version": "0.7.0",
-  "description": "AI agent swarm simulation engine with emergent crises, runtime tool forging, HEXACO personality drift, and deterministic kernels. Built on AgentOS.",
+  "description": "Structured world model for AI agents: reproducible counterfactual simulations with deterministic kernels, HEXACO-personality leaders, LLM-driven events, and runtime tool forging. Covers turn-loop civ sims, batch-trajectory digital twins, and batch-point forecasts via one universal Zod-validated RunArtifact. Built on AgentOS.",
   "type": "module",
   "main": "dist/engine/index.js",
   "types": "dist/engine/index.d.ts",
@@ -37,6 +37,10 @@
     "./schema": {
       "import": "./dist/engine/schema/index.js",
       "types": "./dist/engine/schema/index.d.ts"
+    },
+    "./world-model": {
+      "import": "./dist/runtime/world-model/index.js",
+      "types": "./dist/runtime/world-model/index.d.ts"
     }
   },
   "files": [
@@ -81,9 +85,18 @@
   },
   "keywords": [
     "paracosm",
+    "world-model",
+    "structured-world-model",
+    "llm-world-model",
+    "counterfactual-simulation",
+    "cwsm",
+    "digital-twin",
+    "decision-simulation",
     "simulation",
     "multi-agent",
     "ai-agents",
+    "llm-agents",
+    "agent-based-modeling",
     "emergent-behavior",
     "tool-forging",
     "hexaco",

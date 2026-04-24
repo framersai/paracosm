@@ -3,20 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Paracosm: Open-Source AI Agent Swarm Simulation Engine | AgentOS</title>
-<meta name="description" content="Open-source TypeScript swarm simulation engine. Spawn autonomous AI agent swarms with emergent event generation, sandboxed tool forging, HEXACO personality drift, and deterministic state kernels. Define any scenario as JSON. Leaders can be commanders, CEOs, generals, or any decision maker. npm install paracosm. Apache-2.0.">
-<meta name="keywords" content="paracosm, agentos, AI agent swarm, swarm simulation engine, swarm intelligence, multi-agent simulation, AI agent framework, TypeScript AI agents, autonomous agent swarm, open source simulation engine, npm paracosm, HEXACO personality model, emergent AI behavior, runtime tool forging, LLM-as-judge, deterministic simulation kernel, scenario-driven simulation, agentic AI, agent orchestration, swarm intelligence engine, AI swarm framework, agent swarm kit, multi-agent system">
+<title>Paracosm: Structured World Model for AI Agents | AgentOS</title>
+<meta name="description" content="Open-source TypeScript world model for AI agents. JSON-defined state, deterministic seeded kernel, LLM-driven events, HEXACO personality leaders, sandboxed runtime tool forging. A structured world model for reproducible counterfactual simulations: same seed, different leader, different world. Covers turn-loop civ sims, batch-trajectory digital twins, and batch-point forecasts via one universal Zod-validated RunArtifact. npm install paracosm. Apache-2.0.">
+<meta name="keywords" content="paracosm, world model, structured world model, LLM world model, counterfactual simulation, CWSM, digital twin, decision simulation, multi-agent simulation, LLM agents, AI agents, agent-based modeling, HEXACO personality model, runtime tool forging, LLM-as-judge, deterministic simulation kernel, scenario-driven simulation, agentic AI, open source simulation engine, npm paracosm, TypeScript AI agents, agentos, structured world simulator, reproducible simulation">
 <meta name="author" content="Manic Agency / Frame.dev">
 <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
 <link rel="canonical" href="https://paracosm.agentos.sh">
-<meta property="og:title" content="Paracosm: Open-Source AI Agent Swarm Simulation Engine">
-<meta property="og:description" content="Spawn autonomous agent swarms from JSON scenario definitions. Emergent event generation, sandboxed tool forging, HEXACO personality drift, deterministic kernels. Leaders can be any top-down decision maker. 100+ agents per run.">
+<meta property="og:title" content="Paracosm: Structured World Model for AI Agents">
+<meta property="og:description" content="Reproducible counterfactual simulations from JSON. Deterministic kernel + LLM-driven events + HEXACO-personality leaders. Same seed, different leader, different world. Universal RunArtifact covers civ sims, digital twins, and one-shot forecasts.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://paracosm.agentos.sh">
 <meta property="og:site_name" content="Paracosm by AgentOS">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Paracosm: AI Agent Swarm Simulation Engine">
-<meta name="twitter:description" content="Open-source TypeScript swarm simulation engine. Emergent crises, sandboxed tool forging, HEXACO personality drift. npm install paracosm.">
+<meta name="twitter:title" content="Paracosm: Structured World Model for AI Agents">
+<meta name="twitter:description" content="Open-source structured world model. JSON-defined state, deterministic kernel, HEXACO leaders, runtime tool forging. Reproducible counterfactual simulations. npm install paracosm.">
 <meta name="theme-color" content="#0a0806">
 <link rel="icon" href="/favicon.png" sizes="32x32">
 <link rel="icon" type="image/svg+xml" href="/icon.svg">
@@ -29,7 +29,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Paracosm","description":"Open-source TypeScript AI agent swarm simulation engine. Spawn autonomous agent swarms with emergent crisis generation, sandboxed tool forging, HEXACO personality evolution, and deterministic state kernels. Built on AgentOS.","applicationCategory":"Simulation","applicationSubCategory":"AI Agent Swarm Framework","operatingSystem":"Cross-platform","programmingLanguage":"TypeScript","license":"https://opensource.org/licenses/Apache-2.0","url":"https://paracosm.agentos.sh","downloadUrl":"https://www.npmjs.com/package/paracosm","softwareVersion":"__PARACOSM_VERSION__","author":{"@type":"Organization","name":"Manic Agency / Frame.dev","url":"https://frame.dev"},"offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"codeRepository":"https://github.com/framersai/paracosm","runtimePlatform":"Node.js"}
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Paracosm","description":"Open-source TypeScript structured world model for AI agents. JSON-defined state, deterministic seeded kernel, LLM-driven events, HEXACO-personality leaders, sandboxed runtime tool forging. Reproducible counterfactual simulations with a universal Zod-validated RunArtifact spanning turn-loop civ sims, batch-trajectory digital twins, and batch-point forecasts. Built on AgentOS.","applicationCategory":"Simulation","applicationSubCategory":"Structured World Model","operatingSystem":"Cross-platform","programmingLanguage":"TypeScript","license":"https://opensource.org/licenses/Apache-2.0","url":"https://paracosm.agentos.sh","downloadUrl":"https://www.npmjs.com/package/paracosm","softwareVersion":"__PARACOSM_VERSION__","author":{"@type":"Organization","name":"Manic Agency / Frame.dev","url":"https://frame.dev"},"offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"codeRepository":"https://github.com/framersai/paracosm","runtimePlatform":"Node.js"}
 </script>
 <link rel="stylesheet" href="/brand/landing.css">
 </head>
@@ -94,6 +94,7 @@
     <a href="https://agentos.sh" target="_blank" rel="noopener" class="nav-tag" style="text-decoration:none">AGENTOS</a>
   </div>
   <div class="nav-r">
+    <a href="#positioning">Positioning</a>
     <a href="#features">Features</a>
     <a href="#how-it-works">How It Works</a>
     <a href="#scenarios">Scenarios</a>
@@ -111,6 +112,7 @@
   </button>
 </nav>
 <div class="nav-mobile" id="nav-mobile">
+  <a href="#positioning">Positioning</a>
   <a href="#features">Features</a>
   <a href="#how-it-works">How It Works</a>
   <a href="#scenarios">Scenarios</a>
@@ -128,8 +130,8 @@
   <svg id="hero-icon" class="hero-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="96" height="96" style="display:block" role="img" aria-label="Paracosm"><defs><radialGradient id="hg"><stop offset="0%" stop-color="var(--amber)" stop-opacity=".3"/><stop offset="100%" stop-color="var(--amber)" stop-opacity="0"/></radialGradient></defs><g class="pc-orbit"><line x1="256" y1="256" x2="301.06" y2="87.85" stroke="var(--pc-line)" stroke-width="12.8" opacity=".5"/><line x1="256" y1="256" x2="424.15" y2="210.94" stroke="var(--pc-line)" stroke-width="12.8" opacity=".5"/><line x1="256" y1="256" x2="379.09" y2="379.09" stroke="var(--pc-line)" stroke-width="12.8" opacity=".5"/><line x1="256" y1="256" x2="210.94" y2="424.15" stroke="var(--pc-line)" stroke-width="12.8" opacity=".5"/><line x1="256" y1="256" x2="87.85" y2="301.06" stroke="var(--pc-line)" stroke-width="12.8" opacity=".5"/><line x1="256" y1="256" x2="132.91" y2="132.91" stroke="var(--pc-line)" stroke-width="12.8" opacity=".5"/></g><g class="pc-cross"><line x1="301.06" y1="87.85" x2="379.09" y2="379.09" stroke="var(--pc-line)" stroke-width="9" opacity=".18"/><line x1="424.15" y1="210.94" x2="210.94" y2="424.15" stroke="var(--pc-line)" stroke-width="9" opacity=".18"/><line x1="379.09" y1="379.09" x2="87.85" y2="301.06" stroke="var(--pc-line)" stroke-width="9" opacity=".18"/><line x1="210.94" y1="424.15" x2="132.91" y2="132.91" stroke="var(--pc-line)" stroke-width="9" opacity=".18"/><line x1="87.85" y1="301.06" x2="301.06" y2="87.85" stroke="var(--pc-line)" stroke-width="9" opacity=".18"/><line x1="132.91" y1="132.91" x2="424.15" y2="210.94" stroke="var(--pc-line)" stroke-width="9" opacity=".18"/></g><circle class="pc-hub-glow" cx="256" cy="256" r="73.7" fill="url(#hg)"/><circle class="pc-hub" cx="256" cy="256" r="40.96" fill="var(--amber)"/><g class="pc-orbit"><circle cx="301.06" cy="87.85" r="28.16" fill="var(--rust)"/><circle cx="424.15" cy="210.94" r="28.16" fill="var(--amber)"/><circle cx="379.09" cy="379.09" r="28.16" fill="var(--teal)"/><circle cx="210.94" cy="424.15" r="28.16" fill="var(--rust)"/><circle cx="87.85" cy="301.06" r="28.16" fill="var(--teal)"/><circle cx="132.91" cy="132.91" r="28.16" fill="var(--amber)"/></g></svg>
 
   <h1>PARACOSM</h1>
-  <div class="hero-tagline"><span>AI</span><span>Agent</span><span>Swarm</span><span class="dot">&bull;</span><span>Simulation</span><span>Engine</span></div>
-  <p class="hero-sub">Define a scenario. Run it with AI commanders that have different personalities. Watch their decisions compound into measurably different outcomes from identical starting conditions.</p>
+  <div class="hero-tagline"><span>Structured</span><span>World</span><span>Model</span><span class="dot">&bull;</span><span>AI</span><span>Agents</span></div>
+  <p class="hero-sub">Define a world as JSON. Run it with leaders that have different HEXACO personalities. A deterministic seeded kernel guarantees identical starting conditions; LLM-driven events and decisions produce measurably divergent trajectories when you swap one variable. Reproducible counterfactual simulations, from JSON.</p>
   <p class="hero-mono">OPEN SOURCE &middot; APACHE-2.0 &middot; TYPESCRIPT &middot; BUILT ON AGENTOS</p>
 
   <div class="hero-ctas">
@@ -150,14 +152,14 @@
   <div class="code-sec">
     <div class="code-block">
       <div class="code-header"><span>1. Install (npm, pnpm, or bun)</span><button class="code-copy" onclick="copyCode(this,'npm install paracosm')">Copy</button></div>
-      <div class="code-body" id="install-code"><span class="cm"># Any of these work — paracosm ships ESM + subpath exports</span>
+      <div class="code-body" id="install-code"><span class="cm"># Any of these work; paracosm ships ESM + subpath exports</span>
 npm  install paracosm
 pnpm add     paracosm
 bun  add     paracosm</div>
     </div>
     <div class="code-block">
       <div class="code-header"><span>2. Define your world as JSON</span><button class="code-copy" onclick="copyCode(this, document.getElementById('json-code').textContent)">Copy</button></div>
-      <div class="code-body" id="json-code"><span class="cm">// my-world.json — defines the world, not the leaders</span>
+      <div class="code-body" id="json-code"><span class="cm">// my-world.json: defines the world, not the leaders</span>
 <span class="cm">// Leaders are configured separately so the same world</span>
 <span class="cm">// can be run with different personality matchups</span>
 {
@@ -243,7 +245,7 @@ bun  add     paracosm</div>
       maxTurns: <span class="num">6</span>,
       seed: <span class="num">42</span>,
       <span class="cm">// costPreset: 'economy',  // uncomment for ~5-10× cheaper iteration</span>
-      <span class="cm">// Every event carries a one-liner `summary` field — prints cleanly</span>
+      <span class="cm">// Every event carries a one-liner `summary` field. Prints cleanly</span>
       <span class="cm">// for all 17 event types. Narrow on `e.type` for exact payloads.</span>
       <span class="fn">onEvent</span>(e) { console.<span class="fn">log</span>(leader.name, e.type, e.data.summary); },
     })
@@ -272,12 +274,62 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
   </div>
 </section>
 
+<!-- POSITIONING / ANTI-POSITIONING -->
+<section class="sec" id="positioning">
+  <div class="sec-inner">
+    <div class="sec-label rv">Positioning</div>
+    <h2 class="sec-title rv">Where paracosm sits in the world-model landscape</h2>
+    <p class="sec-desc rv">Paracosm is a structured world model (<a href="https://arxiv.org/abs/2507.05169" target="_blank" rel="noopener" style="color:var(--amber)">Xing 2025</a>; <a href="https://dl.acm.org/doi/full/10.1145/3746449" target="_blank" rel="noopener" style="color:var(--amber)">ACM CSUR 2025</a>) and a counterfactual world simulation model (<a href="https://cicl.stanford.edu/papers/kirfel2025when.pdf" target="_blank" rel="noopener" style="color:var(--amber)">Kirfel et al, Stanford 2025</a>). The 2026 landscape has several adjacent categories. Paracosm fits exactly one. Naming the others up front saves everyone a misclassification cycle.</p>
+
+    <div class="arch rv" style="margin-top:32px">
+      <div class="arch-row" style="border-left:3px solid var(--green)">
+        <svg style="color:var(--green);width:24px;height:24px" viewBox="0 0 24 24"><path d="M5 12l4 4 10-10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div class="arch-label" style="color:var(--green)">Paracosm is this</div>
+        <div class="arch-desc">Structured / LLM-based / counterfactual world simulator. JSON-defined state space, seeded deterministic kernel, LLM-driven events and specialist analyses, HEXACO-personality leaders, runtime tool forging in sandboxed V8 isolates. One universal Zod-validated RunArtifact spans turn-loop civ sims, batch-trajectory digital twins, and batch-point forecasts.</div>
+        <div class="arch-tech">Xing 2025 / ACM CSUR 2025 / Kirfel 2025</div>
+      </div>
+      <div class="arch-row" style="border-left:3px solid var(--t4)">
+        <svg style="color:var(--t3);width:24px;height:24px" viewBox="0 0 24 24"><line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <div class="arch-label" style="color:var(--t2)">Not a generative visual world model</div>
+        <div class="arch-desc">Sora, Genie 3, and World Labs Marble generate pixel-level or 3D-scene output. Paracosm produces a structured result artifact (metrics, decisions, specialist notes, citations, forged tool summaries). No pixels.</div>
+        <div class="arch-tech">Sora / Genie 3 / Marble</div>
+      </div>
+      <div class="arch-row" style="border-left:3px solid var(--t4)">
+        <svg style="color:var(--t3);width:24px;height:24px" viewBox="0 0 24 24"><line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <div class="arch-label" style="color:var(--t2)">Not a JEPA predictive-representation model</div>
+        <div class="arch-desc">LeCun's AMI Labs ($1.03B raise, March 2026) trains Joint-Embedding Predictive Architectures on sensor and video streams. Paracosm does not train a model; it composes a kernel with an LLM reasoner.</div>
+        <div class="arch-tech">AMI Labs / V-JEPA / I-JEPA</div>
+      </div>
+      <div class="arch-row" style="border-left:3px solid var(--t4)">
+        <svg style="color:var(--t3);width:24px;height:24px" viewBox="0 0 24 24"><line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <div class="arch-label" style="color:var(--t2)">Not a multi-agent task orchestration framework</div>
+        <div class="arch-desc">LangGraph, AutoGen / AG2, CrewAI, OpenAI Agents SDK, Google ADK, Mastra build agentic workflows that execute real tasks against real tools and APIs. Paracosm is a simulation; nothing ships outside the run.</div>
+        <div class="arch-tech">LangGraph / AutoGen / CrewAI</div>
+      </div>
+      <div class="arch-row" style="border-left:3px solid var(--t4)">
+        <svg style="color:var(--t3);width:24px;height:24px" viewBox="0 0 24 24"><line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <div class="arch-label" style="color:var(--t2)">Not a bottom-up swarm intelligence simulator</div>
+        <div class="arch-desc">MiroFish and OASIS (CAMEL-AI) simulate thousands to a million emergent LLM-driven agents on social-media substrates; output is an aggregate prediction report. Paracosm is top-down (one leader decides), ~100 agents by design, deterministic-where-it-matters, and outputs a counterfactual trajectory.</div>
+        <div class="arch-tech">MiroFish / OASIS</div>
+      </div>
+      <div class="arch-row" style="border-left:3px solid var(--t4)">
+        <svg style="color:var(--t3);width:24px;height:24px" viewBox="0 0 24 24"><line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <div class="arch-label" style="color:var(--t2)">Not a generative-agents library</div>
+        <div class="arch-desc">Stanford Generative Agents (Park et al, Smallville, 2023) and Google DeepMind Concordia build emergent social simulacra in open-ended sandboxes; they're research libraries. Paracosm is a product: deterministic turn loop, personality drift, runtime tool forging, universal result schema.</div>
+        <div class="arch-tech">Generative Agents / Concordia</div>
+      </div>
+    </div>
+
+    <p class="sec-desc rv" style="margin-top:32px;font-size:14px;color:var(--t3)">Full taxonomy mapping lives at <a href="https://github.com/framersai/paracosm/blob/master/docs/positioning/world-model-mapping.md" target="_blank" rel="noopener" style="color:var(--amber)">docs/positioning/world-model-mapping.md</a> with citations to the ACM CSUR 2025 survey, the Xing critique paper, the Kirfel CWSM paper, and papers for every adjacent category named above.</p>
+  </div>
+</section>
+
 <!-- FEATURES -->
 <section class="sec sec-alt" id="features">
   <div class="sec-inner">
     <div class="sec-label rv">Core Capabilities</div>
     <h2 class="sec-title rv">What Paracosm Does</h2>
-    <p class="sec-desc rv">Paracosm is a swarm simulation engine, not a chat interface. Agents analyze data, write code, cite papers, and forge computational models inside sandboxed isolates. The engine generates crises from swarm state, not from a script. Every run produces different outcomes from the same starting conditions.</p>
+    <p class="sec-desc rv">Paracosm is a structured world model, not a chat interface. Specialist agents analyze data, write code, cite papers, and forge computational models inside sandboxed V8 isolates. The Event Director generates events from world state, not from a script. Two runs on the same seed diverge only because their leaders have different HEXACO personalities.</p>
 
     <div class="feat-grid">
       <div class="feat rv rv-d1">
@@ -307,13 +359,13 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
       <div class="feat rv rv-d2">
         <img class="feat-icon" src="/brand/feature-icons/compiler.svg?v=1" width="48" height="48" alt="">
         <h3>Scenario Compiler</h3>
-        <p>Write a JSON file describing departments, metrics, and world rules. The compiler calls generateText() to produce TypeScript hooks for progression, event generation, milestones, and political dynamics. A Mars colony, a lunar outpost, an Antarctic station, a corporate org, a submarine crew: same compiler, different JSON, different swarm. Cost is roughly $0.10 per compile. Results cache to disk.</p>
+        <p>Write a JSON file describing departments, metrics, and world rules. The compiler calls generateText() to produce TypeScript hooks for progression, event generation, milestones, and political dynamics. A Mars colony, a lunar outpost, an Antarctic station, a corporate org, a submarine crew: same compiler, different JSON, different world. Cost is roughly $0.10 per compile. Results cache to disk.</p>
         <div class="feat-ref">compileScenario() in paracosm/engine/compiler</div>
       </div>
       <div class="feat rv rv-d3">
         <img class="feat-icon" src="/brand/feature-icons/research.svg?v=1" width="48" height="48" alt="">
         <h3>Semantic Research Pipeline</h3>
-        <p>Swarm agents search academic literature before making recommendations. The pipeline queries Serper, Tavily, Firecrawl, and Brave in parallel, then applies Cohere Rerank v3.5 for neural relevance scoring. Citations include DOI links. A medical agent recommending radiation shielding cites actual NASA dosimetry guidelines, not a hallucinated source.</p>
+        <p>Specialist agents search academic literature before making recommendations. The pipeline queries Serper, Tavily, Firecrawl, and Brave in parallel, then applies Cohere Rerank v3.5 for neural relevance scoring. Citations include DOI links. A medical agent recommending radiation shielding cites actual NASA dosimetry guidelines, not a hallucinated source.</p>
         <div class="feat-ref">Deep research via AgentOS AgentMemory + Cohere Rerank v3.5</div>
       </div>
       <div class="feat rv rv-d1">
@@ -331,7 +383,7 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
   <div class="sec-inner sec-center">
     <div class="sec-label rv">Simulation Loop</div>
     <h2 class="sec-title rv">Anatomy of a Turn</h2>
-    <p class="sec-desc rv">A turn takes 30 to 90 seconds. The engine runs four phases in sequence. Each phase feeds data forward. By the end of a turn, the swarm state has changed, agents have reacted, and personality traits have shifted.</p>
+    <p class="sec-desc rv">A turn takes 30 to 90 seconds. The engine runs four phases in sequence. Each phase feeds data forward. By the end of a turn, the world state has changed, agents have reacted, and personality traits have shifted.</p>
 
     <div class="flow-wrap rv">
       <div class="flow-line"><div class="flow-line-fill" id="flow-fill"></div></div>
@@ -366,7 +418,7 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
     <!-- Divergence visualization -->
     <div class="sec-label rv" style="margin-top:64px">Divergence</div>
     <h2 class="sec-title rv">Same seed. Different commander. Different civilization.</h2>
-    <p class="sec-desc rv">The kernel guarantees identical starting conditions. Seed 950 produces the same 100 agents with the same profiles, the same resource levels, and the same initial crises. The only variable is the commander's personality. By turn 3, the swarms are measurably different.</p>
+    <p class="sec-desc rv">The kernel guarantees identical starting conditions. Seed 950 produces the same 100 agents with the same profiles, the same resource levels, and the same initial events. The only variable is the commander's personality. By turn 3, the two worlds are measurably different.</p>
 
     <div class="diverge rv">
       <div class="diverge-side" style="border-left:3px solid var(--amber)">
@@ -396,7 +448,7 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
   <div class="sec-inner">
     <div class="sec-label rv">Scenarios</div>
     <h2 class="sec-title rv">Two ScenarioPackages ship with the engine</h2>
-    <p class="sec-desc rv">A ScenarioPackage is a JSON file plus runtime hooks. It defines departments, metrics, crisis templates, progression rules, and milestone conditions. The engine reads the package, spawns the agent swarm, and runs the simulation. No engine code changes required between scenarios.</p>
+    <p class="sec-desc rv">A ScenarioPackage is a JSON file plus runtime hooks. It defines departments, metrics, crisis templates, progression rules, and milestone conditions. The engine reads the package, populates the world, and runs the simulation. No engine code changes required between scenarios.</p>
 
     <div class="scenarios">
       <div class="sc-card rv rv-d1">
@@ -482,12 +534,12 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
     <div class="sec-label rv">FAQ</div>
     <h2 class="sec-title rv">Frequently asked questions</h2>
     <div class="faq-list rv">
-      <details class="faq-item"><summary>What is Paracosm?</summary><div class="faq-body">An open-source TypeScript swarm simulation engine available on npm (<code>npm install paracosm</code>). You define a world as a ScenarioPackage: departments, metrics, crisis templates, progression hooks. The engine spawns an autonomous agent swarm, generates crises from simulation state, and resolves outcomes through a seeded deterministic kernel. Two scenarios ship with the package. You can compile new ones from JSON.</div></details>
+      <details class="faq-item"><summary>What is Paracosm?</summary><div class="faq-body">An open-source TypeScript structured world model for AI agents, available on npm (<code>npm install paracosm</code>). You define a world as a ScenarioPackage: departments, metrics, crisis templates, progression hooks. The engine populates the world, generates events from live state, and resolves outcomes through a seeded deterministic kernel. LLM-driven stages diverge because every prompt carries the leader's HEXACO profile. Two scenarios ship with the package (Mars Genesis, Lunar Outpost). You can compile new ones from JSON. Paracosm fits the "structured / LLM-based / counterfactual" branch of the world-model taxonomy (Xing 2025, ACM CSUR 2025, Kirfel 2025).<div class="faq-cite">Positioning map: <a href="https://github.com/framersai/paracosm/blob/master/docs/positioning/world-model-mapping.md" target="_blank" rel="noopener">docs/positioning/world-model-mapping.md</a></div></div></details>
       <details class="faq-item"><summary>How does tool forging work?</summary><div class="faq-body">When a department agent needs a calculation the codebase doesn't provide, it writes one. A medical officer facing a radiation crisis writes a dose calculator. An engineer writes a structural load model. The code executes in an isolated V8 sandbox with memory and time limits. An LLM judge reviews the output for safety and correctness before it enters the decision pipeline. The tool persists for future turns. None of these tools exist in the source code. The agents invent them at runtime.<div class="faq-cite">Implementation: AgentOS EmergentCapabilityEngine + EmergentJudge, sandboxed via isolated-vm</div></div></details>
       <details class="faq-item"><summary>What is the HEXACO personality model?</summary><div class="faq-body">HEXACO is a six-factor personality framework from personality psychology: Honesty-Humility, Emotionality, Extraversion, Agreeableness, Conscientiousness, and Openness to Experience. Each agent in Paracosm carries six continuous values between 0 and 1. These values shift across turns through three drift mechanisms: leader influence (agents' traits pull toward their commander's profile), role activation (a chief engineer's conscientiousness trends upward), and outcome reinforcement (surviving a crisis through bold action increases openness).<div class="faq-cite">Ashton, M.C. &amp; Lee, K. (2007). "Empirical, Theoretical, and Practical Advantages of the HEXACO Model of Personality Structure." Personality and Social Psychology Review, 11(2), 150-166. doi:10.1177/1088868306294907</div></div></details>
-      <details class="faq-item"><summary>Is the simulation deterministic?</summary><div class="faq-body">The kernel is fully deterministic. It uses Mulberry32, a 32-bit seeded PRNG. Given seed 950, the kernel produces identical agent rosters, lifecycle schedules, promotion sequences, and resource starting values on every run. The divergence between two parallel swarms comes entirely from the AI commander's decisions. Fix the seed, vary the personality, measure the outcome.<div class="faq-cite">PRNG methodology follows Law, A.M. &amp; Kelton, W.D. Simulation Modeling and Analysis, 5th ed., McGraw-Hill, 2015</div></div></details>
+      <details class="faq-item"><summary>Is the simulation deterministic?</summary><div class="faq-body">The kernel is fully deterministic. It uses Mulberry32, a 32-bit seeded PRNG. Given seed 950, the kernel produces identical agent rosters, lifecycle schedules, promotion sequences, and resource starting values on every run. The divergence between two parallel worlds comes entirely from the AI commander's decisions. Fix the seed, vary the personality, measure the outcome. This is the counterfactual world simulation model (CWSM) pattern.<div class="faq-cite">PRNG methodology follows Law, A.M. &amp; Kelton, W.D. Simulation Modeling and Analysis, 5th ed., McGraw-Hill, 2015. CWSM framing per Kirfel et al, Stanford 2025.</div></div></details>
       <details class="faq-item"><summary>What LLM providers work with Paracosm?</summary><div class="faq-body">OpenAI (GPT-5.4) and Anthropic (Claude Sonnet 4.6). All roles (commander, departments, crisis director, tool judge) default to the full model for reliable structured output and tool forging. You can override per-role in the setup panel or via the API. Mini models (GPT-5.4-mini, Claude Haiku) are available for cost optimization but produce lower quality results.</div></details>
-      <details class="faq-item"><summary>Can I build my own scenario?</summary><div class="faq-body">Two paths. If you want full control, write a ScenarioPackage in TypeScript with custom hooks for progression, crisis generation, milestones, and politics. If you want zero-code authoring, write the scenario as JSON and run it through the Scenario Compiler. The compiler calls generateText() to produce all eight hook functions. Compilation costs about $0.10 in API calls and caches results to disk. An Antarctic station, a submarine crew, a corporate org, a generation ship: different JSON, same engine, different swarm.</div></details>
+      <details class="faq-item"><summary>Can I build my own scenario?</summary><div class="faq-body">Two paths. If you want full control, write a ScenarioPackage in TypeScript with custom hooks for progression, crisis generation, milestones, and politics. If you want zero-code authoring, write the scenario as JSON and run it through the Scenario Compiler. The compiler calls generateText() to produce all eight hook functions. Compilation costs about $0.10 in API calls and caches results to disk. An Antarctic station, a submarine crew, a corporate org, a generation ship: different JSON, same engine, different world.</div></details>
       <details class="faq-item"><summary>What verticals does this apply to?</summary><div class="faq-body">Defense and intelligence use it for wargaming and scenario planning. Corporate strategy teams model acquisition outcomes and leadership dynamics. Game studios generate procedural NPC civilizations and emergent narratives. Academic researchers run controlled experiments in multi-agent decision-making. Government agencies simulate policy impacts before implementation. The common thread: any domain where testing decisions before making them reduces risk.</div></details>
       <details class="faq-item"><summary>Is Paracosm free?</summary><div class="faq-body">The engine is open source under Apache-2.0. You can use it in commercial products without restriction. Install from npm, fork the repo, build on it. Hosted tiers for managed deployment, auth, persistence, and scenario authoring are on the roadmap. Contact <a href="mailto:team@frame.dev">team@frame.dev</a> for early access.</div></details>
     </div>
