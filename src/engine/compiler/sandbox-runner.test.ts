@@ -63,6 +63,26 @@ test('runArrowSync kills while(true) via timeout', () => {
   assert.ok(Date.now() - start < 3000, 'Sandbox did not honor timeout');
 });
 
+test('runArrowSync blocks realm intrinsics that enable reflection escape', () => {
+  // Reflect.construct(({}).constructor.constructor, ['return process'])() is the
+  // canonical reflection path that bypasses validateHookCode regex. With
+  // Reflect/Proxy/WebAssembly/SharedArrayBuffer/Atomics hardened-undefined
+  // in the sandbox context, those reflection paths are closed.
+  const code = `() => ({
+    reflect: typeof Reflect,
+    proxy: typeof Proxy,
+    wasm: typeof WebAssembly,
+    sab: typeof SharedArrayBuffer,
+    atomics: typeof Atomics,
+  })`;
+  const out = runArrowSync<[], Record<string, string>>(code, []);
+  assert.equal(out.reflect, 'undefined');
+  assert.equal(out.proxy, 'undefined');
+  assert.equal(out.wasm, 'undefined');
+  assert.equal(out.sab, 'undefined');
+  assert.equal(out.atomics, 'undefined');
+});
+
 test('runArrowSync proves require / fetch / setTimeout are undefined inside sandbox', () => {
   const code = `() => ({
     process: typeof process,

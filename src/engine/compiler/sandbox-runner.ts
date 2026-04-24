@@ -30,6 +30,17 @@ import * as vm from 'node:vm';
  * Keys that must NEVER be exposed inside the sandbox even if a future
  * caller passes extras. Drops them silently to keep the hardening intact.
  */
+/**
+ * Mirror of @framers/agentos CodeSandbox DANGEROUS_GLOBAL_KEYS so paracosm's
+ * sandbox-runner has the same hardening surface as the agentos forge sandbox.
+ *
+ * Categorized:
+ *   - Host-state escape: process, global, globalThis, require
+ *   - Code-generation reflection: eval, Function
+ *   - Realm-reflection / introspection: Reflect, Proxy
+ *   - Memory side-channels (Spectre family): SharedArrayBuffer, Atomics
+ *   - Native compilation surface: WebAssembly
+ */
 const DANGEROUS_GLOBAL_KEYS: ReadonlySet<string> = new Set([
   'process',
   'global',
@@ -37,6 +48,11 @@ const DANGEROUS_GLOBAL_KEYS: ReadonlySet<string> = new Set([
   'require',
   'eval',
   'Function',
+  'Reflect',
+  'Proxy',
+  'WebAssembly',
+  'SharedArrayBuffer',
+  'Atomics',
 ]);
 
 /**
@@ -144,6 +160,17 @@ function buildContext(extras: Record<string, unknown> = {}): Record<string, unkn
     clearInterval: undefined,
     clearImmediate: undefined,
     queueMicrotask: undefined,
+    // Realm intrinsics paracosm hooks have no legitimate need for. Blocks
+    // Reflect.construct(Function,...) and Proxy-based prototype attacks
+    // that would otherwise sidestep codeGeneration: { strings: false }.
+    // SharedArrayBuffer/Atomics close the Spectre side-channel surface;
+    // WebAssembly is already blocked via codeGeneration: { wasm: false }
+    // but nulled here for belt-and-suspenders.
+    Reflect: undefined,
+    Proxy: undefined,
+    WebAssembly: undefined,
+    SharedArrayBuffer: undefined,
+    Atomics: undefined,
   };
   for (const [key, value] of Object.entries(extras)) {
     if (!DANGEROUS_GLOBAL_KEYS.has(key)) {
