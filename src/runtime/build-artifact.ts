@@ -95,7 +95,13 @@ export interface BuildArtifactInputs {
   citationCatalog: Citation[];
   /** Per-turn agent reactions — stashed under scenarioExtensions.reactions. */
   agentReactions: unknown[];
-  finalState?: { systems: Record<string, number>; metadata?: unknown };
+  finalState?: {
+    systems: Record<string, number>;
+    politics?: Record<string, number | string | boolean>;
+    statuses?: Record<string, string | boolean>;
+    environment?: Record<string, number | string | boolean>;
+    metadata?: unknown;
+  };
   fingerprint?: Record<string, number | string>;
   cost?: Cost;
   providerError?: ProviderError | null;
@@ -206,7 +212,12 @@ export function buildRunArtifact(inputs: BuildArtifactInputs): RunArtifact {
     subject: inputs.subject,
     intervention: inputs.intervention,
     finalState: inputs.finalState
-      ? { metrics: inputs.finalState.systems }
+      ? {
+          metrics: inputs.finalState.systems,
+          politics: inputs.finalState.politics,
+          statuses: inputs.finalState.statuses,
+          environment: inputs.finalState.environment,
+        }
       : undefined,
     fingerprint: inputs.fingerprint,
     citations: inputs.citationCatalog.length > 0 ? inputs.citationCatalog : undefined,

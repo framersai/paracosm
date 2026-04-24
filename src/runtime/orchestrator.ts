@@ -1888,7 +1888,13 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
     forgedToolbox: forgedToolbox as never,
     citationCatalog: citationCatalog as never,
     agentReactions: allAgentReactions,
-    finalState: { systems: final.systems as unknown as Record<string, number>, metadata: final.metadata },
+    finalState: {
+      systems: final.systems as unknown as Record<string, number>,
+      politics: final.politics as unknown as Record<string, number | string | boolean>,
+      statuses: final.statuses,
+      environment: final.environment,
+      metadata: final.metadata,
+    },
     fingerprint,
     cost: {
       totalUSD: finalCost.totalCostUSD,

@@ -148,3 +148,34 @@ test('buildRunArtifact leaves subject + intervention undefined when not passed',
   assert.equal(artifact.subject, undefined);
   assert.equal(artifact.intervention, undefined);
 });
+
+test('buildRunArtifact: finalState carries metrics + politics + statuses + environment bags', () => {
+  const artifact = buildRunArtifact({
+    ...baseInputs,
+    mode: 'turn-loop',
+    finalState: {
+      systems: { revenueArr: 6_500_000, morale: 0.82 },
+      politics: { boardConfidence: 80 },
+      statuses: { fundingRound: 'series-c' },
+      environment: { marketGrowthPct: 22 },
+      metadata: { startTime: 1, currentTime: 3, currentTurn: 2 },
+    },
+  });
+  assert.ok(artifact.finalState);
+  assert.equal(artifact.finalState!.metrics?.revenueArr, 6_500_000);
+  assert.equal((artifact.finalState!.politics as Record<string, number>)?.boardConfidence, 80);
+  assert.equal((artifact.finalState!.statuses as Record<string, string>)?.fundingRound, 'series-c');
+  assert.equal((artifact.finalState!.environment as Record<string, number>)?.marketGrowthPct, 22);
+});
+
+test('buildRunArtifact: finalState.politics/statuses/environment undefined when input omits them (legacy inputs)', () => {
+  const artifact = buildRunArtifact({
+    ...baseInputs,
+    mode: 'turn-loop',
+    finalState: { systems: { population: 100 }, metadata: {} },
+  });
+  assert.ok(artifact.finalState);
+  assert.equal(artifact.finalState!.politics, undefined);
+  assert.equal(artifact.finalState!.statuses, undefined);
+  assert.equal(artifact.finalState!.environment, undefined);
+});
