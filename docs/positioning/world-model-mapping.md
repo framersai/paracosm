@@ -43,7 +43,7 @@ Paracosm operationalizes CWSMs:
 - **The constant:** scenario JSON + seeded PRNG + kernel lifecycle. Same inputs → identical agent rosters, lifecycles, promotions.
 - **The counterfactual:** leader HEXACO personality profile. Swap one leader for another and every LLM-driven stage diverges.
 - **The measurement:** `fingerprint` + per-turn `stateSnapshotAfter` + `specialistNotes[]` + `decisions[]` + final `worldSnapshot` across all five state bags.
-- **The API:** `WorldModel.fork()` (shipped in 0.7.x) lets callers branch a run at any past turn. Parent runs created with `captureSnapshots: true` carry per-turn kernel snapshots in `scenarioExtensions.kernelSnapshotsPerTurn`; `WorldModel.forkFromArtifact(artifact, atTurn, { leader: newLeader })` reads one, restores the kernel verbatim, and returns a fresh `WorldModel` positioned at `atTurn + 1`. `metadata.forkedFrom` on the child artifact links back to the parent for chain reconstruction.
+- **The API:** `WorldModel.fork()` (shipped in 0.7.x) lets callers branch a run at any past turn. Parent runs created with `captureSnapshots: true` carry per-turn kernel snapshots in `scenarioExtensions.kernelSnapshotsPerTurn`; `WorldModel.forkFromArtifact(artifact, atTurn)` reads one, restores the kernel verbatim, and returns a fresh `WorldModel` ready to simulate from `atTurn + 1` with a supplied leader. `metadata.forkedFrom` on the child artifact links back to the parent for chain reconstruction.
 
 Related academic work on LLM-counterfactual simulation:
 
@@ -131,7 +131,7 @@ JSON Schema export via `npm run export:json-schema` for non-TypeScript consumers
 
 - [Critiques of World Models: Xing, arXiv 2507.05169](https://arxiv.org/abs/2507.05169): the structured-vs-generative split.
 - [Understanding World or Predicting Future? A Comprehensive Survey of World Models: ACM CSUR 2025](https://dl.acm.org/doi/full/10.1145/3746449): the two-branch taxonomy.
-- [When AI meets counterfactuals: the ethical implications of counterfactual world simulation models: Kirfel et al, 2025 (PDF)](https://link.springer.com/article/10.1007/s43681-025-00718-4): the CWSM term and use cases.
+- [When AI meets counterfactuals: the ethical implications of counterfactual world simulation models: Kirfel et al, 2025](https://link.springer.com/article/10.1007/s43681-025-00718-4): the CWSM term and use cases.
 - [Large Language Model Based Multi-agents: A Survey of Progress and Challenges: IJCAI 2024](https://www.ijcai.org/proceedings/2024/890): LLM-MA as world simulation.
 - [LLM-Based World Models Can Make Decisions Solely: arXiv 2411.08794](https://arxiv.org/html/2411.08794v2)
 - [Large language models empowered agent-based modeling and simulation: Nature HSSC 2024](https://www.nature.com/articles/s41599-024-03611-3)

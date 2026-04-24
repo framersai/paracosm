@@ -14,6 +14,7 @@ import { marsScenario } from '../../../src/engine/mars/index.js';
 import { lunarScenario } from '../../../src/engine/lunar/index.js';
 import type { KernelSnapshot } from '../../../src/engine/core/snapshot.js';
 import type { RunArtifact } from '../../../src/engine/schema/index.js';
+import type { LeaderConfig } from '../../../src/runtime/orchestrator.js';
 
 function fakeKernelSnapshot(overrides: Partial<KernelSnapshot> = {}): KernelSnapshot {
   return {
@@ -48,6 +49,21 @@ function fakeKernelSnapshot(overrides: Partial<KernelSnapshot> = {}): KernelSnap
     ...overrides,
   };
 }
+
+const forkLeader: LeaderConfig = {
+  name: 'Fork Leader',
+  archetype: 'Fork Test',
+  unit: 'Test',
+  instructions: '',
+  hexaco: {
+    openness: 0.5,
+    conscientiousness: 0.5,
+    extraversion: 0.5,
+    agreeableness: 0.5,
+    emotionality: 0.5,
+    honestyHumility: 0.5,
+  },
+};
 
 test('WorldModel.snapshot: throws when no prior simulate', () => {
   const wm = WorldModel.fromScenario(marsScenario);
@@ -134,4 +150,18 @@ test('WorldModel.fork: preserves parentRunId from the snapshot', async () => {
   // e2e assertion (that artifact.metadata.forkedFrom.parentRunId ===
   // 'parent-xyz' after a subsequent simulate) is deferred to Spec 2B.
   // Here we verify construction succeeds without throwing.
+});
+
+test('WorldModel.fork: simulate rejects maxTurns at or before fork turn', async () => {
+  const wm = WorldModel.fromScenario(marsScenario);
+  const child = await wm.fork({
+    snapshotVersion: 1 as const,
+    kernel: fakeKernelSnapshot({ turn: 3 }),
+    parentRunId: 'parent-xyz',
+  });
+
+  await assert.rejects(
+    () => child.simulate(forkLeader, { maxTurns: 3 }),
+    /maxTurns=3 must be greater than fork turn 3/,
+  );
 });

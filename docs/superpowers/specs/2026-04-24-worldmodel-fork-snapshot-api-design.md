@@ -98,21 +98,16 @@ export interface WorldModelSnapshot {
   parentRunId?: string;
 }
 
-/** Options forwarded to `fork()`. */
+/** Reserved options accepted by `fork()`. */
 export interface ForkOptions {
-  /** Override the leader for the forked run. Defaults to the parent
-   *  run's leader (if known via parentRunId + caller passes a
-   *  remembered leader) or requires the caller to supply one at
-   *  the subsequent `.simulate()` call. */
+  /** Reserved for a future single-call fork API. Pass the leader to
+   *  the subsequent `.simulate()` call today. */
   leader?: LeaderConfig;
-  /** Override the scenario-level seed. When unset, the forked kernel
-   *  resumes from `snapshot.kernel.rngState` (the most common case,
-   *  and the one that produces deterministic kernel stages). Setting
-   *  a new seed re-randomizes kernel decisions from the fork point. */
+  /** Reserved for a future single-call fork API. Pass the seed to the
+   *  subsequent `.simulate()` call today. */
   seed?: number;
-  /** Events to inject at specific turns of the forked branch. Passed
-   *  through verbatim to runSimulation's existing `customEvents`
-   *  option on the subsequent .simulate() call. */
+  /** Reserved for a future single-call fork API. Pass custom events to
+   *  the subsequent `.simulate()` call today. */
   customEvents?: Array<{ turn: number; title: string; description: string }>;
 }
 
@@ -210,8 +205,8 @@ const artifact = await wm.simulate(visionaryLeader, { maxTurns: 6, seed: 42 });
 // wm is now "used"; snapshot() returns the terminal kernel state
 const snap = wm.snapshot();
 
-const wm2 = await wm.fork(snap, { leader: pragmatistLeader });
-const artifactB = await wm2.simulate(pragmatistLeader, { maxTurns: 3 });
+const wm2 = await wm.fork(snap);
+const artifactB = await wm2.simulate(pragmatistLeader, { maxTurns: 9 });
 // artifactB.metadata.forkedFrom === { parentRunId: artifact.metadata.runId, atTurn: 6 }
 ```
 
@@ -222,8 +217,8 @@ const artifact = await wm.simulate(visionaryLeader, {
   maxTurns: 6, seed: 42, captureSnapshots: true,
 });
 
-const wm2 = await wm.forkFromArtifact(artifact, 3, { leader: pragmatistLeader });
-const artifactB = await wm2.simulate(pragmatistLeader, { maxTurns: 3 });
+const wm2 = await wm.forkFromArtifact(artifact, 3);
+const artifactB = await wm2.simulate(pragmatistLeader, { maxTurns: 6 });
 // artifactB.metadata.forkedFrom === { parentRunId: artifact.metadata.runId, atTurn: 3 }
 ```
 
@@ -237,8 +232,8 @@ fs.writeFileSync('run.json', JSON.stringify(artifact, null, 2));
 
 // Later, different process:
 const reloaded = JSON.parse(fs.readFileSync('run.json', 'utf8')) as RunArtifact;
-const wm2 = await wm.forkFromArtifact(reloaded, 3, { leader: pragmatistLeader });
-const artifactB = await wm2.simulate(pragmatistLeader, { maxTurns: 3 });
+const wm2 = await wm.forkFromArtifact(reloaded, 3);
+const artifactB = await wm2.simulate(pragmatistLeader, { maxTurns: 6 });
 ```
 
 ### 4.3 Determinism invariant
@@ -246,7 +241,7 @@ const artifactB = await wm2.simulate(pragmatistLeader, { maxTurns: 3 });
 For the same scenario + same seed + same leader, these two flows produce byte-equal kernel state at turn 6:
 
 - **Continuous:** `wm.simulate(leader, { maxTurns: 6, seed: 42 })`
-- **Fork-continued:** `wm.simulate(leader, { maxTurns: 3, seed: 42, captureSnapshots: true })` then `wm.forkFromArtifact(artifact, 3).simulate(leader, { maxTurns: 3 })`
+- **Fork-continued:** `wm.simulate(leader, { maxTurns: 3, seed: 42, captureSnapshots: true })` then `wm.forkFromArtifact(artifact, 3).simulate(leader, { maxTurns: 6 })`
 
 LLM-driven stages (director, departments, commander, reactions) may diverge because the LLM provider isn't deterministic. The kernel stages (progression, mortality, births, RNG-driven agent generation) MUST byte-equal. This is the central test of correctness.
 

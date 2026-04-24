@@ -55,13 +55,13 @@ test('buildRunArtifact maps turnArtifacts to trajectory.timepoints', () => {
   assert.equal(artifact.specialistNotes?.[0].domain, 'medical');
 });
 
-test('buildRunArtifact: per-timepoint worldSnapshot carries all four runtime bags', () => {
+test('buildRunArtifact: per-timepoint worldSnapshot carries all five world bags', () => {
   // Regression test for the 0.7.x per-timepoint worldSnapshot
   // widening: when the orchestrator emits a turn artifact whose
-  // stateSnapshotAfter populates statuses / politics / environment
-  // (in addition to the required metrics bag), every Timepoint in
-  // the returned artifact should surface all four bags on its
-  // worldSnapshot, not just metrics.
+  // stateSnapshotAfter populates capacities / statuses / politics /
+  // environment (in addition to the required metrics bag), every
+  // Timepoint in the returned artifact should surface all five bags
+  // on its worldSnapshot, not just metrics.
   const inputs = {
     ...baseInputs,
     mode: 'turn-loop' as const,
@@ -71,6 +71,7 @@ test('buildRunArtifact: per-timepoint worldSnapshot carries all four runtime bag
         time: 1,
         stateSnapshotAfter: {
           metrics: { revenue: 100, headcount: 50 },
+          capacities: { runwayMonths: 18 },
           statuses: { fundingRound: 'seed', publicListed: false as boolean },
           politics: { boardConfidence: 0.7 },
           environment: { marketGrowthPct: 12 },
@@ -85,6 +86,7 @@ test('buildRunArtifact: per-timepoint worldSnapshot carries all four runtime bag
   const tp = artifact.trajectory?.timepoints?.[0];
   assert.ok(tp, 'timepoint should exist');
   assert.deepEqual(tp!.worldSnapshot?.metrics, { revenue: 100, headcount: 50 });
+  assert.deepEqual(tp!.worldSnapshot?.capacities, { runwayMonths: 18 });
   assert.deepEqual(tp!.worldSnapshot?.statuses, { fundingRound: 'seed', publicListed: false });
   assert.deepEqual(tp!.worldSnapshot?.politics, { boardConfidence: 0.7 });
   assert.deepEqual(tp!.worldSnapshot?.environment, { marketGrowthPct: 12 });
@@ -214,12 +216,13 @@ test('buildRunArtifact leaves subject + intervention undefined when not passed',
   assert.equal(artifact.intervention, undefined);
 });
 
-test('buildRunArtifact: finalState carries metrics + politics + statuses + environment bags', () => {
+test('buildRunArtifact: finalState carries all world snapshot bags', () => {
   const artifact = buildRunArtifact({
     ...baseInputs,
     mode: 'turn-loop',
     finalState: {
       systems: { revenueArr: 6_500_000, morale: 0.82 },
+      capacities: { runwayMonths: 18 },
       politics: { boardConfidence: 80 },
       statuses: { fundingRound: 'series-c' },
       environment: { marketGrowthPct: 22 },
@@ -228,6 +231,7 @@ test('buildRunArtifact: finalState carries metrics + politics + statuses + envir
   });
   assert.ok(artifact.finalState);
   assert.equal(artifact.finalState!.metrics?.revenueArr, 6_500_000);
+  assert.equal(artifact.finalState!.capacities?.runwayMonths, 18);
   assert.equal((artifact.finalState!.politics as Record<string, number>)?.boardConfidence, 80);
   assert.equal((artifact.finalState!.statuses as Record<string, string>)?.fundingRound, 'series-c');
   assert.equal((artifact.finalState!.environment as Record<string, number>)?.marketGrowthPct, 22);
@@ -240,6 +244,7 @@ test('buildRunArtifact: finalState.politics/statuses/environment undefined when 
     finalState: { systems: { population: 100 }, metadata: {} },
   });
   assert.ok(artifact.finalState);
+  assert.equal(artifact.finalState!.capacities, undefined);
   assert.equal(artifact.finalState!.politics, undefined);
   assert.equal(artifact.finalState!.statuses, undefined);
   assert.equal(artifact.finalState!.environment, undefined);

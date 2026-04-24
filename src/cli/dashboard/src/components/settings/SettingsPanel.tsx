@@ -287,7 +287,9 @@ export function SettingsPanel() {
       const res = await fetch('/setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config),
+        // Tier 2 Spec 2B: UI-initiated runs capture kernel snapshots
+        // so every turn is fork-eligible from the Reports tab.
+        body: JSON.stringify({ ...config, captureSnapshots: true }),
       });
       const data = await res.json();
       if (res.status === 429) {

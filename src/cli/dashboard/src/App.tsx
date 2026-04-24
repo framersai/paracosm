@@ -19,6 +19,9 @@ import { VerdictBanner } from './components/layout/VerdictBanner';
 import { VerdictModal } from './components/layout/VerdictModal';
 import { ReplayBanner, ReplayNotFoundBanner } from './components/layout/ReplayBanner';
 import { EventLogPanel } from './components/log/EventLogPanel';
+import { BranchesProvider } from './components/branches/BranchesContext';
+import { BranchesSyncer } from './components/branches/BranchesSyncer';
+import { BranchesTab } from './components/branches/BranchesTab';
 import { useCitationRegistry, CitationRegistryContext } from './hooks/useCitationRegistry';
 import { useToolRegistry, ToolRegistryContext } from './hooks/useToolRegistry';
 import { TopBar } from './components/layout/TopBar';
@@ -526,6 +529,10 @@ function AppContent() {
           startTime: scenario.setup.defaultStartTime,
           population: scenario.setup.defaultPopulation,
           activeDepartments: scenario.departments.map(d => d.id),
+          // Tier 2 Spec 2B: always capture kernel snapshots on
+          // UI-initiated runs so the Reports tab's "Fork at turn N"
+          // button is enabled by default.
+          captureSnapshots: true,
         }),
       });
       const data = await res.json();
@@ -545,10 +552,12 @@ function AppContent() {
   }, [scenario, toast, setActiveTab, launching, gameState.isRunning, sse]);
 
   return (
+    <BranchesProvider>
     <DashboardNavigationContext.Provider value={setActiveTab}>
       <ScenarioContext.Provider value={scenario}>
        <CitationRegistryContext.Provider value={citationRegistry}>
         <ToolRegistryContext.Provider value={toolRegistry}>
+        <BranchesSyncer sse={sse} />
         <div className={`flex flex-col h-screen w-screen overflow-hidden scanline-overlay ${styles.shell}`}>
           {sse.providerError && !bannerDismissed ? (
             <ProviderErrorBanner
@@ -597,6 +606,8 @@ function AppContent() {
             {activeTab === 'settings' && <SettingsPanel />}
 
             {activeTab === 'reports' && <ReportView state={gameState} verdict={sse.verdict} reportSections={scenario.ui.reportSections} />}
+
+            {activeTab === 'branches' && <BranchesTab />}
 
             {/* ChatPanel stays mounted across tab switches so per-agent
                 message threads survive when the user jumps to Sim / Reports
@@ -663,6 +674,7 @@ function AppContent() {
        </CitationRegistryContext.Provider>
       </ScenarioContext.Provider>
     </DashboardNavigationContext.Provider>
+    </BranchesProvider>
   );
 }
 

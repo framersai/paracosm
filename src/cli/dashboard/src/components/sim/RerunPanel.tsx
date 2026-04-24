@@ -42,7 +42,9 @@ export function RerunPanel({ enabled = true }: RerunPanelProps) {
       const res = await fetch('/setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(next),
+        // Tier 2 Spec 2B: dashboard UI runs always capture snapshots
+        // so forking from any past turn is available after the run.
+        body: JSON.stringify({ ...next, captureSnapshots: true }),
       });
       const data = (await res.json().catch(() => ({}))) as {
         redirect?: string;

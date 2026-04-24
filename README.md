@@ -47,7 +47,7 @@ Leaders can be colony commanders, CEOs, generals, ship captains, department head
 
 ### Counterfactual simulations with `WorldModel.fork()`
 
-The CWSM positioning is operationalized through `WorldModel.fork()`: run a simulation with snapshots enabled, then branch at any past turn with a different leader or seed, and compare.
+The CWSM positioning is operationalized through `WorldModel.fork()`: run a simulation with snapshots enabled, then branch at any past turn with a different leader or seed, and compare. On resumed runs, `maxTurns` remains the absolute final turn index. To run three additional turns from turn 3, pass `maxTurns: 6`.
 
 ```typescript
 import { WorldModel } from 'paracosm/world-model';
@@ -64,7 +64,7 @@ const trunk = await wm.simulate(visionaryLeader, {
 // the forked kernel resumes from the captured state.
 const branch = await (await wm.forkFromArtifact(trunk, 3)).simulate(
   pragmatistLeader,
-  { maxTurns: 3, seed: 42 },
+  { maxTurns: 6, seed: 42 },
 );
 
 console.log(trunk.metadata.runId);        // parent run-id
@@ -73,6 +73,8 @@ console.log(trunk.fingerprint, branch.fingerprint); // divergent futures from th
 ```
 
 The kernel round-trips through `JSON.stringify`, so snapshots persist to disk cleanly for later replay or audit. `captureSnapshots` defaults to `false` to keep normal artifacts lean; set it when you want fork capability.
+
+The paracosm dashboard exposes the same mechanism end-to-end. Every UI-initiated run captures snapshots by default, so the Reports tab shows a `↳ Fork at {Time} N` button on each completed turn. Clicking it opens a fork modal (leader override, optional seed, optional custom events), POSTs to `/setup` with the full parent artifact, and routes the user to a new **Branches** tab where all forks launched from the current parent accumulate as cards with per-metric deltas rendered live as each branch streams to completion.
 
 ## Quickstart
 

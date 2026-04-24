@@ -73,25 +73,20 @@ export interface WorldModelSnapshot {
 }
 
 /**
- * Options accepted by {@link WorldModel.fork} and
- * {@link WorldModel.forkFromArtifact}. Everything is optional;
- * callers typically pass a `leader` override and let the RNG resume
- * from the snapshot's captured state.
+ * Reserved options accepted by {@link WorldModel.fork} and
+ * {@link WorldModel.forkFromArtifact}. Current implementations restore
+ * only the snapshot at fork time; pass leader, seed, and custom events
+ * to the subsequent {@link WorldModel.simulate} call.
  */
 export interface ForkOptions {
-  /** Override the leader for the forked branch. When omitted, the
-   *  caller supplies the leader at the subsequent `.simulate()` call,
-   *  exactly as with a fresh {@link WorldModel}. */
+  /** Reserved for a future single-call fork API. Pass the leader to
+   *  the subsequent `.simulate()` call today. */
   leader?: LeaderConfig;
-  /** Override the scenario-level seed. When unset (the default), the
-   *  forked kernel resumes from `snapshot.kernel.rngState` and the
-   *  kernel-deterministic stages produce the same sequence the parent
-   *  run did from the fork point forward. Setting a new seed
-   *  re-randomizes kernel decisions from the fork point. */
+  /** Reserved for a future single-call fork API. Pass the seed to the
+   *  subsequent `.simulate()` call today. */
   seed?: number;
-  /** Events to inject at specific turns of the forked branch. Passed
-   *  through verbatim to runSimulation's existing `customEvents` at
-   *  the subsequent `.simulate()` call. */
+  /** Reserved for a future single-call fork API. Pass custom events to
+   *  the subsequent `.simulate()` call today. */
   customEvents?: Array<{ turn: number; title: string; description: string }>;
 }
 
@@ -124,7 +119,7 @@ export interface ForkOptions {
  *   maxTurns: 6, seed: 42, captureSnapshots: true,
  * });
  * const branch = await (await wm.forkFromArtifact(trunk, 3)).simulate(
- *   pragmatist, { maxTurns: 3, seed: 42 },
+ *   pragmatist, { maxTurns: 6, seed: 42 },
  * );
  * // branch.metadata.forkedFrom === { parentRunId: trunk.metadata.runId, atTurn: 3 }
  * ```
@@ -231,6 +226,16 @@ export class WorldModel {
     options: WorldModelSimulateOptions = {},
     keyPersonnel: KeyPersonnel[] = [],
   ): Promise<RunArtifact> {
+    const resumeFrom = this._pendingResumeFrom;
+    const maxTurns = options.maxTurns ?? 12;
+    if (resumeFrom && maxTurns <= resumeFrom.turn) {
+      throw new Error(
+        `WorldModel.fork: maxTurns=${maxTurns} must be greater than fork turn ${resumeFrom.turn}. ` +
+        `maxTurns is the absolute final turn index for the resumed run, not the branch length. ` +
+        `For a ${maxTurns}-turn branch from turn ${resumeFrom.turn}, pass maxTurns=${resumeFrom.turn + maxTurns}.`,
+      );
+    }
+
     const mergedOpts: RunOptions & {
       _forkedFrom?: { parentRunId: string; atTurn: number };
       _resumeFrom?: KernelSnapshot;
@@ -238,7 +243,7 @@ export class WorldModel {
       ...options,
       scenario: this.scenario,
       _forkedFrom: this._pendingForkedFrom,
-      _resumeFrom: this._pendingResumeFrom,
+      _resumeFrom: resumeFrom,
     };
     // Drop the pending context so subsequent simulate calls on the
     // same WorldModel don't double-apply.

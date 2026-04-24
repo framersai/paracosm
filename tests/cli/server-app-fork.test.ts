@@ -23,15 +23,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { normalizeSimulationConfig } from '../../src/cli/sim-config.js';
+import { validateForkSetupPreconditions } from '../../src/cli/fork-preconditions.js';
 import { marsScenario } from '../../src/engine/mars/index.js';
 import { lunarScenario } from '../../src/engine/lunar/index.js';
 import type { RunArtifact } from '../../src/engine/schema/index.js';
 
 function fakeParentArtifact(overrides: {
   scenarioId?: string;
+  snapshotTurn?: number;
   withSnapshots?: boolean;
 } = {}): RunArtifact {
-  const { scenarioId = marsScenario.id, withSnapshots = true } = overrides;
+  const { scenarioId = marsScenario.id, snapshotTurn = 1, withSnapshots = true } = overrides;
   return {
     metadata: {
       runId: 'parent-1',
@@ -45,7 +47,7 @@ function fakeParentArtifact(overrides: {
             {
               snapshotVersion: 1,
               scenarioId,
-              turn: 1,
+              turn: snapshotTurn,
               time: 1,
               state: {} as never,
               rngState: 0,
@@ -126,4 +128,75 @@ test('fakeParentArtifact harness: scenarioId override flows through metadata + s
   const snap = (a.scenarioExtensions as { kernelSnapshotsPerTurn?: Array<{ scenarioId: string }> } | undefined)
     ?.kernelSnapshotsPerTurn?.[0];
   assert.equal(snap?.scenarioId, lunarScenario.id);
+});
+
+test('validateForkSetupPreconditions: accepts valid parent artifact and requested snapshot', () => {
+  const parent = fakeParentArtifact({ snapshotTurn: 3 });
+  const result = validateForkSetupPreconditions({
+    parentArtifact: parent,
+    atTurn: 3,
+    activeScenarioId: marsScenario.id,
+    activeRunInProgress: false,
+  });
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.ok ? result.parentArtifact.metadata : undefined, parent.metadata);
+});
+
+test('validateForkSetupPreconditions: rejects invalid parent artifact schema', () => {
+  const result = validateForkSetupPreconditions({
+    parentArtifact: { scenarioExtensions: {} },
+    atTurn: 1,
+    activeScenarioId: marsScenario.id,
+    activeRunInProgress: false,
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.ok ? undefined : result.statusCode, 400);
+  assert.match(result.ok ? '' : result.error, /valid RunArtifact/);
+});
+
+test('validateForkSetupPreconditions: rejects cross-scenario parent artifact', () => {
+  const result = validateForkSetupPreconditions({
+    parentArtifact: fakeParentArtifact({ scenarioId: lunarScenario.id }),
+    atTurn: 1,
+    activeScenarioId: marsScenario.id,
+    activeRunInProgress: false,
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.ok ? undefined : result.statusCode, 400);
+  assert.match(result.ok ? '' : result.error, /Cross-scenario forks/);
+});
+
+test('validateForkSetupPreconditions: rejects parent artifact without snapshots', () => {
+  const result = validateForkSetupPreconditions({
+    parentArtifact: fakeParentArtifact({ withSnapshots: false }),
+    atTurn: 1,
+    activeScenarioId: marsScenario.id,
+    activeRunInProgress: false,
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.ok ? undefined : result.statusCode, 400);
+  assert.match(result.ok ? '' : result.error, /no embedded kernel snapshots/);
+});
+
+test('validateForkSetupPreconditions: rejects parent without requested snapshot turn', () => {
+  const result = validateForkSetupPreconditions({
+    parentArtifact: fakeParentArtifact({ snapshotTurn: 2 }),
+    atTurn: 3,
+    activeScenarioId: marsScenario.id,
+    activeRunInProgress: false,
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.ok ? undefined : result.statusCode, 400);
+  assert.match(result.ok ? '' : result.error, /no kernel snapshot for turn 3/);
+});
+
+test('validateForkSetupPreconditions: rejects fork while active run is in progress', () => {
+  const result = validateForkSetupPreconditions({
+    parentArtifact: fakeParentArtifact({ snapshotTurn: 1 }),
+    atTurn: 1,
+    activeScenarioId: marsScenario.id,
+    activeRunInProgress: true,
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.ok ? undefined : result.statusCode, 409);
 });

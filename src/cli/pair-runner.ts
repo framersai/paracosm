@@ -89,6 +89,7 @@ export async function runPairSimulations(
       execution: simConfig.execution,
       scenario,
       signal,
+      captureSnapshots: simConfig.captureSnapshots ?? false,
     }).then(result => {
       broadcast('result', {
         leader: tag,
@@ -99,6 +100,12 @@ export async function runPairSimulations(
           citations: result.citations?.length ?? 0,
         },
         fingerprint: result.fingerprint ?? null,
+        // Spec 2B bridge: emit the full artifact on result when
+        // snapshot capture was on so the dashboard can fork from it
+        // without reconstructing from the event stream. Skipped when
+        // captureSnapshots is off to keep the SSE payload lean on
+        // hosted-demo runs that don't need fork capability.
+        artifact: simConfig.captureSnapshots ? result : undefined,
       });
       return { tag, leader, result };
     }, error => {
@@ -332,6 +339,11 @@ export async function runForkSimulation(
       },
       fingerprint: result.fingerprint ?? null,
       forkedFrom: result.metadata.forkedFrom,
+      // Fork runs always have captureSnapshots forced on (see
+      // simulate call above); emit the full artifact so the dashboard
+      // can keep forking recursively without the event-stream
+      // reconstruction the spec originally assumed.
+      artifact: result,
     });
   } catch (err) {
     broadcast('sim_error', { leader: leader.archetype, error: String(err) });

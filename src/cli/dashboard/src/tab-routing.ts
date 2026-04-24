@@ -1,4 +1,4 @@
-export const DASHBOARD_TABS = ['sim', 'viz', 'settings', 'reports', 'chat', 'log', 'about'] as const;
+export const DASHBOARD_TABS = ['sim', 'viz', 'settings', 'reports', 'branches', 'chat', 'log', 'about'] as const;
 
 export type DashboardTab = (typeof DASHBOARD_TABS)[number];
 

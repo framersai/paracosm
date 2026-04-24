@@ -2,6 +2,11 @@ import { useMemo, useEffect, useRef, useState, useCallback, type ReactNode } fro
 import type { GameState } from '../../hooks/useGameState';
 import { useCitationContext } from '../../hooks/useCitationRegistry';
 import { useToolContext } from '../../hooks/useToolRegistry';
+import { useBranchesContext } from '../branches/BranchesContext';
+import { useDashboardNavigation } from '../../App';
+import { useScenarioLabels } from '../../hooks/useScenarioLabels';
+import { ForkModal, type ForkConfirmPayload } from './ForkModal';
+import forkStyles from './ForkModal.module.scss';
 import { Badge } from '../shared/Badge';
 import { CitationPills } from '../shared/CitationPills';
 import { ReferencesSection } from '../shared/ReferencesSection';
@@ -96,6 +101,72 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
   // Cost breakdown moved off the dense StatsBar; Reports is the right
   // home for the full modal since users land here to dig into the run.
   const [costOpen, setCostOpen] = useState(false);
+  // Fork UX (Tier 2 Spec 2B): a per-turn "Fork at turn N" button
+  // visible once the parent run is terminal and snapshots exist.
+  const { state: branchesState, dispatch: branchesDispatch } = useBranchesContext();
+  const navigate = useDashboardNavigation();
+  const labels = useScenarioLabels();
+  const [forkModalAtTurn, setForkModalAtTurn] = useState<number | null>(null);
+  const parentArtifact = branchesState.parent;
+  const canFork = useCallback(
+    (turnNum: number): boolean => {
+      if (!parentArtifact) return false;
+      if (state.isRunning) return false;
+      const snaps = (parentArtifact.scenarioExtensions as { kernelSnapshotsPerTurn?: Array<{ turn: number }> } | undefined)?.kernelSnapshotsPerTurn;
+      if (!snaps || snaps.length === 0) return false;
+      return snaps.some(s => s.turn === turnNum);
+    },
+    [parentArtifact, state.isRunning],
+  );
+  const handleForkConfirm = useCallback(
+    async (payload: ForkConfirmPayload) => {
+      setForkModalAtTurn(null);
+      const localId = `branch-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      branchesDispatch({
+        type: 'BRANCH_OPTIMISTIC',
+        localId,
+        forkedAtTurn: payload.atTurn,
+        leaderName: payload.leader.name,
+        leaderArchetype: payload.leader.archetype,
+      });
+      const parentTurns = payload.parentArtifact.trajectory?.timepoints?.length ?? 6;
+      const seed = payload.seedOverride ?? payload.parentArtifact.metadata.seed ?? 42;
+      try {
+        const res = await fetch('/setup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            leaders: [payload.leader],
+            turns: parentTurns,
+            seed,
+            captureSnapshots: true,
+            customEvents: payload.customEvents,
+            forkFrom: {
+              parentArtifact: payload.parentArtifact,
+              atTurn: payload.atTurn,
+            },
+          }),
+        });
+        if (!res.ok) {
+          const errBody = (await res.json().catch(() => ({}))) as { error?: string };
+          branchesDispatch({
+            type: 'BRANCH_ERROR',
+            localId,
+            message: errBody.error ?? `HTTP ${res.status}`,
+          });
+          return;
+        }
+        navigate('branches');
+      } catch (err) {
+        branchesDispatch({
+          type: 'BRANCH_ERROR',
+          localId,
+          message: String(err),
+        });
+      }
+    },
+    [branchesDispatch, navigate],
+  );
   const turns = useMemo(() => {
     const map: Record<number, { a: TurnData; b: TurnData }> = {};
 
@@ -543,12 +614,24 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
                   </span>
                 )}
               </span>
-              <span style={{
-                fontSize: '12px', color: diverged ? 'var(--rust)' : 'var(--text-3)',
-                fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', fontFamily: 'var(--mono)',
-              }}>
-                {diverged ? 'DIVERGENT' : 'SHARED'}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{
+                  fontSize: '12px', color: diverged ? 'var(--rust)' : 'var(--text-3)',
+                  fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', fontFamily: 'var(--mono)',
+                }}>
+                  {diverged ? 'DIVERGENT' : 'SHARED'}
+                </span>
+                {canFork(turnNum) && (
+                  <button
+                    type="button"
+                    className={forkStyles.forkButton}
+                    onClick={() => setForkModalAtTurn(turnNum)}
+                    aria-label={`Fork at ${labels.time} ${turnNum}`}
+                  >
+                    &#x21B3; Fork at {labels.Time} {turnNum}
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Render each event as its own row of two side-by-side blocks */}
@@ -674,6 +757,17 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
       </details>
       </div>
       <ReportSideNav items={sideNavItems} scrollRoot={scrollRef.current} />
+      {forkModalAtTurn !== null && parentArtifact && (
+        <ForkModal
+          parentArtifact={parentArtifact}
+          atTurn={forkModalAtTurn}
+          maxTurns={parentArtifact.trajectory?.timepoints?.length ?? 6}
+          costPreset="economy"
+          provider="openai"
+          onConfirm={handleForkConfirm}
+          onClose={() => setForkModalAtTurn(null)}
+        />
+      )}
     </div>
   );
 }

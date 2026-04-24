@@ -31,13 +31,13 @@ Historical plan file (kept for audit / bisect context): [`2026-04-23-close-0.7.x
 
 ---
 
-## Tier 2: `WorldModel.fork(atTurn)` (Spec 2A SHIPPED 2026-04-24; Spec 2B pending)
+## Tier 2: `WorldModel.fork(atTurn)` (SHIPPED 2026-04-24)
 
-**Spec 2A (backend fork API):** SHIPPED. `WorldModel.snapshot()`, `fork()`, `forkFromArtifact()`, `SimulationKernel.toSnapshot() / fromSnapshot()`, opt-in `captureSnapshots`, and `RunMetadata.forkedFrom` all live in master. Design doc: [`2026-04-24-worldmodel-fork-snapshot-api-design.md`](../specs/2026-04-24-worldmodel-fork-snapshot-api-design.md). Implementation plan: [`2026-04-24-worldmodel-fork-snapshot-implementation.md`](2026-04-24-worldmodel-fork-snapshot-implementation.md).
+**Spec 2A (backend fork API):** SHIPPED in [`161f1e4d`](#). `WorldModel.snapshot()`, `fork()`, `forkFromArtifact()`, `SimulationKernel.toSnapshot() / fromSnapshot()`, opt-in `captureSnapshots`, and `RunMetadata.forkedFrom` all live in master. Design doc: [`2026-04-24-worldmodel-fork-snapshot-api-design.md`](../specs/2026-04-24-worldmodel-fork-snapshot-api-design.md). Implementation plan: [`2026-04-24-worldmodel-fork-snapshot-implementation.md`](2026-04-24-worldmodel-fork-snapshot-implementation.md).
 
-**Spec 2B (dashboard alternate-timeline UX):** PENDING. "Fork at turn N" button in Reports tab or Timeline, leader-override modal, branch-comparison view rendering both trajectories side by side. Depends on Spec 2A (now shipped). Effort estimate: 1 to 2 days. No detailed plan written yet; start with a new brainstorming session when ready.
+**Spec 2B (dashboard fork UX):** SHIPPED. Reports-tab `↳ Fork at {Time} N` button, leader-override modal, `/setup` fork dispatch, Branches tab with per-metric deltas vs parent, SSE artifact bridge (server emits full `RunArtifact` on `result` event when `captureSnapshots: true`), and `captureSnapshots: true` default on all dashboard-initiated runs. Design doc: [`2026-04-24-branches-tab-fork-ux-design.md`](../specs/2026-04-24-branches-tab-fork-ux-design.md). Implementation plan: [`2026-04-24-branches-tab-fork-ux-implementation.md`](2026-04-24-branches-tab-fork-ux-implementation.md).
 
-**Shipped commit:** see the Shipped section at the bottom of this file.
+**Shipped commits:** see the Shipped section at the bottom of this file.
 
 ---
 
@@ -143,6 +143,10 @@ Historical plan file (kept for audit / bisect context): [`2026-04-23-close-0.7.x
 ---
 
 ## Shipped
+
+### 2026-04-24 session (Tier 2 Spec 2B shipped, closes Tier 2)
+
+- **[`<TO-FILL>` paracosm](#): Tier 2 Spec 2B, Branches tab + dashboard fork UX.** Server emits the full `RunArtifact` in the `result` SSE event when `captureSnapshots: true` was set, so the dashboard can dispatch `PARENT_COMPLETE` with the real artifact (closing the client-side artifact-assembly gap the original spec assumed existed). `BranchesContext` reducer holds `{ parent?: RunArtifact, branches: BranchState[] }`; `BranchesSyncer` glue component watches `useSSE.results` / `.events` / `.errors` / `.isAborted` and dispatches the right action. `BranchesTab` renders a parent card (scenario, runId, metric grid) plus stacked branch cards with per-metric deltas computed client-side via `computeBranchDeltas`, sorted by |delta| descending, with direction-hint CSS classes (up / down / changed) and a five-bag coverage (metrics, capacities, statuses, environment, politics). `ForkModal` with `useFocusTrap`, leader preset picker (scenario.presets[0].leaders + session customs), optional seed override, advanced-collapsed custom events textarea, live cost estimate (`estimateForkCost(fromTurn, maxTurns, costPreset, provider)`), confirm POSTs to `/setup` with `forkFrom: { parentArtifact, atTurn }`. ReportView injects `↳ Fork at {labels.Time} N` button per turn row when snapshots exist and the run is not running. All three UI-initiated `/setup` POST sites (App.tsx, SettingsPanel, RerunPanel) now include `captureSnapshots: true`. New tab 'branches' in `DASHBOARD_TABS` + TabBar with a git-branch icon. 13 new unit tests (9 BranchesTab.helpers + 8 ForkModal.helpers, overlap counted once per file). Design: [2026-04-24-branches-tab-fork-ux-design.md](../specs/2026-04-24-branches-tab-fork-ux-design.md). Plan: [2026-04-24-branches-tab-fork-ux-implementation.md](2026-04-24-branches-tab-fork-ux-implementation.md).
 
 ### 2026-04-24 session (Tier 2 Spec 2A shipped)
 

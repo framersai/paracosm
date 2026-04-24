@@ -61,6 +61,7 @@ import { EffectRegistry } from '../engine/effect-registry.js';
 import { marsScenario } from '../engine/mars/index.js';
 import type { LeaderConfig } from '../engine/types.js';
 import type { ResolvedEconomicsProfile } from './economics-profile.js';
+import { projectSystemBags } from './world-snapshot.js';
 export type { LeaderConfig };
 
 
@@ -180,6 +181,8 @@ export interface SimEventPayloadMap {
   /** End of turn. Carries applied deltas + cumulative tool count + death-cause breakdown when relevant. */
   turn_done: {
     systems: Record<string, number>;
+    statuses?: Record<string, string | boolean>;
+    environment?: Record<string, number | string | boolean>;
     toolsForged: number;
     totalEvents?: number;
     deathCauses?: Record<string, number>;
@@ -1741,9 +1744,9 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
       stateSnapshotAfter: {
         // Metrics: systems bag (Mars heritage: population, morale, food,
         // infra, science, etc) plus births/deaths computed ad-hoc this
-        // turn. Spread preserves scenario-declared fields that live
-        // alongside the heritage ones via WorldSystems' index signature.
-        metrics: { ...after.systems, births, deaths },
+        // turn. Declared capacities remain in metrics for back-compat
+        // and are also projected into `capacities` below.
+        ...projectSystemBags(after.systems, sc, { births, deaths }),
         // Optional bags: only emit when the scenario declared something.
         // Empty bags land as `undefined` via conditional spread so
         // consumers can check `if (ta.stateSnapshotAfter.statuses)` cheaply.
@@ -1956,6 +1959,7 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
     agentReactions: allAgentReactions,
     finalState: {
       systems: final.systems as unknown as Record<string, number>,
+      capacities: projectSystemBags(final.systems as unknown as Record<string, number>, sc).capacities,
       politics: final.politics as unknown as Record<string, number | string | boolean>,
       statuses: final.statuses,
       environment: final.environment,

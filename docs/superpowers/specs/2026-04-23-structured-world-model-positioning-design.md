@@ -187,7 +187,7 @@ Steps 2–9 are commits in `apps/paracosm` and `apps/agentos.sh` (the latter is 
 
 - [Critiques of World Models: Eric Xing, arXiv:2507.05169](https://arxiv.org/abs/2507.05169)
 - [Understanding World or Predicting Future? A Comprehensive Survey of World Models: ACM CSUR 2025](https://dl.acm.org/doi/full/10.1145/3746449)
-- [When AI meets counterfactuals: the ethical implications of counterfactual world simulation models: Kirfel et al, 2025 (PDF)](https://link.springer.com/article/10.1007/s43681-025-00718-4)
+- [When AI meets counterfactuals: the ethical implications of counterfactual world simulation models: Kirfel et al, 2025](https://link.springer.com/article/10.1007/s43681-025-00718-4)
 - [Large Language Model Based Multi-agents: A Survey of Progress and Challenges: IJCAI 2024](https://www.ijcai.org/proceedings/2024/890)
 - [LLM-Based World Models Can Make Decisions Solely: arXiv:2411.08794](https://arxiv.org/html/2411.08794v2)
 - [Large language models empowered agent-based modeling and simulation: Nature HSSC 2024](https://www.nature.com/articles/s41599-024-03611-3)

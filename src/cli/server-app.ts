@@ -31,6 +31,7 @@ import { createRunRecord, hashLeaderConfig } from './server/run-record.js';
 import { createNoopRunHistoryStore, type RunHistoryStore } from './server/run-history-store.js';
 import { handlePublicDemoRoute } from './server/routes/public-demo.js';
 import { handlePlatformApiRoute } from './server/routes/platform-api.js';
+import { validateForkSetupPreconditions } from './fork-preconditions.js';
 
 function projectScenarioForClient(sc: ScenarioPackage) {
   return {
@@ -75,12 +76,52 @@ const PARACOSM_VERSION: string = (() => {
   }
 })();
 
-function readBody(req: IncomingMessage): Promise<string> {
+class RequestBodyTooLargeError extends Error {
+  readonly statusCode = 413;
+
+  constructor(maxBytes: number) {
+    super(`Request body too large. Maximum ${maxBytes} bytes.`);
+  }
+}
+
+function writeJsonError(res: ServerResponse, error: unknown, fallbackStatus = 400): void {
+  const status = error instanceof RequestBodyTooLargeError
+    ? error.statusCode
+    : fallbackStatus;
+  res.writeHead(status, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ error: String(error) }));
+}
+
+function readBody(req: IncomingMessage, maxBytes: number): Promise<string> {
   return new Promise((resolveBody, reject) => {
     let body = '';
-    req.on('data', chunk => { body += chunk; });
-    req.on('end', () => resolveBody(body));
-    req.on('error', reject);
+    let receivedBytes = 0;
+    let settled = false;
+    let tooLarge = false;
+    const fail = (error: unknown) => {
+      if (settled) return;
+      settled = true;
+      reject(error);
+    };
+    req.on('data', chunk => {
+      if (tooLarge) return;
+      receivedBytes += Buffer.isBuffer(chunk)
+        ? chunk.length
+        : Buffer.byteLength(String(chunk));
+      if (receivedBytes > maxBytes) {
+        tooLarge = true;
+        body = '';
+        fail(new RequestBodyTooLargeError(maxBytes));
+        return;
+      }
+      body += chunk;
+    });
+    req.on('end', () => {
+      if (settled) return;
+      settled = true;
+      resolveBody(body);
+    });
+    req.on('error', fail);
   });
 }
 
@@ -112,6 +153,8 @@ export interface CreateMarsServerOptions {
    */
   sessionStore?: SessionStore;
   runHistoryStore?: RunHistoryStore;
+  /** Maximum accepted HTTP request body size. Defaults to 5 MiB. */
+  maxRequestBodyBytes?: number;
 }
 
 export interface MarsServer extends Server {
@@ -129,6 +172,11 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
   // env var or maxSimsPerDay option when hosting on your own infra.
   const maxSims = options.maxSimsPerDay ?? parseInt(env.RATE_LIMIT || '1', 10);
   const adminWrite = (env.ADMIN_WRITE || 'false').toLowerCase() === 'true';
+  const parsedMaxRequestBodyBytes = Number.parseInt(env.MAX_REQUEST_BODY_BYTES || '', 10);
+  const defaultMaxRequestBodyBytes = Number.isFinite(parsedMaxRequestBodyBytes)
+    ? parsedMaxRequestBodyBytes
+    : 5 * 1024 * 1024;
+  const maxRequestBodyBytes = options.maxRequestBodyBytes ?? defaultMaxRequestBodyBytes;
   const scenarioDir = options.scenarioDir ?? resolve(__dirname, '..', '..', 'scenarios');
   // Rate-limit state survives pm2 restarts via a JSON file alongside
   // the repo. Without this, a restart gives every blocked IP a full
@@ -735,7 +783,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
     // Store a scenario in memory (always allowed) or save to disk (requires ADMIN_WRITE)
     if (req.url === '/scenario/store' && req.method === 'POST') {
       try {
-        const { scenario: scenarioJson, saveToDisk } = JSON.parse(await readBody(req));
+        const { scenario: scenarioJson, saveToDisk } = JSON.parse(await readBody(req, maxRequestBodyBytes));
         if (!scenarioJson || !scenarioJson.id) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'scenario with id required' }));
@@ -769,8 +817,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
         res.end(JSON.stringify({ stored: true, id: scenarioJson.id, savedToDisk, adminWrite, switchable }));
       } catch (err) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: String(err) }));
+        writeJsonError(res, err);
       }
       return;
     }
@@ -782,34 +829,38 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
     // were /scenario/store'd but never compiled get a specific
     // "needs compile" error instead of the misleading "Unknown".
     if (req.url === '/scenario/switch' && req.method === 'POST') {
-      const { id } = JSON.parse(await readBody(req));
-      const entry = customScenarioCatalog.get(id);
-      if (entry) {
-        activeScenario = entry.scenario;
-      } else if (memoryScenarios.has(id)) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({
-          error: `Scenario "${id}" is stored but not runnable — it's a source JSON (missing hooks, world, or canonical policies shape). Click Compile in the Scenario Editor to generate hooks before switching to it.`,
-          storedButUnrunnable: true,
-          id,
-        }));
-        return;
-      } else {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: `Unknown scenario: ${id}. Use /compile or /scenario/store for custom scenarios.` }));
-        return;
+      try {
+        const { id } = JSON.parse(await readBody(req, maxRequestBodyBytes));
+        const entry = customScenarioCatalog.get(id);
+        if (entry) {
+          activeScenario = entry.scenario;
+        } else if (memoryScenarios.has(id)) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            error: `Scenario "${id}" is stored but not runnable — it's a source JSON (missing hooks, world, or canonical policies shape). Click Compile in the Scenario Editor to generate hooks before switching to it.`,
+            storedButUnrunnable: true,
+            id,
+          }));
+          return;
+        } else {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: `Unknown scenario: ${id}. Use /compile or /scenario/store for custom scenarios.` }));
+          return;
+        }
+        clearEventBuffer();
+        simConfig = null;
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ active: activeScenario.id, name: activeScenario.labels?.name }));
+      } catch (err) {
+        writeJsonError(res, err);
       }
-      clearEventBuffer();
-      simConfig = null;
-      res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-      res.end(JSON.stringify({ active: activeScenario.id, name: activeScenario.labels?.name }));
       return;
     }
 
     // Compile a custom scenario JSON into a ScenarioPackage
     if (req.url === '/compile' && req.method === 'POST') {
       try {
-        const body = JSON.parse(await readBody(req));
+        const body = JSON.parse(await readBody(req, maxRequestBodyBytes));
         const { scenario: scenarioJson, provider: requestedProvider, model: requestedModel, seedText, seedUrl, webSearch, maxSearches, apiKey, anthropicKey } = body;
         if (!scenarioJson || typeof scenarioJson !== 'object') {
           res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -952,8 +1003,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         res.end();
       } catch (err) {
         if (!res.headersSent) {
-          res.writeHead(500, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: String(err) }));
+          writeJsonError(res, err, 500);
         } else {
           res.write(`event: error\ndata: ${JSON.stringify({ error: String(err) })}\n\n`);
           res.end();
@@ -992,7 +1042,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         }
       };
       try {
-        const { agentId, message, apiKey, anthropicKey } = JSON.parse(await readBody(req));
+        const { agentId, message, apiKey, anthropicKey } = JSON.parse(await readBody(req, maxRequestBodyBytes));
         if (!agentId || !message) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'agentId and message required' }));
@@ -1130,8 +1180,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         // whatever threw. Without this, a failed chat call leaves the
         // caller's keys persisted in env for subsequent requests.
         try { restoreChatEnv(); } catch {}
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: String(err) }));
+        writeJsonError(res, err, 500);
       }
       return;
     }
@@ -1447,7 +1496,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
 
     if (req.url === '/setup' && req.method === 'POST') {
       try {
-        const config = JSON.parse(await readBody(req));
+        const config = JSON.parse(await readBody(req, maxRequestBodyBytes));
 
         // Rate limit check: bypass when user provides their own API keys
         const hasUserKeys = !!(config.apiKey || config.anthropicKey);
@@ -1495,22 +1544,22 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         // parent artifact before spinning up the orchestrator.
         if (simConfig.forkFrom) {
           const { parentArtifact } = simConfig.forkFrom;
-          const parentScenarioId = parentArtifact?.metadata?.scenario?.id;
-          if (parentScenarioId !== activeScenario.id) {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
+          const forkTurn = simConfig.forkFrom.atTurn;
+          const forkValidation = validateForkSetupPreconditions({
+            parentArtifact,
+            atTurn: forkTurn,
+            activeScenarioId: activeScenario.id,
+            activeRunInProgress: simRunning && !!activeSimAbortController,
+          });
+          if (!forkValidation.ok) {
+            res.writeHead(forkValidation.statusCode, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
-              error: `Fork parent scenario '${parentScenarioId}' does not match active scenario '${activeScenario.id}'. Cross-scenario forks are not supported.`,
+              error: forkValidation.error,
+              issues: forkValidation.issues,
             }));
             return;
           }
-          const snapshots = (parentArtifact?.scenarioExtensions as { kernelSnapshotsPerTurn?: unknown[] } | undefined)?.kernelSnapshotsPerTurn;
-          if (!Array.isArray(snapshots) || snapshots.length === 0) {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({
-              error: 'Fork parent has no embedded kernel snapshots. Re-run the parent simulation with `captureSnapshots: true` to enable forking.',
-            }));
-            return;
-          }
+          simConfig.forkFrom.parentArtifact = forkValidation.parentArtifact;
           // Force captureSnapshots on for forked children so they are
           // themselves forkable.
           simConfig.captureSnapshots = true;
@@ -1626,8 +1675,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
           },
         }));
       } catch (error) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: String(error) }));
+        writeJsonError(res, error);
       }
       return;
     }

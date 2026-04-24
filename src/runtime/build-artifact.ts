@@ -109,6 +109,7 @@ export interface BuildArtifactInputs {
   agentReactions: unknown[];
   finalState?: {
     systems: Record<string, number>;
+    capacities?: Record<string, number>;
     politics?: Record<string, number | string | boolean>;
     statuses?: Record<string, string | boolean>;
     environment?: Record<string, number | string | boolean>;
@@ -251,6 +252,7 @@ export function buildRunArtifact(inputs: BuildArtifactInputs): RunArtifact {
     finalState: inputs.finalState
       ? {
           metrics: inputs.finalState.systems,
+          capacities: inputs.finalState.capacities,
           politics: inputs.finalState.politics,
           statuses: inputs.finalState.statuses,
           environment: inputs.finalState.environment,

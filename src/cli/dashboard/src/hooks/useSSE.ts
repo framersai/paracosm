@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { migrateLegacyEventShape } from './migrateLegacyEventShape';
+import type { RunArtifact } from '../../../../engine/schema/index.js';
 
 /**
  * New-to-legacy event-type rename map.
@@ -116,7 +117,24 @@ export interface ValidationFallbackBucket {
 interface SSEState {
   status: 'connecting' | 'connected' | 'error' | 'replay_not_found';
   events: SimEvent[];
-  results: Array<{ leader: string; summary: Record<string, unknown>; fingerprint: Record<string, string> | null }>;
+  results: Array<{
+    leader: string;
+    summary: Record<string, unknown>;
+    fingerprint: Record<string, string> | null;
+    /**
+     * Full RunArtifact from the completed run. Server emits it in
+     * the `result` SSE event when `captureSnapshots: true` was set
+     * (which the dashboard defaults to for every UI-initiated run)
+     * so the BranchesContext can dispatch PARENT_COMPLETE with the
+     * real artifact and the ForkModal has access to
+     * `scenarioExtensions.kernelSnapshotsPerTurn` for the fork POST.
+     * Absent when captureSnapshots was off (rare; programmatic
+     * callers that don't need fork capability).
+     */
+    artifact?: RunArtifact;
+    /** For fork results only; mirrors `artifact.metadata.forkedFrom`. */
+    forkedFrom?: { parentRunId: string; atTurn: number };
+  }>;
   verdict: Record<string, unknown> | null;
   errors: string[];
   isComplete: boolean;
