@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync, existsSync, readdirSync, statSync, unlinkS
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { normalizeSimulationConfig, applyDemoCaps, type NormalizedSimulationConfig } from './sim-config.js';
-import { runPairSimulations, type BroadcastFn } from './pair-runner.js';
+import { runPairSimulations, runForkSimulation, type BroadcastFn } from './pair-runner.js';
 import { marsScenario } from '../engine/mars/index.js';
 import { lunarScenario } from '../engine/lunar/index.js';
 import type { ScenarioPackage } from '../engine/types.js';
@@ -1474,13 +1474,47 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         } else if (hasUserKeys) {
           console.log(`  [rate-limit] Bypassed — user provided API keys`);
         }
-        if (!config.leaders || config.leaders.length < 2) {
+        // Fork setups take exactly one leader (the override for the
+        // forked branch). Regular setups take exactly two. Spec 2B.
+        const isForkSetup = !!config.forkFrom;
+        if (isForkSetup) {
+          if (!config.leaders || config.leaders.length !== 1) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Fork setup requires exactly one leader.' }));
+            return;
+          }
+        } else if (!config.leaders || config.leaders.length < 2) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'Two leaders required' }));
           return;
         }
 
         simConfig = normalizeSimulationConfig(config);
+
+        // Spec 2B: validate fork preconditions against the supplied
+        // parent artifact before spinning up the orchestrator.
+        if (simConfig.forkFrom) {
+          const { parentArtifact } = simConfig.forkFrom;
+          const parentScenarioId = parentArtifact?.metadata?.scenario?.id;
+          if (parentScenarioId !== activeScenario.id) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+              error: `Fork parent scenario '${parentScenarioId}' does not match active scenario '${activeScenario.id}'. Cross-scenario forks are not supported.`,
+            }));
+            return;
+          }
+          const snapshots = (parentArtifact?.scenarioExtensions as { kernelSnapshotsPerTurn?: unknown[] } | undefined)?.kernelSnapshotsPerTurn;
+          if (!Array.isArray(snapshots) || snapshots.length === 0) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+              error: 'Fork parent has no embedded kernel snapshots. Re-run the parent simulation with `captureSnapshots: true` to enable forking.',
+            }));
+            return;
+          }
+          // Force captureSnapshots on for forked children so they are
+          // themselves forkable.
+          simConfig.captureSnapshots = true;
+        }
 
         // Demo-mode enforcement: clamp only when the run bills against
         // the host's provider keys AND the server is in hosted-demo
@@ -1894,10 +1928,16 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       try {
         // Thread the currently-active scenario through to the pair
         // runner. Without this the runner defaults to Mars regardless
-        // of which scenario the user compiled — the page title would
+        // of which scenario the user compiled, so the page title would
         // show the custom name but the simulation would run Mars
-        // hooks + content.
-        await startSimulations(config, broadcast, controller.signal, activeScenario);
+        // hooks + content. Fork path (Spec 2B) dispatches to
+        // runForkSimulation instead of the pair runner when the
+        // config carries a forkFrom reference.
+        if (config.forkFrom) {
+          await runForkSimulation(config, broadcast, controller.signal, activeScenario);
+        } else {
+          await startSimulations(config, broadcast, controller.signal, activeScenario);
+        }
       } finally {
         disarmDisconnectWatchdog();
         if (activeSimAbortController === controller) {

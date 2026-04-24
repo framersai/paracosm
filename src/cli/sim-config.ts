@@ -89,6 +89,19 @@ export interface SimulationSetupPayload {
     profileId?: SimulationEconomicsProfileId;
     batchConcurrency?: number;
   };
+  /**
+   * Optional fork parent. When set, the run resumes from the supplied
+   * parent artifact at `atTurn` rather than starting fresh. Server
+   * calls `WorldModel.forkFromArtifact(parentArtifact, atTurn)` and
+   * simulates from `atTurn + 1` forward. Spec 2B.
+   */
+  forkFrom?: { parentArtifact: import('../engine/schema/index.js').RunArtifact; atTurn: number };
+  /**
+   * Opt-in kernel snapshot capture. Dashboard sets this to true for
+   * every UI-initiated run so forks are always possible. Default off
+   * for programmatic consumers (per Spec 2A). Spec 2B.
+   */
+  captureSnapshots?: boolean;
 }
 
 export interface NormalizedSimulationConfig {
@@ -114,6 +127,10 @@ export interface NormalizedSimulationConfig {
   firecrawlKey?: string;
   tavilyKey?: string;
   cohereKey?: string;
+  /** Fork parent + turn; populated from SimulationSetupPayload.forkFrom. */
+  forkFrom?: { parentArtifact: import('../engine/schema/index.js').RunArtifact; atTurn: number };
+  /** Whether the orchestrator should stash per-turn kernel snapshots. */
+  captureSnapshots?: boolean;
 }
 
 export const DEFAULT_KEY_PERSONNEL: KeyPersonnel[] = [
@@ -487,7 +504,13 @@ export function applyDemoCaps(config: NormalizedSimulationConfig): NormalizedSim
 }
 
 export function normalizeSimulationConfig(input: SimulationSetupPayload): NormalizedSimulationConfig {
-  if (!Array.isArray(input.leaders) || input.leaders.length < 2) {
+  // Fork setups take exactly one leader (the override for the forked
+  // branch); regular pair setups take exactly two. Spec 2B.
+  if (input.forkFrom) {
+    if (!Array.isArray(input.leaders) || input.leaders.length !== 1) {
+      throw new Error('Fork setup requires exactly one leader');
+    }
+  } else if (!Array.isArray(input.leaders) || input.leaders.length < 2) {
     throw new Error('Two leaders required');
   }
 
@@ -566,5 +589,7 @@ export function normalizeSimulationConfig(input: SimulationSetupPayload): Normal
     firecrawlKey: input.firecrawlKey,
     tavilyKey: input.tavilyKey,
     cohereKey: input.cohereKey,
+    forkFrom: input.forkFrom,
+    captureSnapshots: input.captureSnapshots === true,
   };
 }

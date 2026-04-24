@@ -239,3 +239,104 @@ Then fill out:
 
   broadcast('complete', { timestamp: new Date().toISOString() });
 }
+
+/**
+ * Single-leader fork dispatch (Spec 2B). When `/setup` receives a
+ * config with `forkFrom` set, the server branches here instead of
+ * `runPairSimulations`. The fork inherits the parent's kernel state
+ * + PRNG from the embedded per-turn snapshot, swaps in the supplied
+ * override leader, and runs from `atTurn + 1` to `config.turns`.
+ *
+ * No verdict generation at the end: verdicts compare two leaders
+ * against each other, but forks compare against their parent in the
+ * dashboard Branches tab, not against a second live branch.
+ *
+ * Consumes `simConfig.forkFrom.parentArtifact` verbatim from the
+ * client. Server-side validation (scenario match, embedded
+ * snapshots, single-leader guard) happened in the `/setup` handler
+ * before this function is reached.
+ */
+export async function runForkSimulation(
+  simConfig: NormalizedSimulationConfig,
+  broadcast: BroadcastFn,
+  signal?: AbortSignal,
+  scenario: ScenarioPackage = marsScenario,
+): Promise<void> {
+  if (!simConfig.forkFrom) {
+    throw new Error('runForkSimulation called without simConfig.forkFrom set');
+  }
+  if (simConfig.leaders.length !== 1) {
+    throw new Error(`runForkSimulation requires exactly 1 leader, got ${simConfig.leaders.length}`);
+  }
+  const leader = simConfig.leaders[0];
+  const { turns, seed, startTime, liveSearch, customEvents } = simConfig;
+  broadcast('status', { phase: 'starting', maxTurns: turns, customEvents, fork: true });
+
+  const { WorldModel } = await import('../runtime/world-model/index.js');
+  const wm = WorldModel.fromScenario(scenario);
+  const forkedWm = await wm.forkFromArtifact(
+    simConfig.forkFrom.parentArtifact,
+    simConfig.forkFrom.atTurn,
+  );
+
+  broadcast('status', {
+    phase: 'fork-running',
+    leader: {
+      name: leader.name,
+      archetype: leader.archetype,
+      unit: leader.unit,
+      hexaco: leader.hexaco,
+    },
+    parentRunId: simConfig.forkFrom.parentArtifact.metadata.runId,
+    atTurn: simConfig.forkFrom.atTurn,
+  });
+
+  console.log(
+    `  Fork: ${leader.name} resuming from turn ${simConfig.forkFrom.atTurn} of ` +
+    `parent ${simConfig.forkFrom.parentArtifact.metadata.runId}\n`,
+  );
+
+  const onEvent = (event: unknown) => broadcast('sim', event);
+
+  try {
+    const result = await forkedWm.simulate(
+      leader,
+      {
+        maxTurns: turns,
+        seed,
+        startTime,
+        timePerTurn: simConfig.timePerTurn,
+        liveSearch,
+        activeDepartments: simConfig.activeDepartments,
+        onEvent,
+        customEvents,
+        provider: simConfig.provider,
+        models: simConfig.models,
+        economics: simConfig.economics,
+        initialPopulation: simConfig.initialPopulation,
+        startingResources: simConfig.startingResources,
+        startingPolitics: simConfig.startingPolitics,
+        execution: simConfig.execution,
+        signal,
+        captureSnapshots: true,
+      },
+      simConfig.keyPersonnel ?? DEFAULT_KEY_PERSONNEL,
+    );
+    broadcast('result', {
+      leader: leader.archetype.toLowerCase().replace(/\s+/g, '-'),
+      summary: {
+        population: result.finalState?.metrics?.population,
+        morale: result.finalState?.metrics?.morale,
+        toolsForged: result.forgedTools?.length ?? 0,
+        citations: result.citations?.length ?? 0,
+      },
+      fingerprint: result.fingerprint ?? null,
+      forkedFrom: result.metadata.forkedFrom,
+    });
+  } catch (err) {
+    broadcast('sim_error', { leader: leader.archetype, error: String(err) });
+    throw err;
+  }
+
+  broadcast('complete', { timestamp: new Date().toISOString(), fork: true });
+}
