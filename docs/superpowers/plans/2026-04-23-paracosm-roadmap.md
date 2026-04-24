@@ -148,7 +148,7 @@ Historical plan file (kept for audit / bisect context): [`2026-04-23-close-0.7.x
 
 ### 2026-04-24 session (Tier 4 T4.2 simulate endpoint shipped)
 
-- **[`<TO-FILL>` paracosm](#): Tier 4 T4.2 HTTP `POST /simulate` one-shot endpoint.** Sync request-response for non-SSE consumers. Accepts pre-compiled `ScenarioPackage` or raw scenario JSON (auto-compiled server-side via `compileScenario` with optional `seedText` / `seedUrl` grounding). Returns `{ artifact, scenario, durationMs }`. Env-gated behind `PARACOSM_ENABLE_SIMULATE_ENDPOINT=true`; rate-limited against the same IP bucket as `/setup`; body size capped via existing `readBody` guard. Route extracted to `src/cli/simulate-route.ts` with injectable deps so the 10 unit tests run without booting the HTTP server or hitting real LLMs. Spec: [2026-04-24-simulate-endpoint-design.md](../specs/2026-04-24-simulate-endpoint-design.md).
+- **[`f22a2351` paracosm](#): Tier 4 T4.2 HTTP `POST /simulate` one-shot endpoint.** Sync request-response for non-SSE consumers. Accepts pre-compiled `ScenarioPackage` or raw scenario JSON (auto-compiled server-side via `compileScenario` with optional `seedText` / `seedUrl` grounding). Returns `{ artifact, scenario, durationMs }`. Env-gated behind `PARACOSM_ENABLE_SIMULATE_ENDPOINT=true`; rate-limited against the same IP bucket as `/setup`; body size capped via existing `readBody` guard. Route extracted to `src/cli/simulate-route.ts` with injectable deps so the 10 unit tests run without booting the HTTP server or hitting real LLMs. Spec: [2026-04-24-simulate-endpoint-design.md](../specs/2026-04-24-simulate-endpoint-design.md).
 
 ### 2026-04-24 session (Tier 5 Quickstart onboarding shipped)
 
