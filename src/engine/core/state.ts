@@ -218,5 +218,19 @@ export interface SimulationState {
   systems: WorldSystems;
   agents: Agent[];
   politics: WorldPolitics;
+  /**
+   * Categorical state from `world.statuses` declarations
+   * (governance state, faction alignment, funding round, etc.).
+   * Keys are scenario-declared; always present (empty object when
+   * the scenario declares no statuses).
+   */
+  statuses: Record<string, string | boolean>;
+  /**
+   * Environment conditions from `world.environment` declarations
+   * (external context: market growth pct, radiation, depth, etc.).
+   * Keys are scenario-declared; always present (empty object when
+   * the scenario declares no environment fields).
+   */
+  environment: Record<string, number | string | boolean>;
   eventLog: TurnEvent[];
 }

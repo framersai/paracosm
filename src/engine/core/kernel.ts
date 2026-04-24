@@ -59,6 +59,8 @@ export class SimulationKernel {
         governanceStatus: init.startingPolitics?.governanceStatus ?? 'earth-governed',
         independencePressure: init.startingPolitics?.independencePressure ?? 0.05,
       },
+      statuses: {},
+      environment: {},
       eventLog: [],
     };
   }

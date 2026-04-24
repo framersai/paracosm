@@ -48,3 +48,10 @@ test('SimulationKernel respects initial population and starting resources', () =
   assert.equal(state.systems.scienceOutput, 10);
   assert.equal(state.politics.earthDependencyPct, 70);
 });
+
+test('SimulationKernel: initial state always has statuses and environment as empty objects when no scenario provided', () => {
+  const kernel = new SimulationKernel(42, 'test-leader', []);
+  const state = kernel.getState();
+  assert.deepEqual(state.statuses, {});
+  assert.deepEqual(state.environment, {});
+});
