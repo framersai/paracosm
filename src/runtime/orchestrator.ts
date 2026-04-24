@@ -1701,9 +1701,17 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
       commanderDecision: mergedDecision,
       policyEffectsApplied: turnPolicyEffects.slice(),
       stateSnapshotAfter: {
-        population: after.systems.population, morale: after.systems.morale,
-        foodMonthsReserve: after.systems.foodMonthsReserve, infrastructureModules: after.systems.infrastructureModules,
-        scienceOutput: after.systems.scienceOutput, births, deaths,
+        // Metrics: systems bag (Mars heritage: population, morale, food,
+        // infra, science, etc) plus births/deaths computed ad-hoc this
+        // turn. Spread preserves scenario-declared fields that live
+        // alongside the heritage ones via WorldSystems' index signature.
+        metrics: { ...after.systems, births, deaths },
+        // Optional bags: only emit when the scenario declared something.
+        // Empty bags land as `undefined` via conditional spread so
+        // consumers can check `if (ta.stateSnapshotAfter.statuses)` cheaply.
+        ...(Object.keys(after.statuses).length > 0 ? { statuses: { ...after.statuses } } : {}),
+        ...(Object.keys(after.politics).length > 0 ? { politics: { ...after.politics } } : {}),
+        ...(Object.keys(after.environment).length > 0 ? { environment: { ...after.environment } } : {}),
       },
     });
     console.log(`  State: Pop ${after.systems.population} | Morale ${Math.round(after.systems.morale * 100)}% | Food ${after.systems.foodMonthsReserve.toFixed(1)}mo`);

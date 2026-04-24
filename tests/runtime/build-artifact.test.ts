@@ -39,7 +39,7 @@ test('buildRunArtifact maps turnArtifacts to trajectory.timepoints', () => {
       {
         turn: 1,
         time: 2035,
-        stateSnapshotAfter: { population: 100, morale: 0.7 },
+        stateSnapshotAfter: { metrics: { population: 100, morale: 0.7 } },
         departmentReports: [
           { department: 'medical', summary: 'Stable', confidence: 0.8, risks: [], opportunities: [], citations: [], recommendedActions: [], openQuestions: [] },
         ],
@@ -53,6 +53,71 @@ test('buildRunArtifact maps turnArtifacts to trajectory.timepoints', () => {
   assert.equal(artifact.trajectory?.timepoints?.[0].time, 2035);
   assert.equal(artifact.specialistNotes?.length, 1);
   assert.equal(artifact.specialistNotes?.[0].domain, 'medical');
+});
+
+test('buildRunArtifact: per-timepoint worldSnapshot carries all four runtime bags', () => {
+  // Regression test for the 0.7.x per-timepoint worldSnapshot
+  // widening: when the orchestrator emits a turn artifact whose
+  // stateSnapshotAfter populates statuses / politics / environment
+  // (in addition to the required metrics bag), every Timepoint in
+  // the returned artifact should surface all four bags on its
+  // worldSnapshot, not just metrics.
+  const inputs = {
+    ...baseInputs,
+    mode: 'turn-loop' as const,
+    turnArtifacts: [
+      {
+        turn: 1,
+        time: 1,
+        stateSnapshotAfter: {
+          metrics: { revenue: 100, headcount: 50 },
+          statuses: { fundingRound: 'seed', publicListed: false as boolean },
+          politics: { boardConfidence: 0.7 },
+          environment: { marketGrowthPct: 12 },
+        },
+        departmentReports: [],
+        commanderDecision: { decision: 'X', rationale: 'because', reasoning: '', selectedPolicies: [] },
+        policyEffectsApplied: [],
+      },
+    ],
+  };
+  const artifact = buildRunArtifact(inputs);
+  const tp = artifact.trajectory?.timepoints?.[0];
+  assert.ok(tp, 'timepoint should exist');
+  assert.deepEqual(tp!.worldSnapshot?.metrics, { revenue: 100, headcount: 50 });
+  assert.deepEqual(tp!.worldSnapshot?.statuses, { fundingRound: 'seed', publicListed: false });
+  assert.deepEqual(tp!.worldSnapshot?.politics, { boardConfidence: 0.7 });
+  assert.deepEqual(tp!.worldSnapshot?.environment, { marketGrowthPct: 12 });
+  // points[] stays lightweight (metrics only).
+  assert.deepEqual(artifact.trajectory?.points?.[0].metrics, { revenue: 100, headcount: 50 });
+});
+
+test('buildRunArtifact: timepoint worldSnapshot omits empty optional bags', () => {
+  // Scenarios that declare no statuses / politics / environment (the
+  // Mars baseline) should NOT emit noisy `statuses: {}` entries on
+  // every timepoint. Empty bags fall through the conditional spread.
+  const inputs = {
+    ...baseInputs,
+    mode: 'turn-loop' as const,
+    turnArtifacts: [
+      {
+        turn: 1,
+        time: 1,
+        stateSnapshotAfter: { metrics: { x: 1 } },
+        departmentReports: [],
+        commanderDecision: { decision: 'Y', rationale: '', reasoning: '', selectedPolicies: [] },
+        policyEffectsApplied: [],
+      },
+    ],
+  };
+  const artifact = buildRunArtifact(inputs);
+  const tp = artifact.trajectory?.timepoints?.[0];
+  assert.ok(tp, 'timepoint should exist');
+  assert.deepEqual(tp!.worldSnapshot?.metrics, { x: 1 });
+  assert.equal(tp!.worldSnapshot?.statuses, undefined);
+  assert.equal(tp!.worldSnapshot?.politics, undefined);
+  assert.equal(tp!.worldSnapshot?.environment, undefined);
+  assert.equal(tp!.worldSnapshot?.capacities, undefined);
 });
 
 test('buildRunArtifact maps commanderDecisions to decisions[]', () => {

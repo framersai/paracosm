@@ -56,11 +56,23 @@ export interface BuildArtifactInputs {
   completedAt?: string;
   /** Time-unit labels — post-F23 scenario-declared singular/plural. */
   timeUnit: { singular: string; plural: string };
-  /** Raw per-turn internal state (today's TurnArtifact shape). */
+  /**
+   * Raw per-turn internal state. Matches {@link TurnArtifact} from
+   * `./contracts.ts`. `stateSnapshotAfter` carries the five runtime
+   * bags (metrics required, capacities / statuses / politics /
+   * environment optional) so every turn's per-bag state rolls into
+   * the returned `Timepoint.worldSnapshot` without flattening.
+   */
   turnArtifacts: Array<{
     turn: number;
     time: number;
-    stateSnapshotAfter: Record<string, number>;
+    stateSnapshotAfter: {
+      metrics: Record<string, number>;
+      capacities?: Record<string, number>;
+      statuses?: Record<string, string | boolean>;
+      politics?: Record<string, number | string | boolean>;
+      environment?: Record<string, number | string | boolean>;
+    };
     departmentReports: Array<{
       department: string;
       summary: string;
@@ -135,14 +147,31 @@ export function buildRunArtifact(inputs: BuildArtifactInputs): RunArtifact {
   const timepoints: Timepoint[] = inputs.turnArtifacts.map((ta) => ({
     time: ta.time,
     label: `${inputs.timeUnit.singular.charAt(0).toUpperCase()}${inputs.timeUnit.singular.slice(1)} ${ta.time}`,
+    // Per-timepoint worldSnapshot carries all five runtime bags, not
+    // just metrics. Conditional spread keeps the emitted JSON tight
+    // (no noisy empty `statuses: {}` / `environment: {}` on scenarios
+    // that don't declare those bags). Consumers destructure with
+    // optional chaining: `tp.worldSnapshot?.statuses?.governanceStatus`.
     worldSnapshot: {
-      metrics: ta.stateSnapshotAfter,
+      metrics: ta.stateSnapshotAfter.metrics,
+      ...(ta.stateSnapshotAfter.capacities && Object.keys(ta.stateSnapshotAfter.capacities).length > 0
+        ? { capacities: ta.stateSnapshotAfter.capacities }
+        : {}),
+      ...(ta.stateSnapshotAfter.statuses && Object.keys(ta.stateSnapshotAfter.statuses).length > 0
+        ? { statuses: ta.stateSnapshotAfter.statuses }
+        : {}),
+      ...(ta.stateSnapshotAfter.politics && Object.keys(ta.stateSnapshotAfter.politics).length > 0
+        ? { politics: ta.stateSnapshotAfter.politics }
+        : {}),
+      ...(ta.stateSnapshotAfter.environment && Object.keys(ta.stateSnapshotAfter.environment).length > 0
+        ? { environment: ta.stateSnapshotAfter.environment }
+        : {}),
     } satisfies WorldSnapshot,
   }));
 
   const points: TrajectoryPoint[] = inputs.turnArtifacts.map((ta) => ({
     time: ta.time,
-    metrics: ta.stateSnapshotAfter,
+    metrics: ta.stateSnapshotAfter.metrics,
   }));
 
   const specialistNotes: SpecialistNote[] = inputs.turnArtifacts.flatMap((ta) =>

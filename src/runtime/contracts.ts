@@ -90,14 +90,32 @@ export interface TurnArtifact {
   departmentReports: DepartmentReport[];
   commanderDecision: CommanderDecision;
   policyEffectsApplied: string[];
+  /**
+   * Snapshot of the five runtime state bags at the end of the turn,
+   * produced by the kernel. Widened in 0.7.x from the pre-F23
+   * Mars-shape (flat `population`/`morale`/…) to a structural match
+   * of the universal schema's WorldSnapshot: `metrics` for numeric
+   * gauges plus optional `capacities`, `statuses`, `politics`, and
+   * `environment` bags populated when the scenario declares them.
+   * `buildRunArtifact` maps this directly onto per-timepoint
+   * WorldSnapshot objects without flattening.
+   *
+   * Back-compat: Mars + lunar scenarios still put population, morale,
+   * foodMonthsReserve, infrastructureModules, scienceOutput, births,
+   * and deaths under `metrics`, so legacy consumers reading
+   * `ta.stateSnapshotAfter.metrics.population` still work.
+   */
   stateSnapshotAfter: {
-    population: number;
-    morale: number;
-    foodMonthsReserve: number;
-    infrastructureModules: number;
-    scienceOutput: number;
-    births: number;
-    deaths: number;
+    /** Numeric gauges from kernel.state.systems (the primary bag). */
+    metrics: Record<string, number>;
+    /** Capacity constraints; optional, declared via world.capacities. */
+    capacities?: Record<string, number>;
+    /** Categorical statuses; optional, declared via world.statuses. */
+    statuses?: Record<string, string | boolean>;
+    /** Political / social variables; optional, declared via world.politics. */
+    politics?: Record<string, number | string | boolean>;
+    /** Environmental conditions; optional, declared via world.environment. */
+    environment?: Record<string, number | string | boolean>;
   };
 }
 
