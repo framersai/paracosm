@@ -65,7 +65,7 @@ test('DraftScenarioSchema: rejects defaultTurns out of bounds', () => {
   assert.equal(result.success, false);
 });
 
-test('DraftScenarioSchema: rejects HEXACO-style number above 1 in unrelated fields', () => {
+test('DraftScenarioSchema: rejects defaultPopulation above 1000', () => {
   const result = DraftScenarioSchema.safeParse({
     id: 'x-scenario',
     labels: { name: 'X', populationNoun: 'crew', settlementNoun: 'habitat', timeUnitNoun: 'day' },

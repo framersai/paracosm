@@ -398,7 +398,7 @@ export async function runBatchSimulations(
     return { leader, index, tag };
   });
 
-  await Promise.allSettled(leadersWithTags.map(({ leader, index, tag }) => {
+  const settled = await Promise.allSettled(leadersWithTags.map(({ leader, index, tag }) => {
     return runSimulation(leader, simConfig.keyPersonnel ?? DEFAULT_KEY_PERSONNEL, {
       maxTurns: turns,
       seed,
@@ -431,12 +431,25 @@ export async function runBatchSimulations(
         fingerprint: result.fingerprint ?? null,
         artifact: simConfig.captureSnapshots ? result : undefined,
       });
+      return result;
     }, error => {
       broadcast('sim_error', { leader: tag, leaderIndex: index, error: String(error) });
       throw error;
     });
   }));
 
-  broadcast('complete', { timestamp: new Date().toISOString(), batch: true });
+  // Mirror runPairSimulations: surface aborted/provider-error at the
+  // terminal event so the dashboard can badge the session as
+  // interrupted. We consider the batch aborted when every leader
+  // failed or reported abortion; a single success still counts as
+  // a successful batch run.
+  const fulfilled = settled.filter(s => s.status === 'fulfilled')
+    .map(s => (s as PromiseFulfilledResult<unknown>).value as { aborted?: boolean; providerError?: unknown });
+  const allAborted = fulfilled.length === 0 || fulfilled.every(v => v?.aborted === true || !!v?.providerError);
+  broadcast('complete', {
+    timestamp: new Date().toISOString(),
+    batch: true,
+    ...(allAborted ? { aborted: true } : {}),
+  });
 }
 

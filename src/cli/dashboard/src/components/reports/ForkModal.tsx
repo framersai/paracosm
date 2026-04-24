@@ -82,7 +82,10 @@ export function ForkModal(props: ForkModalProps) {
   const handleConfirm = () => {
     const leader = presets[leaderIndex];
     if (!leader) return;
-    const seedOverride = seedText.trim() ? parseInt(seedText, 10) : undefined;
+    const parsedSeed = seedText.trim() ? parseInt(seedText, 10) : undefined;
+    const seedOverride = parsedSeed !== undefined && Number.isFinite(parsedSeed)
+      ? parsedSeed
+      : undefined;
     const customEvents = customEventsText.trim()
       ? parseCustomEvents(customEventsText)
       : undefined;

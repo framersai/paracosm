@@ -28,7 +28,8 @@ export function SeedInput({ onSeedReady, disabled = false }: SeedInputProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const submit = useCallback(() => {
-    const validation = validateSeedText(seedText);
+    const trimmedSeed = seedText.trim();
+    const validation = validateSeedText(trimmedSeed);
     if (!validation.ok) {
       setError(
         validation.reason === 'too-short' ? 'Paste at least 200 characters of source material.' :
@@ -38,7 +39,7 @@ export function SeedInput({ onSeedReady, disabled = false }: SeedInputProps) {
       return;
     }
     setError(null);
-    onSeedReady({ seedText, sourceUrl, domainHint: domainHint.trim() || undefined });
+    onSeedReady({ seedText: trimmedSeed, sourceUrl, domainHint: domainHint.trim() || undefined });
   }, [seedText, sourceUrl, domainHint, onSeedReady]);
 
   const fetchUrl = useCallback(async () => {
@@ -69,6 +70,15 @@ export function SeedInput({ onSeedReady, disabled = false }: SeedInputProps) {
   }, [urlInput]);
 
   const handlePdfUpload = useCallback(async (file: File) => {
+    const MAX_PDF_BYTES = 10 * 1024 * 1024;
+    if (file.size > MAX_PDF_BYTES) {
+      setError('PDF exceeds 10 MB limit.');
+      return;
+    }
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      setError(`File is not a PDF: ${file.name}`);
+      return;
+    }
     setFetching(true);
     setError(null);
     try {
@@ -136,16 +146,19 @@ export function SeedInput({ onSeedReady, disabled = false }: SeedInputProps) {
       {tab === 'pdf' && (
         <div
           className={styles.dropZone}
-          onClick={() => fileInputRef.current?.click()}
+          onClick={() => { if (!disabled) fileInputRef.current?.click(); }}
           onDragOver={e => e.preventDefault()}
           onDrop={e => {
             e.preventDefault();
+            if (disabled) return;
             const file = e.dataTransfer.files[0];
             if (file) handlePdfUpload(file);
           }}
           role="button"
-          tabIndex={0}
+          tabIndex={disabled ? -1 : 0}
+          aria-disabled={disabled}
           onKeyDown={e => {
+            if (disabled) return;
             if (e.key === 'Enter' || e.key === ' ') {
               e.preventDefault();
               fileInputRef.current?.click();

@@ -99,13 +99,14 @@ export function QuickstartView({ sse, sessionId }: QuickstartViewProps) {
   // Transition to results when all expected artifacts arrive.
   useEffect(() => {
     if (phase.kind !== 'progress' || phase.stage !== 'running') return;
+    if (!phase.scenario || !phase.leaders) return;
     const artifacts = sse.results
       .map(r => r.artifact)
       .filter((a): a is RunArtifact => !!a);
-    if (phase.leaders && artifacts.length >= phase.leaders.length) {
+    if (artifacts.length >= phase.leaders.length) {
       setPhase({
         kind: 'results',
-        scenario: phase.scenario!,
+        scenario: phase.scenario,
         leaders: phase.leaders,
         artifacts: artifacts.slice(0, phase.leaders.length),
       });

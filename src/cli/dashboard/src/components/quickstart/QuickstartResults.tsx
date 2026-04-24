@@ -66,22 +66,29 @@ export function QuickstartResults({ leaders, artifacts, sessionId, onSwap }: Qui
   return (
     <div className={styles.results} role="region" aria-label="Quickstart results">
       <div className={styles.grid}>
-        {leaders.map((leader, i) => (
-          <LeaderResultCard
-            key={i}
-            leader={leader}
-            artifact={artifacts[i]}
-            peers={artifacts.filter((_, j) => j !== i)}
-            timeLabel={labels.time}
-            timeLabelCap={labels.Time}
-            copiedHere={copiedForIndex === i}
-            shareEnabled={!!sessionId}
-            onDownload={() => handleDownload(i)}
-            onShare={() => handleShare(i)}
-            onFork={() => handleFork(i)}
-            onRequestSwap={() => setSwapTargetIndex(i)}
-          />
-        ))}
+        {leaders.map((leader, i) => {
+          const artifact = artifacts[i];
+          // Defensive: skip cards whose artifact dropped out of the
+          // trio (e.g., a mid-run error that cleared one leader's
+          // result). Downstream helpers assume artifact is defined.
+          if (!artifact) return null;
+          return (
+            <LeaderResultCard
+              key={i}
+              leader={leader}
+              artifact={artifact}
+              peers={artifacts.filter((a, j) => j !== i && !!a)}
+              timeLabel={labels.time}
+              timeLabelCap={labels.Time}
+              copiedHere={copiedForIndex === i}
+              shareEnabled={!!sessionId}
+              onDownload={() => handleDownload(i)}
+              onShare={() => handleShare(i)}
+              onFork={() => handleFork(i)}
+              onRequestSwap={() => setSwapTargetIndex(i)}
+            />
+          );
+        })}
       </div>
       {swapTargetIndex !== null && (
         <LeaderPresetPicker

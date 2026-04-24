@@ -47,31 +47,45 @@ export async function extractPdfText(
   const chunks: string[] = [];
   let totalBytes = 0;
   let truncated = false;
-  for (let i = 1; i <= scanPages; i++) {
-    const page = await pdf.getPage(i);
-    const content = await page.getTextContent();
-    const pageText = (content.items as Array<{ str?: string }>)
-      .map(item => item.str ?? '')
-      .join(' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-    const pageBytes = new Blob([pageText]).size;
-    if (totalBytes + pageBytes > maxBytes) {
-      const remaining = maxBytes - totalBytes;
-      if (remaining > 0) {
-        chunks.push(pageText.slice(0, remaining));
-        totalBytes = maxBytes;
+  try {
+    for (let i = 1; i <= scanPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      const pageText = (content.items as Array<{ str?: string }>)
+        .map(item => item.str ?? '')
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      const pageBytes = new Blob([pageText]).size;
+      if (totalBytes + pageBytes > maxBytes) {
+        const remaining = maxBytes - totalBytes;
+        if (remaining > 0) {
+          // Truncate at the byte level, not the character level: a raw
+          // `pageText.slice(0, remaining)` would under-count for
+          // multi-byte UTF-8 glyphs and blow past the budget on
+          // non-ASCII PDFs.
+          const encoded = new TextEncoder().encode(pageText);
+          const truncatedBytes = encoded.slice(0, remaining);
+          const decoded = new TextDecoder('utf-8', { fatal: false })
+            .decode(truncatedBytes)
+            .replace(/�$/, '');
+          chunks.push(decoded);
+          totalBytes = maxBytes;
+        }
+        truncated = true;
+        break;
       }
-      truncated = true;
-      break;
+      chunks.push(pageText);
+      totalBytes += pageBytes;
     }
-    chunks.push(pageText);
-    totalBytes += pageBytes;
+    return {
+      text: chunks.join('\n\n'),
+      pages: pdf.numPages,
+      truncated,
+    };
+  } finally {
+    // Release the native PDFDocumentProxy handle even when iteration
+    // threw partway through.
+    try { pdf.destroy(); } catch { /* noop */ }
   }
-
-  return {
-    text: chunks.join('\n\n'),
-    pages: pdf.numPages,
-    truncated,
-  };
 }
