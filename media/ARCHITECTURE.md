@@ -1,6 +1,6 @@
 # Paracosm Architecture
 
-Paracosm is an AI agent swarm simulation engine. It runs parallel civilizations with AI commanders that have different HEXACO personality profiles, and produces measurably different outcomes from identical starting conditions.
+Paracosm is a structured world model for AI agents. It runs parallel simulations with AI leaders that have different HEXACO personality profiles, and produces measurably different outcomes from identical starting conditions. Fits the structured / LLM-based / counterfactual branch of the 2026 world-model taxonomy; see [`docs/positioning/world-model-mapping.md`](positioning/world-model-mapping.md) for the placement against adjacent categories.
 
 This document covers the full system: how scenarios become simulations, how agents make decisions, how tools get forged at runtime, how the chat system maintains character consistency, and how the API enables arbitrary scenario types.
 
@@ -64,14 +64,14 @@ A scenario is a JSON file that describes the simulation domain. It does not cont
 
 **Any domain works.** Mars colonies, submarine habitats, space stations, medieval kingdoms. The engine is domain-agnostic. The scenario JSON defines what gets simulated.
 
-**Terminology.** The `labels.populationNoun` (plural, e.g. `colonists` → `crew` → `subjects`) and `labels.settlementNoun` (singular, e.g. `colony` → `habitat` → `kingdom`) fields flavour every user-facing string in the dashboard — help legends, roster headers, empty states, ARIA labels, report copy. The engine defaults to `colonists` / `colony` when omitted (Mars heritage), but non-Mars scenarios should override both. Singular/capitalized variants are derived automatically by the dashboard's `useScenarioLabels()` hook.
+**Terminology.** The `labels.populationNoun` (plural, e.g. `colonists` → `crew` → `subjects`) and `labels.settlementNoun` (singular, e.g. `colony` → `habitat` → `kingdom`) fields flavour every user-facing string in the dashboard: help legends, roster headers, empty states, ARIA labels, report copy. The engine defaults to `colonists` / `colony` when omitted (Mars heritage), but non-Mars scenarios should override both. Singular/capitalized variants are derived automatically by the dashboard's `useScenarioLabels()` hook.
 
 ### Seed Enrichment & Citation Flow
 
 The compiler accepts real-world source material (`--seed-text` or `--seed-url`) and threads citations end-to-end through the simulation:
 
 ```
-SEED                            (text or URL — Firecrawl extracts markdown)
+SEED                            (text or URL: Firecrawl extracts markdown)
   ↓
 EXTRACT                         (LLM → topics, facts, searchQueries, crisisCategories)
   ↓
@@ -81,7 +81,7 @@ SEARCH                          (AgentOS WebSearchService: Firecrawl + Tavily +
   ↓
 KNOWLEDGE BUNDLE                (topics[].canonicalFacts[], categoryMapping)
   ↓ runtime init
-RESEARCH MEMORY                 (AgentOS AgentMemory.sqlite — semantic recall)
+RESEARCH MEMORY                 (AgentOS AgentMemory.sqlite: semantic recall)
   ↓ per event
 recallResearch(query, keywords) (semantic memory recall, fall back to bundle,
                                   fall back to live web search if liveSearch=on)
@@ -89,7 +89,7 @@ recallResearch(query, keywords) (semantic memory recall, fall back to bundle,
 DEPARTMENT PROMPT               (citations injected as `[claim](url)` markdown)
   ↓
 DEPARTMENT REPORT               (LLM returns citations[]; orchestrator auto-fills
-                                  from packet if LLM omits them — provenance
+                                  from packet if LLM omits them: provenance
                                   guarantee)
   ↓
 SSE specialist_done event       (citationList[]: text, url, doi)
@@ -176,8 +176,8 @@ Each turn follows a fixed pipeline:
 
 Every structured LLM call in paracosm routes through one of two schema-validated wrappers:
 
-- **[`generateValidatedObject`](../src/runtime/llm-invocations/generateValidatedObject.ts)** — one-shot calls over AgentOS `generateObject`. Used for director event batches, reaction batches, verdict.
-- **[`sendAndValidate`](../src/runtime/llm-invocations/sendAndValidate.ts)** — session-aware wrapper over AgentOS `session.send()`. Preserves conversation memory (commander remembers prior events, dept heads remember prior analyses) while adding Zod retry-with-feedback. Used for commander decisions, department reports, and promotions.
+- **[`generateValidatedObject`](../src/runtime/llm-invocations/generateValidatedObject.ts)**: one-shot calls over AgentOS `generateObject`. Used for director event batches, reaction batches, verdict.
+- **[`sendAndValidate`](../src/runtime/llm-invocations/sendAndValidate.ts)**: session-aware wrapper over AgentOS `session.send()`. Preserves conversation memory (commander remembers prior events, dept heads remember prior analyses) while adding Zod retry-with-feedback. Used for commander decisions, department reports, and promotions.
 
 Both wrappers return the fully-validated object matching a Zod schema in [`src/runtime/schemas/`](../src/runtime/schemas/). Validation failures trigger up to 2 retries with the Zod error appended to the retry prompt so the model self-corrects. If retries exhaust, the wrapper returns a caller-provided fallback skeleton and emits a `validation_fallback` SSE event so the dashboard can surface the degradation.
 
@@ -261,9 +261,9 @@ In Paracosm, HEXACO influences:
 - **Commander decisions**: conditional cues fire at the 0.7 / 0.3 poles, translating trait values into concrete behavioral implications (e.g., high openness → "the unknown is opportunity, not threat"; high conscientiousness → "you would rather be slow and right than fast and wrong").
 - **Colonist reactions**: per-agent reaction blocks include cue strings from `buildReactionCues` so reacting agents don't have to re-derive personality behavior from a vector each call. All six axes have both-pole cues.
 - **Personality drift**: all six traits drift turn-over-turn from experience. Three forces combine per trait:
-  - *Leader pull* — trait value converges toward the commander's (Van Iddekinge 2023)
-  - *Role pull* — department role activates specific traits (Tett & Burnett 2003)
-  - *Outcome pull* — every (trait, outcome) pair has a peer-reviewed sign (Silvia & Sanders 2010 for openness; Roberts et al. 2006 for conscientiousness; Smillie et al. 2012 for extraversion; Graziano et al. 2007 for agreeableness; Lee & Ashton 2004 for emotionality; Hilbig & Zettler 2009 for honesty-humility)
+  - *Leader pull*: trait value converges toward the commander's (Van Iddekinge 2023)
+  - *Role pull*: department role activates specific traits (Tett & Burnett 2003)
+  - *Outcome pull*: every (trait, outcome) pair has a peer-reviewed sign (Silvia & Sanders 2010 for openness; Roberts et al. 2006 for conscientiousness; Smillie et al. 2012 for extraversion; Graziano et al. 2007 for agreeableness; Lee & Ashton 2004 for emotionality; Hilbig & Zettler 2009 for honesty-humility)
   - Rate-capped at ±0.05/turn; bounds [0.05, 0.95]
 - **Commander drift**: the commander's HEXACO evolves alongside agents. `runSimulation` clones `leader.hexaco` at run start and applies outcome-pull after every turn's resolution. The final output carries both the drifted `hexaco`, the original `hexacoBaseline`, and a per-turn `hexacoHistory` for trajectory visualization. The caller's `LeaderConfig` is never mutated.
 - **Trajectory cues**: commander, director, and department-head prompts all receive a one-line cue describing drift since turn 0 ("Since you took command, your personality has drifted substantially toward higher openness and measurably away from higher conscientiousness. Notice how recent decisions have shaped your judgment."). Threshold 0.05 matches the per-turn rate cap.
@@ -326,7 +326,7 @@ Agents are created lazily on first chat message (~2-3s init) and pooled (max 10,
 
 ### Universal Schema (`paracosm/schema`)
 
-Every `runSimulation()` call returns a `RunArtifact` — one Zod-validated shape covering all simulation modes. The subpath `paracosm/schema` exports the schemas + inferred TypeScript types:
+Every `runSimulation()` call returns a `RunArtifact`: one Zod-validated shape covering all simulation modes. The subpath `paracosm/schema` exports the schemas + inferred TypeScript types:
 
 ```typescript
 import { RunArtifactSchema, StreamEventSchema, type RunArtifact } from 'paracosm/schema';
@@ -352,13 +352,13 @@ import { RunArtifactSchema, StreamEventSchema, type RunArtifact } from 'paracosm
 
 **Mode discriminator on `metadata.mode`:**
 
-- `turn-loop` — paracosm civ-sims. Populates `trajectory.timepoints[]`, `decisions[]`, per-turn specialist notes.
-- `batch-trajectory` — digital-twin simulations. Populates `trajectory.timepoints[]` as a forecast + specialist notes + risk flags.
-- `batch-point` — one-shot forecast. Overview + risk flags, no trajectory.
+- `turn-loop`: paracosm civ-sims. Populates `trajectory.timepoints[]`, `decisions[]`, per-turn specialist notes.
+- `batch-trajectory`: digital-twin simulations. Populates `trajectory.timepoints[]` as a forecast + specialist notes + risk flags.
+- `batch-point`: one-shot forecast. Overview + risk flags, no trajectory.
 
 **`StreamEvent`** is a 17-variant discriminated union over every SSE event type the runtime emits (`turn_start`, `event_start`, `specialist_start`, `specialist_done`, `forge_attempt`, `decision_pending`, `decision_made`, `outcome`, `personality_drift`, `agent_reactions`, `bulletin`, `turn_done`, `promotion`, `systems_snapshot`, `provider_error`, `validation_fallback`, `sim_aborted`).
 
-**Scenario-specific extensions.** Every primitive carries an optional `scenarioExtensions?: Record<string, unknown>` escape hatch. Mars radiation fields, digital-twin genome markers, game inventory state — all live here without polluting the universal shape.
+**Scenario-specific extensions.** Every primitive carries an optional `scenarioExtensions?: Record<string, unknown>` escape hatch. Mars radiation fields, digital-twin genome markers, game inventory state: all live here without polluting the universal shape.
 
 **JSON Schema export.** `npm run export:json-schema` regenerates `schema/run-artifact.schema.json` + `schema/stream-event.schema.json` so non-TypeScript consumers (Python `datamodel-codegen`, Go, Rust, etc.) can generate equivalent types.
 
@@ -415,25 +415,25 @@ Every Zod-validated LLM call site reports `{ attempts, calls, fallbacks }` to th
 
 Interpretation:
 
-- `schemas.compile:*` — compiler hook generation reliability. `fallbackRate > 0` on a `compile:*` entry means silent-degradation compiles landed on the host (investigate via `compile_validation_fallback` SSE events).
-- `forges.approvalRate` — attempt-level including retries. `uniqueApprovalRate` is the real quality signal: unique tools that landed in the toolbox / unique names attempted.
-- `forges.rejectionReasons` — failure-mode histogram. A dominant `schema_extra_field` bucket means the LLM is declaring strict output schemas then returning extra fields (the 2026-04-18 forge-guidance prompt fix targets this).
+- `schemas.compile:*`: compiler hook generation reliability. `fallbackRate > 0` on a `compile:*` entry means silent-degradation compiles landed on the host (investigate via `compile_validation_fallback` SSE events).
+- `forges.approvalRate`: attempt-level including retries. `uniqueApprovalRate` is the real quality signal: unique tools that landed in the toolbox / unique names attempted.
+- `forges.rejectionReasons`: failure-mode histogram. A dominant `schema_extra_field` bucket means the LLM is declaring strict output schemas then returning extra fields (the 2026-04-18 forge-guidance prompt fix targets this).
 - `caches.readRatio` < 0.7 means the cache keeps getting invalidated. Zero `caches` fields mean the provider doesn't expose cache counters (OpenAI auto-caches opaquely; Anthropic reports).
 - `providerErrors.auth` + `.quota` are terminal (run aborts). `.rate_limit` + `.network` + `.unknown` are non-terminal; the retry layer handles them.
 
 `avgAttempts > 1.2` on a schema means the model is retrying on validation failure often enough to be worth tuning. `fallbackRate > 0` means the run served degraded data on at least one turn.
 
-### Custom scenarios — compile before running
+### Custom scenarios: compile before running
 
 Source scenarios (`<name>.json`) are sparse authoring files. They must be **compiled** before the runtime can execute them. Compilation generates six hooks (progression, prompts, fingerprint, politics, reactions, director instructions, milestones) via LLM calls (~$0.10 once, then disk-cached).
 
 Dashboard flow:
 
 1. Paste or load JSON into the Scenario Editor.
-2. Click **Compile** — watches the SSE progress stream (`compile_hook` events per hook generated). Cost is billed against the user-supplied API key when provided, else the host's.
+2. Click **Compile**: watches the SSE progress stream (`compile_hook` events per hook generated). Cost is billed against the user-supplied API key when provided, else the host's.
 3. After `compile_done`, the scenario is both added to `customScenarioCatalog` AND set as the active scenario. The Sim tab will run it on the next RUN click.
 
-Common mistake: clicking **Store** (saves the JSON draft, does not generate hooks) and then hitting RUN. The run proceeds with whichever scenario was previously active (Mars by default) — the editor still shows Mercury, the page title pulls the label from the stored JSON, but the simulation runs Mars. Fix: click Compile, not Store.
+Common mistake: clicking **Store** (saves the JSON draft, does not generate hooks) and then hitting RUN. The run proceeds with whichever scenario was previously active (Mars by default): the editor still shows Mercury, the page title pulls the label from the stored JSON, but the simulation runs Mars. Fix: click Compile, not Store.
 
 Programmatic flow:
 
