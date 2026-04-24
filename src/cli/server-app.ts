@@ -925,19 +925,36 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       req.method === 'POST' &&
       (env.PARACOSM_ENABLE_SIMULATE_ENDPOINT || '').toLowerCase() === 'true'
     ) {
-      if (rateLimiter) {
-        const clientIp = IpRateLimiter.getIp(req);
-        const decision = rateLimiter.check(clientIp);
-        if (!decision.allowed) {
-          res.writeHead(429, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Rate limit exceeded for this IP', resetAt: decision.resetAt }));
-          return;
-        }
-      }
       try {
         const body = JSON.parse(await readBody(req, maxRequestBodyBytes));
         const userApiKey = typeof req.headers['x-api-key'] === 'string' ? req.headers['x-api-key'] : undefined;
         const userAnthropicKey = typeof req.headers['x-anthropic-key'] === 'string' ? req.headers['x-anthropic-key'] : undefined;
+        const hasUserKeys = !!(userApiKey || userAnthropicKey);
+        // Rate limit with BYO-key bypass, matching the /setup pattern.
+        // `.check()` alone is advisory; `.record()` consumes the slot.
+        if (rateLimiter && !hasUserKeys) {
+          const ip = IpRateLimiter.getIp(req);
+          const { allowed, remaining, limit } = rateLimiter.check(ip);
+          if (!allowed) {
+            res.writeHead(429, {
+              ...corsHeaders,
+              'Content-Type': 'application/json',
+              'Retry-After': '86400',
+              'X-RateLimit-Limit': String(limit),
+              'X-RateLimit-Remaining': '0',
+            });
+            res.end(JSON.stringify({
+              error: `Rate limit exceeded. Maximum ${limit} simulations per day. Set X-API-Key or X-Anthropic-Key to bypass.`,
+              limit,
+              remaining: 0,
+            }));
+            return;
+          }
+          rateLimiter.record(ip);
+          console.log(`  [rate-limit] /simulate ${ip}: ${remaining - 1} remaining of ${limit}`);
+        } else if (hasUserKeys) {
+          console.log(`  [rate-limit] /simulate bypassed. BYO key present.`);
+        }
         const deps: SimulateDeps = {
           compileScenario: (raw, opts) => {
             const userCompile = options.compileScenario;

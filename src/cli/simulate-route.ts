@@ -48,13 +48,16 @@ const SimulateOptionsSchema = z.object({
 }).partial();
 
 export const SimulateRequestSchema = z.object({
-  // Scenario payload is either a compiled ScenarioPackage (carries
-  // `.hooks`) or a raw draft that will be run through `compileScenario`
-  // server-side. We accept either shape with `passthrough()` so Zod
-  // does not strip the runtime fields we don't explicitly list here.
+  // Scenario payload is the raw JSON that `compileScenario` accepts.
+  // The endpoint always runs this through the compiler (cache-by-id
+  // keeps repeat calls nearly free) so HTTP callers never need to
+  // ship compiled hook code across the wire. We accept an arbitrary
+  // record shape and let the compiler's own validation surface any
+  // domain errors.
   scenario: z.record(z.string(), z.unknown()).refine(
-    s => typeof s === 'object' && s !== null && typeof (s as { id?: unknown }).id !== 'undefined',
-    { message: 'scenario.id is required' },
+    s => typeof (s as { id?: unknown }).id === 'string'
+      && ((s as { id: string }).id).trim().length > 0,
+    { message: 'scenario.id must be a non-empty string' },
   ),
   leader: LeaderSchema,
   options: SimulateOptionsSchema.optional(),
@@ -108,22 +111,6 @@ function writeJson(res: ServerResponse, status: number, body: unknown): void {
 }
 
 /**
- * Heuristic for "is this an already-compiled ScenarioPackage?". Raw
- * scenario drafts the compiler accepts have no `hooks` field; compiled
- * ScenarioPackages always populate it. We treat presence of `hooks`
- * (non-null, non-empty object) as the signal.
- */
-function isCompiledScenario(scenario: Record<string, unknown>): boolean {
-  const hooks = scenario.hooks;
-  return (
-    !!hooks &&
-    typeof hooks === 'object' &&
-    !Array.isArray(hooks) &&
-    Object.keys(hooks as Record<string, unknown>).length > 0
-  );
-}
-
-/**
  * Route handler. Returns nothing; writes response on `res`.
  */
 export async function handleSimulate(
@@ -144,19 +131,21 @@ export async function handleSimulate(
   const { scenario: scenarioInput, leader, options = {} } = parsed.data;
 
   let scenarioPkg: ScenarioPackage;
-  if (isCompiledScenario(scenarioInput)) {
-    scenarioPkg = scenarioInput as unknown as ScenarioPackage;
-  } else {
-    try {
-      scenarioPkg = await deps.compileScenario(scenarioInput, {
-        provider: options.provider,
-        seedText: options.seedText,
-        seedUrl: options.seedUrl,
-      });
-    } catch (err) {
-      writeJson(res, 502, { error: `Scenario compile failed: ${String(err)}` });
-      return;
-    }
+  try {
+    // Always compile. compileScenario caches by id so repeat calls
+    // are nearly free, and forcing the server-side compile means we
+    // never trust client-supplied hook code.
+    scenarioPkg = await deps.compileScenario(scenarioInput, {
+      provider: options.provider,
+      seedText: options.seedText,
+      seedUrl: options.seedUrl,
+    });
+  } catch (err) {
+    // Server-side log with the full stack; client gets a generic
+    // message to avoid leaking paths + stack traces.
+    console.error('[simulate] compileScenario failed:', err);
+    writeJson(res, 502, { error: 'Scenario compile failed' });
+    return;
   }
 
   const startedAt = Date.now();
@@ -174,7 +163,8 @@ export async function handleSimulate(
       anthropicKey: deps.userAnthropicKey,
     });
   } catch (err) {
-    writeJson(res, 500, { error: `Simulation failed: ${String(err)}` });
+    console.error('[simulate] runSimulation failed:', err);
+    writeJson(res, 500, { error: 'Simulation failed' });
     return;
   }
   const durationMs = Date.now() - startedAt;

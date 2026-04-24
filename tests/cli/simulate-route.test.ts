@@ -116,34 +116,36 @@ test('simulate: malformed body rejects with 400', async () => {
   assert.equal(get().status, 400);
 });
 
-test('simulate: compileScenario throws -> 502 with reason', async () => {
+test('simulate: compileScenario throws -> 502 with generic message (no stack leak)', async () => {
   const { res, get } = fakeRes();
   await handleSimulate(
     {} as IncomingMessage,
     res,
-    { scenario: { id: 'x', labels: { name: 'X' } }, leader: fakeLeader() },
+    { scenario: { id: 'x-scenario', labels: { name: 'X' } }, leader: fakeLeader() },
     fakeDeps({
-      compileScenario: async () => { throw new Error('LLM out'); },
+      compileScenario: async () => { throw new Error('internal LLM detail'); },
     }),
   );
   const r = get();
   assert.equal(r.status, 502);
-  assert.match(r.body.error, /Scenario compile failed.*LLM out/);
+  assert.equal(r.body.error, 'Scenario compile failed');
+  assert.doesNotMatch(r.body.error, /internal LLM detail/);
 });
 
-test('simulate: runSimulation throws -> 500 with reason', async () => {
+test('simulate: runSimulation throws -> 500 with generic message (no stack leak)', async () => {
   const { res, get } = fakeRes();
   await handleSimulate(
     {} as IncomingMessage,
     res,
     { scenario: marsScenario, leader: fakeLeader() },
     fakeDeps({
-      runSimulation: async () => { throw new Error('kernel crash'); },
+      runSimulation: async () => { throw new Error('kernel crash detail'); },
     }),
   );
   const r = get();
   assert.equal(r.status, 500);
-  assert.match(r.body.error, /Simulation failed.*kernel crash/);
+  assert.equal(r.body.error, 'Simulation failed');
+  assert.doesNotMatch(r.body.error, /kernel crash detail/);
 });
 
 test('simulate: user API keys from deps are threaded into runSimulation options', async () => {
@@ -185,7 +187,7 @@ test('simulate: captureSnapshots option is forwarded verbatim', async () => {
   assert.equal(capture, true);
 });
 
-test('simulate: scenario hooks presence skips compileScenario', async () => {
+test('simulate: pre-compiled-looking scenario is still routed through compileScenario (no unsafe pass-through)', async () => {
   const { res, get } = fakeRes();
   let compileCalls = 0;
   await handleSimulate(
@@ -197,5 +199,16 @@ test('simulate: scenario hooks presence skips compileScenario', async () => {
     }),
   );
   assert.equal(get().status, 200);
-  assert.equal(compileCalls, 0, 'pre-compiled scenario should not trigger compileScenario');
+  assert.equal(compileCalls, 1, 'endpoint always compiles; pre-compiled pass-through is disallowed');
+});
+
+test('simulate: empty scenario.id rejects with 400', async () => {
+  const { res, get } = fakeRes();
+  await handleSimulate(
+    {} as IncomingMessage,
+    res,
+    { scenario: { id: '   ', labels: { name: 'X' } }, leader: fakeLeader() },
+    fakeDeps(),
+  );
+  assert.equal(get().status, 400);
 });
