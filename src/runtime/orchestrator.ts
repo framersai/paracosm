@@ -373,6 +373,8 @@ export interface RunOptions {
   initialPopulation?: number;
   startingResources?: StartingResources;
   startingPolitics?: StartingPolitics;
+  startingStatuses?: Record<string, string | boolean>;
+  startingEnvironment?: Record<string, number | string | boolean>;
   execution?: Partial<SimulationExecutionConfig>;
   scenario?: ScenarioPackage;
   /**
@@ -405,7 +407,8 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   const { agent } = await import('@framers/agentos');
   const sc = opts.scenario ?? marsScenario;
   const maxTurns = opts.maxTurns ?? 12;
-  const startTime = opts.startTime ?? 2035;
+  const startTime = opts.startTime ?? opts.scenario?.setup?.defaultStartTime ?? 0;
+  const timePerTurn = opts.timePerTurn ?? opts.scenario?.setup?.defaultTimePerTurn ?? 1;
   const requestedProvider = opts.provider ?? 'openai';
   // Preflight env check. Falls back to the other supported provider if
   // the requested one has no key; throws ProviderKeyMissingError when
@@ -546,12 +549,15 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   const kernel = new SimulationKernel(seed, leader.name, keyPersonnel, {
     startTime,
     initialPopulation: opts.initialPopulation,
+    scenario: opts.scenario,
     // StartingResources / StartingPolitics are subsets of the kernel's
     // Partial<WorldSystems / WorldPolitics> shape. The kernel's types
     // carry index signatures for scenario-defined fields; the starter
     // configs only declare the universal fields, so the cast is safe.
     startingResources: opts.startingResources as Partial<import('../engine/core/state.js').WorldSystems> | undefined,
     startingPolitics: opts.startingPolitics as Partial<import('../engine/core/state.js').WorldPolitics> | undefined,
+    startingStatuses: opts.startingStatuses,
+    startingEnvironment: opts.startingEnvironment,
   });
 
   const toolMap = new Map<string, ITool>();
@@ -874,7 +880,7 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
   console.log(`  Promoted ${promoted.length} department heads. Agents created.\n`);
 
   const artifacts: TurnArtifact[] = [];
-  const timeSchedule = buildTimeSchedule(startTime, maxTurns, opts.timePerTurn);
+  const timeSchedule = buildTimeSchedule(startTime, maxTurns, timePerTurn);
   const outcomeLog: Array<{ turn: number; time: number; outcome: TurnOutcome }> = [];
   const eventHistory: DirectorContext['previousEvents'] = [];
   let lastTurnToolOutputs: Array<{ name: string; department: string; output: string }> = [];
