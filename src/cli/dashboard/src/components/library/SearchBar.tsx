@@ -4,7 +4,7 @@ import styles from './SearchBar.module.scss';
 export interface SearchBarProps {
   value: string;
   onChange: (next: string) => void;
-  inputRef?: React.RefObject<HTMLInputElement>;
+  inputRef?: React.RefObject<HTMLInputElement | null>;
 }
 
 export function SearchBar(props: SearchBarProps): JSX.Element {
@@ -13,7 +13,7 @@ export function SearchBar(props: SearchBarProps): JSX.Element {
     <div className={styles.searchBar}>
       <span className={styles.icon} aria-hidden="true">⌕</span>
       <input
-        ref={inputRef}
+        ref={inputRef as React.Ref<HTMLInputElement>}
         type="text"
         value={value}
         onChange={e => onChange(e.target.value)}

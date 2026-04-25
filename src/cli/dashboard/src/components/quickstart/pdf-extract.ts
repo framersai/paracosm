@@ -42,7 +42,7 @@ export async function extractPdfText(
   (pdfjs as unknown as { GlobalWorkerOptions: { workerSrc: string } }).GlobalWorkerOptions.workerSrc = '';
 
   const buffer = await file.arrayBuffer();
-  const pdf = await pdfjs.getDocument({ data: buffer, disableWorker: true }).promise;
+  const pdf = await pdfjs.getDocument({ data: buffer }).promise;
   const scanPages = Math.min(pdf.numPages, maxPages);
   const chunks: string[] = [];
   let totalBytes = 0;

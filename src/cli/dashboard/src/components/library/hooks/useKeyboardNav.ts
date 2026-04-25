@@ -3,7 +3,7 @@ import * as React from 'react';
 export function useKeyboardNav(opts: {
   enabled: boolean;
   cardSelector: string;
-  searchInputRef: React.RefObject<HTMLInputElement>;
+  searchInputRef: React.RefObject<HTMLInputElement | null>;
   onOpenFocused: (cardEl: HTMLElement) => void;
   onClose: () => void;
 }): void {
