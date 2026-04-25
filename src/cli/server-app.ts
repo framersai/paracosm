@@ -1915,6 +1915,20 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       }
     }
 
+    // Serve demo videos (Remotion-rendered loops shown on the landing page).
+    // Long cache: rendered output is content-addressable enough that the
+    // landing's <video src> changes when content changes.
+    if (req.url?.split('?')[0].startsWith('/demo/')) {
+      const demoPath = resolve(__dirname, '..', '..', 'assets', 'demo', req.url.split('?')[0].replace('/demo/', ''));
+      if (existsSync(demoPath)) {
+        const ext = demoPath.split('.').pop() || '';
+        const types: Record<string,string> = { mp4:'video/mp4', webm:'video/webm', png:'image/png', jpg:'image/jpeg' };
+        res.writeHead(200, { 'Content-Type': types[ext] || 'application/octet-stream', 'Cache-Control': 'public, max-age=86400' });
+        res.end(readFileSync(demoPath));
+        return;
+      }
+    }
+
     if (req.url === '/favicon.svg' || req.url === '/favicon.png' || req.url === '/favicon.ico' || req.url === '/icon.svg' || req.url === '/apple-touch-icon.png') {
       try {
         const assetsDir = resolve(__dirname, '..', '..', 'assets');

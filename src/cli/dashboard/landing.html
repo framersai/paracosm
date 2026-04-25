@@ -130,8 +130,7 @@
   <svg id="hero-icon" class="hero-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="96" height="96" style="display:block" role="img" aria-label="Paracosm"><defs><radialGradient id="hg"><stop offset="0%" stop-color="var(--amber)" stop-opacity=".3"/><stop offset="100%" stop-color="var(--amber)" stop-opacity="0"/></radialGradient></defs><g class="pc-orbit"><line x1="256" y1="256" x2="301.06" y2="87.85" stroke="var(--pc-line)" stroke-width="12.8" opacity=".5"/><line x1="256" y1="256" x2="424.15" y2="210.94" stroke="var(--pc-line)" stroke-width="12.8" opacity=".5"/><line x1="256" y1="256" x2="379.09" y2="379.09" stroke="var(--pc-line)" stroke-width="12.8" opacity=".5"/><line x1="256" y1="256" x2="210.94" y2="424.15" stroke="var(--pc-line)" stroke-width="12.8" opacity=".5"/><line x1="256" y1="256" x2="87.85" y2="301.06" stroke="var(--pc-line)" stroke-width="12.8" opacity=".5"/><line x1="256" y1="256" x2="132.91" y2="132.91" stroke="var(--pc-line)" stroke-width="12.8" opacity=".5"/></g><g class="pc-cross"><line x1="301.06" y1="87.85" x2="379.09" y2="379.09" stroke="var(--pc-line)" stroke-width="9" opacity=".18"/><line x1="424.15" y1="210.94" x2="210.94" y2="424.15" stroke="var(--pc-line)" stroke-width="9" opacity=".18"/><line x1="379.09" y1="379.09" x2="87.85" y2="301.06" stroke="var(--pc-line)" stroke-width="9" opacity=".18"/><line x1="210.94" y1="424.15" x2="132.91" y2="132.91" stroke="var(--pc-line)" stroke-width="9" opacity=".18"/><line x1="87.85" y1="301.06" x2="301.06" y2="87.85" stroke="var(--pc-line)" stroke-width="9" opacity=".18"/><line x1="132.91" y1="132.91" x2="424.15" y2="210.94" stroke="var(--pc-line)" stroke-width="9" opacity=".18"/></g><circle class="pc-hub-glow" cx="256" cy="256" r="73.7" fill="url(#hg)"/><circle class="pc-hub" cx="256" cy="256" r="40.96" fill="var(--amber)"/><g class="pc-orbit"><circle cx="301.06" cy="87.85" r="28.16" fill="var(--rust)"/><circle cx="424.15" cy="210.94" r="28.16" fill="var(--amber)"/><circle cx="379.09" cy="379.09" r="28.16" fill="var(--teal)"/><circle cx="210.94" cy="424.15" r="28.16" fill="var(--rust)"/><circle cx="87.85" cy="301.06" r="28.16" fill="var(--teal)"/><circle cx="132.91" cy="132.91" r="28.16" fill="var(--amber)"/></g></svg>
 
   <h1>PARACOSM</h1>
-  <div class="hero-tagline"><span>Structured</span><span>World</span><span>Model</span><span class="dot">&bull;</span><span>AI</span><span>Agents</span></div>
-  <p class="hero-sub">Start from a prompt, brief, URL, or scenario JSON draft. Paracosm compiles it into a typed ScenarioPackage, runs HEXACO-personality leaders against a deterministic seeded kernel, and produces measurably divergent trajectories when you swap one variable. Replay any stored run to verify kernel determinism, browse every artifact in the dashboard's Library tab, and import <code>DigitalTwin</code> from the <code>paracosm/digital-twin</code> subpath when modeling a specific subject under counterfactual interventions.</p>
+  <p class="hero-tagline-line">Counterfactual world model for AI agents.</p>
   <p class="hero-mono">OPEN SOURCE &middot; APACHE-2.0 &middot; TYPESCRIPT &middot; BUILT ON AGENTOS</p>
 
   <div class="hero-ctas">
@@ -140,15 +139,13 @@
     <a href="/docs" class="btn-ghost">Documentation</a>
   </div>
 
-  <div class="hero-chips">
-    <span class="chip">Emergent Crisis Generation</span>
-    <span class="chip">Sandboxed Tool Forging</span>
-    <span class="chip">HEXACO-PI-R Personality Model</span>
-    <span class="chip">Mulberry32 Deterministic PRNG</span>
-    <span class="chip">Multi-Agent Department Analysis</span>
-    <span class="chip">Semantic Research with DOI Citations</span>
-    <span class="chip">Replay-Verified Determinism</span>
-  </div>
+  <video class="hero-video" autoplay muted loop playsinline preload="metadata" aria-label="Paracosm simulation: same world, two leaders, divergent trajectories"
+    style="display:block;width:min(960px,calc(100% - 48px));max-width:960px;margin:36px auto 0;border-radius:12px;border:1px solid var(--border);box-shadow:0 24px 60px rgba(0,0,0,0.4);background:var(--bg-card)">
+    <source src="/demo/sim.mp4" type="video/mp4">
+  </video>
+
+  <p class="hero-sub" style="max-width:680px;margin:24px auto 0">Compile a prompt, brief, URL, or scenario JSON into a typed <code>ScenarioPackage</code>. Run HEXACO-personality leaders against a deterministic seeded kernel. Swap one variable and watch the trajectories diverge.</p>
+
 
   <div class="code-sec">
     <div class="code-block">
@@ -471,6 +468,11 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
 console.log(artifact.subject, artifact.intervention);</div>
       </div>
     </div>
+
+    <video class="demo-video" autoplay muted loop playsinline preload="metadata" aria-label="Branches tab demo: trunk forks into two divergent trajectories"
+      style="display:block;width:100%;max-width:1024px;margin:32px auto 0;border-radius:12px;border:1px solid var(--border);box-shadow:0 16px 40px rgba(0,0,0,0.35);background:var(--bg-card)">
+      <source src="/demo/branches.mp4" type="video/mp4">
+    </video>
   </div>
 </section>
 
@@ -540,71 +542,10 @@ console.log(artifact.subject, artifact.intervention);</div>
     <div class="sec-label rv">Dashboard</div>
     <h2 class="sec-title rv">Browse every run from the Library tab</h2>
     <p class="sec-desc rv">The dashboard ships a Library tab that lists every completed simulation persisted to <code>data/runs.db</code>. Filter by simulation mode, scenario, leader, or free-text. Click any card to open the side drawer with the full artifact rendered through the matching view component (turn-loop, batch-trajectory, or batch-point). Click Replay to verify the kernel is still deterministic for that run.</p>
-    <div class="library-wireframe-wrapper">
-      <svg viewBox="0 0 800 480" class="library-wireframe" role="img" aria-label="Library tab gallery view wireframe">
-        <!-- Hero stats strip -->
-        <g class="lw-stats">
-          <rect x="20" y="20" width="140" height="60" rx="6" fill="#1c1915" stroke="rgba(48,42,34,0.5)"/>
-          <text x="35" y="44" fill="#a89878" font-size="10" font-family="JetBrains Mono">RUNS</text>
-          <text x="35" y="68" fill="#f5f0e4" font-size="20" font-family="JetBrains Mono">247</text>
-          <rect x="180" y="20" width="140" height="60" rx="6" fill="#1c1915" stroke="rgba(48,42,34,0.5)"/>
-          <text x="195" y="44" fill="#a89878" font-size="10" font-family="JetBrains Mono">SPENT</text>
-          <text x="195" y="68" fill="#f5f0e4" font-size="20" font-family="JetBrains Mono">$42.85</text>
-          <rect x="340" y="20" width="140" height="60" rx="6" fill="#1c1915" stroke="rgba(48,42,34,0.5)"/>
-          <text x="355" y="44" fill="#a89878" font-size="10" font-family="JetBrains Mono">AVG / RUN</text>
-          <text x="355" y="68" fill="#f5f0e4" font-size="20" font-family="JetBrains Mono">$0.17</text>
-          <rect x="500" y="20" width="140" height="60" rx="6" fill="#1c1915" stroke="rgba(48,42,34,0.5)"/>
-          <text x="515" y="44" fill="#a89878" font-size="10" font-family="JetBrains Mono">TOTAL TIME</text>
-          <text x="515" y="68" fill="#f5f0e4" font-size="20" font-family="JetBrains Mono">5.2h</text>
-          <rect x="660" y="20" width="120" height="60" rx="6" fill="#1c1915" stroke="rgba(48,42,34,0.5)"/>
-          <text x="675" y="44" fill="#a89878" font-size="10" font-family="JetBrains Mono">REPLAY</text>
-          <text x="675" y="68" fill="#4ca8a8" font-size="20" font-family="JetBrains Mono">92%</text>
-        </g>
-        <!-- Search bar -->
-        <rect x="20" y="100" width="600" height="36" rx="6" fill="#0e0c0a" stroke="rgba(48,42,34,0.5)"/>
-        <text x="36" y="122" fill="#6b5f50" font-size="12" font-family="Inter">search runs by scenario, leader, archetype</text>
-        <rect x="640" y="105" width="40" height="26" rx="4" fill="#1c1915" stroke="rgba(48,42,34,0.5)"/>
-        <text x="650" y="122" fill="#a89878" font-size="10" font-family="JetBrains Mono">⌘K</text>
-        <!-- Filter chip -->
-        <rect x="20" y="146" width="180" height="20" rx="10" fill="#1c1915" stroke="#e8b44a"/>
-        <text x="32" y="160" fill="#e8b44a" font-size="9" font-family="JetBrains Mono">mode: batch-trajectory</text>
-        <!-- Gallery cards -->
-        <g class="lw-gallery">
-          <!-- Card 1: turn-loop teal -->
-          <rect x="20" y="186" width="180" height="120" rx="6" fill="#1c1915" stroke="rgba(48,42,34,0.5)"/>
-          <rect x="32" y="198" width="80" height="14" rx="7" fill="rgba(76,168,168,0.15)"/>
-          <text x="42" y="208" fill="#4ca8a8" font-size="8" font-family="JetBrains Mono">TURN-LOOP</text>
-          <text x="32" y="234" fill="#f5f0e4" font-size="11" font-family="Inter" font-weight="600">mars-genesis</text>
-          <text x="32" y="250" fill="#d8ccb0" font-size="9" font-family="Inter">Ada · visionary</text>
-          <text x="32" y="290" fill="#a89878" font-size="8" font-family="Inter">Open · Replay · Compare</text>
-          <!-- Card 2: batch-trajectory amber -->
-          <rect x="210" y="186" width="180" height="120" rx="6" fill="#1c1915" stroke="#e8b44a"/>
-          <rect x="222" y="198" width="100" height="14" rx="7" fill="rgba(232,180,74,0.15)"/>
-          <text x="232" y="208" fill="#e8b44a" font-size="8" font-family="JetBrains Mono">BATCH-TRAJECTORY</text>
-          <text x="222" y="234" fill="#f5f0e4" font-size="11" font-family="Inter" font-weight="600">corp-q3</text>
-          <text x="222" y="250" fill="#d8ccb0" font-size="9" font-family="Inter">Marcus · pragmatist</text>
-          <text x="222" y="290" fill="#a89878" font-size="8" font-family="Inter">Open · Replay · Compare</text>
-          <!-- Card 3: batch-point rust -->
-          <rect x="400" y="186" width="180" height="120" rx="6" fill="#1c1915" stroke="rgba(48,42,34,0.5)"/>
-          <rect x="412" y="198" width="80" height="14" rx="7" fill="rgba(224,101,48,0.15)"/>
-          <text x="422" y="208" fill="#e06530" font-size="8" font-family="JetBrains Mono">BATCH-POINT</text>
-          <text x="412" y="234" fill="#f5f0e4" font-size="11" font-family="Inter" font-weight="600">policy-rollout</text>
-          <text x="412" y="250" fill="#d8ccb0" font-size="9" font-family="Inter">Sky · cautious</text>
-          <text x="412" y="290" fill="#a89878" font-size="8" font-family="Inter">Open · Replay · Compare</text>
-        </g>
-        <!-- Side drawer (slid in) -->
-        <rect x="600" y="186" width="200" height="270" rx="6" fill="#14110e" stroke="rgba(48,42,34,0.7)" stroke-width="2"/>
-        <text x="612" y="208" fill="#a89878" font-size="10" font-family="JetBrains Mono">DETAIL</text>
-        <rect x="612" y="220" width="60" height="22" rx="4" fill="#1c1915" stroke="rgba(48,42,34,0.5)"/>
-        <text x="624" y="236" fill="#f5f0e4" font-size="10" font-family="Inter">Replay</text>
-        <rect x="676" y="226" width="110" height="14" rx="7" fill="rgba(76,168,168,0.15)"/>
-        <text x="688" y="236" fill="#4ca8a8" font-size="8" font-family="JetBrains Mono">DETERMINISTIC</text>
-        <line x1="612" y1="256" x2="788" y2="256" stroke="rgba(48,42,34,0.5)"/>
-        <text x="612" y="276" fill="#f5f0e4" font-size="11" font-family="Inter" font-weight="600">corp-q3</text>
-        <text x="612" y="292" fill="#d8ccb0" font-size="9" font-family="Inter">Marcus Reinhardt · pragmatist</text>
-        <text x="612" y="306" fill="#a89878" font-size="8" font-family="JetBrains Mono">12 timepoints · $0.42 · 5m ago</text>
-      </svg>
-    </div>
+    <video class="demo-video" autoplay muted loop playsinline preload="metadata" aria-label="Library tab demo: cards, drawer, replay verification"
+      style="display:block;width:100%;max-width:1024px;margin:0 auto;border-radius:12px;border:1px solid var(--border);box-shadow:0 16px 40px rgba(0,0,0,0.35);background:var(--bg-card)">
+      <source src="/demo/library.mp4" type="video/mp4">
+    </video>
   </div>
 </section>
 
