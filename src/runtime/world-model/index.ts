@@ -40,7 +40,7 @@ import { compileFromSeed, type CompileFromSeedInput, type CompileFromSeedOptions
 import type { CompileOptions } from '../../engine/compiler/types.js';
 import type { KeyPersonnel } from '../../engine/core/agent-generator.js';
 import type { ScenarioPackage } from '../../engine/types.js';
-import type { RunArtifact } from '../../engine/schema/index.js';
+import type { RunArtifact, SubjectConfig, InterventionConfig } from '../../engine/schema/index.js';
 import type { KernelSnapshot } from '../../engine/core/snapshot.js';
 import { z } from 'zod';
 import { generateValidatedObject } from '../llm-invocations/generateValidatedObject.js';
@@ -351,6 +351,46 @@ export class WorldModel {
       this._lastKernelSnapshot = undefined;
     }
     return artifact;
+  }
+
+  /**
+   * Simulate an intervention applied to a subject within this world.
+   *
+   * Sugar over {@link WorldModel.simulate} that names the digital-twin
+   * pattern: a subject (a person, organization, system, or biological
+   * entity) is held constant, an intervention (a treatment, policy, or
+   * action) is applied, and the leader drives the run. The returned
+   * RunArtifact carries `subject` and `intervention` for traceability.
+   *
+   * @param subject       The subject being modeled.
+   * @param intervention  The intervention to test.
+   * @param leader        The decision-maker driving the run.
+   * @param options       Same as `simulate()` options minus `subject`/`intervention`.
+   * @param keyPersonnel  Optional key-personnel array; defaults to `[]`.
+   * @returns RunArtifact with `subject` and `intervention` populated.
+   *
+   * @example
+   * ```ts
+   * import { WorldModel } from 'paracosm/world-model';
+   *
+   * const wm = await WorldModel.fromJson(scenarioJson);
+   * const artifact = await wm.simulateIntervention(
+   *   { id: 'company', kind: 'organization', attributes: { headcount: 100 } },
+   *   { id: 'layoff', kind: 'policy', description: '25% RIF', parameters: { percent: 25 } },
+   *   leader,
+   *   { maxTurns: 4 },
+   * );
+   * console.log(artifact.subject, artifact.intervention);
+   * ```
+   */
+  async simulateIntervention(
+    subject: SubjectConfig,
+    intervention: InterventionConfig,
+    leader: LeaderConfig,
+    options: Omit<WorldModelSimulateOptions, 'subject' | 'intervention'> = {},
+    keyPersonnel: KeyPersonnel[] = [],
+  ): Promise<RunArtifact> {
+    return this.simulate(leader, { ...options, subject, intervention }, keyPersonnel);
   }
 
   /**
