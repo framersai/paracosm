@@ -1,0 +1,136 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 8, 6, 0.6);
+  z-index: 50;
+  animation: fade 200ms ease-out;
+}
+
+@keyframes fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 60vw;
+  max-width: 900px;
+  background: var(--bg-panel);
+  border-left: 1px solid var(--glass-border);
+  box-shadow: var(--raised-shadow);
+  transform: translateX(100%);
+  transition: transform 200ms ease-out;
+  z-index: 51;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.drawer.open {
+  transform: translateX(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drawer { transition: none; }
+  .backdrop { animation: none; }
+}
+
+@media (max-width: 768px) {
+  .drawer { width: 100vw; max-width: 100vw; }
+}
+
+.head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--glass-border);
+  background: var(--bg-card);
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.closeBtn {
+  background: transparent;
+  border: 0;
+  color: var(--text-3);
+  font-size: 1.4rem;
+  cursor: pointer;
+  padding: 0 0.5rem;
+
+  &:hover { color: var(--rust); }
+}
+
+.body { padding: 1rem; }
+
+.placeholder {
+  color: var(--text-3);
+  font-style: italic;
+}
+
+.error {
+  background: rgba(224, 101, 48, 0.08);
+  border: 1px solid var(--rust);
+  border-radius: 8px;
+  padding: 1rem;
+  color: var(--rust);
+
+  strong {
+    display: block;
+    margin-bottom: 0.25rem;
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.85rem;
+  }
+}
+
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--glass-border);
+  margin-bottom: 1rem;
+
+  h2 {
+    font-size: 1.2rem;
+    margin: 0;
+    color: var(--text-1);
+  }
+
+  p {
+    margin: 0;
+    color: var(--text-2);
+    font-size: 0.9rem;
+  }
+}
+
+.modeBadge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  width: fit-content;
+
+  &[data-mode="turn-loop"]        { background: rgba(76, 168, 168, 0.15); color: var(--teal); }
+  &[data-mode="batch-trajectory"] { background: rgba(232, 180, 74, 0.15); color: var(--amber); }
+  &[data-mode="batch-point"]      { background: rgba(224, 101, 48, 0.15); color: var(--rust); }
+}
+
+.meta {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--text-3) !important;
+}
+
+.detailBody {
+  display: block;
+}

@@ -4,7 +4,7 @@ import { once } from 'node:events';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createMarsServer } from '../../src/cli/server-app.js';
+import { buildResultsPayloadFromEventBuffer, createMarsServer } from '../../src/cli/server-app.js';
 import type { NormalizedSimulationConfig } from '../../src/cli/sim-config.js';
 import type { RunRecord } from '../../src/cli/server/run-record.js';
 import type { RunHistoryStore } from '../../src/cli/server/run-history-store.js';
@@ -241,6 +241,66 @@ test('POST /setup normalizes config and hands it to the simulation runner', asyn
   }
 });
 
+test('GET /results reconstructs timelines from current stream event names', async () => {
+  const frame = (event: string, data: unknown) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+  const json = buildResultsPayloadFromEventBuffer([
+    frame('sim', {
+      type: 'event_start',
+      leader: leaderA.name,
+      data: {
+        turn: 1,
+        time: 2035,
+        eventIndex: 0,
+        title: 'Hull Breach',
+        category: 'engineering',
+        description: 'Micrometeorite strike.',
+        emergent: true,
+      },
+    }),
+    frame('sim', {
+      type: 'decision_made',
+      leader: leaderA.name,
+      data: {
+        turn: 1,
+        time: 2035,
+        eventIndex: 0,
+        decision: 'Seal the breach',
+        rationale: 'Preserves pressure with the fewest crew outside.',
+        selectedPolicies: ['internal-patch'],
+      },
+    }),
+    frame('sim', {
+      type: 'specialist_done',
+      leader: leaderA.name,
+      data: {
+        turn: 1,
+        time: 2035,
+        eventIndex: 0,
+        department: 'engineering',
+        summary: 'Patch from inside the module.',
+        risks: ['slow pressure loss'],
+        recommendedActions: ['patch panel'],
+        citationList: [{ text: 'NASA habitat repair', url: 'https://example.com/nasa' }],
+        forgedTools: [{ name: 'pressure_loss_calc' }],
+      },
+    }),
+    frame('sim', {
+      type: 'outcome',
+      leader: leaderA.name,
+      data: { turn: 1, time: 2035, eventIndex: 0, outcome: 'conservative_success' },
+    }),
+    frame('complete', {}),
+  ]);
+
+  const leader = json.leaders.find((entry: any) => entry.name === leaderA.name);
+  assert.ok(leader, 'leader timeline should be present');
+  assert.equal(leader.decisions[0]?.decision, 'Seal the breach');
+  assert.equal(leader.decisions[0]?.outcome, 'conservative_success');
+  assert.equal(leader.deptReports[0]?.summary, 'Patch from inside the module.');
+  assert.equal(leader.deptReports[0]?.toolCount, 1);
+  assert.equal(leader.citations[0]?.url, 'https://example.com/nasa');
+});
+
 test('POST /setup rejects request bodies above the configured limit', async () => {
   let runnerCalled = false;
   const server = createMarsServer({
@@ -368,7 +428,7 @@ test('POST /scenario/store keeps non-runnable draft JSON out of the switchable c
   }
 });
 
-test('platform API routes reject requests when the server is not in platform_api mode', async () => {
+test('platform API routes reject requests when paracosmRoutesEnabled is false (hosted_demo default)', async () => {
   const server = createMarsServer({
     env: { ...process.env, PARACOSM_HOSTED_DEMO: 'true' },
     runPairSimulations: async () => {},
@@ -383,9 +443,31 @@ test('platform API routes reject requests when the server is not in platform_api
     const res = await fetch(`http://127.0.0.1:${port}/api/v1/runs`);
     assert.equal(res.status, 403);
     assert.deepEqual(await res.json(), {
-      error: 'platform_api_only',
-      mode: 'hosted_demo',
+      error: 'run_history_routes_disabled',
     });
+  } finally {
+    server.close();
+    await once(server, 'close');
+  }
+});
+
+test('platform API routes serve when PARACOSM_ENABLE_RUN_HISTORY_ROUTES=true overrides hosted_demo default', async () => {
+  const server = createMarsServer({
+    env: { ...process.env, PARACOSM_HOSTED_DEMO: 'true', PARACOSM_ENABLE_RUN_HISTORY_ROUTES: 'true' },
+    runPairSimulations: async () => {},
+  });
+
+  server.listen(0);
+  await once(server, 'listening');
+  const address = server.address();
+  const port = typeof address === 'object' && address ? address.port : 0;
+
+  try {
+    const res = await fetch(`http://127.0.0.1:${port}/api/v1/runs`);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.ok('runs' in body);
+    assert.ok('total' in body);
   } finally {
     server.close();
     await once(server, 'close');

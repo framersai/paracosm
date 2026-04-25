@@ -22,6 +22,7 @@ import { EventLogPanel } from './components/log/EventLogPanel';
 import { BranchesProvider } from './components/branches/BranchesContext';
 import { BranchesSyncer } from './components/branches/BranchesSyncer';
 import { BranchesTab } from './components/branches/BranchesTab';
+import { LibraryTab } from './components/library/index.js';
 import { QuickstartView } from './components/quickstart/QuickstartView';
 import { useCitationRegistry, CitationRegistryContext } from './hooks/useCitationRegistry';
 import { useToolRegistry, ToolRegistryContext } from './hooks/useToolRegistry';
@@ -611,6 +612,8 @@ function AppContent() {
             {activeTab === 'reports' && <ReportView state={gameState} verdict={sse.verdict} reportSections={scenario.ui.reportSections} />}
 
             {activeTab === 'branches' && <BranchesTab />}
+
+            {activeTab === 'library' && <LibraryTab />}
 
             {/* ChatPanel stays mounted across tab switches so per-agent
                 message threads survive when the user jumps to Sim / Reports

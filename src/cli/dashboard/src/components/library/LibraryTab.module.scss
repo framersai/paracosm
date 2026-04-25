@@ -1,0 +1,65 @@
+.tab {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: var(--bg-deep);
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.title {
+  font-family: var(--mono);
+  font-size: 1.4rem;
+  color: var(--amber);
+  margin: 0;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.viewToggle {
+  display: flex;
+  gap: 0.25rem;
+  background: var(--bg-card);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  padding: 0.25rem;
+}
+
+.viewBtn,
+.viewActive {
+  background: transparent;
+  border: 0;
+  padding: 0.4rem 0.85rem;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-3);
+  font-size: 0.85rem;
+  font-family: var(--sans);
+  transition: color 200ms ease, background 200ms ease;
+}
+
+.viewBtn:hover {
+  color: var(--text-1);
+}
+
+.viewActive {
+  background: var(--bg-elevated);
+  color: var(--text-1);
+}
+
+.error {
+  background: rgba(224, 101, 48, 0.08);
+  border: 1px solid var(--rust);
+  border-radius: 8px;
+  padding: 1rem;
+  color: var(--rust);
+  font-size: 0.9rem;
+}
