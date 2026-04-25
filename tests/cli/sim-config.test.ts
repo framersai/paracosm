@@ -5,7 +5,7 @@ import { normalizeSimulationConfig, resolveSimulationModels } from '../../src/cl
 const leaderA = {
   name: 'A',
   archetype: 'One',
-  colony: 'Alpha',
+  unit: 'Alpha',
   hexaco: {
     openness: 0.5,
     conscientiousness: 0.5,
@@ -20,7 +20,7 @@ const leaderA = {
 const leaderB = {
   name: 'B',
   archetype: 'Two',
-  colony: 'Beta',
+  unit: 'Beta',
   hexaco: {
     openness: 0.5,
     conscientiousness: 0.5,

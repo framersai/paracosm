@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { generateValidatedCode } from '../../../src/engine/compiler/llm-invocations/generateValidatedCode.js';
+import type { GenerateTextFn } from '../../../src/engine/compiler/types.js';
 
 type ProbeFn = () => string;
 
@@ -35,7 +36,7 @@ test('retry prompt includes previous smokeTest error as negative feedback', asyn
     fallback: () => 'fallback',
     fallbackSource: '() => "fallback"',
     maxRetries: 3,
-    generateText: generateText as unknown as typeof generateText,
+    generateText: generateText as unknown as GenerateTextFn,
   });
 
   assert.equal(result.fromFallback, false);
@@ -75,7 +76,7 @@ test('retry prompt prior-output excerpt truncates long output from the end', asy
     fallback: () => 'fb',
     fallbackSource: '',
     maxRetries: 3,
-    generateText: generateText as unknown as typeof generateText,
+    generateText: generateText as unknown as GenerateTextFn,
   });
 
   // Retry prompt includes the tail 2000 chars of the prior output,
@@ -100,7 +101,7 @@ test('no retry prompt modification when attempt 1 succeeds', async () => {
     fallback: () => 'fb',
     fallbackSource: '',
     maxRetries: 3,
-    generateText: generateText as unknown as typeof generateText,
+    generateText: generateText as unknown as GenerateTextFn,
   });
   assert.equal(result.fromFallback, false);
   assert.equal(result.attempts, 1);
@@ -124,7 +125,7 @@ test('after maxRetries all failures, fallback is returned with failedReason surf
     fallback: () => 'fallback-value',
     fallbackSource: '() => "fallback-value"',
     maxRetries: 3,
-    generateText: generateText as unknown as typeof generateText,
+    generateText: generateText as unknown as GenerateTextFn,
   });
 
   assert.equal(result.fromFallback, true);

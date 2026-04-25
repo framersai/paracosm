@@ -23,8 +23,8 @@ const hexacoDefault = {
 };
 
 const twoLeaders = [
-  { name: 'Leader A', archetype: 'cautious', colony: 'alpha', hexaco: hexacoDefault, instructions: '' },
-  { name: 'Leader B', archetype: 'aggressive', colony: 'beta', hexaco: hexacoDefault, instructions: '' },
+  { name: 'Leader A', archetype: 'cautious', unit: 'alpha', hexaco: hexacoDefault, instructions: '' },
+  { name: 'Leader B', archetype: 'aggressive', unit: 'beta', hexaco: hexacoDefault, instructions: '' },
 ];
 
 test('inference: user supplies only Anthropic key → provider is anthropic', () => {

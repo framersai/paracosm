@@ -248,7 +248,7 @@ test('detectBoundaries: filters boundaries below EARLIEST_BOUNDARY_MAJOR_MINOR',
   const boundaries = detectBoundaries({ runGit: mockGit });
   assert.equal(boundaries.length, 2, '0.3.0 and 0.2.0 filtered by EARLIEST');
   assert.deepEqual(
-    boundaries.map(b => b.version),
+    boundaries.map((b: any) => b.version),
     ['0.5.0', '0.4.0'],
   );
 });
@@ -287,7 +287,7 @@ test('sliceCommits: filters bot-authored commits', () => {
   const commits = sliceCommits('prev', 'curr', { runGit: mockGit });
   assert.equal(commits.length, 2, 'bot commit filtered');
   assert.deepEqual(
-    commits.map(c => c.subject),
+    commits.map((c: any) => c.subject),
     ['feat: real work', 'fix: another real fix'],
   );
 });

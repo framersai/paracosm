@@ -13,13 +13,13 @@ test('buildTrajectoryCue returns empty string when history has no baseline', () 
 });
 
 test('buildTrajectoryCue returns empty string when drift below threshold', () => {
-  const history: HexacoSnapshot[] = [{ turn: 0, year: 2040, hexaco: baseline }];
+  const history: HexacoSnapshot[] = [{ turn: 0, time: 2040, hexaco: baseline }];
   const current = { ...baseline, openness: 0.52 };
   assert.equal(buildTrajectoryCue(history, current), '');
 });
 
 test('buildTrajectoryCue fires "measurably" when drift >= 0.05 and < 0.15', () => {
-  const history: HexacoSnapshot[] = [{ turn: 0, year: 2040, hexaco: baseline }];
+  const history: HexacoSnapshot[] = [{ turn: 0, time: 2040, hexaco: baseline }];
   const current = { ...baseline, openness: 0.58 };
   const cue = buildTrajectoryCue(history, current);
   assert.match(cue, /measurably/);
@@ -28,7 +28,7 @@ test('buildTrajectoryCue fires "measurably" when drift >= 0.05 and < 0.15', () =
 });
 
 test('buildTrajectoryCue fires "substantially" when drift >= 0.15', () => {
-  const history: HexacoSnapshot[] = [{ turn: 0, year: 2040, hexaco: baseline }];
+  const history: HexacoSnapshot[] = [{ turn: 0, time: 2040, hexaco: baseline }];
   const current = { ...baseline, openness: 0.70 };
   const cue = buildTrajectoryCue(history, current);
   assert.match(cue, /substantially/);
@@ -36,14 +36,14 @@ test('buildTrajectoryCue fires "substantially" when drift >= 0.15', () => {
 });
 
 test('buildTrajectoryCue fires "away from" on negative drift', () => {
-  const history: HexacoSnapshot[] = [{ turn: 0, year: 2040, hexaco: baseline }];
+  const history: HexacoSnapshot[] = [{ turn: 0, time: 2040, hexaco: baseline }];
   const current = { ...baseline, conscientiousness: 0.35 };
   const cue = buildTrajectoryCue(history, current);
   assert.match(cue, /away from higher conscientiousness/);
 });
 
 test('buildTrajectoryCue joins multiple drifted traits with "and"', () => {
-  const history: HexacoSnapshot[] = [{ turn: 0, year: 2040, hexaco: baseline }];
+  const history: HexacoSnapshot[] = [{ turn: 0, time: 2040, hexaco: baseline }];
   const current = { ...baseline, openness: 0.70, conscientiousness: 0.35 };
   const cue = buildTrajectoryCue(history, current);
   assert.match(cue, /openness/);
@@ -52,7 +52,7 @@ test('buildTrajectoryCue joins multiple drifted traits with "and"', () => {
 });
 
 test('buildTrajectoryCue renames honestyHumility to honesty-humility', () => {
-  const history: HexacoSnapshot[] = [{ turn: 0, year: 2040, hexaco: baseline }];
+  const history: HexacoSnapshot[] = [{ turn: 0, time: 2040, hexaco: baseline }];
   const current = { ...baseline, honestyHumility: 0.70 };
   const cue = buildTrajectoryCue(history, current);
   assert.match(cue, /honesty-humility/);

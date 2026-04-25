@@ -232,8 +232,9 @@ test('POST /setup normalizes config and hands it to the simulation runner', asyn
     assert.equal(cfg.models.commander, 'claude-haiku-4-5-20251001');
     assert.equal(cfg.economics.id, 'balanced');
     assert.equal(cfg.customEvents[0].title, 'Blackout');
-    assert.equal(capturedRun!.economicsProfile, 'balanced');
-    assert.equal(capturedRun!.sourceMode, 'local_demo');
+    const run = capturedRun as RunRecord;
+    assert.equal(run.economicsProfile, 'balanced');
+    assert.equal(run.sourceMode, 'local_demo');
   } finally {
     server.close();
     await once(server, 'close');

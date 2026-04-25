@@ -1,4 +1,4 @@
-(ctx) => {
+(ctx: any) => {
   for (const c of ctx.agents) {
     if (!c.health.alive) continue;
     if (ctx.state.colony.foodMonthsReserve < 1) {

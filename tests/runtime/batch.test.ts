@@ -12,7 +12,7 @@ test('BatchConfig accepts both mars and lunar scenarios', () => {
   const config: BatchConfig = {
     scenarios: [marsScenario, lunarScenario],
     leaders: [
-      { name: 'Test Leader', archetype: 'Test', colony: 'Test', hexaco: { openness: 0.5, conscientiousness: 0.5, extraversion: 0.5, agreeableness: 0.5, emotionality: 0.5, honestyHumility: 0.5 }, instructions: 'Test' },
+      { name: 'Test Leader', archetype: 'Test', unit: 'Test', hexaco: { openness: 0.5, conscientiousness: 0.5, extraversion: 0.5, agreeableness: 0.5, emotionality: 0.5, honestyHumility: 0.5 }, instructions: 'Test' },
     ],
     turns: 3,
     seed: 100,
@@ -26,7 +26,7 @@ test('BatchConfig accepts both mars and lunar scenarios', () => {
 test('BatchManifest type has correct shape', () => {
   const manifest: BatchManifest = {
     timestamp: new Date().toISOString(),
-    config: { scenarioIds: ['mars-genesis', 'lunar-outpost'], leaders: ['A', 'B'], turns: 3, seed: 100 },
+    config: { scenarioIds: ['mars-genesis', 'lunar-outpost'], leaders: ['A', 'B'], turns: 3, seed: 100, maxConcurrency: 1 },
     results: [],
     totalDuration: 0,
   };
