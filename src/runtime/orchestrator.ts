@@ -109,7 +109,7 @@ export interface SimEventPayloadMap {
     category?: string;
     births?: number;
     deaths?: number;
-    systems?: Record<string, number>;
+    metrics?: Record<string, number>;
     emergent?: boolean;
     turnSummary?: string;
     totalEvents?: number;
@@ -164,7 +164,7 @@ export interface SimEventPayloadMap {
     selectedOptionId?: string;
     eventIndex: number;
   };
-  /** Outcome classification + numerical deltas applied to the systems state bag. */
+  /** Outcome classification + numerical deltas applied to the metrics state bag. */
   outcome: {
     outcome: 'risky_success' | 'risky_failure' | 'conservative_success' | 'conservative_failure' | string;
     category: string;
@@ -180,7 +180,7 @@ export interface SimEventPayloadMap {
   bulletin: { posts: unknown[] };
   /** End of turn. Carries applied deltas + cumulative tool count + death-cause breakdown when relevant. */
   turn_done: {
-    systems: Record<string, number>;
+    metrics: Record<string, number>;
     statuses?: Record<string, string | boolean>;
     environment?: Record<string, number | string | boolean>;
     toolsForged: number;
@@ -213,7 +213,7 @@ export interface SimEventPayloadMap {
   sim_aborted: {
     reason: string;
     completedTurns: number;
-    systems: Record<string, number>;
+    metrics: Record<string, number>;
     toolsForged: number;
   };
 }
@@ -308,9 +308,9 @@ export function buildEventSummary(type: SimEventType, data: Record<string, unkno
       return `bulletin: ${n} post${n === 1 ? '' : 's'}`;
     }
     case 'turn_done': {
-      const systems = d.metrics as { population?: number; morale?: number } | undefined;
-      const pop = systems?.population;
-      const mor = systems?.morale;
+      const metrics = d.metrics as { population?: number; morale?: number } | undefined;
+      const pop = metrics?.population;
+      const mor = metrics?.morale;
       if (pop != null && mor != null) {
         return `turn complete — pop ${pop}, morale ${Math.round(Number(mor) * 100)}%`;
       }
@@ -707,7 +707,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
 
   // Captured forge events keyed by department. Each `wrapForgeTool` push
   // here on every successful or failed forge; we drain the dept's bucket
-  // around each `dept_done` emit to attribute forges to the right event.
+    // around each specialist completion emit to attribute forges to the right event.
   // This is the source of truth — the LLM's self-reported `forgedToolsUsed`
   // is supplementary because it frequently omits tools it actually forged.
   const deptForgeBuckets = new Map<Department, CapturedForge[]>();
@@ -728,7 +728,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     // name.
     costTracker.recordForgeAttempt(record.approved, record.confidence, record.name, record.errorReason);
     // Real-time SSE so the dashboard can render an animated card the
-    // moment a forge happens, instead of waiting for the dept_done summary.
+    // moment a forge happens, instead of waiting for the specialist summary.
     const inputProps = (record.inputSchema && typeof record.inputSchema === 'object' && (record.inputSchema as any).properties)
       ? Object.keys((record.inputSchema as any).properties)
       : [];
@@ -793,7 +793,7 @@ Before every analysis, READ the ALREADY-FORGED TOOLS block carefully. Ask:
 
 Forge when quantitative reasoning is needed and the toolbox has no applicable tool for it. Reuse when the toolbox already covers the question. Your personality profile above shapes how aggressive you are on either side of that line.
 
-The implementation of forged tools runs in a sandboxed V8 isolate (10s timeout, 128MB memory, no network unless allowlisted). An LLM judge reviews your tool for safety AND CORRECTNESS before it executes.
+The implementation of forged tools runs in a hardened node:vm sandbox (10s timeout, heap usage observed but not preemptively capped, no network unless allowlisted). An LLM judge reviews your tool for safety AND CORRECTNESS before it executes.
 
 HARD RULES — if you violate any of these, a local validator rejects the forge BEFORE the judge sees it and you waste the attempt:
 
@@ -964,7 +964,7 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
         turn, time,
         reason: 'client_disconnected',
         completedTurns: turn - 1,
-        systems: kernel.getState().metrics,
+        metrics: kernel.getState().metrics,
         toolsForged: Object.values(toolRegs).flat().length,
       });
       break;
@@ -987,7 +987,7 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
         const st = kernel.getState();
         emit('turn_done', {
           turn, time,
-          systems: st.metrics,
+          metrics: st.metrics,
           statuses: Object.keys(st.statuses).length > 0 ? { ...st.statuses } : undefined,
           environment: Object.keys(st.environment).length > 0 ? { ...st.environment } : undefined,
           toolsForged: Object.values(toolRegs).flat().length,
@@ -1038,7 +1038,7 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
         knowledgeTopics: Object.keys(sc.knowledge?.topics ?? {}),
         knowledgeCategories: Object.keys(sc.knowledge?.categoryMapping ?? {}),
       };
-      emit('turn_start', { turn, time, title: 'Director generating...', crisis: '', births: 0, deaths: 0, systems: preState.metrics });
+      emit('turn_start', { turn, time, title: 'Director generating...', crisis: '', births: 0, deaths: 0, metrics: preState.metrics });
       // Abort gate: if the client already left during the gap between
       // the kernel advance and the director call, skip the director's
       // flagship LLM call. The inner event loop then has nothing to
@@ -1082,7 +1082,7 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
     console.log(`  Turn ${turn}/${maxTurns}. ${TimeNoun} ${time}: ${turnEvents.length} event(s) [${milestone ? 'MILESTONE' : 'EMERGENT'}]`);
     console.log(`${'─'.repeat(50)}`);
 
-    emit('turn_start', { turn, time, title: turnEvents[0]?.title || '', crisis: turnEvents[0]?.description?.slice(0, 200) || '', category: turnEvents[0]?.category || '', births, deaths, systems: state.metrics, emergent: !milestone, turnSummary: turnEvents[0]?.turnSummary || '', totalEvents: turnEvents.length, pacing: batchPacing });
+    emit('turn_start', { turn, time, title: turnEvents[0]?.title || '', crisis: turnEvents[0]?.description?.slice(0, 200) || '', category: turnEvents[0]?.category || '', births, deaths, metrics: state.metrics, emergent: !milestone, turnSummary: turnEvents[0]?.turnSummary || '', totalEvents: turnEvents.length, pacing: batchPacing });
 
     // ── Inner event loop ──────────────────────────────────────────────
     let reactions: import('./agent-reactions.js').AgentReaction[] = [];
@@ -1193,7 +1193,7 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
         const ctx = baseCtx + bootstrapDirective + availableToolsBlock;
         emit('specialist_start', { turn, time, department: dept, eventIndex: ei });
         // Snapshot the dept's forge bucket index BEFORE the LLM call so we
-        // can attribute new forges to this specific dept_done. The LLM
+        // can attribute new forges to this specific specialist completion. The LLM
         // self-reports `forgedToolsUsed` in JSON but frequently omits tools
         // it actually forged — captured forges below are authoritative.
         const forgeBucketStart = deptForgeBuckets.get(dept)?.length ?? 0;
@@ -1742,7 +1742,7 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
       commanderDecision: mergedDecision,
       policyEffectsApplied: turnPolicyEffects.slice(),
       stateSnapshotAfter: {
-        // Metrics: systems bag (Mars heritage: population, morale, food,
+        // Metrics bag (Mars heritage: population, morale, food,
         // infra, science, etc) plus births/deaths computed ad-hoc this
         // turn. Declared capacities remain in metrics for back-compat
         // and are also projected into `capacities` below.
@@ -1778,7 +1778,7 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
     }
     emit('turn_done', {
       turn, time,
-      systems: after.metrics,
+      metrics: after.metrics,
       statuses: Object.keys(after.statuses).length > 0 ? { ...after.statuses } : undefined,
       environment: Object.keys(after.environment).length > 0 ? { ...after.environment } : undefined,
       toolsForged: Object.values(toolRegs).flat().length,
@@ -1868,7 +1868,7 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
         const st = kernel.getState();
         emit('turn_done', {
           turn, time,
-          systems: st.metrics,
+          metrics: st.metrics,
           statuses: Object.keys(st.statuses).length > 0 ? { ...st.statuses } : undefined,
           environment: Object.keys(st.environment).length > 0 ? { ...st.environment } : undefined,
           toolsForged: Object.values(toolRegs).flat().length,
@@ -2029,4 +2029,104 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
   await commander.close();
   for (const a of deptAgents.values()) await a.close();
   return output;
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Replay
+// ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Thrown by {@link replaySimulation} when the input artifact lacks the
+ * preconditions for deterministic replay (missing per-turn kernel
+ * snapshots, missing recorded decisions, or a scenario id mismatch).
+ */
+export class WorldModelReplayError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'WorldModelReplayError';
+  }
+}
+
+/**
+ * Re-execute the kernel transitions captured in a stored RunArtifact.
+ *
+ * Implementation note (2026-04-25): the v1 replay is a kernel
+ * progression-hook re-execution. It restores the kernel from each
+ * recorded snapshot and re-runs `advanceTurn` between snapshots,
+ * capturing fresh snapshots produced by the current kernel code. The
+ * caller compares fresh snapshots to the input artifact's snapshots
+ * (via canonicalJson on the kernelSnapshotsPerTurn arrays) to verify
+ * kernel determinism: byte-equal arrays prove the progression hook is
+ * unchanged since the original run.
+ *
+ * Out of scope for v1: re-applying recorded decisions via
+ * `kernel.applyPolicy()`. The orchestrator's policy-application path
+ * requires the full department reports, which the public RunArtifact
+ * does not preserve in the shape `decisionToPolicy()` expects. A
+ * follow-up spec adds policy replay once department reports are
+ * normalized into a replay-ready shape on the artifact.
+ *
+ * Used by {@link WorldModel.replay}. Direct callers should prefer the
+ * façade method.
+ *
+ * @param scenario The compiled scenario the artifact was produced from.
+ *                 Must match `artifact.metadata.scenario.id`.
+ * @param artifact The stored RunArtifact to replay.
+ * @returns A fresh RunArtifact with kernelSnapshotsPerTurn produced by
+ *          the current code's kernel. Other fields copy from the input.
+ * @throws WorldModelReplayError when preconditions are not met.
+ */
+export async function replaySimulation(
+  scenario: ScenarioPackage,
+  artifact: RunArtifact,
+): Promise<RunArtifact> {
+  if (artifact.metadata.scenario.id !== scenario.id) {
+    throw new WorldModelReplayError(
+      `Scenario id mismatch: artifact was produced from '${artifact.metadata.scenario.id}' ` +
+      `but replay is being attempted against '${scenario.id}'. Cross-scenario replay is not supported.`,
+    );
+  }
+
+  const inputSnaps = (artifact.scenarioExtensions as { kernelSnapshotsPerTurn?: import('../engine/core/snapshot.js').KernelSnapshot[] } | undefined)?.kernelSnapshotsPerTurn;
+  if (!inputSnaps || inputSnaps.length === 0) {
+    throw new WorldModelReplayError(
+      `Replay requires per-turn kernel snapshots. The input artifact has none. ` +
+      `Re-run the original simulation with \`captureSnapshots: true\` on the RunOptions ` +
+      `to enable replay on the resulting artifact.`,
+    );
+  }
+
+  const recordedDecisions = artifact.decisions;
+  if (!recordedDecisions || recordedDecisions.length === 0) {
+    throw new WorldModelReplayError(
+      `Replay requires recorded decisions on the input artifact. ` +
+      `The supplied artifact's \`decisions\` field is empty or missing.`,
+    );
+  }
+
+  // Re-execute the deterministic between-turn progression hook from
+  // each snapshot to the next. Fresh snapshots are captured immediately
+  // after each advanceTurn call.
+  const freshSnapshots: import('../engine/core/snapshot.js').KernelSnapshot[] = [inputSnaps[0]];
+  for (let i = 0; i < inputSnaps.length - 1; i++) {
+    const here = inputSnaps[i];
+    const next = inputSnaps[i + 1];
+    const kernel = SimulationKernel.fromSnapshot(here, scenario.id);
+    kernel.advanceTurn(next.turn, next.time, scenario.hooks?.progressionHook);
+    freshSnapshots.push(kernel.toSnapshot(scenario.id));
+  }
+
+  const freshRunId = `replay-${artifact.metadata.runId}-${Date.now().toString(36)}`;
+  const freshArtifact: RunArtifact = {
+    ...artifact,
+    metadata: {
+      ...artifact.metadata,
+      runId: freshRunId,
+    },
+    scenarioExtensions: {
+      ...(artifact.scenarioExtensions ?? {}),
+      kernelSnapshotsPerTurn: freshSnapshots,
+    },
+  };
+  return freshArtifact;
 }
