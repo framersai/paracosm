@@ -505,6 +505,10 @@ Throws `WorldModelReplayError` when either is missing or when the artifact's sce
 
 Scope note: v1 replay re-runs `advanceTurn` only. Re-applying recorded decisions via `kernel.applyPolicy` is a follow-up once the public RunArtifact preserves enough department-report context for `decisionToPolicy` to reconstruct PolicyEffects faithfully.
 
+#### HTTP surface
+
+The HTTP surface for replay is `POST /api/v1/runs/:runId/replay` on the dashboard server. The endpoint loads the stored artifact via `record.artifactPath`, looks up the original scenario via the in-memory catalog, constructs a `WorldModel`, calls `WorldModel.replay(artifact)`, and persists the outcome via `runHistoryStore.recordReplayResult(runId, matches)`. Returns `{ matches: boolean, divergence: string }` on 200, structured errors on 404 / 410 / 422. The client-side hook is `src/cli/dashboard/src/components/library/hooks/useReplayRun.ts`.
+
 ### Digital-twin subpath (T5.4)
 
 ```typescript
