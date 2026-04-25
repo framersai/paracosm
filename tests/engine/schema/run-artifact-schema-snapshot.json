@@ -1,0 +1,25 @@
+{
+  "comment": "Schema snapshot for the breaking-change gate test. Regenerate via `npm run snapshot:schema`.",
+  "schemaVersion": 5,
+  "shape": {
+    "aborted": "optional(boolean)",
+    "assumptions": "optional(array(string))",
+    "citations": "optional(array(object(...)))",
+    "cost": "optional(object{breakdown:optional(record);cacheSavingsUSD:optional(number);cachedReadTokens:optional(number);inputTokens:optional(number);llmCalls:optional(number);outputTokens:optional(number);totalUSD:number})",
+    "decisions": "optional(array(object(...)))",
+    "disclaimer": "optional(string)",
+    "finalState": "optional(object{capacities:optional(record);environment:optional(record);metrics:record;politics:optional(record);scenarioExtensions:optional(record);statuses:optional(record)})",
+    "fingerprint": "optional(record)",
+    "forgedTools": "optional(array(object(...)))",
+    "intervention": "optional(object{adherenceProfile:optional(object(...));category:optional(string);description:string;duration:optional(object(...));id:string;mechanism:optional(string);name:string;scenarioExtensions:optional(record);targetBehaviors:optional(array(string))})",
+    "leveragePoints": "optional(array(string))",
+    "metadata": "object{completedAt:optional(string);forkedFrom:optional(object(...));mode:enum;runId:string;scenario:object{id:string;name:string;version:optional(string)};scenarioExtensions:optional(record);seed:optional(number);startedAt:string}",
+    "overview": "optional(string)",
+    "providerError": "optional(nullable(object(...)))",
+    "riskFlags": "optional(array(object(...)))",
+    "scenarioExtensions": "optional(record)",
+    "specialistNotes": "optional(array(object(...)))",
+    "subject": "optional(object{conditions:optional(array(string));id:string;markers:optional(array(object(...)));name:string;personality:optional(record);profile:optional(record);scenarioExtensions:optional(record);signals:optional(array(object(...)))})",
+    "trajectory": "optional(object{points:optional(array(object(...)));timeUnit:object(...);timepoints:optional(array(object(...)))})"
+  }
+}
