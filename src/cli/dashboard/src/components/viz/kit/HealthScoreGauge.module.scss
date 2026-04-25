@@ -1,0 +1,35 @@
+.gauge {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  align-items: stretch;
+
+  &.sm { width: 80px; }
+  &.md { width: 120px; }
+  &.lg { width: 200px; }
+}
+
+.label {
+  font-size: 0.7rem;
+  color: var(--paracosm-text-muted, #888);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.value {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--paracosm-text, #eee);
+}
+
+.svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.fill {
+  &[data-color="ok"]       { fill: var(--metric-ok, #4ca8a8); }
+  &[data-color="warn"]     { fill: var(--metric-warn, #e8b44a); }
+  &[data-color="critical"] { fill: var(--metric-critical, #e06530); }
+}

@@ -1,0 +1,32 @@
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.empty {
+  font-size: 0.85rem;
+  color: var(--paracosm-text-muted, #888);
+  font-style: italic;
+}
+
+.flag {
+  padding: 0.35rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  &[data-severity="critical"] { background: rgba(224, 101, 48, 0.18); color: var(--metric-critical, #e06530); }
+  &[data-severity="high"]     { background: rgba(232, 180, 74, 0.18); color: var(--metric-warn, #e8b44a); }
+  &[data-severity="medium"]   { background: rgba(76, 168, 168, 0.14); color: var(--metric-ok, #4ca8a8); }
+  &[data-severity="low"]      { background: rgba(255, 255, 255, 0.04); color: var(--paracosm-text-muted, #888); }
+}
+
+.detail {
+  margin-top: 0.25rem;
+  margin-left: 1.25rem;
+  font-size: 0.8rem;
+  color: var(--paracosm-text-muted, #888);
+}
