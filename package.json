@@ -67,7 +67,7 @@
     "dashboard:smoke": "npx tsx src/cli/serve.ts 3",
     "compile": "npx tsx src/cli/compile.ts",
     "check:dashboard": "node --check src/cli/dashboard/main.legacy.js",
-    "test": "node --import tsx --test 'tests/**/*.test.ts' 'src/cli/dashboard/src/**/*.test.ts'",
+    "test": "node --import tsx --import ./scripts/test-css-stub.mjs --test 'tests/**/*.test.ts' 'src/cli/dashboard/src/**/*.test.ts' 'src/cli/dashboard/src/**/*.test.tsx'",
     "docs": "typedoc && cp assets/docs-theme/paracosm-override.css docs/api/assets/paracosm-override.css",
     "changelog": "node scripts/generate-changelog.mjs",
     "export:json-schema": "npx tsx scripts/export-json-schema.ts",
