@@ -787,7 +787,13 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
     if (handlePublicDemoRoute(serverMode, req, res, corsHeaders)) {
       return;
     }
-    if (await handlePlatformApiRoute(serverMode, req, res, { runHistoryStore, corsHeaders })) {
+    const runHistoryRoutesDefault = serverMode !== 'hosted_demo';
+    const runHistoryEnvFlag = (env.PARACOSM_ENABLE_RUN_HISTORY_ROUTES ?? '').toLowerCase();
+    const paracosmRoutesEnabled =
+      runHistoryEnvFlag === 'true' ? true :
+      runHistoryEnvFlag === 'false' ? false :
+      runHistoryRoutesDefault;
+    if (await handlePlatformApiRoute(req, res, { runHistoryStore, corsHeaders, paracosmRoutesEnabled })) {
       return;
     }
 

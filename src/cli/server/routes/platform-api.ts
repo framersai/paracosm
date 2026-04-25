@@ -19,29 +19,45 @@ function clampOffset(raw: string | null): number {
   return Math.floor(n);
 }
 
+async function readBody(req: IncomingMessage): Promise<string> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of req) chunks.push(chunk as Buffer);
+  return Buffer.concat(chunks).toString('utf-8');
+}
+
+export interface HandlePlatformApiOptions {
+  runHistoryStore: RunHistoryStore;
+  corsHeaders: Record<string, string>;
+  /**
+   * When false, every /api/v1/runs* route returns 403. When true, the
+   * routes serve normally. Configured at server-app caller via
+   * PARACOSM_ENABLE_RUN_HISTORY_ROUTES env var; default true except in
+   * hosted_demo (where the public-demo billing surface should not expose
+   * run-history without explicit opt-in).
+   */
+  paracosmRoutesEnabled: boolean;
+}
+
 export async function handlePlatformApiRoute(
-  mode: ParacosmServerMode,
   req: IncomingMessage,
   res: ServerResponse,
-  options: {
-    runHistoryStore: RunHistoryStore;
-    corsHeaders: Record<string, string>;
-  },
+  options: HandlePlatformApiOptions,
 ): Promise<boolean> {
   const url = req.url ? new URL(req.url, 'http://localhost') : null;
   if (!url || !url.pathname.startsWith('/api/v1/')) return false;
   if (url.pathname === '/api/v1/demo/status') return false;
 
-  if (mode !== 'platform_api') {
+  if (!options.paracosmRoutesEnabled) {
     res.writeHead(403, {
       'Content-Type': 'application/json',
       ...options.corsHeaders,
     });
-    res.end(JSON.stringify({ error: 'platform_api_only', mode }));
+    res.end(JSON.stringify({ error: 'run_history_routes_disabled' }));
     return true;
   }
 
   try {
+    // GET /api/v1/runs — list with filters + pagination
     if (url.pathname === '/api/v1/runs' && req.method === 'GET') {
       const modeParam = url.searchParams.get('mode');
       const sourceModeParam = url.searchParams.get('sourceMode');
@@ -73,6 +89,74 @@ export async function handlePlatformApiRoute(
         ...options.corsHeaders,
       });
       res.end(JSON.stringify({ runs, total, hasMore }));
+      return true;
+    }
+
+    // GET /api/v1/runs/aggregate — must precede the :runId match below.
+    if (url.pathname === '/api/v1/runs/aggregate' && req.method === 'GET') {
+      const modeParam = url.searchParams.get('mode');
+      const sourceModeParam = url.searchParams.get('sourceMode');
+      const aggFilters = {
+        mode: (modeParam === 'turn-loop' || modeParam === 'batch-trajectory' || modeParam === 'batch-point')
+          ? (modeParam as 'turn-loop' | 'batch-trajectory' | 'batch-point')
+          : undefined,
+        sourceMode: sourceModeParam ? (sourceModeParam as ParacosmServerMode) : undefined,
+        scenarioId: url.searchParams.get('scenario') ?? undefined,
+        leaderConfigHash: url.searchParams.get('leader') ?? undefined,
+      };
+      const stats = options.runHistoryStore.aggregateStats
+        ? await options.runHistoryStore.aggregateStats(aggFilters)
+        : { totalRuns: 0, totalCostUSD: 0, totalDurationMs: 0, replaysAttempted: 0, replaysMatched: 0 };
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        ...options.corsHeaders,
+      });
+      res.end(JSON.stringify(stats));
+      return true;
+    }
+
+    // POST /api/v1/runs/:runId/replay-result — increment counters
+    const replayMatch = url.pathname.match(/^\/api\/v1\/runs\/([^/]+)\/replay-result$/);
+    if (replayMatch && req.method === 'POST') {
+      const runId = decodeURIComponent(replayMatch[1]);
+      const body = JSON.parse(await readBody(req)) as { matches: boolean };
+      if (typeof body?.matches !== 'boolean') {
+        res.writeHead(400, { 'Content-Type': 'application/json', ...options.corsHeaders });
+        res.end(JSON.stringify({ error: 'matches must be a boolean' }));
+        return true;
+      }
+      await options.runHistoryStore.recordReplayResult?.(runId, body.matches);
+      res.writeHead(204, options.corsHeaders);
+      res.end();
+      return true;
+    }
+
+    // GET /api/v1/runs/:runId — load full RunArtifact via record.artifactPath
+    const detailMatch = url.pathname.match(/^\/api\/v1\/runs\/([^/]+)$/);
+    if (detailMatch && req.method === 'GET') {
+      const runId = decodeURIComponent(detailMatch[1]);
+      const record = await options.runHistoryStore.getRun(runId);
+      if (!record) {
+        res.writeHead(404, { 'Content-Type': 'application/json', ...options.corsHeaders });
+        res.end(JSON.stringify({ error: 'not_found', runId }));
+        return true;
+      }
+      if (!record.artifactPath) {
+        res.writeHead(410, { 'Content-Type': 'application/json', ...options.corsHeaders });
+        res.end(JSON.stringify({ error: 'artifact_unavailable', record }));
+        return true;
+      }
+      let artifact: unknown;
+      try {
+        const fs = await import('node:fs/promises');
+        artifact = JSON.parse(await fs.readFile(record.artifactPath, 'utf-8'));
+      } catch (err) {
+        res.writeHead(410, { 'Content-Type': 'application/json', ...options.corsHeaders });
+        res.end(JSON.stringify({ error: 'artifact_unreadable', record, message: String(err) }));
+        return true;
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json', ...options.corsHeaders });
+      res.end(JSON.stringify({ record, artifact }));
       return true;
     }
   } catch (error) {
