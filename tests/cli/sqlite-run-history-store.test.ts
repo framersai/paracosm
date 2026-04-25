@@ -54,7 +54,7 @@ test('listRuns filters by sourceMode', async () => {
   const store = createSqliteRunHistoryStore({ dbPath: ':memory:' });
   await store.insertRun(makeRun({ runId: 'r1', sourceMode: 'local_demo' }));
   await store.insertRun(makeRun({ runId: 'r2', sourceMode: 'platform_api' }));
-  const rows = await store.listRuns({ mode: 'platform_api' });
+  const rows = await store.listRuns({ sourceMode: 'platform_api' });
   assert.equal(rows.length, 1);
   assert.equal(rows[0].runId, 'r2');
 });
@@ -73,7 +73,7 @@ test('listRuns combines all three filters with AND semantics', async () => {
   await store.insertRun(makeRun({ runId: 'match', scenarioId: 'mars-genesis', sourceMode: 'platform_api', leaderConfigHash: 'leaders:abc' }));
   await store.insertRun(makeRun({ runId: 'wrong-scenario', scenarioId: 'lunar-outpost', sourceMode: 'platform_api', leaderConfigHash: 'leaders:abc' }));
   await store.insertRun(makeRun({ runId: 'wrong-mode', scenarioId: 'mars-genesis', sourceMode: 'local_demo', leaderConfigHash: 'leaders:abc' }));
-  const rows = await store.listRuns({ scenarioId: 'mars-genesis', mode: 'platform_api', leaderConfigHash: 'leaders:abc' });
+  const rows = await store.listRuns({ scenarioId: 'mars-genesis', sourceMode: 'platform_api', leaderConfigHash: 'leaders:abc' });
   assert.equal(rows.length, 1);
   assert.equal(rows[0].runId, 'match');
 });
@@ -147,4 +147,88 @@ test(':memory: path provides isolation between instances', async () => {
   await store1.insertRun(makeRun({ runId: 'in-store-1' }));
   const fromStore2 = await store2.listRuns();
   assert.equal(fromStore2.length, 0);
+});
+
+test('SqliteRunHistoryStore round-trips Library-tab denormalized fields', async () => {
+  const store = createSqliteRunHistoryStore({ dbPath: ':memory:' });
+  const record: RunRecord = {
+    runId: 'run_lib_1',
+    createdAt: new Date().toISOString(),
+    scenarioId: 'mars-genesis',
+    scenarioVersion: '0.7.0',
+    leaderConfigHash: 'leaders:abc123',
+    economicsProfile: 'balanced',
+    sourceMode: 'local_demo',
+    createdBy: 'anonymous',
+    artifactPath: '/tmp/run_lib_1.json',
+    costUSD: 0.42,
+    durationMs: 12345,
+    mode: 'batch-trajectory',
+    leaderName: 'Marcus Reinhardt',
+    leaderArchetype: 'pragmatist',
+  };
+  await store.insertRun(record);
+  const fetched = await store.getRun(record.runId);
+  assert.deepEqual(fetched, record);
+});
+
+test('listRuns filters by simulation mode (turn-loop vs batch-trajectory)', async () => {
+  const store = createSqliteRunHistoryStore({ dbPath: ':memory:' });
+  await store.insertRun(makeRun({ runId: 'sim-turn', mode: 'turn-loop' }));
+  await store.insertRun(makeRun({ runId: 'sim-batch', mode: 'batch-trajectory' }));
+  await store.insertRun(makeRun({ runId: 'sim-point', mode: 'batch-point' }));
+  const turn = await store.listRuns({ mode: 'turn-loop' });
+  assert.equal(turn.length, 1);
+  assert.equal(turn[0].runId, 'sim-turn');
+  const batch = await store.listRuns({ mode: 'batch-trajectory' });
+  assert.equal(batch.length, 1);
+  assert.equal(batch[0].runId, 'sim-batch');
+});
+
+test('listRuns filters by free-text q across scenario, leader, archetype', async () => {
+  const store = createSqliteRunHistoryStore({ dbPath: ':memory:' });
+  await store.insertRun(makeRun({ runId: 'mars-1', scenarioId: 'mars-genesis', leaderName: 'Ada', leaderArchetype: 'visionary' }));
+  await store.insertRun(makeRun({ runId: 'lunar-1', scenarioId: 'lunar-outpost', leaderName: 'Marcus', leaderArchetype: 'pragmatist' }));
+  const lunar = await store.listRuns({ q: 'lunar' });
+  assert.equal(lunar.length, 1);
+  assert.equal(lunar[0].runId, 'lunar-1');
+  const ada = await store.listRuns({ q: 'Ada' });
+  assert.equal(ada.length, 1);
+  assert.equal(ada[0].runId, 'mars-1');
+  const visionary = await store.listRuns({ q: 'visionary' });
+  assert.equal(visionary.length, 1);
+  assert.equal(visionary[0].runId, 'mars-1');
+});
+
+test('aggregateStats returns sums of cost + duration + replay counters across all runs', async () => {
+  const store = createSqliteRunHistoryStore({ dbPath: ':memory:' });
+  await store.insertRun(makeRun({ runId: 'a1', costUSD: 0.10, durationMs: 1000, mode: 'turn-loop' }));
+  await store.insertRun(makeRun({ runId: 'a2', costUSD: 0.20, durationMs: 2000, mode: 'batch-trajectory' }));
+  await store.insertRun(makeRun({ runId: 'a3', costUSD: 0.30, durationMs: 3000, mode: 'batch-trajectory' }));
+  const agg = await store.aggregateStats!();
+  assert.equal(agg.totalRuns, 3);
+  assert.ok(Math.abs(agg.totalCostUSD - 0.60) < 1e-9, `expected 0.60, got ${agg.totalCostUSD}`);
+  assert.equal(agg.totalDurationMs, 6000);
+  assert.equal(agg.replaysAttempted, 0);
+  assert.equal(agg.replaysMatched, 0);
+});
+
+test('aggregateStats filtered by mode returns subset sums', async () => {
+  const store = createSqliteRunHistoryStore({ dbPath: ':memory:' });
+  await store.insertRun(makeRun({ runId: 'b1', costUSD: 0.10, mode: 'turn-loop' }));
+  await store.insertRun(makeRun({ runId: 'b2', costUSD: 0.20, mode: 'batch-trajectory' }));
+  const agg = await store.aggregateStats!({ mode: 'batch-trajectory' });
+  assert.equal(agg.totalRuns, 1);
+  assert.ok(Math.abs(agg.totalCostUSD - 0.20) < 1e-9);
+});
+
+test('recordReplayResult increments replay_attempts always and replay_matches conditionally', async () => {
+  const store = createSqliteRunHistoryStore({ dbPath: ':memory:' });
+  await store.insertRun(makeRun({ runId: 'r-replay' }));
+  await store.recordReplayResult!('r-replay', true);
+  await store.recordReplayResult!('r-replay', false);
+  await store.recordReplayResult!('r-replay', true);
+  const agg = await store.aggregateStats!();
+  assert.equal(agg.replaysAttempted, 3);
+  assert.equal(agg.replaysMatched, 2);
 });

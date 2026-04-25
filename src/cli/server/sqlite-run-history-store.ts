@@ -13,7 +13,7 @@ import Database from 'better-sqlite3';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import type { RunRecord } from './run-record.js';
-import type { ListRunsFilters, RunHistoryStore } from './run-history-store.js';
+import type { ListRunsFilters, RunHistoryStore, RunsAggregate } from './run-history-store.js';
 
 export interface SqliteRunHistoryStoreOptions {
   dbPath: string;
@@ -41,10 +41,20 @@ interface RunRow {
   economics_profile: string;
   source_mode: string;
   created_by: string;
+  artifact_path: string | null;
+  cost_usd: number | null;
+  duration_ms: number | null;
+  mode: string | null;
+  leader_name: string | null;
+  leader_archetype: string | null;
+  replay_attempts: number | null;
+  replay_matches: number | null;
 }
 
 function rowToRecord(row: RunRow): RunRecord {
-  return {
+  // Omit undefined optional fields so deepEqual against records constructed
+  // without those fields succeeds. Spread only when value is non-null.
+  const record: RunRecord = {
     runId: row.run_id,
     createdAt: row.created_at,
     scenarioId: row.scenario_id,
@@ -54,6 +64,40 @@ function rowToRecord(row: RunRow): RunRecord {
     sourceMode: row.source_mode as RunRecord['sourceMode'],
     createdBy: row.created_by as RunRecord['createdBy'],
   };
+  if (row.artifact_path !== null) record.artifactPath = row.artifact_path;
+  if (row.cost_usd !== null) record.costUSD = row.cost_usd;
+  if (row.duration_ms !== null) record.durationMs = row.duration_ms;
+  if (row.mode !== null) record.mode = row.mode as RunRecord['mode'];
+  if (row.leader_name !== null) record.leaderName = row.leader_name;
+  if (row.leader_archetype !== null) record.leaderArchetype = row.leader_archetype;
+  return record;
+}
+
+/**
+ * Idempotent column-add migration. SQLite raises "duplicate column name"
+ * when the column already exists; we swallow that and propagate any other
+ * error. Called from the schema bootstrap on every store creation; safe
+ * to run repeatedly.
+ */
+function ensureRunsColumns(db: Database.Database): void {
+  const newCols: ReadonlyArray<readonly [string, string]> = [
+    ['artifact_path', 'TEXT'],
+    ['cost_usd', 'REAL'],
+    ['duration_ms', 'INTEGER'],
+    ['mode', 'TEXT'],
+    ['leader_name', 'TEXT'],
+    ['leader_archetype', 'TEXT'],
+    ['replay_attempts', 'INTEGER DEFAULT 0'],
+    ['replay_matches', 'INTEGER DEFAULT 0'],
+  ];
+  for (const [name, type] of newCols) {
+    try {
+      db.exec(`ALTER TABLE runs ADD COLUMN ${name} ${type};`);
+    } catch (err) {
+      const msg = String((err as Error).message ?? err);
+      if (!msg.includes('duplicate column name')) throw err;
+    }
+  }
 }
 
 export function createSqliteRunHistoryStore(options: SqliteRunHistoryStoreOptions): RunHistoryStore {
@@ -77,22 +121,59 @@ export function createSqliteRunHistoryStore(options: SqliteRunHistoryStoreOption
     CREATE INDEX IF NOT EXISTS idx_runs_leader_created    ON runs (leader_config_hash, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_runs_mode_created      ON runs (source_mode, created_at DESC);
   `);
+  ensureRunsColumns(db);
+  // Index for filtering by simulation mode (Library tab).
+  try {
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_runs_sim_mode_created ON runs (mode, created_at DESC);`);
+  } catch (err) {
+    // Index creation may fail if mode column was just added; ignore.
+    void err;
+  }
 
   const insertStmt = db.prepare(`
     INSERT OR IGNORE INTO runs
-      (run_id, created_at, scenario_id, scenario_version, leader_config_hash, economics_profile, source_mode, created_by)
+      (run_id, created_at, scenario_id, scenario_version, leader_config_hash,
+       economics_profile, source_mode, created_by,
+       artifact_path, cost_usd, duration_ms, mode, leader_name, leader_archetype)
     VALUES
-      (@runId, @createdAt, @scenarioId, @scenarioVersion, @leaderConfigHash, @economicsProfile, @sourceMode, @createdBy)
+      (@runId, @createdAt, @scenarioId, @scenarioVersion, @leaderConfigHash,
+       @economicsProfile, @sourceMode, @createdBy,
+       @artifactPath, @costUSD, @durationMs, @mode, @leaderName, @leaderArchetype)
   `);
+
+  function insertRowParams(run: RunRecord) {
+    return {
+      runId: run.runId,
+      createdAt: run.createdAt,
+      scenarioId: run.scenarioId,
+      scenarioVersion: run.scenarioVersion,
+      leaderConfigHash: run.leaderConfigHash,
+      economicsProfile: run.economicsProfile,
+      sourceMode: run.sourceMode,
+      createdBy: run.createdBy,
+      artifactPath: run.artifactPath ?? null,
+      costUSD: run.costUSD ?? null,
+      durationMs: run.durationMs ?? null,
+      mode: run.mode ?? null,
+      leaderName: run.leaderName ?? null,
+      leaderArchetype: run.leaderArchetype ?? null,
+    };
+  }
 
   const getStmt = db.prepare<unknown[], RunRow>(`SELECT * FROM runs WHERE run_id = ?`);
 
   function buildWhere(filters: ListRunsFilters | undefined): { where: string; params: Record<string, string> } {
     const clauses: string[] = [];
     const params: Record<string, string> = {};
+    // Simulation mode filter (artifact.metadata.mode column).
     if (filters?.mode) {
-      clauses.push('source_mode = @mode');
+      clauses.push('mode = @mode');
       params.mode = filters.mode;
+    }
+    // Server source mode filter (source_mode column). Distinct from above.
+    if (filters?.sourceMode) {
+      clauses.push('source_mode = @sourceMode');
+      params.sourceMode = filters.sourceMode;
     }
     if (filters?.scenarioId) {
       clauses.push('scenario_id = @scenarioId');
@@ -102,6 +183,10 @@ export function createSqliteRunHistoryStore(options: SqliteRunHistoryStoreOption
       clauses.push('leader_config_hash = @leaderConfigHash');
       params.leaderConfigHash = filters.leaderConfigHash;
     }
+    if (filters?.q) {
+      clauses.push('(scenario_id LIKE @q OR leader_name LIKE @q OR leader_archetype LIKE @q)');
+      params.q = `%${filters.q}%`;
+    }
     return {
       where: clauses.length > 0 ? `WHERE ${clauses.join(' AND ')}` : '',
       params,
@@ -110,7 +195,7 @@ export function createSqliteRunHistoryStore(options: SqliteRunHistoryStoreOption
 
   return {
     async insertRun(run: RunRecord): Promise<void> {
-      insertStmt.run(run);
+      insertStmt.run(insertRowParams(run));
     },
 
     async listRuns(filters?: ListRunsFilters): Promise<RunRecord[]> {
@@ -129,11 +214,47 @@ export function createSqliteRunHistoryStore(options: SqliteRunHistoryStoreOption
       return row ? rowToRecord(row) : null;
     },
 
-    async countRuns(filters?: Pick<ListRunsFilters, 'mode' | 'scenarioId' | 'leaderConfigHash'>): Promise<number> {
+    async countRuns(filters?: Pick<ListRunsFilters, 'mode' | 'sourceMode' | 'scenarioId' | 'leaderConfigHash' | 'q'>): Promise<number> {
       const { where, params } = buildWhere(filters);
       const sql = `SELECT COUNT(*) AS n FROM runs ${where}`;
       const row = db.prepare<unknown[], { n: number }>(sql).get(params);
       return row?.n ?? 0;
+    },
+
+    async aggregateStats(filters?: Pick<ListRunsFilters, 'mode' | 'sourceMode' | 'scenarioId' | 'leaderConfigHash'>): Promise<RunsAggregate> {
+      const { where, params } = buildWhere(filters);
+      const sql = `
+        SELECT
+          COUNT(*)                         AS total_runs,
+          COALESCE(SUM(cost_usd), 0)       AS total_cost_usd,
+          COALESCE(SUM(duration_ms), 0)    AS total_duration_ms,
+          COALESCE(SUM(replay_attempts), 0) AS replays_attempted,
+          COALESCE(SUM(replay_matches), 0)  AS replays_matched
+        FROM runs ${where}
+      `;
+      const row = db.prepare<unknown[], {
+        total_runs: number;
+        total_cost_usd: number;
+        total_duration_ms: number;
+        replays_attempted: number;
+        replays_matched: number;
+      }>(sql).get(params);
+      return {
+        totalRuns: Number(row?.total_runs ?? 0),
+        totalCostUSD: Number(row?.total_cost_usd ?? 0),
+        totalDurationMs: Number(row?.total_duration_ms ?? 0),
+        replaysAttempted: Number(row?.replays_attempted ?? 0),
+        replaysMatched: Number(row?.replays_matched ?? 0),
+      };
+    },
+
+    async recordReplayResult(runId: string, matches: boolean): Promise<void> {
+      db.prepare(`
+        UPDATE runs
+        SET replay_attempts = COALESCE(replay_attempts, 0) + 1,
+            replay_matches  = COALESCE(replay_matches, 0) + ?
+        WHERE run_id = ?
+      `).run(matches ? 1 : 0, runId);
     },
   };
 }

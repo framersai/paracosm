@@ -43,18 +43,26 @@ export async function handlePlatformApiRoute(
 
   try {
     if (url.pathname === '/api/v1/runs' && req.method === 'GET') {
+      const modeParam = url.searchParams.get('mode');
+      const sourceModeParam = url.searchParams.get('sourceMode');
       const filters: ListRunsFilters = {
-        mode: (url.searchParams.get('mode') as ParacosmServerMode | null) ?? undefined,
+        mode: (modeParam === 'turn-loop' || modeParam === 'batch-trajectory' || modeParam === 'batch-point')
+          ? modeParam
+          : undefined,
+        sourceMode: sourceModeParam ? (sourceModeParam as ParacosmServerMode) : undefined,
         scenarioId: url.searchParams.get('scenario') ?? undefined,
         leaderConfigHash: url.searchParams.get('leader') ?? undefined,
+        q: url.searchParams.get('q') ?? undefined,
         limit: clampLimit(url.searchParams.get('limit')),
         offset: clampOffset(url.searchParams.get('offset')),
       };
       const runs = await options.runHistoryStore.listRuns(filters);
       const countFilters = {
         mode: filters.mode,
+        sourceMode: filters.sourceMode,
         scenarioId: filters.scenarioId,
         leaderConfigHash: filters.leaderConfigHash,
+        q: filters.q,
       };
       const total = options.runHistoryStore.countRuns
         ? await options.runHistoryStore.countRuns(countFilters)
