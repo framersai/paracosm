@@ -75,6 +75,19 @@ jobs:
           check "." "Root"
           check "src/cli/dashboard" "Dashboard"
 
+      - name: Guard against pnpm-workspace contamination in lockfiles
+        run: |
+          set -e
+          fail=0
+          for f in package-lock.json src/cli/dashboard/package-lock.json; do
+            if [ ! -f "$f" ]; then continue; fi
+            if grep -q 'node_modules/\.pnpm/' "$f"; then
+              echo "::error file=$f::Lockfile contains 'node_modules/.pnpm/' substring. This means it was authored from inside a pnpm workspace and references parent paths that do not exist in CI. To repair: copy package.json to a directory outside any pnpm workspace, run 'npm install' there, copy the resulting package-lock.json back, commit, push."
+              fail=1
+            fi
+          done
+          exit $fail
+
       - name: Install dependencies
         run: npm ci
 
