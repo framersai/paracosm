@@ -39,6 +39,7 @@ import { createSqliteRunHistoryStore } from './server/sqlite-run-history-store.j
 import { handlePublicDemoRoute } from './server/routes/public-demo.js';
 import { handlePlatformApiRoute } from './server/routes/platform-api.js';
 import { validateForkSetupPreconditions } from './fork-preconditions.js';
+import { fetchSeedFromUrl } from './fetch-seed-url.js';
 
 function projectScenarioForClient(sc: ScenarioPackage) {
   return {
@@ -181,6 +182,102 @@ function resolveRunHistoryStore(env: NodeJS.ProcessEnv): RunHistoryStore {
   const dbPath = env.PARACOSM_RUN_HISTORY_DB_PATH
     ?? resolve(env.APP_DIR || '.', 'data', 'runs.db');
   return createSqliteRunHistoryStore({ dbPath });
+}
+
+export function buildResultsPayloadFromEventBuffer(eventBuffer: readonly string[]) {
+  const simEvents = eventBuffer
+    .filter(msg => msg.startsWith('event: sim\n') || msg.startsWith('event: result\n') || msg.startsWith('event: verdict\n') || msg.startsWith('event: complete\n'))
+    .map(msg => {
+      const lines = msg.split('\n');
+      const eventType = lines[0]?.replace('event: ', '') || '';
+      try { return { event: eventType, data: JSON.parse(lines[1]?.replace('data: ', '') || '{}') }; }
+      catch { return { event: eventType, data: {} }; }
+    });
+  const results = simEvents.filter(e => e.event === 'result').map(e => e.data);
+  const verdict = simEvents.find(e => e.event === 'verdict')?.data || null;
+  const isComplete = simEvents.some(e => e.event === 'complete');
+  const turns = simEvents.filter(e => e.event === 'sim' && e.data?.type === 'turn_start').length / 2;
+
+  // Reconstruct per-leader timelines from the sim event stream.
+  // Group every sim event by leader name, then bucket interesting
+  // payload types into typed lists so consumers can pull turn-by-turn
+  // crisis info, dept reports, decisions, forges, citations, reactions.
+  const byLeader = new Map<string, {
+    events: Array<{ turn?: number; time?: number; eventIndex?: number; title?: string; category?: string; description?: string; emergent?: boolean }>;
+    decisions: Array<{ turn?: number; time?: number; eventIndex?: number; decision?: string; rationale?: string; selectedPolicies?: unknown[]; outcome?: string }>;
+    forges: Array<Record<string, unknown>>;
+    citations: Array<{ text?: string; url?: string; doi?: string; department?: string; turn?: number }>;
+    deptReports: Array<{ turn?: number; time?: number; eventIndex?: number; department?: string; summary?: string; risks?: unknown[]; recommendedActions?: unknown[]; citations?: number; toolCount?: number }>;
+    agentReactions: Array<{ turn?: number; time?: number; reactions?: unknown[]; totalReactions?: number }>;
+    promotions: Array<Record<string, unknown>>;
+    systemsSnapshots: Array<Record<string, unknown>>;
+  }>();
+  const ensureLeader = (name: string) => {
+    if (!byLeader.has(name)) byLeader.set(name, { events: [], decisions: [], forges: [], citations: [], deptReports: [], agentReactions: [], promotions: [], systemsSnapshots: [] });
+    return byLeader.get(name)!;
+  };
+  // Track decision pending state so we can attach it to outcomes per event.
+  const pendingDecision = new Map<string, { decision?: string; rationale?: string; selectedPolicies?: unknown[] }>();
+  for (const e of simEvents) {
+    if (e.event !== 'sim') continue;
+    const inner = e.data as Record<string, unknown>;
+    const type = String(inner.type || '');
+    const leader = String(inner.leader || '');
+    if (!leader) continue;
+    const slot = ensureLeader(leader);
+    const data = (inner.data as Record<string, unknown>) ?? {};
+    const turn = data.turn as number | undefined;
+    const time = data.time as number | undefined;
+    const eventIndex = data.eventIndex as number | undefined;
+    const pendKey = `${leader}-${turn}-${eventIndex ?? 0}`;
+    if (type === 'event_start') {
+      slot.events.push({ turn, time, eventIndex, title: data.title as string, category: data.category as string, description: data.description as string, emergent: data.emergent as boolean });
+    } else if (type === 'turn_start' && data.title && data.title !== 'Director generating...') {
+      slot.events.push({ turn, time, title: data.title as string, category: data.category as string, description: data.crisis as string, emergent: data.emergent as boolean });
+    } else if (type === 'decision_made') {
+      pendingDecision.set(pendKey, {
+        decision: data.decision as string,
+        rationale: data.rationale as string,
+        selectedPolicies: data.selectedPolicies as unknown[],
+      });
+    } else if (type === 'outcome') {
+      const p = pendingDecision.get(pendKey);
+      slot.decisions.push({ turn, time, eventIndex, ...p, outcome: data.outcome as string });
+      pendingDecision.delete(pendKey);
+    } else if (type === 'specialist_done') {
+      const dept = data.department as string;
+      const cites = (data.citationList as Array<{ text?: string; url?: string; doi?: string }>) || [];
+      slot.deptReports.push({
+        turn, time, eventIndex, department: dept,
+        summary: data.summary as string,
+        risks: data.risks as unknown[],
+        recommendedActions: data.recommendedActions as unknown[],
+        citations: cites.length,
+        toolCount: Array.isArray(data.forgedTools) ? (data.forgedTools as unknown[]).length : 0,
+      });
+      for (const c of cites) {
+        slot.citations.push({ ...c, department: dept, turn });
+      }
+    } else if (type === 'forge_attempt') {
+      slot.forges.push({ turn, time, eventIndex, ...data });
+    } else if (type === 'agent_reactions') {
+      slot.agentReactions.push({ turn, time, reactions: data.reactions as unknown[], totalReactions: data.totalReactions as number });
+    } else if (type === 'promotion') {
+      slot.promotions.push({ ...data });
+    } else if (type === 'systems_snapshot') {
+      slot.systemsSnapshots.push({ turn, time, ...data });
+    }
+  }
+  const leaders = [...byLeader.entries()].map(([name, slot]) => ({ name, ...slot }));
+
+  return {
+    results,
+    verdict,
+    isComplete,
+    turnsCompleted: Math.floor(turns),
+    totalEvents: simEvents.length,
+    leaders,
+  };
 }
 
 export function createMarsServer(options: CreateMarsServerOptions = {}): MarsServer {
@@ -895,20 +992,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
             if (id === activeScenario.id) return activeScenario;
             return customScenarioCatalog.get(id)?.scenario;
           },
-          fetchSeedFromUrl: async (url) => {
-            // Lazy-import AgentOS's WebSearchService to keep the cold
-            // start path lean. The service throws on fetch failures;
-            // the route handler catches and returns 502.
-            const agentos = await import('@framers/agentos');
-            const WebSearchService = (agentos as unknown as { WebSearchService: new (opts: unknown) => { fetchSingleUrl: (u: string) => Promise<{ markdown?: string; text?: string; title?: string }> } }).WebSearchService;
-            const service = new WebSearchService({});
-            const fetched = await service.fetchSingleUrl(url);
-            return {
-              text: fetched.markdown || fetched.text || '',
-              title: fetched.title || '',
-              sourceUrl: url,
-            };
-          },
+          fetchSeedFromUrl,
           defaultProvider: 'anthropic',
           defaultModel: 'claude-sonnet-4-6',
         };
@@ -971,6 +1055,27 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         } else if (hasUserKeys) {
           console.log(`  [rate-limit] /simulate bypassed. BYO key present.`);
         }
+        // Scope user-supplied API keys into the env for the duration of
+        // the simulate call. The orchestrator's downstream LLM providers
+        // read `process.env.OPENAI_API_KEY` / `ANTHROPIC_API_KEY`; passing
+        // the keys through `RunOptions` does nothing because RunOptions
+        // does not declare those fields. Mirrors the inline `scopeKey`
+        // pattern used at the /setup handler around line 1732.
+        const simulateEnvSnapshot: Array<[string, string | undefined]> = [];
+        const scopeSimulateKey = (envName: string, userValue: string | undefined) => {
+          if (!userValue || userValue.includes('...')) return;
+          simulateEnvSnapshot.push([envName, env[envName]]);
+          env[envName] = userValue;
+        };
+        scopeSimulateKey('OPENAI_API_KEY', userApiKey);
+        scopeSimulateKey('ANTHROPIC_API_KEY', userAnthropicKey);
+        const restoreSimulateEnv = () => {
+          for (const [name, prior] of simulateEnvSnapshot) {
+            if (prior === undefined) delete env[name];
+            else env[name] = prior;
+          }
+        };
+
         const deps: SimulateDeps = {
           compileScenario: (raw, opts) => {
             const userCompile = options.compileScenario;
@@ -981,10 +1086,12 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
             const { runSimulation } = await import('../runtime/orchestrator.js');
             return runSimulation(leader, keyPersonnel, runOpts);
           },
-          userApiKey,
-          userAnthropicKey,
         };
-        await handleSimulate(req, res, body, deps);
+        try {
+          await handleSimulate(req, res, body, deps);
+        } finally {
+          restoreSimulateEnv();
+        }
       } catch (err) {
         writeJsonError(res, err);
       }
@@ -1324,101 +1431,8 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
     // get the same rich data the dashboard sees, without having to scrape
     // raw events themselves.
     if (req.url === '/results' && req.method === 'GET') {
-      const simEvents = eventBuffer
-        .filter(msg => msg.startsWith('event: sim\n') || msg.startsWith('event: result\n') || msg.startsWith('event: verdict\n') || msg.startsWith('event: complete\n'))
-        .map(msg => {
-          const lines = msg.split('\n');
-          const eventType = lines[0]?.replace('event: ', '') || '';
-          try { return { event: eventType, data: JSON.parse(lines[1]?.replace('data: ', '') || '{}') }; }
-          catch { return { event: eventType, data: {} }; }
-        });
-      const results = simEvents.filter(e => e.event === 'result').map(e => e.data);
-      const verdict = simEvents.find(e => e.event === 'verdict')?.data || null;
-      const isComplete = simEvents.some(e => e.event === 'complete');
-      const turns = simEvents.filter(e => e.event === 'sim' && e.data?.type === 'turn_start').length / 2;
-
-      // Reconstruct per-leader timelines from the sim event stream.
-      // Group every sim event by leader name, then bucket interesting
-      // payload types into typed lists so consumers can pull turn-by-turn
-      // crisis info, dept reports, decisions, forges, citations, reactions.
-      const byLeader = new Map<string, {
-        events: Array<{ turn?: number; time?: number; eventIndex?: number; title?: string; category?: string; description?: string; emergent?: boolean }>;
-        decisions: Array<{ turn?: number; time?: number; eventIndex?: number; decision?: string; rationale?: string; selectedPolicies?: unknown[]; outcome?: string }>;
-        forges: Array<Record<string, unknown>>;
-        citations: Array<{ text?: string; url?: string; doi?: string; department?: string; turn?: number }>;
-        deptReports: Array<{ turn?: number; time?: number; eventIndex?: number; department?: string; summary?: string; risks?: unknown[]; recommendedActions?: unknown[]; citations?: number; toolCount?: number }>;
-        agentReactions: Array<{ turn?: number; time?: number; reactions?: unknown[]; totalReactions?: number }>;
-        promotions: Array<Record<string, unknown>>;
-        systemsSnapshots: Array<Record<string, unknown>>;
-      }>();
-      const ensureLeader = (name: string) => {
-        if (!byLeader.has(name)) byLeader.set(name, { events: [], decisions: [], forges: [], citations: [], deptReports: [], agentReactions: [], promotions: [], systemsSnapshots: [] });
-        return byLeader.get(name)!;
-      };
-      // Track decision pending state so we can attach it to outcomes per event
-      const pendingDecision = new Map<string, { decision?: string; rationale?: string; selectedPolicies?: unknown[] }>();
-      for (const e of simEvents) {
-        if (e.event !== 'sim') continue;
-        const inner = e.data as Record<string, unknown>;
-        const type = String(inner.type || '');
-        const leader = String(inner.leader || '');
-        if (!leader) continue;
-        const slot = ensureLeader(leader);
-        const data = (inner.data as Record<string, unknown>) ?? {};
-        const turn = data.turn as number | undefined;
-        const time = data.time as number | undefined;
-        const eventIndex = data.eventIndex as number | undefined;
-        const pendKey = `${leader}-${turn}-${eventIndex ?? 0}`;
-        if (type === 'event_start') {
-          slot.events.push({ turn, time, eventIndex, title: data.title as string, category: data.category as string, description: data.description as string, emergent: data.emergent as boolean });
-        } else if (type === 'turn_start' && data.title && data.title !== 'Director generating...') {
-          slot.events.push({ turn, time, title: data.title as string, category: data.category as string, description: data.crisis as string, emergent: data.emergent as boolean });
-        } else if (type === 'commander_decided') {
-          pendingDecision.set(pendKey, {
-            decision: data.decision as string,
-            rationale: data.rationale as string,
-            selectedPolicies: data.selectedPolicies as unknown[],
-          });
-        } else if (type === 'outcome') {
-          const p = pendingDecision.get(pendKey);
-          slot.decisions.push({ turn, time, eventIndex, ...p, outcome: data.outcome as string });
-          pendingDecision.delete(pendKey);
-        } else if (type === 'dept_done') {
-          const dept = data.department as string;
-          const cites = (data.citationList as Array<{ text?: string; url?: string; doi?: string }>) || [];
-          slot.deptReports.push({
-            turn, time, eventIndex, department: dept,
-            summary: data.summary as string,
-            risks: data.risks as unknown[],
-            recommendedActions: data.recommendedActions as unknown[],
-            citations: cites.length,
-            toolCount: Array.isArray(data.forgedTools) ? (data.forgedTools as unknown[]).length : 0,
-          });
-          for (const c of cites) {
-            slot.citations.push({ ...c, department: dept, turn });
-          }
-        } else if (type === 'forge_attempt') {
-          slot.forges.push({ turn, time, eventIndex, ...data });
-        } else if (type === 'agent_reactions') {
-          slot.agentReactions.push({ turn, time, reactions: data.reactions as unknown[], totalReactions: data.totalReactions as number });
-        } else if (type === 'promotion') {
-          slot.promotions.push({ ...data });
-        } else if (type === 'systems_snapshot') {
-          slot.systemsSnapshots.push({ turn, time, ...data });
-        }
-      }
-      const leaders = [...byLeader.entries()].map(([name, slot]) => ({ name, ...slot }));
-
       res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({
-        results,
-        verdict,
-        isComplete,
-        turnsCompleted: Math.floor(turns),
-        totalEvents: simEvents.length,
-        // New: structured per-leader payloads built from the SSE buffer
-        leaders,
-      }));
+      res.end(JSON.stringify(buildResultsPayloadFromEventBuffer(eventBuffer)));
       return;
     }
 

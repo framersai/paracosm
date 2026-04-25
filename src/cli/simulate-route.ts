@@ -76,6 +76,11 @@ export interface SimulateResponse {
  * Options `handleSimulate` forwards to the injected runSimulation.
  * Narrow subset of the full RunOptions; the handler sets `scenario`
  * and leaves key personnel empty.
+ *
+ * `apiKey` / `anthropicKey` intentionally absent. RunOptions does not
+ * declare them; LLM credentials route through `process.env`. The caller
+ * (server-app's /simulate handler) scopes the env before invoking
+ * `handleSimulate`.
  */
 export interface SimulateRunOptions {
   maxTurns?: number;
@@ -85,8 +90,6 @@ export interface SimulateRunOptions {
   provider?: LlmProvider;
   costPreset?: CostPreset;
   models?: Partial<SimulationModelConfig>;
-  apiKey?: string;
-  anthropicKey?: string;
   scenario: ScenarioPackage;
 }
 
@@ -94,15 +97,17 @@ export interface SimulateRunOptions {
  * Injectable deps so unit tests can run without booting the full
  * server or hitting real LLM providers. Production wiring in
  * `server-app.ts` passes the real `compileScenario` + `runSimulation`.
+ *
+ * BYO-key handling lives at the caller layer, not here. The /simulate
+ * server handler scopes `process.env.OPENAI_API_KEY` /
+ * `ANTHROPIC_API_KEY` from the X-API-Key / X-Anthropic-Key headers
+ * before calling `handleSimulate`, then restores in a `finally`.
  */
 export interface SimulateDeps {
   /** Compile a raw scenario draft into a runnable ScenarioPackage. */
   compileScenario: (raw: Record<string, unknown>, options: CompileOptions) => Promise<ScenarioPackage>;
   /** Run one leader against a scenario and return a RunArtifact. */
   runSimulation: (leader: LeaderConfig, keyPersonnel: KeyPersonnel[], options: SimulateRunOptions) => Promise<RunArtifact>;
-  /** Optional user-provided LLM keys (from X-API-Key / X-Anthropic-Key headers). */
-  userApiKey?: string;
-  userAnthropicKey?: string;
 }
 
 function writeJson(res: ServerResponse, status: number, body: unknown): void {
@@ -159,8 +164,6 @@ export async function handleSimulate(
       captureSnapshots: options.captureSnapshots ?? false,
       provider: options.provider,
       costPreset: options.costPreset,
-      apiKey: deps.userApiKey,
-      anthropicKey: deps.userAnthropicKey,
     });
   } catch (err) {
     console.error('[simulate] runSimulation failed:', err);

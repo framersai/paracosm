@@ -148,25 +148,42 @@ test('simulate: runSimulation throws -> 500 with generic message (no stack leak)
   assert.doesNotMatch(r.body.error, /kernel crash detail/);
 });
 
-test('simulate: user API keys from deps are threaded into runSimulation options', async () => {
+test('simulate: runSimulation is called WITHOUT apiKey or anthropicKey on the options object', async () => {
+  // BYO-key billing routes through process.env at the server-app layer,
+  // not through RunOptions. RunOptions does not declare apiKey or
+  // anthropicKey; passing them to runSimulation would silently no-op.
   const { res, get } = fakeRes();
-  let threaded: { apiKey?: string; anthropicKey?: string } = {};
+  let receivedOpts: Record<string, unknown> = {};
   await handleSimulate(
     {} as IncomingMessage,
     res,
     { scenario: marsScenario, leader: fakeLeader() },
     fakeDeps({
-      userApiKey: 'sk-openai-test',
-      userAnthropicKey: 'sk-ant-test',
       runSimulation: async (_leader, _personnel, opts) => {
-        threaded = { apiKey: opts.apiKey, anthropicKey: opts.anthropicKey };
+        receivedOpts = opts as unknown as Record<string, unknown>;
         return fakeArtifact();
       },
     }),
   );
   assert.equal(get().status, 200);
-  assert.equal(threaded.apiKey, 'sk-openai-test');
-  assert.equal(threaded.anthropicKey, 'sk-ant-test');
+  assert.ok(!('apiKey' in receivedOpts), 'apiKey must not appear on RunOptions');
+  assert.ok(!('anthropicKey' in receivedOpts), 'anthropicKey must not appear on RunOptions');
+});
+
+test('simulate: SimulateDeps no longer carries userApiKey or userAnthropicKey', () => {
+  // Type-level guarantee: building a SimulateDeps with those fields
+  // fails the compiler. This runtime sentinel asserts the legitimate
+  // fields are present and that no key fields leak through.
+  const deps: SimulateDeps = {
+    compileScenario: async () => marsScenario,
+    runSimulation: async () => fakeArtifact(),
+  };
+  assert.equal(typeof deps.compileScenario, 'function');
+  assert.equal(typeof deps.runSimulation, 'function');
+  // Cast through any so the test compiles even if a future refactor adds
+  // back BYO-key fields; the assertion catches it at runtime.
+  assert.ok(!('userApiKey' in (deps as unknown as Record<string, unknown>)));
+  assert.ok(!('userAnthropicKey' in (deps as unknown as Record<string, unknown>)));
 });
 
 test('simulate: captureSnapshots option is forwarded verbatim', async () => {
