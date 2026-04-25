@@ -111,6 +111,15 @@ function getLeaderIndex(args: string[]): number {
 
 loadEnv();
 
+// --- Subcommand router (T5.2) ---
+// `paracosm init [...]` dispatches to the init scaffolder. Anything
+// else falls through to the existing Mars Genesis runner unchanged.
+if (process.argv[2] === 'init') {
+  const { runInit } = await import('./init.js');
+  const code = await runInit(process.argv.slice(3));
+  process.exit(code);
+}
+
 const args = process.argv.slice(2);
 const cliOptions = parseCliRunOptions(args);
 const leaderIdx = getLeaderIndex(args);

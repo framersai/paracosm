@@ -82,7 +82,7 @@ Historical plan file (kept for audit / bisect context): [`2026-04-23-close-0.7.x
 | # | Item | Origin | Effort | Notes |
 |---|---|---|---|---|
 | T5.1 | **Dashboard viz kit: `<TimepointCard>`, `<HealthScoreGauge>`, `<RiskFlagList>`, `<TrajectoryStrip>`** | handoff T3.9 | 1 day | Composable primitives so batch-trajectory digital-twin and batch-point forecast artifacts render, not just turn-loop. Each mode-aware via `metadata.mode`. |
-| T5.2 | **`paracosm init --mode <m> --domain <d>` CLI scaffolding wizard** | handoff T1.3 | half-day | CLI companion to the dashboard Quickstart flow. Open. |
+| T5.2 | **`paracosm init --mode <m> --domain <d>` CLI scaffolding wizard** SHIPPED 2026-04-24 | handoff T1.3 | done | Subcommand router on the existing `paracosm` bin. Scaffolds 7 files (package.json, scenario.json, leaders.json, run.mjs, README.md, .env.example, .gitignore) into the target dir. URL or text seed via `--domain`. Compiles via existing `compileFromSeed` + `generateQuickstartLeaders` infra. Flag-driven only. |
 | T5.3 | **Scenario author wizard (web)** SHIPPED 2026-04-24 | Tier 5 Quickstart | n/a | `/api/quickstart/*` + QuickstartView + `WorldModel.fromPrompt` + `paracosm/leader-presets`. |
 | T5.4 | **`paracosm/digital-twin` subpath** | positioning spec §8 follow-on | half-day | Purpose-built helpers for the `SubjectConfig` + `InterventionConfig` flow. Makes the digital-twin use case first-class in the API, matching the marketing. |
 | T5.5 | **`WorldModel.replay(artifact)`** | Tier 2 follow-on | half-day | Deterministic re-execution of a stored RunArtifact. Audit + regression use case. Naturally falls out of kernel snapshot/fromSnapshot. |
