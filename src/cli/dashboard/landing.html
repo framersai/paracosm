@@ -450,6 +450,30 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
   </div>
 </section>
 
+<!-- DIGITAL TWIN SUBPATH -->
+<section class="sec" id="digital-twin">
+  <div class="sec-inner">
+    <div class="sec-label rv">Digital Twin Use Case</div>
+    <h2 class="sec-title rv">Digital twins, named in the import path</h2>
+    <p class="sec-desc rv">The same engine that runs civilization simulations also models a single subject under counterfactual interventions. Import the curated subpath, supply a <code>SubjectConfig</code> and an <code>InterventionConfig</code>, and the resulting <code>RunArtifact</code> carries both for traceability.</p>
+
+    <div class="code-sec">
+      <div class="code-block">
+        <div class="code-header"><span>paracosm/digital-twin</span></div>
+        <div class="code-body"><span class="kw">import</span> { DigitalTwin, <span class="kw">type</span> SubjectConfig, <span class="kw">type</span> InterventionConfig } <span class="kw">from</span> <span class="str">'paracosm/digital-twin'</span>;
+
+<span class="kw">const</span> twin = <span class="kw">await</span> DigitalTwin.fromJson(scenarioJson);
+
+<span class="kw">const</span> subject: SubjectConfig = { id: <span class="str">'company'</span>, kind: <span class="str">'organization'</span>, attributes: { headcount: 100 } };
+<span class="kw">const</span> intervention: InterventionConfig = { id: <span class="str">'rif'</span>, kind: <span class="str">'policy'</span>, description: <span class="str">'25% RIF'</span>, parameters: { percent: 25 } };
+
+<span class="kw">const</span> artifact = <span class="kw">await</span> twin.simulateIntervention(subject, intervention, leader, { maxTurns: 4 });
+console.log(artifact.subject, artifact.intervention);</div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- SCENARIOS -->
 <section class="sec sec-alt" id="scenarios">
   <div class="sec-inner">
