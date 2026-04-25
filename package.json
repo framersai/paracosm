@@ -42,6 +42,10 @@
       "import": "./dist/runtime/world-model/index.js",
       "types": "./dist/runtime/world-model/index.d.ts"
     },
+    "./digital-twin": {
+      "import": "./dist/engine/digital-twin/index.js",
+      "types": "./dist/engine/digital-twin/index.d.ts"
+    },
     "./leader-presets": {
       "import": "./dist/engine/leader-presets.js",
       "types": "./dist/engine/leader-presets.d.ts"
@@ -71,6 +75,7 @@
     "docs": "typedoc && cp assets/docs-theme/paracosm-override.css docs/api/assets/paracosm-override.css",
     "changelog": "node scripts/generate-changelog.mjs",
     "export:json-schema": "npx tsx scripts/export-json-schema.ts",
+    "snapshot:schema": "npx tsx scripts/snapshot-schema.ts",
     "prepublishOnly": "npm run build",
     "leader:a": "npx tsx src/cli/run-a.ts",
     "leader:b": "npx tsx src/cli/run-b.ts"
