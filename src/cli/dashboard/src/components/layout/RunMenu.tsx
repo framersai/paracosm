@@ -310,19 +310,6 @@ export function RunMenu({
                             {line3}
                           </div>
                         </button>
-                        {onDeleteHistory && (
-                          <button
-                            type="button"
-                            className={historyStyles.historyDelete}
-                            aria-label={`Delete history entry from ${formatRelative(ts)}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onDeleteHistory(entry.id);
-                            }}
-                          >
-                            ×
-                          </button>
-                        )}
                       </div>
                     );
                   })}
