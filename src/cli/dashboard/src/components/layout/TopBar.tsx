@@ -28,7 +28,6 @@ interface TopBarProps {
   /** F14 local-history props, forwarded to the RunMenu's history section. */
   history?: LocalHistoryEntry[];
   onRestoreHistory?: (entry: LocalHistoryEntry) => void;
-  onDeleteHistory?: (id: number) => void;
   onClearHistory?: () => void;
   /** True while the /setup request is in flight but the first SSE
    *  event hasn't yet arrived. Hides the RUN button so users can't
@@ -69,7 +68,7 @@ const toolBtnStyle: React.CSSProperties = {
   fontFamily: 'var(--mono)',
 };
 
-export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRun, onTour, onCopy, launching = false, history, onRestoreHistory, onDeleteHistory, onClearHistory }: TopBarProps) {
+export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRun, onTour, onCopy, launching = false, history, onRestoreHistory, onClearHistory }: TopBarProps) {
   const { resolved, setTheme } = useTheme();
   const hasEvents = Object.values(gameState.leaders).some(s => s.events.length > 0);
 
@@ -390,7 +389,6 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
             onLoadFromFile={onLoad}
             history={history}
             onRestoreHistory={onRestoreHistory}
-            onDeleteHistory={onDeleteHistory}
             onClearHistory={onClearHistory}
             liveStateHasEvents={sse.events.length > 0}
           />

@@ -586,7 +586,6 @@ function AppContent() {
             launching={launching}
             history={history.entries}
             onRestoreHistory={(entry) => history.restore(entry, sse.loadEvents)}
-            onDeleteHistory={history.remove}
             onClearHistory={history.clear}
           />
           <TabBar active={activeTab} onTabChange={setActiveTab} scenario={scenario} />

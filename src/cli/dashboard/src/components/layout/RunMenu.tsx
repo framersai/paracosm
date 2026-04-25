@@ -38,7 +38,6 @@ export interface RunMenuProps {
    */
   history?: LocalHistoryEntry[];
   onRestoreHistory?: (entry: LocalHistoryEntry) => void;
-  onDeleteHistory?: (id: number) => void;
   onClearHistory?: () => void;
   /**
    * True when the live SSE state has events. When true, restoring a
@@ -95,7 +94,6 @@ export function RunMenu({
   onLoadFromFile,
   history = [],
   onRestoreHistory,
-  onDeleteHistory,
   onClearHistory,
   liveStateHasEvents = false,
 }: RunMenuProps) {
