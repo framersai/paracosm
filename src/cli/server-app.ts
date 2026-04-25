@@ -136,7 +136,16 @@ function readBody(req: IncomingMessage, maxBytes: number): Promise<string> {
 
 export interface CreateMarsServerOptions {
   env?: NodeJS.ProcessEnv;
-  runPairSimulations?: (config: NormalizedSimulationConfig, broadcast: BroadcastFn, signal?: AbortSignal, scenario?: ScenarioPackage) => Promise<void>;
+  runPairSimulations?: (
+    config: NormalizedSimulationConfig,
+    broadcast: BroadcastFn,
+    signal?: AbortSignal,
+    scenario?: ScenarioPackage,
+    onArtifact?: (
+      artifact: import('../engine/schema/index.js').RunArtifact,
+      leader: import('../runtime/orchestrator.js').LeaderConfig,
+    ) => void | Promise<void>,
+  ) => Promise<void>;
   generateText?: (args: { provider: string; model: string; prompt: string }) => Promise<{ text: string }>;
   compileScenario?: (scenarioJson: Record<string, unknown>, options: Record<string, unknown>) => Promise<ScenarioPackage>;
   scenarioDir?: string;
