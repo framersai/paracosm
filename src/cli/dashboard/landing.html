@@ -534,6 +534,80 @@ console.log(artifact.subject, artifact.intervention);</div>
   </div>
 </section>
 
+<!-- LIBRARY TAB -->
+<section class="sec" id="library">
+  <div class="sec-inner">
+    <div class="sec-label rv">Dashboard</div>
+    <h2 class="sec-title rv">Browse every run from the Library tab</h2>
+    <p class="sec-desc rv">The dashboard ships a Library tab that lists every completed simulation persisted to <code>data/runs.db</code>. Filter by simulation mode, scenario, leader, or free-text. Click any card to open the side drawer with the full artifact rendered through the matching view component (turn-loop, batch-trajectory, or batch-point). Click Replay to verify the kernel is still deterministic for that run.</p>
+    <div class="library-wireframe-wrapper">
+      <svg viewBox="0 0 800 480" class="library-wireframe" role="img" aria-label="Library tab gallery view wireframe">
+        <!-- Hero stats strip -->
+        <g class="lw-stats">
+          <rect x="20" y="20" width="140" height="60" rx="6" fill="#1c1915" stroke="rgba(48,42,34,0.5)"/>
+          <text x="35" y="44" fill="#a89878" font-size="10" font-family="JetBrains Mono">RUNS</text>
+          <text x="35" y="68" fill="#f5f0e4" font-size="20" font-family="JetBrains Mono">247</text>
+          <rect x="180" y="20" width="140" height="60" rx="6" fill="#1c1915" stroke="rgba(48,42,34,0.5)"/>
+          <text x="195" y="44" fill="#a89878" font-size="10" font-family="JetBrains Mono">SPENT</text>
+          <text x="195" y="68" fill="#f5f0e4" font-size="20" font-family="JetBrains Mono">$42.85</text>
+          <rect x="340" y="20" width="140" height="60" rx="6" fill="#1c1915" stroke="rgba(48,42,34,0.5)"/>
+          <text x="355" y="44" fill="#a89878" font-size="10" font-family="JetBrains Mono">AVG / RUN</text>
+          <text x="355" y="68" fill="#f5f0e4" font-size="20" font-family="JetBrains Mono">$0.17</text>
+          <rect x="500" y="20" width="140" height="60" rx="6" fill="#1c1915" stroke="rgba(48,42,34,0.5)"/>
+          <text x="515" y="44" fill="#a89878" font-size="10" font-family="JetBrains Mono">TOTAL TIME</text>
+          <text x="515" y="68" fill="#f5f0e4" font-size="20" font-family="JetBrains Mono">5.2h</text>
+          <rect x="660" y="20" width="120" height="60" rx="6" fill="#1c1915" stroke="rgba(48,42,34,0.5)"/>
+          <text x="675" y="44" fill="#a89878" font-size="10" font-family="JetBrains Mono">REPLAY</text>
+          <text x="675" y="68" fill="#4ca8a8" font-size="20" font-family="JetBrains Mono">92%</text>
+        </g>
+        <!-- Search bar -->
+        <rect x="20" y="100" width="600" height="36" rx="6" fill="#0e0c0a" stroke="rgba(48,42,34,0.5)"/>
+        <text x="36" y="122" fill="#6b5f50" font-size="12" font-family="Inter">search runs by scenario, leader, archetype</text>
+        <rect x="640" y="105" width="40" height="26" rx="4" fill="#1c1915" stroke="rgba(48,42,34,0.5)"/>
+        <text x="650" y="122" fill="#a89878" font-size="10" font-family="JetBrains Mono">⌘K</text>
+        <!-- Filter chip -->
+        <rect x="20" y="146" width="180" height="20" rx="10" fill="#1c1915" stroke="#e8b44a"/>
+        <text x="32" y="160" fill="#e8b44a" font-size="9" font-family="JetBrains Mono">mode: batch-trajectory</text>
+        <!-- Gallery cards -->
+        <g class="lw-gallery">
+          <!-- Card 1: turn-loop teal -->
+          <rect x="20" y="186" width="180" height="120" rx="6" fill="#1c1915" stroke="rgba(48,42,34,0.5)"/>
+          <rect x="32" y="198" width="80" height="14" rx="7" fill="rgba(76,168,168,0.15)"/>
+          <text x="42" y="208" fill="#4ca8a8" font-size="8" font-family="JetBrains Mono">TURN-LOOP</text>
+          <text x="32" y="234" fill="#f5f0e4" font-size="11" font-family="Inter" font-weight="600">mars-genesis</text>
+          <text x="32" y="250" fill="#d8ccb0" font-size="9" font-family="Inter">Ada · visionary</text>
+          <text x="32" y="290" fill="#a89878" font-size="8" font-family="Inter">Open · Replay · Compare</text>
+          <!-- Card 2: batch-trajectory amber -->
+          <rect x="210" y="186" width="180" height="120" rx="6" fill="#1c1915" stroke="#e8b44a"/>
+          <rect x="222" y="198" width="100" height="14" rx="7" fill="rgba(232,180,74,0.15)"/>
+          <text x="232" y="208" fill="#e8b44a" font-size="8" font-family="JetBrains Mono">BATCH-TRAJECTORY</text>
+          <text x="222" y="234" fill="#f5f0e4" font-size="11" font-family="Inter" font-weight="600">corp-q3</text>
+          <text x="222" y="250" fill="#d8ccb0" font-size="9" font-family="Inter">Marcus · pragmatist</text>
+          <text x="222" y="290" fill="#a89878" font-size="8" font-family="Inter">Open · Replay · Compare</text>
+          <!-- Card 3: batch-point rust -->
+          <rect x="400" y="186" width="180" height="120" rx="6" fill="#1c1915" stroke="rgba(48,42,34,0.5)"/>
+          <rect x="412" y="198" width="80" height="14" rx="7" fill="rgba(224,101,48,0.15)"/>
+          <text x="422" y="208" fill="#e06530" font-size="8" font-family="JetBrains Mono">BATCH-POINT</text>
+          <text x="412" y="234" fill="#f5f0e4" font-size="11" font-family="Inter" font-weight="600">policy-rollout</text>
+          <text x="412" y="250" fill="#d8ccb0" font-size="9" font-family="Inter">Sky · cautious</text>
+          <text x="412" y="290" fill="#a89878" font-size="8" font-family="Inter">Open · Replay · Compare</text>
+        </g>
+        <!-- Side drawer (slid in) -->
+        <rect x="600" y="186" width="200" height="270" rx="6" fill="#14110e" stroke="rgba(48,42,34,0.7)" stroke-width="2"/>
+        <text x="612" y="208" fill="#a89878" font-size="10" font-family="JetBrains Mono">DETAIL</text>
+        <rect x="612" y="220" width="60" height="22" rx="4" fill="#1c1915" stroke="rgba(48,42,34,0.5)"/>
+        <text x="624" y="236" fill="#f5f0e4" font-size="10" font-family="Inter">Replay</text>
+        <rect x="676" y="226" width="110" height="14" rx="7" fill="rgba(76,168,168,0.15)"/>
+        <text x="688" y="236" fill="#4ca8a8" font-size="8" font-family="JetBrains Mono">DETERMINISTIC</text>
+        <line x1="612" y1="256" x2="788" y2="256" stroke="rgba(48,42,34,0.5)"/>
+        <text x="612" y="276" fill="#f5f0e4" font-size="11" font-family="Inter" font-weight="600">corp-q3</text>
+        <text x="612" y="292" fill="#d8ccb0" font-size="9" font-family="Inter">Marcus Reinhardt · pragmatist</text>
+        <text x="612" y="306" fill="#a89878" font-size="8" font-family="JetBrains Mono">12 timepoints · $0.42 · 5m ago</text>
+      </svg>
+    </div>
+  </div>
+</section>
+
 <!-- PRICING -->
 <section class="sec sec-alt" id="pricing">
   <div class="sec-inner sec-center">
