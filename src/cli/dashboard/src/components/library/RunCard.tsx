@@ -1,6 +1,6 @@
 import * as React from 'react';
 import styles from './RunCard.module.scss';
-import type { RunRecord } from '../../../../../server/run-record.js';
+import type { RunRecord } from '../../../../server/run-record.js';
 
 export interface RunCardProps {
   record: RunRecord;

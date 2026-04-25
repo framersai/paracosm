@@ -5,7 +5,7 @@ import { ReplayPanel } from './ReplayPanel.js';
 import { BatchArtifactView } from '../reports/BatchArtifactView.js';
 import { ReportViewAdapter } from '../reports/ReportViewAdapter.js';
 import type { MetricSpec } from '../viz/kit/index.js';
-import type { RunRecord } from '../../../../../server/run-record.js';
+import type { RunRecord } from '../../../../server/run-record.js';
 
 export interface RunDetailDrawerProps {
   runId: string | null;
