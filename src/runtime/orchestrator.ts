@@ -35,7 +35,10 @@ import type { Department, HexacoProfile, HexacoSnapshot, TurnOutcome } from '../
 import { SeededRng } from '../engine/core/rng.js';
 import { classifyOutcome, classifyOutcomeById, driftCommanderHexaco } from '../engine/core/progression.js';
 import { buildTrajectoryCue } from './hexaco-cues/trajectory.js';
+import { buildTrajectoryCue as buildTrajectoryCueGeneric, type TraitProfileSnapshot } from './trait-cues/trajectory.js';
 import { normalizeLeaderConfig } from '../engine/trait-models/normalize-leader.js';
+import { traitModelRegistry, type TraitProfile } from '../engine/trait-models/index.js';
+import { driftLeaderProfile } from '../engine/trait-models/drift.js';
 import type { DepartmentReport, CommanderDecision, TurnArtifact } from './contracts.js';
 import { SimulationKernel } from '../engine/core/kernel.js';
 import type { KeyPersonnel } from '../engine/core/agent-generator.js';
@@ -659,13 +662,31 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   const forgedLedger: ForgedLedger = new Map();
 
   // Commander HEXACO evolves per-turn via driftCommanderHexaco. Clone
-  // the caller's leader.hexaco so we never mutate the caller's config —
+  // the caller's leader.hexaco so we never mutate the caller's config:
   // pair-runner reuses configs across runs and chat-agents hold
   // references to the baseline profile. Every downstream read of the
   // commander's current personality goes through commanderHexacoLive.
   const commanderHexacoLive: HexacoProfile = { ...leader.hexaco };
   const commanderHexacoHistory: HexacoSnapshot[] = [
     { turn: 0, time: startTime, hexaco: { ...leader.hexaco } },
+  ];
+
+  // Parallel commander trait profile + history under whatever
+  // TraitModel the leader specified (hexaco by default; ai-agent or
+  // any future registered model when the leader supplies a non-HEXACO
+  // traitProfile). For HEXACO leaders, this state mirrors
+  // commanderHexacoLive byte-for-byte; for non-HEXACO leaders, it is
+  // the canonical source for trajectory cues and downstream
+  // traitProfile-aware paths. driftLeaderProfile maintains the same
+  // ±0.05/turn cap and [0.05, 0.95] kernel bounds as
+  // driftCommanderHexaco so cross-model drift discipline is uniform.
+  const commanderTraitModel = traitModelRegistry.require(leader.traitProfile!.modelId);
+  let commanderTraitProfileLive: TraitProfile = {
+    modelId: leader.traitProfile!.modelId,
+    traits: { ...leader.traitProfile!.traits },
+  };
+  const commanderTraitProfileHistory: TraitProfileSnapshot[] = [
+    { turn: 0, profile: { modelId: commanderTraitProfileLive.modelId, traits: { ...commanderTraitProfileLive.traits } } },
   ];
 
   // Commander does NOT use systemBlocks caching because AgentOS's
@@ -1513,7 +1534,16 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
       // preamble adds ~300 tokens of reasoning per call but visibly sharpens
       // rationale quality (rationales started citing specific tool outputs
       // and trade tradeoffs instead of generic risk-averse hedging).
-      const trajectoryCue = buildTrajectoryCue(commanderHexacoHistory, commanderHexacoLive);
+      // Trajectory cue dispatch: HEXACO leaders use the legacy path
+      // for byte-identical output (the cue strings are dasherized
+      // axis labels via the trait-cues shim, identical to the v0.7
+      // surface). Non-HEXACO leaders use the trait-cues path which
+      // pulls axis names from the registered model so the cue line
+      // reads "exploration" or "verification-rigor" instead of HEXACO
+      // axis names.
+      const trajectoryCue = commanderTraitProfileLive.modelId === 'hexaco'
+        ? buildTrajectoryCue(commanderHexacoHistory, commanderHexacoLive)
+        : buildTrajectoryCueGeneric(commanderTraitProfileHistory, commanderTraitProfileLive);
       const cmdPrompt =
 `TURN ${turn}${eventLabel} — ${time}: ${event.title}
 
@@ -1690,6 +1720,20 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
     // they have no department). Mutates commanderHexacoLive in place
     // and appends this turn's snapshot to commanderHexacoHistory.
     driftCommanderHexaco(commanderHexacoLive, lastOutcome, timeDelta, turn, time, commanderHexacoHistory);
+
+    // Parallel drift on the commander's TraitProfile under its model.
+    // For HEXACO leaders this is redundant with the line above (both
+    // produce the same numbers because hexacoModel.drift.outcomes
+    // mirrors progression.ts:outcomePullForTrait byte-for-byte and
+    // both apply the same ±0.05/turn cap and [0.05, 0.95] bounds).
+    // For non-HEXACO leaders, this is the canonical drift call site.
+    commanderTraitProfileLive = driftLeaderProfile(commanderTraitProfileLive, commanderTraitModel, {
+      outcome: lastOutcome,
+      timeDelta,
+      turn,
+      time,
+      history: commanderTraitProfileHistory,
+    });
 
     const drifted = kernel.getState().agents.filter(c => c.promotion && c.health.alive);
     const driftData: Record<string, { name: string; hexaco: any }> = {};
