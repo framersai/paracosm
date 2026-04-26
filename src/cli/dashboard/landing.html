@@ -39,7 +39,7 @@
 {"@type":"Question","name":"Is the simulation deterministic?","acceptedAnswer":{"@type":"Answer","text":"The kernel is fully deterministic. It uses Mulberry32, a 32-bit seeded PRNG. Given seed 950, the kernel produces identical agent rosters, lifecycle schedules, and resource starting values on every run. The divergence between two parallel worlds comes entirely from the AI commander's decisions. wm.replay(artifact) reproduces this in code with a byte-equal comparison."}},
 {"@type":"Question","name":"What LLM providers work with Paracosm?","acceptedAnswer":{"@type":"Answer","text":"OpenAI (GPT-5.4 family) and Anthropic (Claude Sonnet 4.6, Claude Haiku 4.5). Each role (commander, departments, director, judge, agent reactions) is configurable independently. Cost presets quality and economy bundle sensible defaults; per-role overrides win. Paracosm auto-detects which API key is set and falls back between providers."}},
 {"@type":"Question","name":"Can I build my own scenario?","acceptedAnswer":{"@type":"Answer","text":"Three paths. (1) Write a ScenarioPackage in TypeScript with custom hooks. (2) Write a scenario JSON draft and run it through compileScenario(). (3) Pass a brief or URL to WorldModel.fromPrompt() and let an LLM draft the JSON contract first. All three produce the same canonical ScenarioPackage and route through the same runtime. Compile cost is roughly $0.10 and caches to disk."}},
-{"@type":"Question","name":"Is Paracosm free?","acceptedAnswer":{"@type":"Answer","text":"The engine is open source under Apache-2.0. Use it in commercial products without restriction. You provide LLM API keys; running a 6-turn quality-preset simulation costs roughly $1-3 on OpenAI, $3-7 on Anthropic. Hosted tiers for managed deployment are on the roadmap; contact team@frame.dev for early access."}}
+{"@type":"Question","name":"Is Paracosm free?","acceptedAnswer":{"@type":"Answer","text":"The engine is open source under Apache-2.0. Use it in commercial products without restriction. You provide LLM API keys; running a 6-turn quality-preset simulation costs roughly $1-3 on OpenAI, $3-7 on Anthropic. A hosted enterprise SaaS dashboard with full analytics suite, fleet orchestration, and team workspaces is in development. No pricing tiers yet; team@frame.dev for early access."}}
 ]}
 </script>
 <script type="application/ld+json">
@@ -120,6 +120,7 @@
     <a href="#how-it-works">How It Works</a>
     <a href="#scenarios">Scenarios</a>
     <a href="#cookbook">Cookbook</a>
+    <a href="#hosted">Hosted</a>
     <a href="#faq">FAQ</a>
     <a href="#about">About</a>
     <a href="/docs">API Docs</a>
@@ -139,6 +140,7 @@
   <a href="#how-it-works">How It Works</a>
   <a href="#scenarios">Scenarios</a>
   <a href="#cookbook">Cookbook</a>
+  <a href="#hosted">Hosted</a>
   <a href="#faq">FAQ</a>
   <a href="#about">About</a>
   <a href="/docs">API Docs</a>
@@ -669,7 +671,54 @@ curl -X POST http://localhost:3456/simulate \
       <details class="faq-item"><summary>What LLM providers work with Paracosm?</summary><div class="faq-body">OpenAI (GPT-5.4) and Anthropic (Claude Sonnet 4.6). All roles (commander, departments, crisis director, tool judge) default to the full model for reliable structured output and tool forging. You can override per-role in the setup panel or via the API. Mini models (GPT-5.4-mini, Claude Haiku) are available for cost optimization but produce lower quality results.</div></details>
       <details class="faq-item"><summary>Can I build my own scenario?</summary><div class="faq-body">Two paths. If you want full control, write a ScenarioPackage in TypeScript with custom hooks for progression, crisis generation, milestones, and politics. If you want zero-code authoring today, write a scenario JSON draft and optionally add seed text or a seed URL for grounding, then run it through the Scenario Compiler. A prompt-only wrapper should generate the same JSON contract before simulation. Compilation costs about $0.10 in API calls and caches results to disk. An Antarctic station, a submarine crew, a corporate org, a generation ship: different world contract, same engine, different future.</div></details>
       <details class="faq-item"><summary>What verticals does this apply to?</summary><div class="faq-body">Defense and intelligence use it for wargaming and scenario planning. Corporate strategy teams model acquisition outcomes and leadership dynamics. Game studios generate procedural NPC civilizations and emergent narratives. Academic researchers run controlled experiments in multi-agent decision-making. Government agencies simulate policy impacts before implementation. The common thread: any domain where testing decisions before making them reduces risk.</div></details>
-      <details class="faq-item"><summary>Is Paracosm free?</summary><div class="faq-body">The engine is open source under Apache-2.0. You can use it in commercial products without restriction. Install from npm, fork the repo, build on it. Hosted tiers for managed deployment, auth, persistence, and scenario authoring are on the roadmap. Contact <a href="mailto:team@frame.dev">team@frame.dev</a> for early access.</div></details>
+      <details class="faq-item"><summary>Is Paracosm free?</summary><div class="faq-body">The engine is open source under Apache-2.0. You can use it in commercial products without restriction. Install from npm, fork the repo, build on it. A hosted enterprise SaaS dashboard with full analytics, fleet orchestration, and team workspaces is in development. No pricing yet; <a href="mailto:team@frame.dev">team@frame.dev</a> for early access and custom engagements.</div></details>
+    </div>
+  </div>
+</section>
+
+<!-- HOSTED SAAS / COMING SOON -->
+<section class="sec sec-alt" id="hosted">
+  <div class="sec-inner">
+    <div class="sec-label rv">Hosted Platform</div>
+    <h2 class="sec-title rv">Coming soon: enterprise SaaS dashboard</h2>
+    <p class="sec-desc rv">The open-source engine ships today on npm. The hosted product layer is in development at Frame.dev for organizations that need decision intelligence at scale: defense, government, frontier AI labs, corporate strategy, R&amp;D, alignment teams. No pricing tiers yet. The list below is what's on the roadmap.</p>
+
+    <div class="feat-grid" style="margin-top:24px">
+      <div class="feat rv rv-d1">
+        <h3>Full analytics suite</h3>
+        <p>Per-leader cohort analysis, A/B benchmarks across HEXACO archetypes, scenario regression dashboards, decision-quality scoring, fleet-wide trajectory diff. Every artifact streams into the analytics warehouse with the universal RunArtifact schema.</p>
+        <div class="feat-ref">analytics warehouse: per-run, per-leader, per-decision, per-forge</div>
+      </div>
+      <div class="feat rv rv-d2">
+        <h3>Fleet orchestration</h3>
+        <p>Run 10, 50, or 500+ leaders through the same scenario in parallel across distributed worker nodes. Aggregate comparison views. Live progress streaming. Automated batch sweeps with shared seeds and shared compiled scenarios. Cancel-on-divergence policies for early stopping.</p>
+        <div class="feat-ref">distributed worker pool, queue-backed dispatch, autoscaling</div>
+      </div>
+      <div class="feat rv rv-d3">
+        <h3>Persistent memory + replay</h3>
+        <p>Multi-session agent memory with consolidation, eviction, and stance drift across runs. Reload any past run. Replay any artifact for byte-equal kernel verification. Compare runs across paracosm versions to localize behavior changes between releases.</p>
+        <div class="feat-ref">durable agent memory, kernel replay, version-diff regression</div>
+      </div>
+      <div class="feat rv rv-d1">
+        <h3>Team workspaces</h3>
+        <p>Shared scenario libraries, leader rosters, and run history with role-based access. Approval gates on production simulations. Audit trails on every run. Scenario authoring studio with a visual form-based editor on top of the canonical JSON contract.</p>
+        <div class="feat-ref">SSO, RBAC, audit log, scenario marketplace, version control</div>
+      </div>
+      <div class="feat rv rv-d2">
+        <h3>Business intelligence</h3>
+        <p>Leadership-decision modeling for organizations: model M&amp;A scenarios, market-entry plays, workforce planning, governance experiments, alignment red-team sweeps, defense wargames. Integrate with internal data warehouses and identity providers for real-context scenario seeding.</p>
+        <div class="feat-ref">SQL connector, S3/Snowflake/BigQuery seed ingestion, SSO</div>
+      </div>
+      <div class="feat rv rv-d3">
+        <h3>Private deployment</h3>
+        <p>Dedicated cluster or VPC deployment for organizations that need data sovereignty, on-prem inference, air-gapped runs, or regulated compliance posture. Custom scenario authoring services. Integration with internal LLM gateways. SLA, dedicated support, custom rate limits.</p>
+        <div class="feat-ref">VPC / on-prem / air-gapped, custom inference gateway, SLA</div>
+      </div>
+    </div>
+
+    <div style="margin-top:32px;text-align:center">
+      <a href="mailto:team@frame.dev?subject=Paracosm hosted SaaS early access" class="cta">Request early access <svg><use href="#i-arrow"/></svg></a>
+      <a href="mailto:team@frame.dev?subject=Paracosm enterprise / custom engagement" class="btn-ghost" style="margin-left:12px">Custom engagements</a>
     </div>
   </div>
 </section>
