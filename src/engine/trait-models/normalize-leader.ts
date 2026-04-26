@@ -65,6 +65,24 @@ export function normalizeLeaderConfig(
   // Path 1: leader supplied a traitProfile explicitly.
   if (leader.traitProfile) {
     const model = registry.require(leader.traitProfile.modelId);
+    // Cross-validate trait keys against the model's declared axes.
+    // The cue translator silently drops unknown axes at runtime
+    // (logs `[trait-cues] dropped unknown axis: <id>`), but
+    // catching the same problem at simulate-start yields a clearer
+    // error and prevents drift / cue subtle data loss.
+    const declaredAxes = new Set(model.axes.map(a => a.id));
+    const unknown: string[] = [];
+    for (const axisId of Object.keys(leader.traitProfile.traits)) {
+      if (!declaredAxes.has(axisId)) unknown.push(axisId);
+    }
+    if (unknown.length > 0) {
+      throw new Error(
+        `LeaderConfig "${leader.name ?? '<unnamed>'}" traitProfile ` +
+        `(modelId='${leader.traitProfile.modelId}') references axes ` +
+        `not declared by the model: [${unknown.join(', ')}]. ` +
+        `Declared axes: [${[...declaredAxes].join(', ')}].`,
+      );
+    }
     const filled = withDefaults(leader.traitProfile.traits, model);
     return {
       ...leader,
