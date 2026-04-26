@@ -8,7 +8,7 @@ import type {
 } from '../engine/schema/index.js';
 import type { ITool } from '@framers/agentos';
 import {
-  webSearchTool,
+  createWebSearchTool,
   createEmergentEngine,
   createCallForgedTool,
   wrapForgeTool,
@@ -35,6 +35,7 @@ import type { Department, HexacoProfile, HexacoSnapshot, TurnOutcome } from '../
 import { SeededRng } from '../engine/core/rng.js';
 import { classifyOutcome, classifyOutcomeById, driftCommanderHexaco } from '../engine/core/progression.js';
 import { buildTrajectoryCue } from './hexaco-cues/trajectory.js';
+import { normalizeLeaderConfig } from '../engine/trait-models/normalize-leader.js';
 import type { DepartmentReport, CommanderDecision, TurnArtifact } from './contracts.js';
 import { SimulationKernel } from '../engine/core/kernel.js';
 import type { KeyPersonnel } from '../engine/core/agent-generator.js';
@@ -55,6 +56,11 @@ import {
   type StartingResources,
 } from '../cli/sim-config.js';
 import { resolveProviderWithFallback } from '../engine/provider-resolver.js';
+import {
+  apiKeyForProvider,
+  resolveProviderFromCredentials,
+  type RuntimeCredentialOptions,
+} from '../engine/provider-credentials.js';
 import { applyCustomEventToCrisis, buildTimeSchedule } from './runtime-helpers.js';
 import { classifyProviderError, shouldAbortRun, type ClassifiedProviderError } from './provider-errors.js';
 import { EffectRegistry } from '../engine/effect-registry.js';
@@ -343,7 +349,7 @@ export function buildEventSummary(type: SimEventType, data: Record<string, unkno
   }
 }
 
-export interface RunOptions {
+export interface RunOptions extends RuntimeCredentialOptions {
   maxTurns?: number;
   seed?: number;
   startTime?: number;
@@ -433,14 +439,26 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   const sc = opts.scenario ?? marsScenario;
   const maxTurns = opts.maxTurns ?? 12;
   const startTime = opts.startTime ?? opts.scenario?.setup?.defaultStartTime ?? 0;
+
+  // Normalize the leader so traitProfile is guaranteed populated before
+  // any downstream code reads it. Legacy hexaco-only callers continue
+  // to work because the resolver synthesizes a hexaco-modeled
+  // traitProfile from leader.hexaco. Non-HEXACO callers (e.g. ai-agent
+  // leaders) get their explicit traitProfile passed through.
+  // See docs/superpowers/specs/2026-04-26-trait-model-generalization-design.md.
+  leader = normalizeLeaderConfig(leader);
   const timePerTurn = opts.timePerTurn ?? opts.scenario?.setup?.defaultTimePerTurn ?? 1;
-  const requestedProvider = opts.provider ?? 'openai';
+  const requestedProvider = resolveProviderFromCredentials(opts.provider, opts, 'openai');
+  const requestedProviderApiKey = apiKeyForProvider(requestedProvider, opts);
   // Preflight env check. Falls back to the other supported provider if
   // the requested one has no key; throws ProviderKeyMissingError when
   // neither OPENAI_API_KEY nor ANTHROPIC_API_KEY is set, rather than
   // hanging in a retry loop during the first LLM call.
-  const resolvedProvider = resolveProviderWithFallback(requestedProvider);
+  const resolvedProvider = resolveProviderWithFallback(requestedProvider, {
+    apiKey: requestedProviderApiKey,
+  });
   const provider = resolvedProvider.provider;
+  const providerApiKey = apiKeyForProvider(provider, opts);
   const sid = `${sc.labels.shortName}-v2-${leader.archetype.toLowerCase().replace(/\s+/g, '-')}`;
   const modelConfig = resolveSimulationModels(provider, opts.models, opts.costPreset);
   // Cost tracking: accumulate token usage and estimated cost across all LLM calls
@@ -596,6 +614,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   // Populates RunArtifact.scenarioExtensions.kernelSnapshotsPerTurn.
   const kernelSnapshotsPerTurn: import('../engine/core/snapshot.js').KernelSnapshot[] = [];
 
+  const webSearchTool = createWebSearchTool(opts);
   const toolMap = new Map<string, ITool>();
   toolMap.set('web_search', webSearchTool);
   // Shared map of approved forged-tool executables. Populated by the
@@ -618,6 +637,7 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
     // path as failures from any other LLM call site.
     (err) => reportProviderError(err, 'judge'),
     forgedExecutables,
+    providerApiKey,
   );
   const callForgedTool = createCallForgedTool(forgedExecutables);
   const toolRegs: Record<string, string[]> = {};
@@ -656,6 +676,8 @@ export async function runSimulation(leader: LeaderConfig, keyPersonnel: KeyPerso
   // losing the trait-driven behavioral cues that make leaders diverge.
   const commander = agent({
     provider, model: modelConfig.commander,
+    apiKey: providerApiKey,
+    fallbackProviders: providerApiKey ? [] : undefined,
     instructions: leader.instructions,
     personality: { openness: leader.hexaco.openness, conscientiousness: leader.hexaco.conscientiousness, extraversion: leader.hexaco.extraversion, agreeableness: leader.hexaco.agreeableness, emotionality: leader.hexaco.emotionality, honesty: leader.hexaco.honestyHumility },
     maxSteps: opts.execution?.commanderMaxSteps ?? DEFAULT_EXECUTION.commanderMaxSteps,
@@ -899,6 +921,8 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
     const a = agent({
       provider,
       model: modelConfig.departments || cfg.defaultModel,
+      apiKey: providerApiKey,
+      fallbackProviders: providerApiKey ? [] : undefined,
       systemBlocks: [{ text: deptSystemPrompt, cacheBreakpoint: true }],
       tools,
       maxSteps: opts.execution?.departmentMaxSteps ?? DEFAULT_EXECUTION.departmentMaxSteps,
@@ -1064,6 +1088,7 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
         (err) => reportProviderError(err, 'director'),
         // Feed per-schema retry telemetry.
         (attempts, fellBack) => recordSchemaAttempt('DirectorEventBatch', attempts, fellBack),
+        providerApiKey,
       );
       turnEvents = batch.events;
       batchPacing = batch.pacing;
@@ -1703,6 +1728,7 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
       lastEventCategory,
       lastOutcome,
       provider,
+      apiKey: providerApiKey,
       modelConfig,
       execution: opts.execution,
       trackUsage,
