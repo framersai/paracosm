@@ -33,6 +33,10 @@ import {
 // sites continue to import from this module without churn.
 export { validateForgeShape, inferSchemaFromTestCases };
 import { DEFAULT_EXECUTION, type SimulationExecutionConfig } from '../cli/sim-config.js';
+import {
+  searchCredential,
+  type SearchCredentialOptions,
+} from '../engine/provider-credentials.js';
 import type { LlmProvider } from '../engine/types.js';
 
 // ---------------------------------------------------------------------------
@@ -47,52 +51,63 @@ import type { LlmProvider } from '../engine/types.js';
  * Serper call when the fusion service is unavailable. Missing keys
  * return a clean error payload instead of throwing.
  */
-export const webSearchTool: ITool = {
-  id: 'tool.web_search', name: 'web_search', displayName: 'Multi-Provider Web Search',
-  description: 'Search for scientific papers, NASA data, and Mars research using AgentOS WebSearchService with multi-provider fusion (Serper, Tavily, Firecrawl, Brave) and Cohere neural reranking.',
-  inputSchema: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] },
-  hasSideEffects: false,
-  async execute(args: Record<string, unknown>) {
-    const query = String(args.query || '');
-    try {
-      const { WebSearchService, FirecrawlProvider, TavilyProvider, SerperProvider, BraveProvider } = await import('@framers/agentos/web-search');
-      const service = new WebSearchService();
-      if (process.env.FIRECRAWL_API_KEY) service.registerProvider(new FirecrawlProvider(process.env.FIRECRAWL_API_KEY));
-      if (process.env.TAVILY_API_KEY) service.registerProvider(new TavilyProvider(process.env.TAVILY_API_KEY));
-      if (process.env.SERPER_API_KEY) service.registerProvider(new SerperProvider(process.env.SERPER_API_KEY));
-      if (process.env.BRAVE_API_KEY) service.registerProvider(new BraveProvider(process.env.BRAVE_API_KEY));
-      if (!service.hasProviders()) {
-        return { success: false, error: 'No search API keys configured. Set SERPER_API_KEY, TAVILY_API_KEY, FIRECRAWL_API_KEY, or BRAVE_API_KEY.' };
-      }
-      const results = await service.search(query, { maxResults: 5, rerank: !!process.env.COHERE_API_KEY });
-      return {
-        success: true,
-        output: {
-          results: results.map(r => ({
-            title: r.title, url: r.url, snippet: r.snippet,
-            providers: (r as any).providerSources || [],
-            relevance: (r as any).rerankScore || (r as any).rrfScore || r.relevanceScore,
-          })),
-          query,
-          reranked: !!process.env.COHERE_API_KEY,
-        },
-      };
-    } catch {
-      // Fallback: direct Serper when the fusion service isn't available.
+export function createWebSearchTool(
+  credentials: SearchCredentialOptions = {},
+  env: NodeJS.ProcessEnv | undefined = typeof process !== 'undefined' ? process.env : undefined,
+): ITool {
+  return {
+    id: 'tool.web_search', name: 'web_search', displayName: 'Multi-Provider Web Search',
+    description: 'Search for scientific papers, NASA data, and Mars research using AgentOS WebSearchService with multi-provider fusion (Serper, Tavily, Firecrawl, Brave) and Cohere neural reranking.',
+    inputSchema: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] },
+    hasSideEffects: false,
+    async execute(args: Record<string, unknown>) {
+      const query = String(args.query || '');
+      const firecrawlKey = searchCredential(credentials.firecrawlKey, 'FIRECRAWL_API_KEY', env);
+      const tavilyKey = searchCredential(credentials.tavilyKey, 'TAVILY_API_KEY', env);
+      const serperKey = searchCredential(credentials.serperKey, 'SERPER_API_KEY', env);
+      const braveKey = searchCredential(credentials.braveKey, 'BRAVE_API_KEY', env);
+      const cohereKey = searchCredential(credentials.cohereKey, 'COHERE_API_KEY', env);
       try {
-        const key = process.env.SERPER_API_KEY;
-        if (!key) return { success: false, error: 'No search API keys configured' };
-        const res = await fetch('https://google.serper.dev/search', {
-          method: 'POST', headers: { 'X-API-KEY': key, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ q: query, num: 5 }),
-        });
-        if (!res.ok) return { success: false, error: `Search ${res.status}` };
-        const data = await res.json() as any;
-        return { success: true, output: { results: (data.organic || []).slice(0, 5).map((r: any) => ({ title: r.title, url: r.link, snippet: r.snippet })), query } };
-      } catch (err) { return { success: false, error: String(err) }; }
-    }
-  },
-};
+        const { WebSearchService, FirecrawlProvider, TavilyProvider, SerperProvider, BraveProvider } = await import('@framers/agentos/web-search');
+        const service = new WebSearchService();
+        if (firecrawlKey) service.registerProvider(new FirecrawlProvider(firecrawlKey));
+        if (tavilyKey) service.registerProvider(new TavilyProvider(tavilyKey));
+        if (serperKey) service.registerProvider(new SerperProvider(serperKey));
+        if (braveKey) service.registerProvider(new BraveProvider(braveKey));
+        if (!service.hasProviders()) {
+          return { success: false, error: 'No search API keys configured. Set SERPER_API_KEY, TAVILY_API_KEY, FIRECRAWL_API_KEY, or BRAVE_API_KEY.' };
+        }
+        const results = await service.search(query, { maxResults: 5, rerank: !!cohereKey });
+        return {
+          success: true,
+          output: {
+            results: results.map(r => ({
+              title: r.title, url: r.url, snippet: r.snippet,
+              providers: (r as any).providerSources || [],
+              relevance: (r as any).rerankScore || (r as any).rrfScore || r.relevanceScore,
+            })),
+            query,
+            reranked: !!cohereKey,
+          },
+        };
+      } catch {
+        // Fallback: direct Serper when the fusion service isn't available.
+        try {
+          if (!serperKey) return { success: false, error: 'No search API keys configured' };
+          const res = await fetch('https://google.serper.dev/search', {
+            method: 'POST', headers: { 'X-API-KEY': serperKey, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ q: query, num: 5 }),
+          });
+          if (!res.ok) return { success: false, error: `Search ${res.status}` };
+          const data = await res.json() as any;
+          return { success: true, output: { results: (data.organic || []).slice(0, 5).map((r: any) => ({ title: r.title, url: r.link, snippet: r.snippet })), query } };
+        } catch (err) { return { success: false, error: String(err) }; }
+      }
+    },
+  };
+}
+
+export const webSearchTool: ITool = createWebSearchTool();
 
 // ---------------------------------------------------------------------------
 // Emergent engine factory
@@ -133,10 +148,18 @@ export function createEmergentEngine(
    * onToolForged callback; the same map is read by the meta-tool.
    */
   forgedExecutables?: Map<string, ITool>,
+  /** Explicit provider API key for this run. */
+  apiKey?: string,
 ) {
   const llmCb = async (model: string, prompt: string) => {
     try {
-      const r = await generateText({ provider, model: model || judgeModel, prompt });
+      const r = await generateText({
+        provider,
+        model: model || judgeModel,
+        prompt,
+        apiKey,
+        fallbackProviders: apiKey ? [] : undefined,
+      });
       onUsage?.(r);
       return r.text;
     } catch (err) {
@@ -157,6 +180,8 @@ export function createEmergentEngine(
         model: model || judgeModel,
         system: [{ text: system, cacheBreakpoint: true }],
         prompt: user,
+        apiKey,
+        fallbackProviders: apiKey ? [] : undefined,
       });
       onUsage?.(r);
       return r.text;
