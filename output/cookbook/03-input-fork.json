@@ -1,0 +1,23 @@
+{
+  "parentRunId": "corp-aggressive-sales-optimizer-1777185368038",
+  "atTurn": 1,
+  "altLeader": {
+    "name": "Dr. Sora Wen",
+    "archetype": "Systems Engineer of Control",
+    "hexaco": {
+      "openness": 0.31,
+      "conscientiousness": 0.86,
+      "extraversion": 0.34,
+      "agreeableness": 0.58,
+      "emotionality": 0.22,
+      "honestyHumility": 0.64
+    }
+  },
+  "branchOptions": {
+    "maxTurns": 3,
+    "seed": 42,
+    "captureSnapshots": true,
+    "provider": "openai",
+    "costPreset": "economy"
+  }
+}

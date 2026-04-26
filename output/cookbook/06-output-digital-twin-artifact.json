@@ -1,0 +1,162 @@
+{
+  "fingerprint": {
+    "resilience": "stable",
+    "innovation": "experimental",
+    "riskStyle": "opportunistic",
+    "decisionDiscipline": "mixed",
+    "summary": "riskBehavior:bold · outcomeStability:mixed · financialRobustness:fragile · cashStress:severe · marketMomentum:mixed · operationalCapacityFit:scaling · leadershipStyle:balanced · funding:series-b · timeline:within,1q · tools:narrow",
+    "totalTools": "2",
+    "successRate": "0.50",
+    "survivalRate": "0.98",
+    "riskRate": "0.50",
+    "riskBehavior": "bold",
+    "outcomeStability": "mixed",
+    "financialRobustness": "fragile",
+    "cashStress": "severe",
+    "marketMomentum": "mixed",
+    "operationalCapacityFit": "scaling",
+    "leadershipStyle": "balanced"
+  },
+  "metadata": {
+    "runId": "corp-aggressive-sales-optimizer-1777185685084",
+    "scenario": {
+      "id": "corporate-quarterly",
+      "name": "Q-Scope Corp"
+    },
+    "seed": 11,
+    "mode": "turn-loop",
+    "startedAt": "2026-04-26T06:40:09.080Z",
+    "completedAt": "2026-04-26T06:41:25.084Z"
+  },
+  "finalState": {
+    "metrics": {
+      "population": 101,
+      "powerKw": 398.8,
+      "foodMonthsReserve": 18.4,
+      "waterLitersPerDay": 800,
+      "pressurizedVolumeM3": 3000,
+      "lifeSupportCapacity": 120,
+      "infrastructureModules": 3,
+      "scienceOutput": 1,
+      "morale": 0.8542,
+      "revenueArr": 6000000,
+      "burnRate": 850000,
+      "runwayMonths": 14,
+      "marketShare": 0.08,
+      "hiringCapacity": 8,
+      "deliveryCapacity": 6
+    }
+  },
+  "trajectory": {
+    "mode": "turn-loop",
+    "timeUnit": {
+      "singular": "quarter",
+      "plural": "quarters"
+    },
+    "timepointCount": 2,
+    "sampleTimepoint": {
+      "time": 1,
+      "label": "Quarter 1",
+      "worldSnapshot": {
+        "metrics": {
+          "population": 100,
+          "powerKw": 398.8,
+          "foodMonthsReserve": 18,
+          "waterLitersPerDay": 800,
+          "pressurizedVolumeM3": 3000,
+          "lifeSupportCapacity": 120,
+          "infrastructureModules": 3,
+          "scienceOutput": 0,
+          "morale": 0.938,
+          "revenueArr": 6000000,
+          "burnRate": 850000,
+          "runwayMonths": 14,
+          "marketShare": 0.08,
+          "hiringCapacity": 8,
+          "deliveryCapacity": 6,
+          "births": 0,
+          "deaths": 0
+        },
+        "capacities": {
+          "hiringCapacity": 8,
+          "deliveryCapacity": 6
+        },
+        "statuses": {
+          "fundingRound": "series-b"
+        },
+        "politics": {
+          "earthDependencyPct": 95,
+          "governanceStatus": "earth-governed",
+          "independencePressure": 0.05,
+          "boardConfidence": 75,
+          "investorPressure": 40
+        },
+        "environment": {
+          "marketGrowthPct": 25,
+          "competitorCount": 8,
+          "macroRateBasisPts": 475
+        }
+      }
+    }
+  },
+  "decisionCount": 2,
+  "sampleDecision": {
+    "time": 1,
+    "actor": "Marin Kade",
+    "choice": "Go with immediate scaling and parallel execution: multiple squads across product tracks, fuller operating processes early to reduce coordination friction, while Engineering/Food/Operations tighten the water allocation feedback loop so inaccuracies are caught and corrected quickly.",
+    "rationale": "Engineering’s success with a population/consumption/source-based water allocation tool gives us a real control loop, so we can accelerate learning instead of waiting for a platform milestone. I’m choosing the higher-risk execution path (option_b) because my priority is to surface real constraints early and convert them into faster process and capacity improvements—over the slower tradeoff of option_c that delays outcomes. Any medium risks from allocation inaccuracies get handled through immediate metric updates and continued water-source research, treating variance as signal, not stall.",
+    "reasoning": "1) My personality pushes me toward option_b: decisive, visible leverage, friction-as-clarity. Trait poles: high drive/urgency (risk-tolerant momentum), low tolerance for consensus delay (execution-first), and command bias toward aggressive conversion of plans into commitments (overbooking/pressure mindset). 2) Engineering reports converge on capability building and updating metrics; they don’t argue for stalling. The conflict is only cadence: option_b’s parallelization and early process hardening vs option_c’s slower platform-first stability. I trust the execution momentum voice from Engineering and override the conservative “wait for stability” instinct. 3) Forged-tool outputs that inform this decision: the water allocation tool that calculates and allocates resources based on population, individual consumption rate, and available water sources (no numeric outputs provided). 4) Risk accepted: higher execution risk because more moving parts can make inaccuracies compound before control loops catch up. Risk refused: delayed discovery and delayed binding commitments from starting with an internal platform first. 5) Final choice: option_b — scale immediately with parallel tracks while tightening control loops around the water allocation tool to surface constraints fast and harden processes early.",
+    "outcome": "risky_success"
+  },
+  "forgedToolCount": 1,
+  "citationCount": 4,
+  "cost": {
+    "totalUSD": 0.109,
+    "llmCalls": 22
+  },
+  "subject": {
+    "id": "frontier-lab-2026",
+    "name": "Atlas Lab",
+    "profile": {
+      "foundedYear": 2018,
+      "headcount": 480,
+      "modelGen": "Atlas-7",
+      "alignmentBench": 0.84
+    },
+    "signals": [
+      {
+        "label": "AlignmentBench-2026",
+        "value": 0.84,
+        "unit": "score",
+        "recordedAt": "2026-11-01T00:00:00Z"
+      },
+      {
+        "label": "spec-gaming-rate",
+        "value": 0.042,
+        "unit": "fraction",
+        "recordedAt": "2026-11-15T00:00:00Z"
+      }
+    ],
+    "markers": [
+      {
+        "id": "flagship-multimodal",
+        "category": "capability",
+        "value": "true"
+      }
+    ]
+  },
+  "intervention": {
+    "id": "delay-90d",
+    "name": "90-day release delay",
+    "description": "Hold Atlas-7 release 90 days for additional red-team and DPO mitigation passes.",
+    "duration": {
+      "value": 90,
+      "unit": "days"
+    },
+    "adherenceProfile": {
+      "expected": 1
+    }
+  },
+  "aborted": false,
+  "providerError": null
+}

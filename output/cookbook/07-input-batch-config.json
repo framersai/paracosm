@@ -1,0 +1,37 @@
+{
+  "scenarios": [
+    "corporate-quarterly",
+    "mars-genesis"
+  ],
+  "leaders": [
+    {
+      "name": "Marin Kade",
+      "archetype": "Aggressive Sales Optimizer",
+      "hexaco": {
+        "openness": 0.64,
+        "conscientiousness": 0.33,
+        "extraversion": 0.86,
+        "agreeableness": 0.26,
+        "emotionality": 0.29,
+        "honestyHumility": 0.42
+      }
+    },
+    {
+      "name": "Dr. Sora Wen",
+      "archetype": "Systems Engineer of Control",
+      "hexaco": {
+        "openness": 0.31,
+        "conscientiousness": 0.86,
+        "extraversion": 0.34,
+        "agreeableness": 0.58,
+        "emotionality": 0.22,
+        "honestyHumility": 0.64
+      }
+    }
+  ],
+  "turns": 2,
+  "seed": 950,
+  "maxConcurrency": 2,
+  "provider": "openai",
+  "costPreset": "economy"
+}

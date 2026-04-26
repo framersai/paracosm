@@ -1,0 +1,190 @@
+{
+  "timestamp": "2026-04-26T06:44:23.605Z",
+  "config": {
+    "scenarioIds": [
+      "corporate-quarterly",
+      "mars-genesis"
+    ],
+    "leaders": [
+      "Marin Kade",
+      "Dr. Sora Wen"
+    ],
+    "turns": 2,
+    "seed": 950,
+    "provider": "openai",
+    "maxConcurrency": 2
+  },
+  "totalDuration": 178472,
+  "results": [
+    {
+      "scenarioId": "corporate-quarterly",
+      "scenarioVersion": "1.0.0",
+      "leader": "Marin Kade",
+      "seed": 950,
+      "turns": 2,
+      "fingerprint": {
+        "resilience": "stable",
+        "innovation": "experimental",
+        "riskStyle": "cautious",
+        "decisionDiscipline": "mixed",
+        "summary": "riskBehavior:steady · outcomeStability:mixed · financialRobustness:fragile · cashStress:severe · marketMomentum:mixed · operationalCapacityFit:scaling · leadershipStyle:balanced · funding:series-b · timeline:within,1q · tools:narrow",
+        "totalTools": "2",
+        "successRate": "0.50",
+        "survivalRate": "1.00",
+        "riskRate": "0.00",
+        "riskBehavior": "steady",
+        "outcomeStability": "mixed",
+        "financialRobustness": "fragile",
+        "cashStress": "severe",
+        "marketMomentum": "mixed",
+        "operationalCapacityFit": "scaling",
+        "leadershipStyle": "balanced"
+      },
+      "durationMs": 109966,
+      "cost": {
+        "totalUSD": 0.1653,
+        "llmCalls": 26
+      },
+      "finalMetrics": {
+        "population": 103,
+        "powerKw": 397.6,
+        "foodMonthsReserve": 18.4,
+        "waterLitersPerDay": 800,
+        "pressurizedVolumeM3": 3000,
+        "lifeSupportCapacity": 120,
+        "infrastructureModules": 3,
+        "scienceOutput": 1,
+        "morale": 0.7372000000000001,
+        "revenueArr": 6000000,
+        "burnRate": 850000,
+        "runwayMonths": 14,
+        "marketShare": 0.08,
+        "hiringCapacity": 8,
+        "deliveryCapacity": 6
+      }
+    },
+    {
+      "scenarioId": "corporate-quarterly",
+      "scenarioVersion": "1.0.0",
+      "leader": "Dr. Sora Wen",
+      "seed": 950,
+      "turns": 2,
+      "fingerprint": {
+        "resilience": "stable",
+        "innovation": "experimental",
+        "riskStyle": "cautious",
+        "decisionDiscipline": "mixed",
+        "summary": "riskBehavior:steady · outcomeStability:mixed · financialRobustness:fragile · cashStress:severe · marketMomentum:mixed · operationalCapacityFit:scaling · leadershipStyle:disciplined · funding:series-b · timeline:within,1q · tools:narrow",
+        "totalTools": "3",
+        "successRate": "0.50",
+        "survivalRate": "1.00",
+        "riskRate": "0.00",
+        "riskBehavior": "steady",
+        "outcomeStability": "mixed",
+        "financialRobustness": "fragile",
+        "cashStress": "severe",
+        "marketMomentum": "mixed",
+        "operationalCapacityFit": "scaling",
+        "leadershipStyle": "disciplined"
+      },
+      "durationMs": 84663,
+      "cost": {
+        "totalUSD": 0.0966,
+        "llmCalls": 23
+      },
+      "finalMetrics": {
+        "population": 103,
+        "powerKw": 397.6,
+        "foodMonthsReserve": 18.4,
+        "waterLitersPerDay": 800,
+        "pressurizedVolumeM3": 3000,
+        "lifeSupportCapacity": 120,
+        "infrastructureModules": 3,
+        "scienceOutput": 1,
+        "morale": 0.7462,
+        "revenueArr": 6000000,
+        "burnRate": 850000,
+        "runwayMonths": 14,
+        "marketShare": 0.08,
+        "hiringCapacity": 8,
+        "deliveryCapacity": 6
+      }
+    },
+    {
+      "scenarioId": "mars-genesis",
+      "scenarioVersion": "3.0.0",
+      "leader": "Marin Kade",
+      "seed": 950,
+      "turns": 2,
+      "fingerprint": {
+        "resilience": "brittle",
+        "innovation": "innovative",
+        "riskStyle": "cautious",
+        "decisionDiscipline": "mixed",
+        "summary": "brittle · Earth-tethered · charismatic · conservative · Earth-diaspora · innovative",
+        "totalTools": "6",
+        "successRate": "0.50",
+        "survivalRate": "0.83",
+        "riskRate": "0.00",
+        "autonomy": "Earth-tethered",
+        "governance": "charismatic",
+        "riskProfile": "conservative",
+        "identity": "Earth-diaspora"
+      },
+      "durationMs": 68986,
+      "cost": {
+        "totalUSD": 0.2369,
+        "llmCalls": 30
+      },
+      "finalMetrics": {
+        "population": 90,
+        "powerKw": 465.69,
+        "foodMonthsReserve": 26.744,
+        "waterLitersPerDay": 800,
+        "pressurizedVolumeM3": 3230.95,
+        "lifeSupportCapacity": 120,
+        "infrastructureModules": 4.3500000000000005,
+        "scienceOutput": 8,
+        "morale": 0.05950000000000007
+      }
+    },
+    {
+      "scenarioId": "mars-genesis",
+      "scenarioVersion": "3.0.0",
+      "leader": "Dr. Sora Wen",
+      "seed": 950,
+      "turns": 2,
+      "fingerprint": {
+        "resilience": "brittle",
+        "innovation": "adaptive",
+        "riskStyle": "cautious",
+        "decisionDiscipline": "mixed",
+        "summary": "brittle · Earth-tethered · technocratic · conservative · Earth-diaspora · adaptive",
+        "totalTools": "4",
+        "successRate": "0.50",
+        "survivalRate": "0.83",
+        "riskRate": "0.00",
+        "autonomy": "Earth-tethered",
+        "governance": "technocratic",
+        "riskProfile": "conservative",
+        "identity": "Earth-diaspora"
+      },
+      "durationMs": 68506,
+      "cost": {
+        "totalUSD": 0.1881,
+        "llmCalls": 29
+      },
+      "finalMetrics": {
+        "population": 90,
+        "powerKw": 469.92,
+        "foodMonthsReserve": 26.984,
+        "waterLitersPerDay": 800,
+        "pressurizedVolumeM3": 3241.07,
+        "lifeSupportCapacity": 120,
+        "infrastructureModules": 4.45,
+        "scienceOutput": 8,
+        "morale": 0.05950000000000007
+      }
+    }
+  ]
+}

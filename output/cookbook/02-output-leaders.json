@@ -1,0 +1,44 @@
+[
+  {
+    "name": "Marin Kade",
+    "archetype": "Aggressive Sales Optimizer",
+    "unit": "Sales (VP of Sales)",
+    "hexaco": {
+      "openness": 0.64,
+      "conscientiousness": 0.33,
+      "extraversion": 0.86,
+      "agreeableness": 0.26,
+      "emotionality": 0.29,
+      "honestyHumility": 0.42
+    },
+    "instructions": "Overbook the forecast, then pressure every account for signatures this quarter. If a contract clause blocks momentum, escalate for a fast concession."
+  },
+  {
+    "name": "Dr. Sora Wen",
+    "archetype": "Systems Engineer of Control",
+    "unit": "Engineering (VP of Engineering)",
+    "hexaco": {
+      "openness": 0.31,
+      "conscientiousness": 0.86,
+      "extraversion": 0.34,
+      "agreeableness": 0.58,
+      "emotionality": 0.22,
+      "honestyHumility": 0.64
+    },
+    "instructions": "Lock scope and enforce change control; stability beats speed. Approve only the highest-confidence releases and document every deviation."
+  },
+  {
+    "name": "Elena Rocha",
+    "archetype": "People-First Culture Stabilizer",
+    "unit": "People (Chief People Officer)",
+    "hexaco": {
+      "openness": 0.52,
+      "conscientiousness": 0.61,
+      "extraversion": 0.46,
+      "agreeableness": 0.82,
+      "emotionality": 0.71,
+      "honestyHumility": 0.74
+    },
+    "instructions": "When targets tighten, protect retention: transparent comms, coaching, and workload triage. Refuse incentives that create fear or degrade psychological safety."
+  }
+]

@@ -1,0 +1,8 @@
+{
+  "leaderCount": 3,
+  "maxTurns": 3,
+  "seed": 42,
+  "captureSnapshots": true,
+  "provider": "openai",
+  "model": "gpt-5.4-nano"
+}

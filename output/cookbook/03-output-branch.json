@@ -1,0 +1,125 @@
+{
+  "fingerprint": {
+    "resilience": "stable",
+    "innovation": "productive",
+    "riskStyle": "cautious",
+    "decisionDiscipline": "mixed",
+    "summary": "riskBehavior:steady · outcomeStability:mixed · financialRobustness:fragile · cashStress:severe · marketMomentum:mixed · operationalCapacityFit:scaling · leadershipStyle:disciplined · funding:series-b · timeline:within,2q · tools:broad",
+    "totalTools": "6",
+    "successRate": "0.50",
+    "survivalRate": "1.00",
+    "riskRate": "0.00",
+    "riskBehavior": "steady",
+    "outcomeStability": "mixed",
+    "financialRobustness": "fragile",
+    "cashStress": "severe",
+    "marketMomentum": "mixed",
+    "operationalCapacityFit": "scaling",
+    "leadershipStyle": "disciplined"
+  },
+  "metadata": {
+    "runId": "corp-systems-engineer-of-control-1777185465467",
+    "scenario": {
+      "id": "corporate-quarterly",
+      "name": "Q-Scope Corp"
+    },
+    "seed": 42,
+    "mode": "turn-loop",
+    "startedAt": "2026-04-26T06:36:17.092Z",
+    "completedAt": "2026-04-26T06:37:45.467Z",
+    "forkedFrom": {
+      "parentRunId": "corp-aggressive-sales-optimizer-1777185368038",
+      "atTurn": 1
+    }
+  },
+  "finalState": {
+    "metrics": {
+      "population": 105,
+      "powerKw": 392.8,
+      "foodMonthsReserve": 18.799999999999997,
+      "waterLitersPerDay": 800,
+      "pressurizedVolumeM3": 3000,
+      "lifeSupportCapacity": 120,
+      "infrastructureModules": 3,
+      "scienceOutput": 2,
+      "morale": 0.5439800000000001,
+      "revenueArr": 6000000,
+      "burnRate": 807518.99,
+      "runwayMonths": 16.12,
+      "marketShare": 0.08,
+      "hiringCapacity": 8,
+      "deliveryCapacity": 6
+    }
+  },
+  "trajectory": {
+    "mode": "turn-loop",
+    "timeUnit": {
+      "singular": "quarter",
+      "plural": "quarters"
+    },
+    "timepointCount": 2,
+    "sampleTimepoint": {
+      "time": 2,
+      "label": "Quarter 2",
+      "worldSnapshot": {
+        "metrics": {
+          "population": 102,
+          "powerKw": 392.8,
+          "foodMonthsReserve": 18.4,
+          "waterLitersPerDay": 800,
+          "pressurizedVolumeM3": 3000,
+          "lifeSupportCapacity": 120,
+          "infrastructureModules": 3,
+          "scienceOutput": 1,
+          "morale": 0.5822,
+          "revenueArr": 6000000,
+          "burnRate": 807518.99,
+          "runwayMonths": 16.12,
+          "marketShare": 0.08,
+          "hiringCapacity": 8,
+          "deliveryCapacity": 6,
+          "births": 2,
+          "deaths": 0
+        },
+        "capacities": {
+          "hiringCapacity": 8,
+          "deliveryCapacity": 6
+        },
+        "statuses": {
+          "fundingRound": "series-b"
+        },
+        "politics": {
+          "earthDependencyPct": 95,
+          "governanceStatus": "earth-governed",
+          "independencePressure": 0.05,
+          "boardConfidence": 74.93,
+          "investorPressure": 40.1
+        },
+        "environment": {
+          "marketGrowthPct": 25,
+          "competitorCount": 8,
+          "macroRateBasisPts": 475
+        }
+      }
+    }
+  },
+  "decisionCount": 2,
+  "sampleDecision": {
+    "time": 2,
+    "actor": "Dr. Sora Wen",
+    "choice": "Launch a reliability-first delivery sprint (4–8 weeks) to reduce release variance, instrument SLAs, and remove the top bottleneck limiting delivery capacity—then ship measurable improvements to stabilize revenue expectations.",
+    "rationale": "",
+    "reasoning": "1) My personality pushes me toward option_b via evidence-first execution and change-control discipline: trait poles are conscientiousness/controls (C), competence/verification orientation (E), and low tolerance for optimistic risk without measurable shipped proof. I’m not going to gamble runway safety on upsell outcomes. 2) The department reports converge: Finance flags the runway constraint (~6 months projection) and the need to align spend with reliable shipped outcomes; Operations recommends process/technology reallocation for an estimated ~20% throughput improvement. Engineering is unavailable, but the shared conclusion is consistent with my profile—delivery reliability first. I trust Finance+Operations most this turn. 3) Toolbox outputs: Finance (conf 0.85) projects projected runway of ~6 months with delivery potential ~1.36 and recommends optimizing resource allocation and enhancing delivery throughput; Operations (conf 0.85) estimates ~20% throughput improvement from improving delivery processes and technology. 4) I accept the tradeoff of near-term sprint execution strain (work instrumentation/bottleneck removal may slow broad throughput temporarily), but I refuse option_c’s explicit risk: trading runway safety for near-term upsell gains that depend on marketing claims while reliability lags, which could raise churn and investor confidence loss. 5) Final choice + justification: option_b—because it converts spend into measurable shipped reliability within 4–8 weeks, directly addressing the ~6-month runway projection and the hiring vs delivery gap without relying on unverifiable upsell promises.",
+    "outcome": "conservative_success"
+  },
+  "forgedToolCount": 3,
+  "citationCount": 5,
+  "cost": {
+    "totalUSD": 0.3386,
+    "llmCalls": 26
+  },
+  "subject": null,
+  "intervention": null,
+  "aborted": false,
+  "providerError": null
+}

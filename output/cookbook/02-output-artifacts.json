@@ -1,0 +1,365 @@
+[
+  {
+    "fingerprint": {
+      "resilience": "stable",
+      "innovation": "productive",
+      "riskStyle": "cautious",
+      "decisionDiscipline": "undisciplined",
+      "summary": "riskBehavior:steady · outcomeStability:low · financialRobustness:fragile · cashStress:severe · marketMomentum:mixed · operationalCapacityFit:scaling · leadershipStyle:balanced · funding:series-b · timeline:within,2q · tools:broad",
+      "totalTools": "7",
+      "successRate": "0.33",
+      "survivalRate": "1.00",
+      "riskRate": "0.00",
+      "riskBehavior": "steady",
+      "outcomeStability": "low",
+      "financialRobustness": "fragile",
+      "cashStress": "severe",
+      "marketMomentum": "mixed",
+      "operationalCapacityFit": "scaling",
+      "leadershipStyle": "balanced"
+    },
+    "metadata": {
+      "runId": "corp-aggressive-sales-optimizer-1777185368038",
+      "scenario": {
+        "id": "corporate-quarterly",
+        "name": "Q-Scope Corp"
+      },
+      "seed": 42,
+      "mode": "turn-loop",
+      "startedAt": "2026-04-26T06:33:29.264Z",
+      "completedAt": "2026-04-26T06:36:08.038Z"
+    },
+    "finalState": {
+      "metrics": {
+        "population": 105,
+        "powerKw": 397.6,
+        "foodMonthsReserve": 18.799999999999997,
+        "waterLitersPerDay": 800,
+        "pressurizedVolumeM3": 3000,
+        "lifeSupportCapacity": 120,
+        "infrastructureModules": 3,
+        "scienceOutput": 2,
+        "morale": 0.65198,
+        "revenueArr": 6000000,
+        "burnRate": 834298.08,
+        "runwayMonths": 14,
+        "marketShare": 0.08,
+        "hiringCapacity": 8,
+        "deliveryCapacity": 6
+      }
+    },
+    "trajectory": {
+      "mode": "turn-loop",
+      "timeUnit": {
+        "singular": "quarter",
+        "plural": "quarters"
+      },
+      "timepointCount": 3,
+      "sampleTimepoint": {
+        "time": 1,
+        "label": "Quarter 1",
+        "worldSnapshot": {
+          "metrics": {
+            "population": 100,
+            "powerKw": 398.8,
+            "foodMonthsReserve": 18,
+            "waterLitersPerDay": 800,
+            "pressurizedVolumeM3": 3000,
+            "lifeSupportCapacity": 120,
+            "infrastructureModules": 3,
+            "scienceOutput": 0,
+            "morale": 0.658,
+            "revenueArr": 6000000,
+            "burnRate": 850000,
+            "runwayMonths": 14,
+            "marketShare": 0.08,
+            "hiringCapacity": 8,
+            "deliveryCapacity": 6,
+            "births": 0,
+            "deaths": 0
+          },
+          "capacities": {
+            "hiringCapacity": 8,
+            "deliveryCapacity": 6
+          },
+          "statuses": {
+            "fundingRound": "series-b"
+          },
+          "politics": {
+            "earthDependencyPct": 95,
+            "governanceStatus": "earth-governed",
+            "independencePressure": 0.05,
+            "boardConfidence": 75,
+            "investorPressure": 40
+          },
+          "environment": {
+            "marketGrowthPct": 25,
+            "competitorCount": 8,
+            "macroRateBasisPts": 475
+          }
+        }
+      }
+    },
+    "decisionCount": 3,
+    "sampleDecision": {
+      "time": 1,
+      "actor": "Marin Kade",
+      "choice": "Adopt a narrow MVP and rapid customer discovery approach for Q1.",
+      "rationale": "Leaning into my leadership style characterized by high initiative and adaptability, I choose to direct efforts towards a focused MVP strategy, balancing immediate risks with long-term product viability. The engineering department report supports a targeted approach, reinforcing my priority on maintaining quality while the organization gains footing, aligning with our need to build foundational strength before scaling.",
+      "reasoning": "(1) My personality profile pushes me toward a decisive and strategic posture, prioritizing clarity and foundational strength over immediate expansion. This aligns with my willingness to accept calculated risks for strategic gain, reflecting traits of initiative and adaptability. (2) The department reports generally converge on the need for a targeted strategy. The engineering report emphasizes foundational work on Arcadia Planitia, which resonates with my directive to avoid early overreach. I trust engineering's advice as it aligns with strategic risk management. (3) The forged-tool outputs emphasize the necessity of risk mitigation strategies such as effect_arcadia_single_track, effect_release_governance, and effect_quality_gate_policy, guiding us to make informed capacity allocation decisions in line with disciplined execution. (4) I am accepting the risk of slower initial product delivery and market penetration in exchange for stability and quality assurance. This approach refuses the risk of compounded technical debt and reduced system reliability resulting from premature scaling. (5) Final choice: option_a for a narrow MVP strategy. This aligns with ensuring foundational stability and quality while maintaining an agile approach to customer discovery.",
+      "outcome": "conservative_failure"
+    },
+    "forgedToolCount": 2,
+    "citationCount": 14,
+    "cost": {
+      "totalUSD": 0.4758,
+      "llmCalls": 32
+    },
+    "subject": null,
+    "intervention": null,
+    "aborted": false,
+    "providerError": null
+  },
+  {
+    "fingerprint": {
+      "resilience": "stable",
+      "innovation": "productive",
+      "riskStyle": "cautious",
+      "decisionDiscipline": "undisciplined",
+      "summary": "riskBehavior:steady · outcomeStability:low · financialRobustness:fragile · cashStress:severe · marketMomentum:mixed · operationalCapacityFit:scaling · leadershipStyle:disciplined · funding:series-b · timeline:within,2q · tools:broad",
+      "totalTools": "5",
+      "successRate": "0.33",
+      "survivalRate": "1.00",
+      "riskRate": "0.00",
+      "riskBehavior": "steady",
+      "outcomeStability": "low",
+      "financialRobustness": "fragile",
+      "cashStress": "severe",
+      "marketMomentum": "mixed",
+      "operationalCapacityFit": "scaling",
+      "leadershipStyle": "disciplined"
+    },
+    "metadata": {
+      "runId": "corp-systems-engineer-of-control-1777185377078",
+      "scenario": {
+        "id": "corporate-quarterly",
+        "name": "Q-Scope Corp"
+      },
+      "seed": 42,
+      "mode": "turn-loop",
+      "startedAt": "2026-04-26T06:33:29.267Z",
+      "completedAt": "2026-04-26T06:36:17.078Z"
+    },
+    "finalState": {
+      "metrics": {
+        "population": 105,
+        "powerKw": 398.8,
+        "foodMonthsReserve": 18.799999999999997,
+        "waterLitersPerDay": 800,
+        "pressurizedVolumeM3": 3000,
+        "lifeSupportCapacity": 120,
+        "infrastructureModules": 3,
+        "scienceOutput": 2,
+        "morale": 0.65198,
+        "revenueArr": 6000000,
+        "burnRate": 834321.54,
+        "runwayMonths": 14,
+        "marketShare": 0.08,
+        "hiringCapacity": 8,
+        "deliveryCapacity": 6
+      }
+    },
+    "trajectory": {
+      "mode": "turn-loop",
+      "timeUnit": {
+        "singular": "quarter",
+        "plural": "quarters"
+      },
+      "timepointCount": 3,
+      "sampleTimepoint": {
+        "time": 1,
+        "label": "Quarter 1",
+        "worldSnapshot": {
+          "metrics": {
+            "population": 100,
+            "powerKw": 398.8,
+            "foodMonthsReserve": 18,
+            "waterLitersPerDay": 800,
+            "pressurizedVolumeM3": 3000,
+            "lifeSupportCapacity": 120,
+            "infrastructureModules": 3,
+            "scienceOutput": 0,
+            "morale": 0.658,
+            "revenueArr": 6000000,
+            "burnRate": 850000,
+            "runwayMonths": 14,
+            "marketShare": 0.08,
+            "hiringCapacity": 8,
+            "deliveryCapacity": 6,
+            "births": 0,
+            "deaths": 0
+          },
+          "capacities": {
+            "hiringCapacity": 8,
+            "deliveryCapacity": 6
+          },
+          "statuses": {
+            "fundingRound": "series-b"
+          },
+          "politics": {
+            "earthDependencyPct": 95,
+            "governanceStatus": "earth-governed",
+            "independencePressure": 0.05,
+            "boardConfidence": 75,
+            "investorPressure": 40
+          },
+          "environment": {
+            "marketGrowthPct": 25,
+            "competitorCount": 8,
+            "macroRateBasisPts": 475
+          }
+        }
+      }
+    },
+    "decisionCount": 3,
+    "sampleDecision": {
+      "time": 1,
+      "actor": "Dr. Sora Wen",
+      "choice": "Start with an internal platform first, then customer features.",
+      "rationale": "My approach emphasizes stability and long-term success over immediate results. Engineering's focus on architecture aligns with this, reducing execution risk and supporting sustainable growth while building a foundation for higher delivery capacity.",
+      "reasoning": "(1) My personality leans towards careful, reliable decisions over rapid ones, driven by high conscientiousness and a preference for thorough, structured approaches. (2) The department reports suggest coordination is the key constraint, and increased complexity could jeopardize delivery and quality. Engineering's push for a focused, infrastructure-first approach aligns with my preference for reliability over speed. (3) The effects support narrow scope, quality investment, and commitment control, directly aligning with the engineering recommendation. These mitigate risks by establishing a stable operating basis before scaling. (4) Accepting the risk of slower initial market entry in exchange for a stable foundation that supports lower defect rates and better long-term scalability, aligning with reduced current productivity in favor of future capacity expansion. (5) Final choice: Option C, as it aligns best with the strategic emphasis on building a strong, reliable foundation over immediate feature delivery.",
+      "outcome": "conservative_failure"
+    },
+    "forgedToolCount": 1,
+    "citationCount": 12,
+    "cost": {
+      "totalUSD": 0.4873,
+      "llmCalls": 33
+    },
+    "subject": null,
+    "intervention": null,
+    "aborted": false,
+    "providerError": null
+  },
+  {
+    "fingerprint": {
+      "resilience": "stable",
+      "innovation": "productive",
+      "riskStyle": "cautious",
+      "decisionDiscipline": "undisciplined",
+      "summary": "riskBehavior:steady · outcomeStability:low · financialRobustness:fragile · cashStress:severe · marketMomentum:mixed · operationalCapacityFit:scaling · leadershipStyle:reactive · funding:series-b · timeline:within,2q · tools:broad",
+      "totalTools": "6",
+      "successRate": "0.33",
+      "survivalRate": "1.00",
+      "riskRate": "0.00",
+      "riskBehavior": "steady",
+      "outcomeStability": "low",
+      "financialRobustness": "fragile",
+      "cashStress": "severe",
+      "marketMomentum": "mixed",
+      "operationalCapacityFit": "scaling",
+      "leadershipStyle": "reactive"
+    },
+    "metadata": {
+      "runId": "corp-people-first-culture-stabilizer-1777185359492",
+      "scenario": {
+        "id": "corporate-quarterly",
+        "name": "Q-Scope Corp"
+      },
+      "seed": 42,
+      "mode": "turn-loop",
+      "startedAt": "2026-04-26T06:33:29.267Z",
+      "completedAt": "2026-04-26T06:35:59.492Z"
+    },
+    "finalState": {
+      "metrics": {
+        "population": 105,
+        "powerKw": 397.6,
+        "foodMonthsReserve": 18.799999999999997,
+        "waterLitersPerDay": 800,
+        "pressurizedVolumeM3": 3000,
+        "lifeSupportCapacity": 120,
+        "infrastructureModules": 3,
+        "scienceOutput": 2,
+        "morale": 0.63398,
+        "revenueArr": 6325318.46,
+        "burnRate": 828312.1,
+        "runwayMonths": 14,
+        "marketShare": 0.1,
+        "hiringCapacity": 8,
+        "deliveryCapacity": 6
+      }
+    },
+    "trajectory": {
+      "mode": "turn-loop",
+      "timeUnit": {
+        "singular": "quarter",
+        "plural": "quarters"
+      },
+      "timepointCount": 3,
+      "sampleTimepoint": {
+        "time": 1,
+        "label": "Quarter 1",
+        "worldSnapshot": {
+          "metrics": {
+            "population": 100,
+            "powerKw": 398.8,
+            "foodMonthsReserve": 18,
+            "waterLitersPerDay": 800,
+            "pressurizedVolumeM3": 3000,
+            "lifeSupportCapacity": 120,
+            "infrastructureModules": 3,
+            "scienceOutput": 0,
+            "morale": 0.658,
+            "revenueArr": 6000000,
+            "burnRate": 850000,
+            "runwayMonths": 14,
+            "marketShare": 0.08,
+            "hiringCapacity": 8,
+            "deliveryCapacity": 6,
+            "births": 0,
+            "deaths": 0
+          },
+          "capacities": {
+            "hiringCapacity": 8,
+            "deliveryCapacity": 6
+          },
+          "statuses": {
+            "fundingRound": "series-b"
+          },
+          "politics": {
+            "earthDependencyPct": 95,
+            "governanceStatus": "earth-governed",
+            "independencePressure": 0.05,
+            "boardConfidence": 75,
+            "investorPressure": 40
+          },
+          "environment": {
+            "marketGrowthPct": 25,
+            "competitorCount": 8,
+            "macroRateBasisPts": 475
+          }
+        }
+      }
+    },
+    "decisionCount": 3,
+    "sampleDecision": {
+      "time": 1,
+      "actor": "Elena Rocha",
+      "choice": "Start with an internal platform first, then customer features.",
+      "rationale": "Given the high execution risk indicated in the engineering report, focusing on platform stability aligns with my risk-averse personality traits like my focus on human cost and morale. The engineering report suggests significant risks with immediate scaling and MVP approaches due to volatile early conditions and limited initial capacity. This strategy aligns best with building credibility through stable, reliable operations before expanding.",
+      "reasoning": "1. My personality profile, which weighs human cost and morale heavily, pushes me toward securing a stable foundation first. High conscientiousness and aversion to risking morale align with focusing on platform reliability. 2. The department reports do not conflict significantly, but engineering explicitly advises against aggressive feature expansion due to high startup risk. This aligns with my focus on stability and credibility. 3. The department confidence is high at 0.87, which strengthens the credibility of the engineering recommendation for a stable internal platform strategy. 4. I am accepting the risk of potentially slower initial market engagement (reduced early MVP push) in favor of avoiding the higher risk of quality issues and morale degradation from a rushed and unstable start. 5. Final choice: option_c. This choice secures platform reliability first, ensuring a solid base before scaling, which aligns with a longer-term view and my leadership priorities.",
+      "outcome": "conservative_failure"
+    },
+    "forgedToolCount": 2,
+    "citationCount": 13,
+    "cost": {
+      "totalUSD": 0.4355,
+      "llmCalls": 32
+    },
+    "subject": null,
+    "intervention": null,
+    "aborted": false,
+    "providerError": null
+  }
+]

@@ -1,0 +1,11 @@
+{
+  "seedText": "Q4 2026 board brief. The lab is preparing to release Atlas-7, a frontier\nmultimodal model that scored 84% on AlignmentBench-2026 (industry median\n71%). Two evaluators have flagged concerns: (1) a 4.2% rate of\nspecification gaming on long-horizon agentic tasks, (2) early evidence\nof mesa-objectives during fine-tuning that shifted under DPO. The\nrelease window opens Dec 15. Holding the release means the rival lab's\nweaker model (78% AlignmentBench) ships first and captures enterprise\ndeals worth ~$240M ARR. Releasing on schedule means accepting the risk\nof post-deployment incident reports the safety team thinks are\nplausible at the 5-10% level.\n\nThe director chairs a council of department leads: Alignment, Capability,\nPolicy, Infrastructure, Comms. Each has agency to escalate or block.\nThe director's HEXACO profile shapes how they weight specialist input,\nhow aggressively they push deadlines, and how they read ambiguous\nevaluator signals.",
+  "domainHint": "AI safety lab leadership decision under release pressure",
+  "options": {
+    "provider": "openai",
+    "model": "gpt-5.4-nano",
+    "draftProvider": "openai",
+    "draftModel": "gpt-5.4-mini",
+    "webSearch": false
+  }
+}

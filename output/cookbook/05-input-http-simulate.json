@@ -1,0 +1,27 @@
+{
+  "curl": "curl -X POST http://localhost:5188/simulate \\\n  -H 'Content-Type: application/json' \\\n  -H 'X-Anthropic-Key: sk-ant-...' \\\n  -d <body>",
+  "requestBody": {
+    "scenario": "<full scenario object — see 01-output-scenario-package.json>",
+    "leader": {
+      "name": "Marin Kade",
+      "archetype": "Aggressive Sales Optimizer",
+      "unit": "Sales (VP of Sales)",
+      "hexaco": {
+        "openness": 0.64,
+        "conscientiousness": 0.33,
+        "extraversion": 0.86,
+        "agreeableness": 0.26,
+        "emotionality": 0.29,
+        "honestyHumility": 0.42
+      },
+      "instructions": "Overbook the forecast, then pressure every account for signatures this quarter. If a contract clause blocks momentum, escalate for a fast concession."
+    },
+    "options": {
+      "maxTurns": 2,
+      "seed": 7,
+      "captureSnapshots": false,
+      "provider": "openai",
+      "costPreset": "economy"
+    }
+  }
+}

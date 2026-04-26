@@ -1,0 +1,125 @@
+{
+  "status": 200,
+  "durationMs": 60573,
+  "artifact": {
+    "fingerprint": {
+      "resilience": "stable",
+      "innovation": "experimental",
+      "riskStyle": "opportunistic",
+      "decisionDiscipline": "undisciplined",
+      "summary": "riskBehavior:bold · outcomeStability:low · financialRobustness:fragile · cashStress:severe · marketMomentum:mixed · operationalCapacityFit:scaling · leadershipStyle:balanced · funding:series-b · timeline:within,1q · tools:narrow",
+      "totalTools": "2",
+      "successRate": "0.00",
+      "survivalRate": "1.00",
+      "riskRate": "0.50",
+      "riskBehavior": "bold",
+      "outcomeStability": "low",
+      "financialRobustness": "fragile",
+      "cashStress": "severe",
+      "marketMomentum": "mixed",
+      "operationalCapacityFit": "scaling",
+      "leadershipStyle": "balanced"
+    },
+    "metadata": {
+      "runId": "corp-aggressive-sales-optimizer-1777185599118",
+      "scenario": {
+        "id": "corporate-quarterly",
+        "name": "Q-Scope Corp"
+      },
+      "seed": 7,
+      "mode": "turn-loop",
+      "startedAt": "2026-04-26T06:39:00.507Z",
+      "completedAt": "2026-04-26T06:39:59.118Z"
+    },
+    "finalState": {
+      "metrics": {
+        "population": 104,
+        "powerKw": 398.8,
+        "foodMonthsReserve": 18.4,
+        "waterLitersPerDay": 800,
+        "pressurizedVolumeM3": 3000,
+        "lifeSupportCapacity": 120,
+        "infrastructureModules": 3,
+        "scienceOutput": 1,
+        "morale": 0.5392,
+        "revenueArr": 6000000,
+        "burnRate": 850000,
+        "runwayMonths": 14,
+        "marketShare": 0.08,
+        "hiringCapacity": 8,
+        "deliveryCapacity": 6
+      }
+    },
+    "trajectory": {
+      "mode": "turn-loop",
+      "timeUnit": {
+        "singular": "quarter",
+        "plural": "quarters"
+      },
+      "timepointCount": 2,
+      "sampleTimepoint": {
+        "time": 1,
+        "label": "Quarter 1",
+        "worldSnapshot": {
+          "metrics": {
+            "population": 100,
+            "powerKw": 398.8,
+            "foodMonthsReserve": 18,
+            "waterLitersPerDay": 800,
+            "pressurizedVolumeM3": 3000,
+            "lifeSupportCapacity": 120,
+            "infrastructureModules": 3,
+            "scienceOutput": 0,
+            "morale": 0.588,
+            "revenueArr": 6000000,
+            "burnRate": 850000,
+            "runwayMonths": 14,
+            "marketShare": 0.08,
+            "hiringCapacity": 8,
+            "deliveryCapacity": 6,
+            "births": 0,
+            "deaths": 0
+          },
+          "capacities": {
+            "hiringCapacity": 8,
+            "deliveryCapacity": 6
+          },
+          "statuses": {
+            "fundingRound": "series-b"
+          },
+          "politics": {
+            "earthDependencyPct": 95,
+            "governanceStatus": "earth-governed",
+            "independencePressure": 0.05,
+            "boardConfidence": 75,
+            "investorPressure": 40
+          },
+          "environment": {
+            "marketGrowthPct": 25,
+            "competitorCount": 8,
+            "macroRateBasisPts": 475
+          }
+        }
+      }
+    },
+    "decisionCount": 2,
+    "sampleDecision": {
+      "time": 1,
+      "actor": "Marin Kade",
+      "choice": "Scale immediately with a broader roadmap and parallel teams (option_b).",
+      "rationale": "My leadership style demands speed with hard constraints: option_b gives parallel execution and earlier market/traction signals, and we neutralize the primary technical risk (terrain slope + construction difficulty) by forcing every major push to be tied to the risk assessment tool’s numerical risk scores and tier categories, then coordinating budgets with finance and execution sequencing with operations. Engineering’s report aligns on method (use the tool to prioritize low-risk outcomes) even if it leans toward risk-aware planning; I override only the cadence, not the discipline—because waiting for perfect readiness is the higher-order failure mode. The specific trade I accept is early coordination friction from running multiple product tracks at once in exchange for refusing the “12-quarter delay until platform completeness” risk; effect_1 will be applied to keep execution anchored to low-risk location tiers.",
+      "reasoning": "1. My personality pushes me toward bold, decisive, momentum-first action: trait poles are rapid execution over slow consensus, and comfort with friction when it produces clarity.\n2. The department reports don’t truly conflict on direction: Engineering (conf:0.85) recommends using the risk assessment tool and coordinating budgets. That supports execution—just smarter execution. I override any implied “be cautious” cadence because the core recommendation is to operationalize risk via tooling, not to delay output.\n3. The forged-tool output that directly informs this decision is the risk assessment tool’s numerical risk score and its tier categorization derived from terrain slope, resource availability, and construction difficulty (no numeric values were provided, but the tool’s numeric scoring + tier outputs are the explicit mechanism).\n4. I accept the trade of higher early coordination and potential rework from running parallel tracks (schedule/cost friction risk) to refuse the greater risk of losing traction by waiting for an internal platform-first milestone.\n5. Final choice: option_b—because we can parallelize while containing the main settlement-site risk using the tool’s low-risk tier prioritization.",
+      "outcome": "risky_failure"
+    },
+    "forgedToolCount": 1,
+    "citationCount": 5,
+    "cost": {
+      "totalUSD": 0.0988,
+      "llmCalls": 22
+    },
+    "subject": null,
+    "intervention": null,
+    "aborted": false,
+    "providerError": null
+  }
+}
