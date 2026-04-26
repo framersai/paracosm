@@ -92,16 +92,44 @@ console.log('[record] click ▶RUN to open menu');
 const runBtn = page.locator('button', { hasText: /^▶RUN/ }).first();
 await runBtn.waitFor({ state: 'visible', timeout: 8000 });
 await runBtn.click();
-await page.waitForTimeout(900);
+await page.waitForTimeout(1500);
 
 console.log('[record] click "Run New Simulation" via getByText');
-await page.getByText(/Run New Simulation/i).first().click({ timeout: 4000 });
-console.log('[record] sim launched, waiting for SSE events');
+await page.getByText(/Run New Simulation/i).first().click({ timeout: 6000, force: true });
+console.log('[record] sim launched — recording starts NOW to capture Launching Simulation state');
 
-await page.waitForTimeout(2500);
+// NB: do NOT delay before recording — the "Launching Simulation..."
+// state is what we want as the first frame of the loop.
+await page.waitForTimeout(300);
 
-console.log(`[record] recording for ${RECORD_SECONDS}s of real streaming activity`);
-await page.waitForTimeout(RECORD_SECONDS * 1000);
+// Optional 7th arg: tab-tour-at-seconds. When set (e.g. "90"), the
+// recorder waits this long, then clicks #tab-viz, holds 6s, then
+// clicks #tab-reports, holds 6s, then returns to #tab-sim. Designed
+// to stitch a tab tour onto the end of a multi-turn recording so
+// the hero loop covers sim + viz + reports in one pass.
+const TAB_TOUR_AT = parseInt(process.argv[7] || '0', 10);
+
+if (TAB_TOUR_AT > 0) {
+  console.log(`[record] recording for ${TAB_TOUR_AT}s of sim activity, then tab tour`);
+  await page.waitForTimeout(TAB_TOUR_AT * 1000);
+  for (const tab of ['viz', 'reports']) {
+    console.log(`[record] tab tour: click #tab-${tab}`);
+    const clicked = await page.evaluate((id) => {
+      const el = document.getElementById(id);
+      if (el) { el.click(); return true; }
+      return false;
+    }, `tab-${tab}`);
+    if (!clicked) console.log(`[record] tab tour: #tab-${tab} not found`);
+    await page.waitForTimeout(6000);
+  }
+  console.log(`[record] tab tour: return to #tab-sim`);
+  await page.evaluate(() => document.getElementById('tab-sim')?.click());
+  const remaining = (RECORD_SECONDS - TAB_TOUR_AT - 14) * 1000;
+  if (remaining > 0) await page.waitForTimeout(remaining);
+} else {
+  console.log(`[record] recording for ${RECORD_SECONDS}s of real streaming activity`);
+  await page.waitForTimeout(RECORD_SECONDS * 1000);
+}
 
 const videoHandle = page.video();
 console.log('[record] closing context to flush video');
