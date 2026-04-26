@@ -331,26 +331,33 @@ curl -X POST http://localhost:3456/simulate \
       <!-- CLI -->
       <div class="tab-panel" role="tabpanel" data-panel="cli" style="display:none">
         <div class="code-block" style="border:none;border-radius:0;margin:0">
-          <div class="code-header"><span>Terminal: run, dashboard, compile, scaffold</span><button class="code-copy" onclick="copyCode(this, document.getElementById('cli-code').textContent)">Copy</button></div>
-          <div class="code-body" id="cli-code"><span class="cm"># Run a simulation. Reads leaders.json from CWD or bundled example.</span>
-paracosm                                  <span class="cm"># default: leader 0, full turns</span>
-paracosm --leader 1 5                     <span class="cm"># leader index 1, 5 turns</span>
-paracosm --name <span class="str">"Custom"</span> --openness 0.85 \
-         --conscientiousness 0.4 6        <span class="cm"># override HEXACO inline</span>
-paracosm --leaders ./my-leaders.json --live   <span class="cm"># custom roster + live web search</span>
+          <div class="code-header"><span>One umbrella binary, four subcommands. `--help` works on every level.</span><button class="code-copy" onclick="copyCode(this, document.getElementById('cli-code').textContent)">Copy</button></div>
+          <div class="code-body" id="cli-code"><span class="cm"># Discoverability first.</span>
+paracosm --help                          <span class="cm"># lists every subcommand</span>
+paracosm run --help                      <span class="cm"># per-command help</span>
+paracosm --version                       <span class="cm"># prints "paracosm 0.7.x"</span>
 
-<span class="cm"># Open the dashboard with N turns and live SSE streaming.</span>
-paracosm-dashboard 6                      <span class="cm"># http://localhost:3456</span>
+<span class="cm"># Run a simulation against leaders.json (or --leaders &lt;path&gt;).</span>
+paracosm run                             <span class="cm"># default leader, full turns</span>
+paracosm run --leader 1 --turns 5        <span class="cm"># leader index 1, 5 turns</span>
+paracosm run --name <span class="str">"Reyes"</span> --openness 0.85 \
+             --conscientiousness 0.4 \
+             --turns 6                   <span class="cm"># inline HEXACO override</span>
+paracosm run --leaders ./my-leaders.json --live   <span class="cm"># live web search</span>
 
-<span class="cm"># Compile a scenario draft into a runnable package (cached).</span>
-npx paracosm compile scenarios/lunar.json \
+<span class="cm"># Open the SSE dashboard. With [turns], auto-launches a sim on boot.</span>
+paracosm dashboard                       <span class="cm"># http://localhost:3456</span>
+paracosm dashboard 6                     <span class="cm"># auto-launch with 6 turns</span>
+
+<span class="cm"># Compile a scenario draft + cache the generated hooks.</span>
+paracosm compile scenarios/lunar.json \
   --seed-url https://ntrs.nasa.gov/citations/20210018970 \
   --max-searches 5
 
-<span class="cm"># Optional: scaffold a fresh starter project from a free-text brief.</span>
-<span class="cm"># Equivalent to compileFromSeed + generateQuickstartLeaders + writing</span>
-<span class="cm"># package.json + run.mjs + README to disk. Skip if you already have a project.</span>
-paracosm init my-app --domain <span class="str">"AI lab Q4 release pressure"</span> --leaders 3</div>
+<span class="cm"># Scaffold a starter project from a free-text brief.</span>
+paracosm init my-app --domain <span class="str">"AI lab Q4 release pressure"</span> --leaders 3
+
+<span class="cm"># Back-compat: paracosm-dashboard still works (alias for `paracosm dashboard`).</span></div>
         </div>
       </div>
     </div>

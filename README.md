@@ -350,14 +350,28 @@ The dashboard includes a scenario editor where you can write, import, compile, a
 
 ### 4. Or run the standalone CLI
 
-After `npm install paracosm -g` you get two binaries:
+After `npm install paracosm -g` you get one umbrella binary with subcommands. Every level supports `--help` / `-h` and a global `--version` / `-v`:
 
 ```bash
-paracosm                # run one leader once; prints turn-by-turn narrative
-paracosm-dashboard 6    # start the web dashboard and run a 6-turn sim
+paracosm --help                        # lists every subcommand
+paracosm --version                     # prints "paracosm 0.7.x"
+
+paracosm run                           # run a sim against leaders.json
+paracosm run --leader 1 --turns 5      # leader index 1, 5 turns
+paracosm run --name "Reyes" --openness 0.85 --conscientiousness 0.4 --turns 6
+paracosm run --leaders ./my-leaders.json --live   # custom roster + live web search
+
+paracosm dashboard                     # SSE dashboard at http://localhost:3456
+paracosm dashboard 6                   # auto-launch with 6 turns
+
+paracosm compile scenarios/lunar.json --seed-url <url> --max-searches 5
+
+paracosm init my-app --domain "Submarine crew of 8" --leaders 3
 ```
 
-Both CLIs look for `leaders.json` in this order:
+A second back-compat binary `paracosm-dashboard` is shipped as an alias for `paracosm dashboard` so existing scripts and Docker invocations don't break.
+
+The CLI looks for `leaders.json` in this order:
 
 1. `--leaders <path>` flag (explicit)
 2. `./leaders.json` in your current directory
@@ -644,11 +658,11 @@ Pass real-world source material into the compiler and Paracosm grounds the scena
 
 ```bash
 # Inline text seed
-npx paracosm compile scenarios/lunar.json \
+paracosm compile scenarios/lunar.json \
   --seed-text "$(cat ./papers/iss-radiation-overview.md)"
 
 # URL seed (Firecrawl extracts clean markdown)
-npx paracosm compile scenarios/lunar.json \
+paracosm compile scenarios/lunar.json \
   --seed-url https://ntrs.nasa.gov/citations/20210018970
 ```
 

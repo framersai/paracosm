@@ -146,7 +146,7 @@ export function Footer({ cost, costBreakdown, simStatus }: FooterProps) {
       role="contentinfo"
       style={{
         padding: '4px 16px',
-        background: 'var(--bg)',
+        background: 'var(--bg-deep)',
         borderTop: '1px solid var(--border)',
         display: 'flex',
         justifyContent: 'space-between',
