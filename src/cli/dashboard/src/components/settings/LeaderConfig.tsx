@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import { HexacoSlider } from './HexacoSlider';
+import { TraitModelNotice } from './TraitModelNotice';
 import styles from './LeaderConfig.module.scss';
 
 export interface LeaderFormData {
@@ -82,6 +83,7 @@ export function LeaderConfig({ label, sideColor, data, onChange }: LeaderConfigP
           className={styles.textarea}
         />
       </div>
+      <TraitModelNotice />
       {/* Personality Presets */}
       <div className={styles.presetRow}>
         <label htmlFor={presetId} className={styles.presetLabel}>Personality</label>
