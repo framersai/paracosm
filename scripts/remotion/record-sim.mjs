@@ -26,8 +26,9 @@ const OUT_DIR = path.resolve(__dirname, 'output');
 const ASSETS_DIR = path.resolve(__dirname, '..', '..', 'assets', 'demo');
 
 const outName = process.argv[2] || 'sim-real';
-const RECORD_SECONDS = parseInt(process.argv[3] || '12', 10);
-const TRIM_SECONDS = 10;
+const RECORD_SECONDS = parseInt(process.argv[3] || '24', 10);
+const TRIM_START = parseInt(process.argv[4] || '4', 10);
+const TRIM_SECONDS = parseInt(process.argv[5] || '18', 10);
 
 mkdirSync(OUT_DIR, { recursive: true });
 mkdirSync(ASSETS_DIR, { recursive: true });
@@ -118,6 +119,7 @@ const mp4Out = path.resolve(ASSETS_DIR, `${outName}.mp4`);
 console.log('[record] ffmpeg → mp4:', mp4Out);
 execFileSync('ffmpeg', [
   '-y',
+  '-ss', String(TRIM_START),
   '-i', webmPath,
   '-t', String(TRIM_SECONDS),
   '-c:v', 'libx264',
