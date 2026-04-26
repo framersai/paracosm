@@ -11,7 +11,7 @@ package: paracosm
 
 Today every leader in paracosm carries a fixed six-axis HEXACO personality profile (`openness`, `conscientiousness`, `extraversion`, `agreeableness`, `emotionality`, `honestyHumility`). The README and landing copy claim leaders can be "colony commanders, CEOs, generals, ship captains, department heads, AI systems, governing councils, or any entity that receives information, evaluates options, and makes choices that shape the world", but the schema is human-personality-only. A "Bayesian Risk Optimizer" leader works only by metaphorically mapping AI-system tendencies onto a model designed for humans.
 
-This spec replaces the hardcoded HEXACO field with a pluggable **TraitModel registry**. Two built-in models ship in v1: `hexaco` (the canonical Ashton-Lee shape, the existing default) and `ai-agent` (a new six-axis model designed for AI-system leaders). Adding a third model post-hoc is a single registry call.
+This spec replaces the hardcoded HEXACO field with a pluggable **TraitModel registry**. Two built-in models ship in v1: `hexaco` (the canonical Ashton-Lee shape, the existing default) and `ai-agent` (a new six-axis model designed for AI-system leaders). Adding a third model requires a build-time / engine-load `traitModelRegistry.register(model)` call inside paracosm itself; there is no runtime `paracosm.registerTraitModel()` API in v1 (see Non-goals).
 
 ## Non-goals
 
@@ -29,7 +29,7 @@ A `TraitModel` is a typed object that defines:
 2. **Axes**: ordered list of trait dimensions, each with `id` (kebab-case for serialization), `label` (UI display), `description`, optional `lowPole` / `highPole` short labels for UI tooltips.
 3. **Bounds**: trait values are floats in `[0, 1]`. The model can declare per-axis defaults (used when an axis is omitted from a partial profile).
 4. **Drift table**: an outcome-class → axis-delta map describing how each axis shifts after each outcome class (`risky_success`, `risky_failure`, `conservative_success`, `conservative_failure`, `safe_success`, `safe_failure`). Plus leader-pull weight (how strongly agents drift toward their leader's profile per turn) and role-activation weights (how strongly being promoted to a department amplifies the relevant axis).
-5. **Cue dictionary**: keyed by `axis-id` + `zone` (`low` ≤ 0.35, `mid` 0.35-0.65, `high` ≥ 0.65), each entry is a short prose cue the prompt builder can splice in ("you lean exploratory: prefer untested options when standard ones fail").
+5. **Cue dictionary**: keyed by `axis-id` + `zone` (`low` ≤ 0.35, `mid` 0.35-0.65, `high` ≥ 0.65), each entry is a short prose cue the prompt builder can splice in ("you lean exploratory: prefer untested options when standard ones fail"). All three zones are optional per `CueZone` (defined `{ low?, mid?, high? }`); the cue translator silently skips axes whose matching zone is undefined rather than throwing. By design, `mid` is rarely populated: only polarized axes (low or high) emit cues, matching the legacy HEXACO behavior.
 6. **Default profile**: a neutral baseline used when a leader provides no traits (all 0.5 by convention).
 
 The **TraitModelRegistry** is an in-memory `Map<string, TraitModel>` populated at engine load time. Two built-ins are registered:
@@ -42,20 +42,52 @@ The **TraitModelRegistry** is an in-memory `Map<string, TraitModel>` populated a
 
 ```
 src/engine/trait-models/
-  index.ts              TraitModel + TraitProfile types, TraitModelRegistry
+  index.ts              TraitModel + TraitProfile types, TraitModelRegistry, helpers
   hexaco.ts             6-axis Ashton-Lee model (lifted from today's hardcoded shape)
   ai-agent.ts           6-axis AI-system model (new)
   cue-translator.ts     model-agnostic prose cue generator
-  drift.ts              dispatcher: looks up model, applies its drift table
-  hexaco.test.ts
-  ai-agent.test.ts
-  cue-translator.test.ts
-  drift.test.ts
+  drift.ts              applyOutcomeDrift, applyLeaderPull, applyRoleActivation,
+                        driftLeaderProfile (kernel-discipline drift, ±0.05/turn,
+                        bounds [0.05, 0.95], byte-identical to driftCommanderHexaco
+                        for HEXACO)
+  normalize-leader.ts   normalizeLeaderConfig back-compat resolver: synthesizes
+                        traitProfile from legacy hexaco field, validates trait
+                        keys against model.axes, throws clear errors on missing
+                        / unknown axes
+  builtins.ts           auto-registers hexaco + ai-agent on import (side effect)
 
-src/runtime/trait-cues/  (renamed from hexaco-cues/)
-  index.ts              re-export cuesForLeader(leader, registry) using model dispatch
-  ...                   existing files re-pointed at the registry
+src/engine/schema/primitives.ts
+  TraitProfileSchema    Zod schema (modelId regex + traits record [0,1])
+
+tests/engine/trait-models/
+  registry.test.ts      register / get / require / validation
+  hexaco.test.ts        axes, defaults, cue strings, drift values
+  ai-agent.test.ts      axes, drift sanity, cue dictionary coverage
+  cue-translator.test.ts buildCueLine / pickCues / axisIntensities
+  drift.test.ts         applyOutcomeDrift + applyLeaderPull + applyRoleActivation
+                        + driftLeaderProfile byte-equality regression vs
+                        driftCommanderHexaco for every outcome class
+  normalize-leader.test.ts back-compat synthesis + axis validation
+  safety.test.ts        negative-path: missing zones / outcomes,
+                        unknown axis rejection, UnknownTraitModelError fields
+
+src/runtime/trait-cues/   (canonical entry; runtime/hexaco-cues/ is a back-compat shim)
+  index.ts              re-exports buildReactionCues + buildTrajectoryCue
+  reaction.ts           buildReactionCues(profile) + buildReactionCuesFromHexaco
+  trajectory.ts         buildTrajectoryCue(history, current) + ...FromHexaco
+
+tests/runtime/
+  orchestrator-trait-model.test.ts   leader normalization at runSimulation entry
 ```
+
+Implementation note: the runtime module is named `runtime/trait-cues/` and the
+legacy `runtime/hexaco-cues/` files were reduced to thin re-export shims that
+delegate to the new path, preserving byte-identical output for HEXACO callers.
+The 4 active prompt-builder consumers (orchestrator, departments, director,
+agent-reactions) keep importing from the legacy path unchanged in v1; orchestrator
+adds a parallel `commanderTraitProfile` branch that drifts via `driftLeaderProfile`
+and dispatches the trajectory cue on `modelId` so non-HEXACO leaders pick up
+the registered model's cue dictionary.
 
 ## Components
 
@@ -131,10 +163,20 @@ Six axes designed for AI-system leaders:
 | `instruction-following` | Instruction following | interpolates intent from context | obeys explicit instructions verbatim |
 
 Drift example (calibrated v1, expected to tune over real runs):
-- `risky_failure` → `verification-rigor` +0.04, `transparency` +0.05 (rigor and visibility increase after a public miss)
-- `risky_success` → `exploration` +0.05, `risk-tolerance` +0.03 (positive feedback on bold action)
-- `conservative_failure` → `risk-tolerance` +0.04, `exploration` +0.03 (over-cautiousness penalized)
-- `safe_failure` → `deference` +0.03 (when supervisor signals were ignored)
+
+- `risky_failure` -> `verification-rigor` +0.04, `transparency` +0.05, `risk-tolerance` -0.04, `exploration` -0.03, `deference` +0.02 (rigor and visibility increase after a public miss; risk-taking gets pulled back)
+- `risky_success` -> `exploration` +0.05, `risk-tolerance` +0.03, `deference` -0.02 (positive feedback on bold action erodes deference)
+- `conservative_failure` -> `risk-tolerance` +0.04, `exploration` +0.03, `instruction-following` +0.02 (over-cautiousness penalized; reverts toward following the playbook)
+- `conservative_success` -> `verification-rigor` +0.02 (rigor reinforced when deliberation pays off)
+- `safe_failure` -> `deference` +0.03, `verification-rigor` +0.03, `transparency` +0.03, `instruction-following` +0.03 (when supervisor signals were ignored, every guard tightens)
+- `safe_success` -> no axes drift (the playbook worked; no signal to update)
+
+The drift dispatcher (`applyOutcomeDrift` / `driftLeaderProfile` in
+`src/engine/trait-models/drift.ts`) safely treats missing
+`model.drift.outcomes[axis][outcome]` entries as zero delta via `?? 0`,
+so the four-pole HEXACO drift table (which omits the two `safe_*`
+classes) and the partially-populated `safe_success` row above never
+throw at runtime.
 
 Default profile: all 0.5.
 
@@ -162,9 +204,16 @@ export interface LeaderConfig {
 A new `normalizeLeaderConfig` helper resolves the trait profile:
 
 ```
-if (leader.traitProfile) -> use it as-is
-else if (leader.hexaco)  -> synthesize { modelId: 'hexaco', traits: leader.hexaco }
-else                     -> synthesize { modelId: 'hexaco', traits: hexacoModel.defaults }
+if (leader.traitProfile)
+  -> verify modelId is registered (throws UnknownTraitModelError if not)
+  -> verify every key in traits[] is declared by model.axes
+     (throws "references axes not declared by the model: [keys]" if any unknown)
+  -> fill missing axes with model.defaults
+  -> return as-is
+else if (leader.hexaco)
+  -> synthesize { modelId: 'hexaco', traits: leader.hexaco }
+else
+  -> throw "must have either traitProfile or the legacy hexaco field"
 ```
 
 `runSimulation` calls `normalizeLeaderConfig` once before the run starts; downstream code reads `traitProfile` only. The legacy `hexaco` field is preserved on the artifact for back-compat consumers but is informational, not load-bearing.
@@ -173,15 +222,18 @@ else                     -> synthesize { modelId: 'hexaco', traits: hexacoModel.
 
 ### Drift mechanism
 
-`runtime/hexaco-cues/` becomes `runtime/trait-cues/`. The exported `applyTraitDrift(agent, ctx)` function:
+The drift surface lives in `src/engine/trait-models/drift.ts`. Three functions cover the three drift sources from the original HEXACO design:
 
-1. Looks up the leader's `traitProfile.modelId` from `traitModelRegistry`.
-2. Reads the model's `drift.outcomes[axis-id][outcome]` for the turn's outcome class.
-3. Applies the delta to each agent's `traitProfile.traits[axis-id]`, clamped to `[0, 1]`.
-4. Adds `leaderPull * (leader.traits[axis] - agent.traits[axis])` per turn.
-5. Adds `roleActivation[axis] * sign` for any agent promoted to a department whose role activates that axis.
+- `applyOutcomeDrift(profile, model, { outcome })`: applies `model.drift.outcomes[axisId][outcome]` per axis, clamped to `[0, 1]` (no kernel-bounds tightening, used in component tests).
+- `applyLeaderPull(agent, model, { leader })`: applies `leaderPull[axisId] * (leader[axis] - agent[axis])` per axis. No-op when agent and leader use different `modelId`.
+- `applyRoleActivation(profile, model, { axisSigns })`: applies `roleActivation[axisId] * sign` for axes the caller flags via the per-axis sign map.
+- `driftLeaderProfile(profile, model, { outcome, timeDelta, turn, time, history })`: kernel-discipline drift that mirrors `driftCommanderHexaco` semantics for HEXACO: ±0.05/turn cap **before** `timeDelta` scaling, output clamped to `[0.05, 0.95]` (the saturation-prevention bounds used by the kernel), and a snapshot pushed to `history`.
 
-`Agent` schema grows a `traitProfile: TraitProfile` field paralleling the leader's. Today, `Agent.hexaco` exists as a fixed object; the migration path:
+For HEXACO leaders, `driftLeaderProfile(_, hexacoModel, _)` produces byte-identical output to `driftCommanderHexaco` because `hexacoModel.drift.outcomes` mirrors `progression.ts:outcomePullForTrait` exactly, and the cap + bounds match. The 6-case regression test in `tests/engine/trait-models/drift.test.ts` locks this in.
+
+All four functions safely default missing `model.drift.outcomes[axisId][outcome]` entries to zero (`?? 0`), so a partial drift table never throws.
+
+`Agent` schema growth (deferred to a Phase 5b follow-up): `Agent.traitProfile` will parallel the leader's. Today `Agent.hexaco` remains the canonical agent-side trait field; the orchestrator wiring at `c1684f13` only swaps the leader-side cue + drift dispatch. Agents continue to drift via `applyPersonalityDrift` in `progression.ts` against their HEXACO field. Migration:
 
 - `Agent.hexaco` deprecated, `Agent.traitProfile` added.
 - Initial agent generation reads the leader's `traitProfile.modelId` and seeds agents with the model's defaults plus per-agent variance.
@@ -189,13 +241,18 @@ else                     -> synthesize { modelId: 'hexaco', traits: hexacoModel.
 
 ### Prompt cue translation
 
-`runtime/trait-cues/cuesForLeader(leader, model)` returns an ordered array of prose cues. The translator:
+`src/engine/trait-models/cue-translator.ts` exports `buildCueLine(profile, model, opts?)` and `pickCues(profile, model, opts?)`. Both take an explicit `TraitModel` (caller looks up via `traitModelRegistry.require(profile.modelId)` first). The runtime entry point at `src/runtime/trait-cues/reaction.ts::buildReactionCues(profile)` does the registry lookup for callers and is the canonical site for orchestrator + dept + director + agent-reactions.
 
-1. For each axis, computes |value - 0.5| as the axis's "intensity".
-2. Picks the top 3-5 axes by intensity.
-3. For each picked axis, looks up the cue zone (`low` if value ≤ 0.35, `high` if ≥ 0.65, `mid` otherwise) and returns the matching cue string.
+The translator:
 
-Commander, department, director, and agent-reaction prompts all read cues via this single function. The system prompts switch from "your openness score is X" to "your profile cues: <cues>", model-agnostic by construction.
+1. Iterates `model.axes` in declaration order (stable across runs).
+2. For each axis whose value sits in `low` (≤ 0.35) or `high` (≥ 0.65), looks up `model.cues[axisId]?.[zone]`. Mid-zone is intentionally skipped; the legacy HEXACO behavior the runtime preserves only emits cues for polarized axes.
+3. Skips axes whose cue entry is undefined for the matching zone (no error, no console warn). This keeps a partially-defined cue dictionary usable.
+4. Caps the emitted cues at `opts.maxCues` (default 6, matching HEXACO's six axes).
+
+`axisIntensities(profile, model)` is also exported for future use cases (sparkline highlighting, prompt-budget-constrained cue selection); current cue selection iterates in declaration order and does not weight by intensity. The original "top 3-5 axes by intensity" plan was simplified during implementation: declaration-order iteration produces stable, debuggable output and matches the legacy HEXACO translator's behavior, so users moving from v0.7 see identical cue ordering.
+
+Commander, department, director, and agent-reaction prompts all read cues via the runtime entry. The system prompts switch from "your openness score is X" to "your profile cues: <cues>", model-agnostic by construction.
 
 ### Dashboard
 
@@ -226,51 +283,99 @@ Replay reads `metadata.traitModelId`, looks up the model in the registry, fails 
 
 ## Error handling
 
-- **Unknown traitModelId at simulate time**: throw `UnknownTraitModelError` with the unknown id and the registered list.
-- **Trait value out of bounds**: Zod rejects at schema parse time. The `runSimulation` entry path validates via `LeaderConfigSchema`.
-- **Mismatch between traitProfile and registry axes**: when the LLM-generated decision references a trait the model doesn't define (e.g. legacy prompt reads "your openness" against an ai-agent leader), the cue translator silently drops the axis with a console warn `[trait-cues] dropped unknown axis: ${id}` so a single rogue prompt template does not nuke the run.
-- **Replay against a missing model**: throws `WorldModelReplayError("Trait model X not registered")` before kernel re-execution starts.
+- **Unknown `traitProfile.modelId` at simulate time**: `normalizeLeaderConfig` calls `traitModelRegistry.require(modelId)` which throws `UnknownTraitModelError` carrying the unknown id and the registered list (`UnknownTraitModelError.modelId` + `UnknownTraitModelError.registered`). Action for callers: register the model at engine load before simulating.
+
+- **Trait value out of bounds**: `TraitProfileSchema` (in `engine/schema/primitives.ts`) rejects at parse time via Zod's `.number().min(0).max(1)`. Entry paths that don't go through Zod still get clamped on first read by `withDefaults` (which calls `clampTrait`).
+
+- **Trait keys reference axes the model doesn't declare**: `normalizeLeaderConfig` cross-validates `traitProfile.traits` keys against `model.axes` and throws an explicit error listing every unknown axis ("references axes not declared by the model: [creativity, patience]. Declared axes: [openness, conscientiousness, ...]"). This is the user-input / config-error case (typo, hallucinated axis name from an LLM-generated config). Action: fix the config.
+
+- **Cue dictionary missing a zone for an axis**: the cue translator (`pickCues` in `engine/trait-models/cue-translator.ts`) skips the axis silently when `model.cues[axisId]?.[zone]` is undefined. No console warn, no throw. This is the partial-cue-dictionary case (model author defined `high` but not `low`); the runtime tolerates incomplete dictionaries gracefully so models can ship in stages.
+
+- **Drift table missing an outcome for an axis**: `applyOutcomeDrift`, `applyLeaderPull`, `applyRoleActivation`, and `driftLeaderProfile` all default missing entries to zero via `?? 0`. No throw. Same rationale as missing cue zones: partial drift tables are valid, just produce no movement on the omitted outcome.
+
+- **Replay against a missing model**: throws `WorldModelReplayError("Trait model X not registered")` before kernel re-execution starts. Action: ensure the registered models match the artifact's `metadata.traitModelId`. (The orchestrator does not currently emit `metadata.traitModelId` on artifacts; that's a Phase 5b follow-up. Until then replay forensics rely on the leader's `traitProfile.modelId` being inspectable in `metadata.leader`.)
 
 ## Testing
 
-Five new test files:
+Test files actually shipped (counts reflect the implementation that landed):
 
-1. `engine/trait-models/registry.test.ts`
-   - `register` adds, `get` finds, `require` throws on miss
-   - re-registering same id throws
-   - `list` returns all registered
+1. `tests/engine/trait-models/registry.test.ts` (8 tests)
+   - `register` / `get` / `require` happy paths + miss path
+   - re-register same id throws
+   - kebab-case + camelCase axis ids accepted (HEXACO uses `honestyHumility` for back-compat with the legacy field name)
+   - axes-count bounds (2..12), defaults bounds [0, 1], drift references unknown axis rejected
 
-2. `engine/trait-models/hexaco.test.ts`
-   - Model conforms to interface (axes count, default sums, drift table covers every outcome)
-   - Cue dictionary stable for fixed inputs
-   - Drift values match the existing Ashton-Lee numbers (regression guard)
+2. `tests/engine/trait-models/hexaco.test.ts` (6 tests)
+   - Six canonical axes present
+   - Defaults all 0.5
+   - Cue dictionary preserves legacy strings byte-for-byte for high-extraversion + high-openness, and low-conscientiousness + low-agreeableness combinations
+   - Empty cue line for all-mid profile
+   - Drift values lock against `outcomePullForTrait` per-axis (table match)
 
-3. `engine/trait-models/ai-agent.test.ts`
-   - Model conforms (6 axes, defaults all 0.5)
-   - Drift sanity: `risky_failure` raises `verification-rigor` and `transparency`
-   - Cue dictionary covers every axis in low/mid/high
+3. `tests/engine/trait-models/ai-agent.test.ts` (8 tests)
+   - Six canonical axes present, defaults all 0.5
+   - Cue dictionary covers low + high for every axis
+   - Aggressive AI archetype emits expected polarized cues
+   - Conservative AI archetype emits expected polarized cues
+   - `risky_failure` raises `verification-rigor` and `transparency`
+   - `risky_success` raises `exploration` and `risk-tolerance`
+   - Drift values clamp to [0, 1]
 
-4. `engine/trait-models/cue-translator.test.ts`
-   - Top-N picking is stable for fixed input
-   - HEXACO leader at all-0.5 returns mid-zone cues
-   - ai-agent leader at extremes returns low/high cues
+4. `tests/engine/trait-models/cue-translator.test.ts` (7 tests)
+   - `maxCues` cap honored
+   - Default maxCues = 6 (HEXACO axis count)
+   - Mid-zone axes skipped
+   - Configurable preface
+   - Partial trait map fills with defaults
+   - `axisIntensities` reports |value - 0.5|
+   - Empty output when profile has no polarized axis
 
-5. `runtime/orchestrator-trait-model.test.ts`
-   - end-to-end stub run with an ai-agent leader against a small scenario
-   - Verifies decision rationale references ai-agent axes (`exploration`, `verification-rigor`, ...) not HEXACO
-   - Replay round-trips: `wm.replay(artifact)` matches when artifact was made with `ai-agent` model
+5. `tests/engine/trait-models/drift.test.ts` (15+ tests including byte-equality regressions)
+   - `applyOutcomeDrift` per-model + per-axis sanity
+   - `applyLeaderPull` and `applyRoleActivation` semantics
+   - `driftLeaderProfile` byte-identical to `driftCommanderHexaco` across all four outcome classes used by HEXACO
+   - timeDelta=2 compounding equality
+   - kernel-bounds clamp [0.05, 0.95]
+   - history snapshot push
+   - ai-agent drift produces expected per-outcome deltas
 
-Plus a back-compat regression test added to existing `tests/engine/types.test.ts` (or new file): a serialized v0.7 artifact with only `leader.hexaco` parses and runs through `normalizeLeaderConfig` to a valid `traitProfile`.
+6. `tests/engine/trait-models/normalize-leader.test.ts` (9 tests)
+   - Synthesizes traitProfile from legacy hexaco field
+   - Preserves explicit traitProfile when set (modelId + traits)
+   - Fills missing axes with model defaults (no axis-validation error)
+   - Throws `UnknownTraitModelError` on unregistered modelId
+   - Uses singleton registry by default
+   - hexacoToTraits + traitsToHexaco round-trip correctness
+   - traitsToHexaco clamps out-of-range values
+
+7. `tests/engine/trait-models/safety.test.ts` (12 tests)
+   - Cue translator silently skips axes whose model.cues entry omits the matching zone
+   - Mid-zone is never emitted by design
+   - Drift dispatcher tolerates missing outcome entry (zero delta, no throw)
+   - `driftLeaderProfile` tolerates null outcome (no-op on first turn)
+   - normalizeLeaderConfig rejects unknown axis keys (single + multi + lists every bad axis)
+   - normalizeLeaderConfig rejects leaders missing both hexaco and traitProfile
+   - `UnknownTraitModelError` carries `modelId` + `registered[]` fields for replay forensics
+
+8. `tests/runtime/orchestrator-trait-model.test.ts` (4 tests)
+   - Legacy hexaco-only leader normalizes to a hexaco traitProfile
+   - ai-agent leader passes through normalization unchanged
+   - Partial ai-agent traits fill missing axes from defaults
+   - UnknownTraitModelError on unregistered modelId at the orchestrator entry
+
+**Total: 76 trait-model + cue + safety tests passing**, plus the 13 legacy `runtime/hexaco-cues/*.test.ts` tests that continue to pass through the back-compat shims.
+
+The full project test suite (`npm test`) includes additional coverage on the surrounding kernel, runtime, and dashboard surfaces. Pre-commit checklist runs the trait-model targeted tests; CI runs the full suite to catch surface-area changes.
 
 ## Migration / rollout
 
 **Single-pass, no flag.** The registry + back-compat resolver makes the schema change non-breaking: existing leaders, existing artifacts, existing serialized agents all continue to work. New scenarios can opt into ai-agent by setting `traitProfile.modelId = 'ai-agent'`.
 
 Deprecation timeline:
-- 0.8.x: `LeaderConfig.hexaco` marked `@deprecated` in TSDoc; resolver still synthesizes `traitProfile` from it.
+- 0.8.x: `LeaderConfig.hexaco` marked `@deprecated` in TSDoc; resolver still synthesizes `traitProfile` from it. Shipped in this v1.
 - 0.9.x: `LeaderConfig.hexaco` removed from the schema. Callers must use `traitProfile`.
 
-The cookbook gains an `ai-lab` scenario (in `scripts/cookbook-creative.ts` or a new `scripts/cookbook-ai-agent.ts`) that demonstrates an ai-agent leader running through the full pipeline. The README + landing copy gain a one-paragraph note that leaders now support pluggable trait models with a worked ai-agent example.
+The cookbook gains a new `scripts/cookbook-ai-agent.ts` script that demonstrates an "Aggressive AI Release Director" archetype running through corp-quarterly. Captured input + output JSON lives at `output/cookbook/ai-agent/`. The README + landing copy got a one-paragraph "Pluggable Trait Models" section pointing to the captured run; the dashboard's `LeaderConfig` form gained a `TraitModelNotice` component announcing the registry to dashboard users (full slider generalization queued for a Phase 6 follow-up).
 
 ## Effort
 
@@ -299,9 +404,10 @@ Single-session executable on Opus 4.7 1M context.
 
 Before commit:
 
-1. `npm run typecheck:dashboard` clean
-2. Targeted tests pass: `node --import tsx --test tests/engine/trait-models/*.test.ts tests/runtime/orchestrator-trait-model.test.ts`
-3. End-to-end smoke: run an ai-agent leader through a 3-turn corp-quarterly scenario, verify decision rationale references ai-agent axes
-4. Replay smoke: replay the resulting artifact, expect `matches: true`
-5. Back-compat smoke: a v0.7 artifact (committed in `tests/fixtures/legacy-0.7-cache/`) parses and replays
-6. em-dash sweep clean across all touched files
+1. `npm run typecheck:dashboard` clean.
+2. **Full** test suite passes: `npm test`. Trait-model changes touch shared types (`LeaderConfig`, `RunArtifact`, `Agent`) and the renamed `runtime/trait-cues/` module; targeted tests alone can miss surface-area regressions. Targeted run during iteration is fine, but the full suite is the merge gate. Today's pre-existing test failures in `tests/cli/sim-config.test.ts` and `tests/runtime/economics-profile.test.ts` (unrelated `gpt-5.4-mini` vs `gpt-4o` model-string drift, predates this work) should not block; everything else green.
+3. End-to-end smoke: run an ai-agent leader through a 2-3 turn corp-quarterly scenario, verify decision rationale references ai-agent axes. Captured in `output/cookbook/ai-agent/` and committed for replay-without-LLM-spend by future readers.
+4. Replay smoke: replay the resulting artifact, expect `matches: true` (deferred until `metadata.traitModelId` lands in Phase 5b).
+5. Back-compat smoke: any v0.7 artifact still parses and runs through `normalizeLeaderConfig` to a valid `traitProfile` (covered by `normalize-leader.test.ts` synthetic fixtures).
+6. em-dash sweep clean across all touched files: `grep -nE "&mdash;|—" <files>` returns empty (em-dashes are the #1 LLM-writing tell per project memory).
+7. Run `coderabbit:review` on the diff. Address Critical + Major findings before pushing; defer Minor + spec-doc tightening to a focused follow-up if scope is bounded.
