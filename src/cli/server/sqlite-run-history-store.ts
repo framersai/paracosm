@@ -87,6 +87,39 @@ function rowToRecord(row: RunRow): RunRecord {
 }
 
 /**
+ * v0.7 -> v0.8 in-place migration. The leader -> actor rename in 0.8.0
+ * renamed three columns; legacy production databases still have the
+ * old names and would crash boot when `db.prepare(INSERT ... actor_*)`
+ * tries to bind those columns. Rename each in place if the legacy
+ * column is present and the new column is absent. ALTER TABLE RENAME
+ * COLUMN is supported on SQLite >= 3.25 (Node better-sqlite3 ships
+ * 3.45+), so this is safe.
+ */
+function migrateLeaderColumnsToActor(db: Database.Database): void {
+  const cols = db.prepare(`PRAGMA table_info(runs)`).all() as Array<{ name: string }>;
+  const colNames = new Set(cols.map((c) => c.name));
+  const renames: ReadonlyArray<readonly [string, string]> = [
+    ['leader_config_hash', 'actor_config_hash'],
+    ['leader_name', 'actor_name'],
+    ['leader_archetype', 'actor_archetype'],
+  ];
+  for (const [legacy, modern] of renames) {
+    if (colNames.has(legacy) && !colNames.has(modern)) {
+      db.exec(`ALTER TABLE runs RENAME COLUMN ${legacy} TO ${modern};`);
+    }
+  }
+  // Drop the legacy index name if it lingered after the rename;
+  // `idx_runs_leader_created` referenced the renamed column and would
+  // have been auto-rewritten, but leaving the legacy name around is
+  // confusing and the new index gets created by the bootstrap below.
+  try {
+    db.exec(`DROP INDEX IF EXISTS idx_runs_leader_created;`);
+  } catch (err) {
+    void err;
+  }
+}
+
+/**
  * Idempotent column-add migration. SQLite raises "duplicate column name"
  * when the column already exists; we swallow that and propagate any other
  * error. Called from the schema bootstrap on every store creation; safe
@@ -135,6 +168,10 @@ export function createSqliteRunHistoryStore(options: SqliteRunHistoryStoreOption
     CREATE INDEX IF NOT EXISTS idx_runs_scenario_created  ON runs (scenario_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_runs_mode_created      ON runs (source_mode, created_at DESC);
   `);
+  // 0.8.0 leader -> actor column rename. Must run BEFORE the prepared
+  // INSERT below; better-sqlite3 throws on prepare() when it references
+  // a missing column, which would crash server boot on legacy DBs.
+  migrateLeaderColumnsToActor(db);
   ensureRunsColumns(db);
   // Index over actor_config_hash sits after ensureRunsColumns so legacy
   // databases that pre-date the leader -> actor rename get the column
