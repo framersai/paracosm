@@ -47,6 +47,8 @@ interface RunRow {
   mode: string | null;
   leader_name: string | null;
   leader_archetype: string | null;
+  bundle_id: string | null;
+  summary_trajectory: string | null;
   replay_attempts: number | null;
   replay_matches: number | null;
 }
@@ -70,6 +72,17 @@ function rowToRecord(row: RunRow): RunRecord {
   if (row.mode !== null) record.mode = row.mode as RunRecord['mode'];
   if (row.leader_name !== null) record.leaderName = row.leader_name;
   if (row.leader_archetype !== null) record.leaderArchetype = row.leader_archetype;
+  if (row.bundle_id !== null) record.bundleId = row.bundle_id;
+  if (row.summary_trajectory !== null) {
+    try {
+      const parsed = JSON.parse(row.summary_trajectory) as unknown;
+      if (Array.isArray(parsed) && parsed.every(n => typeof n === 'number')) {
+        record.summaryTrajectory = parsed;
+      }
+    } catch {
+      // Corrupt JSON in older row -- skip; cell renders without sparkline.
+    }
+  }
   return record;
 }
 
@@ -89,6 +102,8 @@ function ensureRunsColumns(db: Database.Database): void {
     ['leader_archetype', 'TEXT'],
     ['replay_attempts', 'INTEGER DEFAULT 0'],
     ['replay_matches', 'INTEGER DEFAULT 0'],
+    ['bundle_id', 'TEXT'],
+    ['summary_trajectory', 'TEXT'],
   ];
   for (const [name, type] of newCols) {
     try {
@@ -129,16 +144,24 @@ export function createSqliteRunHistoryStore(options: SqliteRunHistoryStoreOption
     // Index creation may fail if mode column was just added; ignore.
     void err;
   }
+  // Index for the Compare view's bundle lookup.
+  try {
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_runs_bundle_created ON runs (bundle_id, created_at ASC);`);
+  } catch (err) {
+    void err;
+  }
 
   const insertStmt = db.prepare(`
     INSERT OR IGNORE INTO runs
       (run_id, created_at, scenario_id, scenario_version, leader_config_hash,
        economics_profile, source_mode, created_by,
-       artifact_path, cost_usd, duration_ms, mode, leader_name, leader_archetype)
+       artifact_path, cost_usd, duration_ms, mode, leader_name, leader_archetype,
+       bundle_id, summary_trajectory)
     VALUES
       (@runId, @createdAt, @scenarioId, @scenarioVersion, @leaderConfigHash,
        @economicsProfile, @sourceMode, @createdBy,
-       @artifactPath, @costUSD, @durationMs, @mode, @leaderName, @leaderArchetype)
+       @artifactPath, @costUSD, @durationMs, @mode, @leaderName, @leaderArchetype,
+       @bundleId, @summaryTrajectory)
   `);
 
   function insertRowParams(run: RunRecord) {
@@ -157,6 +180,8 @@ export function createSqliteRunHistoryStore(options: SqliteRunHistoryStoreOption
       mode: run.mode ?? null,
       leaderName: run.leaderName ?? null,
       leaderArchetype: run.leaderArchetype ?? null,
+      bundleId: run.bundleId ?? null,
+      summaryTrajectory: run.summaryTrajectory ? JSON.stringify(run.summaryTrajectory) : null,
     };
   }
 
@@ -187,6 +212,10 @@ export function createSqliteRunHistoryStore(options: SqliteRunHistoryStoreOption
       clauses.push('(scenario_id LIKE @q OR leader_name LIKE @q OR leader_archetype LIKE @q)');
       params.q = `%${filters.q}%`;
     }
+    if (filters?.bundleId) {
+      clauses.push('bundle_id = @bundleId');
+      params.bundleId = filters.bundleId;
+    }
     return {
       where: clauses.length > 0 ? `WHERE ${clauses.join(' AND ')}` : '',
       params,
@@ -212,6 +241,13 @@ export function createSqliteRunHistoryStore(options: SqliteRunHistoryStoreOption
     async getRun(runId: string): Promise<RunRecord | null> {
       const row = getStmt.get(runId);
       return row ? rowToRecord(row) : null;
+    },
+
+    async listRunsByBundleId(bundleId: string): Promise<RunRecord[]> {
+      const rows = db
+        .prepare<unknown[], RunRow>(`SELECT * FROM runs WHERE bundle_id = ? ORDER BY created_at ASC`)
+        .all(bundleId);
+      return rows.map(rowToRecord);
     },
 
     async countRuns(filters?: Pick<ListRunsFilters, 'mode' | 'sourceMode' | 'scenarioId' | 'leaderConfigHash' | 'q'>): Promise<number> {
