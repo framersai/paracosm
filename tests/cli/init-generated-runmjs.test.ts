@@ -8,12 +8,12 @@ test('renderRunMjs imports runSimulation from paracosm/runtime, not paracosm', (
   assert.ok(!/from\s+['"]paracosm['"]/.test(out), 'must not import from bare paracosm root');
 });
 
-test('renderRunMjs uses positional runSimulation(leader, [], opts) signature', () => {
+test('renderRunMjs uses positional runSimulation(actor, [], opts) signature', () => {
   const out = renderRunMjs();
   // Must not pass an options object as the first argument.
-  assert.ok(!/runSimulation\(\s*\{/.test(out), 'first arg must be a leader, not an options object');
-  // Must pass leader (variable) followed by an empty array literal.
-  assert.match(out, /runSimulation\(\s*leader\s*,\s*\[\s*\]\s*,/, 'must call runSimulation(leader, [], { ... })');
+  assert.ok(!/runSimulation\(\s*\{/.test(out), 'first arg must be an actor, not an options object');
+  // Must pass actor (variable) followed by an empty array literal.
+  assert.match(out, /runSimulation\(\s*actor\s*,\s*\[\s*\]\s*,/, 'must call runSimulation(actor, [], { ... })');
 });
 
 test('renderRunMjs uses maxTurns, never bare turns', () => {

@@ -168,14 +168,14 @@ test('applyLogFilters: combined filters AND together', () => {
 test('extractAvailableFacets: empty events -> empty facets + maxTurn 0', () => {
   const f = extractAvailableFacets([]);
   assert.deepEqual(f.types, []);
-  assert.deepEqual(f.leaders, []);
+  assert.deepEqual(f.actors, []);
   assert.equal(f.maxTurn, 0);
 });
 
-test('extractAvailableFacets: collects unique types + leaders + max turn', () => {
+test('extractAvailableFacets: collects unique types + actors + max turn', () => {
   const f = extractAvailableFacets(sample);
   assert.deepEqual(f.types.sort(), ['decision_made', 'outcome', 'specialist_done', 'turn_done', 'turn_start']);
-  assert.deepEqual(f.leaders, ['Aria', 'Vik']);
+  assert.deepEqual(f.actors, ['Aria', 'Vik']);
   assert.equal(f.maxTurn, 6);
 });
 

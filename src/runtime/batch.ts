@@ -8,7 +8,7 @@ import type { CostPreset } from '../cli/sim-config.js';
 
 export interface BatchConfig {
   scenarios: ScenarioPackage[];
-  leaders: ActorConfig[];
+  actors: ActorConfig[];
   keyPersonnel?: KeyPersonnel[];
   turns: number;
   seed: number;
@@ -40,7 +40,7 @@ export interface BatchManifest {
   timestamp: string;
   config: {
     scenarioIds: string[];
-    leaders: string[];
+    actors: string[];
     turns: number;
     seed: number;
     provider?: string;
@@ -81,7 +81,7 @@ export async function runBatch(config: BatchConfig): Promise<BatchManifest> {
   const { runSimulation } = await import('./orchestrator.js');
   const startTime = Date.now();
   const jobs = config.scenarios.flatMap(scenario => (
-    config.leaders.map(leader => ({ scenario, leader }))
+    config.actors.map(leader => ({ scenario, leader }))
   ));
   const results = await mapConcurrentInOrder(
     jobs,
@@ -117,7 +117,7 @@ export async function runBatch(config: BatchConfig): Promise<BatchManifest> {
     timestamp: new Date().toISOString(),
     config: {
       scenarioIds: config.scenarios.map(s => s.id),
-      leaders: config.leaders.map(l => l.name),
+      actors: config.actors.map(l => l.name),
       turns: config.turns,
       seed: config.seed,
       provider: config.provider,

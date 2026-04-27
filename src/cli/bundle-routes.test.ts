@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ServerResponse } from 'node:http';
+import { ServerResponse, type IncomingMessage } from 'node:http';
 import { Socket } from 'node:net';
 import { handleListBundle, handleBundleAggregate, computeAggregate } from './bundle-routes.js';
 import { createNoopRunHistoryStore } from './server/run-history-store.js';
@@ -8,7 +8,7 @@ import type { RunRecord } from './server/run-record.js';
 
 function makeRes(): { res: ServerResponse; chunks: string[]; status: () => number } {
   const socket = new Socket();
-  const req = { socket, headers: {}, method: 'GET', url: '/' } as unknown as Parameters<typeof ServerResponse.prototype.constructor>[0];
+  const req = { socket, headers: {}, method: 'GET', url: '/' } as unknown as IncomingMessage;
   // ServerResponse expects the raw IncomingMessage; we stub the minimum surface.
   const res = new ServerResponse(req as never);
   const chunks: string[] = [];

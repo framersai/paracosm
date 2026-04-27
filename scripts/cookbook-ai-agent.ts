@@ -89,13 +89,13 @@ async function main(): Promise<void> {
   });
   process.stdout.write(`  scenario: ${scenario.labels.name} (${scenario.id})\n`);
 
-  // Step 2: define an ai-agent leader and run.
-  process.stdout.write('\n[2/2] Run ai-agent leader through corp-quarterly\n');
+  // Step 2: define an ai-agent actor and run.
+  process.stdout.write('\n[2/2] Run ai-agent actor through corp-quarterly\n');
 
   // Aggressive frontier-lab AI archetype: high exploration + risk-tolerance,
   // low verification-rigor + deference. Models a release director who
   // ships fast and overrides safety-team escalation by default.
-  const leader: ActorConfig = {
+  const actor: ActorConfig = {
     name: 'Atlas-Bot Release Director',
     archetype: 'Aggressive AI Release Optimizer',
     unit: 'Frontier Lab Compute Cluster',
@@ -132,7 +132,7 @@ async function main(): Promise<void> {
   };
 
   const t0 = Date.now();
-  const artifact = await runSimulation(leader, [], {
+  const artifact = await runSimulation(actor, [], {
     scenario,
     maxTurns: 2,
     seed: 42,
@@ -147,7 +147,7 @@ async function main(): Promise<void> {
   process.stdout.write(`  cost: $${artifact.cost?.totalUSD?.toFixed(3) ?? '?'}\n`);
   process.stdout.write(`  ${dt}s\n`);
 
-  persist('input-leader.json', leader);
+  persist('input-actor.json', actor);
   persist('input-scenario.json', { id: scenario.id, labels: scenario.labels, departments: scenario.departments, metrics: scenario.metrics });
   persist('input-options.json', { maxTurns: 2, seed: 42, captureSnapshots: false, provider: 'openai', costPreset: 'economy' });
   persist('output-artifact-summary.json', summarizeArtifact(artifact));

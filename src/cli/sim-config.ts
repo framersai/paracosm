@@ -55,7 +55,7 @@ export interface SimulationExecutionConfig {
 }
 
 export interface SimulationSetupPayload {
-  leaders: ActorConfig[];
+  actors: ActorConfig[];
   provider?: LlmProvider;
   turns?: number;
   seed?: number;
@@ -112,7 +112,7 @@ export interface SimulationSetupPayload {
 }
 
 export interface NormalizedSimulationConfig {
-  leaders: ActorConfig[];
+  actors: ActorConfig[];
   provider: LlmProvider;
   turns: number;
   seed: number;
@@ -519,19 +519,19 @@ export function applyDemoCaps(config: NormalizedSimulationConfig): NormalizedSim
 }
 
 export function normalizeSimulationConfig(input: SimulationSetupPayload): NormalizedSimulationConfig {
-  // Fork setups take exactly one leader (the override for the forked
+  // Fork setups take exactly one actor (the override for the forked
   // branch); regular pair setups take exactly two. Spec 2B.
-  // Spec 2B: fork setup takes exactly one leader (the override for the
-  // forked branch). Tier 5 Quickstart: 3 to 6 leaders dispatch to the
+  // Spec 2B: fork setup takes exactly one actor (the override for the
+  // forked branch). Tier 5 Quickstart: 3 to 6 actors dispatch to the
   // batch runner. Regular pair setup still takes two.
   if (input.forkFrom) {
-    if (!Array.isArray(input.leaders) || input.leaders.length !== 1) {
-      throw new Error('Fork setup requires exactly one leader');
+    if (!Array.isArray(input.actors) || input.actors.length !== 1) {
+      throw new Error('Fork setup requires exactly one actor');
     }
-  } else if (!Array.isArray(input.leaders) || input.leaders.length < 2) {
-    throw new Error('Simulation requires at least 2 leaders');
-  } else if (input.leaders.length > 6) {
-    throw new Error(`Simulation accepts at most 6 leaders per run, got ${input.leaders.length}`);
+  } else if (!Array.isArray(input.actors) || input.actors.length < 2) {
+    throw new Error('Simulation requires at least 2 actors');
+  } else if (input.actors.length > 6) {
+    throw new Error(`Simulation accepts at most 6 actors per run, got ${input.actors.length}`);
   }
 
   // Priority for provider resolution:
@@ -569,7 +569,7 @@ export function normalizeSimulationConfig(input: SimulationSetupPayload): Normal
   });
 
   return {
-    leaders: input.leaders,
+    actors: input.actors,
     provider: inferredProvider,
     turns: input.turns ?? 12,
     seed: input.seed ?? 950,

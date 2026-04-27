@@ -91,7 +91,7 @@ export function useToolRegistry(state: GameState): ToolRegistry {
     let next = 1;
 
     for (const actorName of state.actorIds) {
-      const sideState = state.leaders[actorName];
+      const sideState = state.actors[actorName];
       if (!sideState) continue;
       for (const evt of sideState.events) {
         if (evt.type !== 'specialist_done') continue;
@@ -171,7 +171,7 @@ export function useToolRegistry(state: GameState): ToolRegistry {
     // the live forge_attempt stream, and users need to see terminal
     // failures in the toolbox to understand what was tried.
     for (const actorName of state.actorIds) {
-      const sideState = state.leaders[actorName];
+      const sideState = state.actors[actorName];
       if (!sideState) continue;
       for (const evt of sideState.events) {
         if (evt.type !== 'forge_attempt') continue;

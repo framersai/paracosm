@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { GameState, LeaderSideState } from '../../hooks/useGameState.js';
+import type { GameState, ActorSideState } from '../../hooks/useGameState.js';
 import { humanizeOutcome } from './humanize-outcome.js';
 
 interface TurnBannerProps {
@@ -19,7 +19,7 @@ interface LeaderTurnSummary {
   time: number;
 }
 
-function summarize(side: LeaderSideState, turn: number): LeaderTurnSummary | null {
+function summarize(side: ActorSideState, turn: number): LeaderTurnSummary | null {
   const actorName = side.leader?.name ?? '';
   if (!actorName) return null;
 
@@ -62,8 +62,8 @@ function summarize(side: LeaderSideState, turn: number): LeaderTurnSummary | nul
 export function TurnBanner({ state, currentTurn }: TurnBannerProps) {
   const firstId = state.actorIds[0];
   const secondId = state.actorIds[1];
-  const sideA = firstId ? state.leaders[firstId] : null;
-  const sideB = secondId ? state.leaders[secondId] : null;
+  const sideA = firstId ? state.actors[firstId] : null;
+  const sideB = secondId ? state.actors[secondId] : null;
   const a = useMemo(() => sideA ? summarize(sideA, currentTurn) : null, [sideA, currentTurn]);
   const b = useMemo(() => sideB ? summarize(sideB, currentTurn) : null, [sideB, currentTurn]);
 

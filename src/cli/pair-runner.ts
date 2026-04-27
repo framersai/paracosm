@@ -60,14 +60,14 @@ export async function runPairSimulations(
    */
   onArtifact?: (artifact: import('../engine/schema/index.js').RunArtifact, leader: import('../runtime/orchestrator.js').ActorConfig) => void | Promise<void>,
 ): Promise<void> {
-  const { leaders, turns, seed, startTime, liveSearch, customEvents } = simConfig;
+  const { actors, turns, seed, startTime, liveSearch, customEvents } = simConfig;
   broadcast('status', { phase: 'starting', maxTurns: turns, customEvents });
 
   const { runSimulation } = await import('../runtime/orchestrator.js');
   const onEvent = (event: unknown) => broadcast('sim', event);
   broadcast('status', {
     phase: 'parallel',
-    leaders: leaders.map(leader => ({
+    actors: actors.map(leader => ({
       name: leader.name,
       archetype: leader.archetype,
       unit: leader.unit,
@@ -75,9 +75,9 @@ export async function runPairSimulations(
     })),
   });
 
-  console.log(`  Running: ${leaders[0].name} vs ${leaders[1].name} | ${turns} turns | seed ${seed}\n`);
+  console.log(`  Running: ${actors[0].name} vs ${actors[1].name} | ${turns} turns | seed ${seed}\n`);
 
-  const results = await Promise.allSettled(leaders.map((leader, index) => {
+  const results = await Promise.allSettled(actors.map((leader, index) => {
     const tag = leader.archetype.toLowerCase().replace(/^the\s+/, '').replace(/\s+/g, '-') || `leader-${index}`;
     return runSimulation(leader, simConfig.keyPersonnel ?? DEFAULT_KEY_PERSONNEL, {
       maxTurns: turns,
@@ -294,10 +294,10 @@ export async function runForkSimulation(
   if (!simConfig.forkFrom) {
     throw new Error('runForkSimulation called without simConfig.forkFrom set');
   }
-  if (simConfig.leaders.length !== 1) {
-    throw new Error(`runForkSimulation requires exactly 1 leader, got ${simConfig.leaders.length}`);
+  if (simConfig.actors.length !== 1) {
+    throw new Error(`runForkSimulation requires exactly 1 leader, got ${simConfig.actors.length}`);
   }
-  const leader = simConfig.leaders[0];
+  const leader = simConfig.actors[0];
   const { turns, seed, startTime, liveSearch, customEvents } = simConfig;
   broadcast('status', { phase: 'starting', maxTurns: turns, customEvents, fork: true });
 
@@ -405,15 +405,15 @@ export async function runBatchSimulations(
   /** Optional callback fired after each leader's artifact completes. */
   onArtifact?: (artifact: import('../engine/schema/index.js').RunArtifact, leader: import('../runtime/orchestrator.js').ActorConfig) => void | Promise<void>,
 ): Promise<void> {
-  const { leaders, turns, seed, startTime, liveSearch, customEvents } = simConfig;
-  broadcast('status', { phase: 'starting', maxTurns: turns, customEvents, batch: true, actorCount: leaders.length });
+  const { actors, turns, seed, startTime, liveSearch, customEvents } = simConfig;
+  broadcast('status', { phase: 'starting', maxTurns: turns, customEvents, batch: true, actorCount: actors.length });
 
   const { runSimulation } = await import('../runtime/orchestrator.js');
   const onEvent = (event: unknown) => broadcast('sim', event);
   broadcast('status', {
     phase: 'parallel',
     batch: true,
-    leaders: leaders.map(leader => ({
+    actors: actors.map(leader => ({
       name: leader.name,
       archetype: leader.archetype,
       unit: leader.unit,
@@ -421,11 +421,11 @@ export async function runBatchSimulations(
     })),
   });
 
-  console.log(`  Running batch: ${leaders.map(l => l.name).join(' vs ')} | ${turns} turns | seed ${seed}
+  console.log(`  Running batch: ${actors.map(l => l.name).join(' vs ')} | ${turns} turns | seed ${seed}
 `);
 
   const usedTags = new Map<string, number>();
-  const leadersWithTags = leaders.map((leader, index) => {
+  const actorsWithTags = actors.map((leader, index) => {
     const base = leader.archetype.toLowerCase().replace(/^the\s+/, '').replace(/\s+/g, '-') || `leader-${index}`;
     const count = usedTags.get(base) ?? 0;
     usedTags.set(base, count + 1);
@@ -433,7 +433,7 @@ export async function runBatchSimulations(
     return { leader, index, tag };
   });
 
-  const settled = await Promise.allSettled(leadersWithTags.map(({ leader, index, tag }) => {
+  const settled = await Promise.allSettled(actorsWithTags.map(({ leader, index, tag }) => {
     return runSimulation(leader, simConfig.keyPersonnel ?? DEFAULT_KEY_PERSONNEL, {
       maxTurns: turns,
       seed,

@@ -94,11 +94,11 @@ export function SettingsPanel() {
   const navigateTab = useDashboardNavigation();
 
   const defaultPreset = scenario.presets.find(p => p.id === 'default');
-  const initLeaderA = defaultPreset?.leaders?.[0]
-    ? { name: defaultPreset.leaders[0].name, archetype: defaultPreset.leaders[0].archetype, unit: 'Colony Alpha', instructions: defaultPreset.leaders[0].instructions, hexaco: defaultPreset.leaders[0].hexaco }
+  const initLeaderA = defaultPreset?.actors?.[0]
+    ? { name: defaultPreset.actors[0].name, archetype: defaultPreset.actors[0].archetype, unit: 'Colony Alpha', instructions: defaultPreset.actors[0].instructions, hexaco: defaultPreset.actors[0].hexaco }
     : defaultLeader(0);
-  const initLeaderB = defaultPreset?.leaders?.[1]
-    ? { name: defaultPreset.leaders[1].name, archetype: defaultPreset.leaders[1].archetype, unit: 'Colony Beta', instructions: defaultPreset.leaders[1].instructions, hexaco: defaultPreset.leaders[1].hexaco }
+  const initLeaderB = defaultPreset?.actors?.[1]
+    ? { name: defaultPreset.actors[1].name, archetype: defaultPreset.actors[1].archetype, unit: 'Colony Beta', instructions: defaultPreset.actors[1].instructions, hexaco: defaultPreset.actors[1].hexaco }
     : defaultLeader(1);
 
   const [leaderA, setLeaderA] = useState<ActorFormData>(initLeaderA);
@@ -108,22 +108,22 @@ export function SettingsPanel() {
   // Depend on presets length because the fallback has presets:[] but same id
   useEffect(() => {
     const p = scenario.presets.find(p => p.id === 'default');
-    if (p?.leaders?.[0]) {
+    if (p?.actors?.[0]) {
       setLeaderA({
-        name: p.leaders![0].name,
-        archetype: p.leaders![0].archetype,
+        name: p.actors[0].name,
+        archetype: p.actors[0].archetype,
         unit: 'Colony Alpha',
-        instructions: p.leaders![0].instructions,
-        hexaco: { ...p.leaders![0].hexaco },
+        instructions: p.actors[0].instructions,
+        hexaco: { ...p.actors[0].hexaco },
       });
     }
-    if (p?.leaders?.[1]) {
+    if (p?.actors?.[1]) {
       setLeaderB({
-        name: p.leaders![1].name,
-        archetype: p.leaders![1].archetype,
+        name: p.actors[1].name,
+        archetype: p.actors[1].archetype,
         unit: 'Colony Beta',
-        instructions: p.leaders![1].instructions,
-        hexaco: { ...p.leaders![1].hexaco },
+        instructions: p.actors[1].instructions,
+        hexaco: { ...p.actors[1].hexaco },
       });
     }
   }, [scenario.id, scenario.presets.length]);

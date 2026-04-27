@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, useMemo, useCallback } from 'react';
-import type { GameState, LeaderSideState, LeaderInfo } from '../../hooks/useGameState';
+import type { GameState, ActorSideState, LeaderInfo } from '../../hooks/useGameState';
 import { getActorColorVar } from '../../hooks/useGameState';
 import { useScenarioContext } from '../../App';
 import { useCitationContext } from '../../hooks/useCitationRegistry';
@@ -30,7 +30,7 @@ interface SimViewProps {
   launching?: boolean;
 }
 
-function LeaderColumn({ actorIndex, sideState, state }: { actorIndex: number; sideState: LeaderSideState; state: GameState }) {
+function LeaderColumn({ actorIndex, sideState, state }: { actorIndex: number; sideState: ActorSideState; state: GameState }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const pinnedRef = useRef(true);
   const onScroll = () => {
@@ -154,9 +154,9 @@ export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: l
 
   const firstId = state.actorIds[0];
   const secondId = state.actorIds[1];
-  const sideA = firstId ? state.leaders[firstId] : null;
-  const sideB = secondId ? state.leaders[secondId] : null;
-  const hasEvents = Object.values(state.leaders).some(s => s.events.length > 0);
+  const sideA = firstId ? state.actors[firstId] : null;
+  const sideB = secondId ? state.actors[secondId] : null;
+  const hasEvents = Object.values(state.actors).some(s => s.events.length > 0);
   const showLoading = state.isRunning && !hasEvents;
 
   // Clear local launching state once events start arriving or sim is running
@@ -171,11 +171,11 @@ export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: l
 
   // Fallback leader info from scenario presets when no simulation data yet
   const defaultPreset = scenario.presets.find(p => p.id === 'default');
-  const presetLeaderA: LeaderInfo | null = defaultPreset?.leaders?.[0]
-    ? { name: defaultPreset.leaders[0].name, archetype: defaultPreset.leaders[0].archetype, unit: 'Colony Alpha', hexaco: defaultPreset.leaders[0].hexaco, instructions: defaultPreset.leaders[0].instructions, quote: '' }
+  const presetLeaderA: LeaderInfo | null = defaultPreset?.actors?.[0]
+    ? { name: defaultPreset.actors[0].name, archetype: defaultPreset.actors[0].archetype, unit: 'Colony Alpha', hexaco: defaultPreset.actors[0].hexaco, instructions: defaultPreset.actors[0].instructions, quote: '' }
     : null;
-  const presetLeaderB: LeaderInfo | null = defaultPreset?.leaders?.[1]
-    ? { name: defaultPreset.leaders[1].name, archetype: defaultPreset.leaders[1].archetype, unit: 'Colony Beta', hexaco: defaultPreset.leaders[1].hexaco, instructions: defaultPreset.leaders[1].instructions, quote: '' }
+  const presetLeaderB: LeaderInfo | null = defaultPreset?.actors?.[1]
+    ? { name: defaultPreset.actors[1].name, archetype: defaultPreset.actors[1].archetype, unit: 'Colony Beta', hexaco: defaultPreset.actors[1].hexaco, instructions: defaultPreset.actors[1].instructions, quote: '' }
     : null;
 
   const [showIntro, setShowIntro] = useState(() => {
@@ -258,7 +258,7 @@ export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: l
       </div>
 
       <StatsBar
-        leaders={state.actorIds.slice(0, 2).map(id => ({ id, state: state.leaders[id] }))}
+        actors={state.actorIds.slice(0, 2).map(id => ({ id, state: state.actors[id] }))}
         crisisText={crisisText}
         toolRegistry={toolRegistry}
       />

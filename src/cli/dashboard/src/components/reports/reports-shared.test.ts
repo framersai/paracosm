@@ -28,7 +28,7 @@ test('classifyTurn returns shared when both titles match, divergent otherwise', 
 test('collectMetricSeries extracts six metrics per side from turn_done events', () => {
   const state = {
     actorIds: ['Alice', 'Bob'],
-    leaders: {
+    actors: {
       Alice: {
         events: [
           { id: '1', type: 'turn_done', turn: 1, data: { metrics: { population: 30, morale: 0.8, foodMonthsReserve: 100, powerKw: 500, infrastructureModules: 5, scienceOutput: 10 } } },
@@ -57,7 +57,7 @@ test('collectMetricSeries extracts six metrics per side from turn_done events', 
 test('collectMetricSeries drops events without a metrics payload', () => {
   const state = {
     actorIds: ['Alice', 'Bob'],
-    leaders: {
+    actors: {
       Alice: {
         events: [
           { id: '1', type: 'turn_start', turn: 1, data: {} },

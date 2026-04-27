@@ -29,7 +29,7 @@ const twoLeaders = [
 
 test('inference: user supplies only Anthropic key → provider is anthropic', () => {
   const cfg = normalizeSimulationConfig({
-    leaders: twoLeaders,
+    actors: twoLeaders,
     anthropicKey: 'sk-ant-fake-test-key',
     // Models stay at OpenAI defaults (what the UI dropdowns send).
     models: {
@@ -48,7 +48,7 @@ test('inference: user supplies only Anthropic key → provider is anthropic', ()
 
 test('inference: user supplies only OpenAI key → provider is openai', () => {
   const cfg = normalizeSimulationConfig({
-    leaders: twoLeaders,
+    actors: twoLeaders,
     apiKey: 'sk-fake-test-key',
     models: {
       commander: 'claude-haiku-4-5-20251001',
@@ -62,7 +62,7 @@ test('inference: user supplies only OpenAI key → provider is openai', () => {
 
 test('inference: both keys supplied → model hints win (keys tie, defer to next signal)', () => {
   const cfg = normalizeSimulationConfig({
-    leaders: twoLeaders,
+    actors: twoLeaders,
     apiKey: 'sk-openai',
     anthropicKey: 'sk-ant',
     models: { commander: 'claude-haiku-4-5-20251001' },
@@ -72,7 +72,7 @@ test('inference: both keys supplied → model hints win (keys tie, defer to next
 
 test('inference: both keys supplied + explicit provider → explicit provider wins over model hints', () => {
   const cfg = normalizeSimulationConfig({
-    leaders: twoLeaders,
+    actors: twoLeaders,
     provider: 'openai',
     apiKey: 'sk-openai',
     anthropicKey: 'sk-ant',
@@ -83,7 +83,7 @@ test('inference: both keys supplied + explicit provider → explicit provider wi
 
 test('inference: neither key + OpenAI model defaults → provider is openai (env fallback path)', () => {
   const cfg = normalizeSimulationConfig({
-    leaders: twoLeaders,
+    actors: twoLeaders,
     models: { commander: 'gpt-5.4-mini' },
   });
   assert.equal(cfg.provider, 'openai');
@@ -96,7 +96,7 @@ test('inference: single Anthropic key beats even an explicit provider: openai (k
   // Anthropic key is silently ignored and the run bills against the
   // server's env OPENAI_API_KEY.
   const cfg = normalizeSimulationConfig({
-    leaders: twoLeaders,
+    actors: twoLeaders,
     provider: 'openai',
     anthropicKey: 'sk-ant-user-key',
     models: { commander: 'gpt-5.4-mini' },
@@ -106,7 +106,7 @@ test('inference: single Anthropic key beats even an explicit provider: openai (k
 
 test('inference: masked key ("...") is treated as "no change" not as a real key', () => {
   const cfg = normalizeSimulationConfig({
-    leaders: twoLeaders,
+    actors: twoLeaders,
     apiKey: 'sk-openai-real',
     anthropicKey: '...masked...',
     models: { commander: 'gpt-5.4-mini' },
@@ -116,7 +116,7 @@ test('inference: masked key ("...") is treated as "no change" not as a real key'
 
 test('inference: whitespace-only key is not counted as a real key', () => {
   const cfg = normalizeSimulationConfig({
-    leaders: twoLeaders,
+    actors: twoLeaders,
     apiKey: '   ',
     anthropicKey: 'sk-ant-real',
     models: { commander: 'gpt-5.4-mini' },

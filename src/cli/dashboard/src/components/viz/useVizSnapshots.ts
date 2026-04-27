@@ -20,7 +20,7 @@ export function useVizSnapshots(state: GameState): Record<string, TurnSnapshot[]
     const result: Record<string, TurnSnapshot[]> = {};
 
     for (const actorName of state.actorIds) {
-      const s = state.leaders[actorName];
+      const s = state.actors[actorName];
       if (!s) continue;
       result[actorName] = [];
 

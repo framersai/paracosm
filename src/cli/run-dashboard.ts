@@ -11,7 +11,7 @@ import { resolve } from 'node:path';
 import { createMarsServer } from './server-app.js';
 import { normalizeSimulationConfig } from './sim-config.js';
 import { parseCliRunOptions } from './cli-run-options.js';
-import { resolveLeaders, parseLeadersFlag } from './leaders-resolver.js';
+import { resolveActors, parseActorsFlag } from './actors-resolver.js';
 import type { ActorConfig } from './types.js';
 
 function loadEnvFromCwd(): void {
@@ -63,16 +63,16 @@ export async function runDashboard(argv: readonly string[]): Promise<number> {
     return 0;
   }
 
-  const explicitPath = parseLeadersFlag(argv);
-  let leaders: ActorConfig[];
+  const explicitPath = parseActorsFlag(argv);
+  let actors: ActorConfig[];
   try {
-    const resolved = resolveLeaders({ explicitPath });
-    leaders = resolved.leaders;
+    const resolved = resolveActors({ explicitPath });
+    actors = resolved.actors;
     if (resolved.isExample) {
-      process.stdout.write(`  Using bundled example leaders at ${resolved.sourcePath}\n`);
-      process.stdout.write('  Create config/leaders.json in your project to customize.\n');
+      process.stdout.write(`  Using bundled example actors at ${resolved.sourcePath}\n`);
+      process.stdout.write('  Create config/actors.json in your project to customize.\n');
     } else {
-      process.stdout.write(`  Loaded ${leaders.length} leaders from ${resolved.sourcePath}\n`);
+      process.stdout.write(`  Loaded ${actors.length} actors from ${resolved.sourcePath}\n`);
     }
   } catch (err) {
     process.stderr.write(`  ${err instanceof Error ? err.message : String(err)}\n`);
@@ -80,7 +80,7 @@ export async function runDashboard(argv: readonly string[]): Promise<number> {
   }
 
   const simConfig = normalizeSimulationConfig({
-    leaders,
+    actors,
     turns: cliOptions.maxTurns,
     seed: cliOptions.seed,
     startTime: cliOptions.startTime,

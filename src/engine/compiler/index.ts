@@ -340,7 +340,7 @@ export async function compileScenario(
     tooltipFields: [] as string[],
     reportSections: ['crisis', 'departments', 'decision', 'outcome'] as Array<'crisis' | 'departments' | 'decision' | 'outcome' | 'quotes' | 'causality'>,
     departmentIcons: {} as Record<string, string>,
-    setupSections: ['leaders', 'departments', 'models'] as Array<'leaders' | 'personnel' | 'resources' | 'departments' | 'events' | 'models' | 'advanced'>,
+    setupSections: ['actors', 'departments', 'models'] as Array<'actors' | 'personnel' | 'resources' | 'departments' | 'events' | 'models' | 'advanced'>,
     ...(json.ui ?? {}),
     eventRenderers: Object.fromEntries(
       (json.events ?? []).map((e: any) => [e.id, { icon: e.icon, color: e.color }])
@@ -366,7 +366,7 @@ export async function compileScenario(
       ...(json.labels ?? {}),
     },
     theme: json.theme ?? { primaryColor: '#6366f1', accentColor: '#818cf8', cssVariables: {} },
-    setup: json.setup ?? { defaultTurns: 8, defaultSeed: 100, defaultStartTime: 2040, defaultPopulation: 50, configurableSections: ['leaders', 'departments', 'models'] },
+    setup: json.setup ?? { defaultTurns: 8, defaultSeed: 100, defaultStartTime: 2040, defaultPopulation: 50, configurableSections: ['actors', 'departments', 'models'] },
     world,
     departments: json.departments ?? [],
     metrics: json.metrics ?? [],

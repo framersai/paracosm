@@ -45,7 +45,7 @@ export const myScenario: ScenarioPackage = {
     defaultSeed: 100,
     defaultStartTime: 2040,
     defaultPopulation: 50,
-    configurableSections: ['leaders', 'personnel', 'resources', 'departments', 'events', 'models', 'advanced'],
+    configurableSections: ['actors', 'personnel', 'resources', 'departments', 'events', 'models', 'advanced'],
   },
 
   world: {
@@ -78,7 +78,7 @@ export const myScenario: ScenarioPackage = {
     reportSections: ['crisis', 'departments', 'decision', 'outcome'],
     departmentIcons: {},
     eventRenderers: {},
-    setupSections: ['leaders', 'personnel', 'resources', 'departments', 'events', 'models', 'advanced'],
+    setupSections: ['actors', 'personnel', 'resources', 'departments', 'events', 'models', 'advanced'],
   },
 
   knowledge: {

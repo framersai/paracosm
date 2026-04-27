@@ -21,17 +21,17 @@ test('renderPackageJson produces parseable JSON with caret dep', () => {
 test('renderRunMjs imports runSimulation from paracosm/runtime with positional args', () => {
   const out = renderRunMjs();
   assert.ok(out.includes(`from 'paracosm/runtime'`), 'must import from paracosm/runtime');
-  assert.match(out, /runSimulation\(\s*leader\s*,\s*\[\s*\]\s*,/, 'must use positional signature');
+  assert.match(out, /runSimulation\(\s*actor\s*,\s*\[\s*\]\s*,/, 'must use positional signature');
   assert.ok(out.includes('maxTurns:'), 'must use maxTurns');
-  assert.ok(out.includes('readFileSync'), 'must read scenario.json + leaders.json');
+  assert.ok(out.includes('readFileSync'), 'must read scenario.json + actors.json');
 });
 
 test('renderReadme contains the user-supplied name + truncated domain + mode', () => {
   const longDomain = 'x'.repeat(300);
-  const out = renderReadme({ name: 'demo', domain: longDomain, mode: 'turn-loop', leaders: 3 });
+  const out = renderReadme({ name: 'demo', domain: longDomain, mode: 'turn-loop', actors: 3 });
   assert.ok(out.includes('# demo'));
   assert.ok(out.includes('turn-loop'));
-  assert.ok(out.includes('3 HEXACO leader configs'));
+  assert.ok(out.includes('3 HEXACO actor configs'));
   assert.ok(out.includes('...'), 'long domain must be truncated with ellipsis');
 });
 

@@ -84,11 +84,11 @@ async function main(): Promise<void> {
   const setup = worldJson.setup as Record<string, unknown>;
   const labels = worldJson.labels as Record<string, string>;
   const preset = (worldJson.presets as Array<{ leaders: ActorConfig[] }>)[0];
-  const leaders = preset.leaders;
+  const actors = preset.leaders;
   log(`scenario: ${labels.name} (id=${scenarioId})`);
   log(`timeUnitNoun: ${labels.timeUnitNoun} / ${labels.timeUnitNounPlural}`);
   log(`defaultStartTime=${setup.defaultStartTime} defaultTimePerTurn=${setup.defaultTimePerTurn}`);
-  log(`leaders: ${leaders.map(l => l.name).join(' vs ')}`);
+  log(`leaders: ${actors.map(l => l.name).join(' vs ')}`);
 
   // 2. Bust compile cache so we exercise the compile path.
   bustCompileCache(scenarioId);
@@ -114,10 +114,10 @@ async function main(): Promise<void> {
   const SEED = 42;
   const expectedStart = setup.defaultStartTime as number;
   const expectedStep = setup.defaultTimePerTurn as number;
-  log(`\n[run] launching ${leaders.length} leaders in parallel for ${MAX_TURNS} turns (seed=${SEED}, scenario defaults startTime=${expectedStart}, timePerTurn=${expectedStep})`);
+  log(`\n[run] launching ${actors.length} leaders in parallel for ${MAX_TURNS} turns (seed=${SEED}, scenario defaults startTime=${expectedStart}, timePerTurn=${expectedStep})`);
   const runStart = Date.now();
   const artifacts: RunArtifact[] = await Promise.all(
-    leaders.map(leader => runSimulation(leader, [], {
+    actors.map(leader => runSimulation(leader, [], {
       scenario,
       maxTurns: MAX_TURNS,
       seed: SEED,
@@ -140,8 +140,8 @@ async function main(): Promise<void> {
   // 5. Persist artifacts.
   mkdirSync(OUTPUT_DIR, { recursive: true });
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  for (let i = 0; i < leaders.length; i++) {
-    const path = join(OUTPUT_DIR, `smoke-corporate-quarterly-${slug(leaders[i].name)}-${timestamp}.json`);
+  for (let i = 0; i < actors.length; i++) {
+    const path = join(OUTPUT_DIR, `smoke-corporate-quarterly-${slug(actors[i].name)}-${timestamp}.json`);
     writeFileSync(path, JSON.stringify(artifacts[i], null, 2));
     log(`  saved: ${path}`);
   }
@@ -150,7 +150,7 @@ async function main(): Promise<void> {
   log('\n[assert] validating both artifacts');
   for (let i = 0; i < artifacts.length; i++) {
     const a = artifacts[i];
-    const actorName = leaders[i].name;
+    const actorName = actors[i].name;
     log(`  [${actorName}]`);
 
     // 6a. Schema parse.

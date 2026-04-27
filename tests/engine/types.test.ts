@@ -9,7 +9,7 @@ test('ScenarioPackage type accepts a minimal valid scenario', () => {
     engineArchetype: 'closed_turn_based_settlement',
     labels: { name: 'Test', shortName: 'test', populationNoun: 'members', settlementNoun: 'base', currency: 'credits' },
     theme: { primaryColor: '#ff0000', accentColor: '#00ff00', cssVariables: {} },
-    setup: { defaultTurns: 3, defaultSeed: 100, defaultStartTime: 2050, defaultPopulation: 50, configurableSections: ['leaders'] },
+    setup: { defaultTurns: 3, defaultSeed: 100, defaultStartTime: 2050, defaultPopulation: 50, configurableSections: ['actors'] },
     world: {
       metrics: { morale: { id: 'morale', label: 'Morale', unit: '%', type: 'number', initial: 0.85, min: 0, max: 1, category: 'metric' } },
       capacities: {},
@@ -27,7 +27,7 @@ test('ScenarioPackage type accepts a minimal valid scenario', () => {
       reportSections: ['crisis', 'departments', 'decision'],
       departmentIcons: {},
       eventRenderers: {},
-      setupSections: ['leaders'],
+      setupSections: ['actors'],
     },
     knowledge: { topics: {}, categoryMapping: {} },
     policies: {

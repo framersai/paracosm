@@ -1,5 +1,5 @@
 /**
- * Three-column Quickstart result grid. Each card: leader name /
+ * Three-column Quickstart result grid. Each card: actor name /
  * archetype / HEXACO bars / fingerprint / median deltas / Download +
  * Share + Fork-at-N + Swap controls.
  *
@@ -22,7 +22,7 @@ import type { LeaderPreset } from '../../../../../engine/leader-presets.js';
 import styles from './QuickstartResults.module.scss';
 
 export interface QuickstartResultsProps {
-  leaders: ActorConfig[];
+  actors: ActorConfig[];
   artifacts: RunArtifact[];
   sessionId?: string;
   onSwap: (actorIndex: number, preset: LeaderPreset) => void;
@@ -33,7 +33,7 @@ const HEXACO_TRAITS: Array<keyof ActorConfig['hexaco']> = [
   'agreeableness', 'emotionality', 'honestyHumility',
 ];
 
-export function QuickstartResults({ leaders, artifacts, sessionId, onSwap }: QuickstartResultsProps) {
+export function QuickstartResults({ actors, artifacts, sessionId, onSwap }: QuickstartResultsProps) {
   const { dispatch } = useBranchesContext();
   const navigate = useDashboardNavigation();
   const labels = useScenarioLabels();
@@ -59,23 +59,23 @@ export function QuickstartResults({ leaders, artifacts, sessionId, onSwap }: Qui
 
   const handleDownload = (i: number) => {
     const artifact = artifacts[i];
-    const slug = leaders[i].archetype.toLowerCase().replace(/\s+/g, '-');
+    const slug = actors[i].archetype.toLowerCase().replace(/\s+/g, '-');
     downloadArtifactJson(artifact, `paracosm-quickstart-${slug}.json`);
   };
 
   return (
     <div className={styles.results} role="region" aria-label="Quickstart results">
       <div className={styles.grid}>
-        {leaders.map((leader, i) => {
+        {actors.map((actor, i) => {
           const artifact = artifacts[i];
           // Defensive: skip cards whose artifact dropped out of the
-          // trio (e.g., a mid-run error that cleared one leader's
+          // trio (e.g., a mid-run error that cleared one actor's
           // result). Downstream helpers assume artifact is defined.
           if (!artifact) return null;
           return (
-            <LeaderResultCard
+            <ActorResultCard
               key={i}
-              leader={leader}
+              actor={actor}
               artifact={artifact}
               peers={artifacts.filter((a, j) => j !== i && !!a)}
               timeLabel={labels.time}
@@ -103,8 +103,8 @@ export function QuickstartResults({ leaders, artifacts, sessionId, onSwap }: Qui
   );
 }
 
-interface LeaderResultCardProps {
-  leader: ActorConfig;
+interface ActorResultCardProps {
+  actor: ActorConfig;
   artifact: RunArtifact;
   peers: RunArtifact[];
   timeLabel: string;
@@ -117,22 +117,22 @@ interface LeaderResultCardProps {
   onRequestSwap: () => void;
 }
 
-function LeaderResultCard({
-  leader, artifact, peers, timeLabel, timeLabelCap,
+function ActorResultCard({
+  actor, artifact, peers, timeLabel, timeLabelCap,
   copiedHere, shareEnabled, onDownload, onShare, onFork, onRequestSwap,
-}: LeaderResultCardProps) {
+}: ActorResultCardProps) {
   const deltas = useMemo(() => computeMedianDeltas(artifact, peers), [artifact, peers]);
   const turnsCompleted = artifact.trajectory?.timepoints?.length ?? 0;
   return (
     <article className={styles.card}>
       <header className={styles.cardHeader}>
-        <h4 className={styles.actorName}>{leader.name}</h4>
-        <span className={styles.archetype}>{leader.archetype}</span>
+        <h4 className={styles.actorName}>{actor.name}</h4>
+        <span className={styles.archetype}>{actor.archetype}</span>
         <button
           type="button"
           className={styles.swap}
           onClick={onRequestSwap}
-          aria-label={`Swap ${leader.name}`}
+          aria-label={`Swap ${actor.name}`}
         >
           Swap
         </button>
@@ -144,7 +144,7 @@ function LeaderResultCard({
             <div className={styles.traitBarOuter}>
               <div
                 className={styles.traitBarInner}
-                style={{ width: `${Math.round(leader.hexaco[trait] * 100)}%` }}
+                style={{ width: `${Math.round(actor.hexaco[trait] * 100)}%` }}
               />
             </div>
           </div>

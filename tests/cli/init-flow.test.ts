@@ -16,13 +16,13 @@ const FAKE_SCENARIO = {
   world: { metrics: {}, capacities: {}, statuses: {}, environment: {} },
 };
 
-const FAKE_LEADERS = [
+const FAKE_ACTORS = [
   { name: 'A', archetype: 'cautious', unit: 'Sub', hexaco: { openness: 0.5, conscientiousness: 0.7, extraversion: 0.4, agreeableness: 0.6, emotionality: 0.5, honestyHumility: 0.6 }, instructions: '' },
 ];
 
 const baseDeps = {
   compileFromSeed: async () => FAKE_SCENARIO as never,
-  generateQuickstartLeaders: async (_s: unknown, n: number) => FAKE_LEADERS.slice(0, n) as never,
+  generateQuickstartActors: async (_s: unknown, n: number) => FAKE_ACTORS.slice(0, n) as never,
   readEnv: () => ({ OPENAI_API_KEY: 'sk-test' } as NodeJS.ProcessEnv),
   paracosmVersion: '1.2.3',
   log: () => {},
@@ -32,19 +32,19 @@ test('runInit writes the 7 expected files', async () => {
   const dir = join(makeTmpDir(), 'app');
   const code = await runInit([dir, '--domain', 'a'.repeat(250)], baseDeps);
   assert.equal(code, 0);
-  for (const file of ['package.json', 'scenario.json', 'leaders.json', 'run.mjs', 'README.md', '.env.example', '.gitignore']) {
+  for (const file of ['package.json', 'scenario.json', 'actors.json', 'run.mjs', 'README.md', '.env.example', '.gitignore']) {
     assert.ok(existsSync(join(dir, file)), `${file} should exist`);
   }
 });
 
-test('runInit produces parseable scenario.json + leaders.json', async () => {
+test('runInit produces parseable scenario.json + actors.json', async () => {
   const dir = join(makeTmpDir(), 'app');
   await runInit([dir, '--domain', 'a'.repeat(250)], baseDeps);
   const scenario = JSON.parse(readFileSync(join(dir, 'scenario.json'), 'utf-8'));
-  const leaders = JSON.parse(readFileSync(join(dir, 'leaders.json'), 'utf-8'));
+  const actors = JSON.parse(readFileSync(join(dir, 'actors.json'), 'utf-8'));
   assert.equal(scenario.id, 'sub-survival');
-  assert.ok(Array.isArray(leaders));
-  assert.equal(leaders.length, 1);
+  assert.ok(Array.isArray(actors));
+  assert.equal(actors.length, 1);
 });
 
 test('runInit errors when OPENAI_API_KEY missing', async () => {

@@ -178,7 +178,7 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
     if (state.actorIds[1]) actorSlots.push({ side: 'b', actorName: state.actorIds[1] });
 
     for (const { side, actorName } of actorSlots) {
-      const sideState = state.leaders[actorName];
+      const sideState = state.actors[actorName];
       if (!sideState) continue;
       const pending = new Map<number, { decision: string; rationale: string; policies: string[] }>();
 
@@ -271,8 +271,8 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
 
   const firstId = state.actorIds[0];
   const secondId = state.actorIds[1];
-  const sideA = firstId ? state.leaders[firstId] : null;
-  const sideB = secondId ? state.leaders[secondId] : null;
+  const sideA = firstId ? state.actors[firstId] : null;
+  const sideB = secondId ? state.actors[secondId] : null;
   const nameA = sideA?.leader?.name || 'Leader A';
   const nameB = sideB?.leader?.name || 'Leader B';
   const hasTrajectories = (sideA?.events.some(e => e.type === 'personality_drift') ?? false) || (sideB?.events.some(e => e.type === 'personality_drift') ?? false);
@@ -571,8 +571,8 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
       {costOpen && state.cost && state.cost.llmCalls > 0 && (
         <CostBreakdownModal
           combined={state.cost}
-          leaderA={(firstId ? state.costByLeader[firstId] : undefined) ?? { totalTokens: 0, totalCostUSD: 0, llmCalls: 0 }}
-          leaderB={(secondId ? state.costByLeader[secondId] : undefined) ?? { totalTokens: 0, totalCostUSD: 0, llmCalls: 0 }}
+          leaderA={(firstId ? state.costByActor[firstId] : undefined) ?? { totalTokens: 0, totalCostUSD: 0, llmCalls: 0 }}
+          leaderB={(secondId ? state.costByActor[secondId] : undefined) ?? { totalTokens: 0, totalCostUSD: 0, llmCalls: 0 }}
           leaderAName={sideA?.leader?.name}
           leaderBName={sideB?.leader?.name}
           onClose={() => setCostOpen(false)}

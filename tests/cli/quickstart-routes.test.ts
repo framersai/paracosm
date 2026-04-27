@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
 import {
-  handleFetchSeed, handleCompileFromSeed, handleGenerateLeaders,
+  handleFetchSeed, handleCompileFromSeed, handleGenerateActors,
   type QuickstartDeps,
 } from '../../src/cli/quickstart-routes.js';
 import { marsScenario } from '../../src/engine/mars/index.js';
@@ -93,19 +93,19 @@ test('compile-from-seed: too-long seed rejects with 400', async () => {
 
 test('generate-leaders: unknown scenarioId returns 404', async () => {
   const { res, get } = fakeRes();
-  await handleGenerateLeaders({} as IncomingMessage, res, { scenarioId: 'unknown-xyz-scenario', count: 3 }, fakeDeps());
+  await handleGenerateActors({} as IncomingMessage, res, { scenarioId: 'unknown-xyz-scenario', count: 3 }, fakeDeps());
   assert.equal(get().status, 404);
 });
 
 test('generate-leaders: count < 2 rejected', async () => {
   const { res, get } = fakeRes();
-  await handleGenerateLeaders({} as IncomingMessage, res, { scenarioId: marsScenario.id, count: 1 }, fakeDeps());
+  await handleGenerateActors({} as IncomingMessage, res, { scenarioId: marsScenario.id, count: 1 }, fakeDeps());
   assert.equal(get().status, 400);
 });
 
 test('generate-leaders: count > 50 rejected (Compare-runs UI cap)', async () => {
   const { res, get } = fakeRes();
-  await handleGenerateLeaders({} as IncomingMessage, res, { scenarioId: marsScenario.id, count: 51 }, fakeDeps());
+  await handleGenerateActors({} as IncomingMessage, res, { scenarioId: marsScenario.id, count: 51 }, fakeDeps());
   assert.equal(get().status, 400);
 });
 
@@ -114,7 +114,7 @@ test('generate-leaders: count up to 50 accepted', async () => {
   // count: 50 is the cap; 50 itself should pass schema validation. The
   // handler may still 404 if the scenario is not in the catalog under
   // the test deps, but it should NOT 400 for a schema reason.
-  await handleGenerateLeaders({} as IncomingMessage, res, { scenarioId: marsScenario.id, count: 50 }, fakeDeps());
+  await handleGenerateActors({} as IncomingMessage, res, { scenarioId: marsScenario.id, count: 50 }, fakeDeps());
   // Either 200 (full success) or 404/500 (downstream issue) is acceptable
   // here -- we only care that schema validation doesn't reject 50.
   assert.notEqual(get().status, 400);

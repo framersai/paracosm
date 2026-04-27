@@ -12,11 +12,11 @@ import { fileURLToPath } from 'node:url';
 const TOP_LEVEL_HELP = `paracosm <command> [options]
 
 A structured world model for AI agents. Compile prompts, briefs, URLs, or
-JSON contracts into typed scenarios. Run HEXACO-personality leaders against
+JSON contracts into typed scenarios. Run HEXACO-personality actors against
 a deterministic kernel.
 
 Commands:
-  run                   Run a simulation against leaders.json
+  run                   Run a simulation against actors.json
   dashboard             Start the SSE web dashboard at http://localhost:3456
   compile <scenario>    Compile a scenario draft into runnable hooks (cached)
   init <dir>            Scaffold a starter project from a free-text brief
@@ -28,8 +28,8 @@ Global flags:
   --version, -v         Print version
 
 Examples:
-  paracosm run                                            # default leader, full turns
-  paracosm run --leader 1 --turns 5                       # leader index 1, 5 turns
+  paracosm run                                            # default actor, full turns
+  paracosm run --actor 1 --turns 5                        # actor index 1, 5 turns
   paracosm run --name "Reyes" --openness 0.85 6           # inline HEXACO override
   paracosm dashboard --turns 6                            # opens browser dashboard
   paracosm compile scenarios/lunar.json --seed-url <url>  # compile + cache
@@ -41,23 +41,23 @@ GitHub: https://github.com/framersai/paracosm
 
 const RUN_HELP = `paracosm run [options]
 
-Run a simulation against leaders.json (or --leaders <path>) and print
+Run a simulation against actors.json (or --actors <path>) and print
 turn-by-turn narrative to stdout. Saves the full RunArtifact JSON to
 ./output/v3-<archetype>-<timestamp>.json (override with PARACOSM_OUTPUT_DIR).
 
 Options:
-  --leader <n>            Leader index in leaders.json (default: 0)
-  --leaders <path>        Custom leaders.json path
+  --actor <n>             Actor index in actors.json (default: 0)
+  --actors <path>         Custom actors.json path
   --turns <n>             Override turn count
   --seed <n>              Override seed
   --start-time <n>        Override start time / year
   --provider <p>          openai | anthropic (defaults to whichever key is set)
   --cost <p>              quality | economy (default: quality)
   --live                  Enable live web search during department analysis
-  --name <s>              Override leader name
-  --archetype <s>         Override leader archetype
-  --unit <s>              Override leader unit
-  --instructions <s>      Override leader instructions
+  --name <s>              Override actor name
+  --archetype <s>         Override actor archetype
+  --unit <s>              Override actor unit
+  --instructions <s>      Override actor instructions
   --openness <0-1>        HEXACO openness override
   --conscientiousness <0-1>
   --extraversion <0-1>
@@ -78,7 +78,7 @@ tabs over a streaming connection. Without [turns], waits for setup at
 
 Options:
   [turns]               Auto-launch with N turns. Omit to wait for setup.
-  --leaders <path>      Custom leaders.json path
+  --actors <path>       Custom actors.json path
   --seed <n>            Override seed
   --start-time <n>      Override start time
   --provider <p>        openai | anthropic
@@ -110,14 +110,14 @@ Options:
 const INIT_HELP = `paracosm init <dir> --domain <text|url> [options]
 
 Scaffold a runnable paracosm project from a free-text brief or a URL.
-Calls compileFromSeed + generateQuickstartLeaders, then writes
+Calls compileFromSeed + generateQuickstartActors, then writes
 package.json, run.mjs, README.md, .env.example, .gitignore to <dir>.
 
 Options:
   <dir>                 Output directory (default: ./paracosm-app)
   --domain <text|url>   Required: seed text or URL describing the scenario
   --mode <m>            turn-loop | batch-trajectory | batch-point (default: turn-loop)
-  --leaders <n>         Number of HEXACO leaders, 2-6 (default: 3)
+  --actors <n>          Number of HEXACO actors, 2-6 (default: 3)
   --name <s>            Project name (default: derived from --domain)
   --force               Overwrite a non-empty target directory
 

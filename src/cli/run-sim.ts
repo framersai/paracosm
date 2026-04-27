@@ -12,7 +12,7 @@ import { runSimulation } from '../runtime/orchestrator.js';
 import { parseCliRunOptions } from './cli-run-options.js';
 import { DEFAULT_KEY_PERSONNEL } from './sim-config.js';
 import { marsScenario } from '../engine/mars/index.js';
-import { resolveLeaders, parseLeadersFlag } from './leaders-resolver.js';
+import { resolveActors, parseActorsFlag } from './actors-resolver.js';
 import type { ActorConfig } from './types.js';
 
 /**
@@ -35,33 +35,33 @@ function loadEnv(): void {
   }
 }
 
-function loadLeaders(argv: readonly string[]): ActorConfig[] {
-  const explicitPath = parseLeadersFlag(argv);
+function loadActors(argv: readonly string[]): ActorConfig[] {
+  const explicitPath = parseActorsFlag(argv);
   try {
-    const resolved = resolveLeaders({ explicitPath });
+    const resolved = resolveActors({ explicitPath });
     if (resolved.isExample) {
-      process.stdout.write(`  Using bundled example leaders at ${resolved.sourcePath}\n`);
-      process.stdout.write('  Create config/leaders.json in your project to customize.\n\n');
+      process.stdout.write(`  Using bundled example actors at ${resolved.sourcePath}\n`);
+      process.stdout.write('  Create config/actors.json in your project to customize.\n\n');
     } else {
-      process.stdout.write(`  Loaded ${resolved.leaders.length} leaders from ${resolved.sourcePath}\n`);
+      process.stdout.write(`  Loaded ${resolved.actors.length} actors from ${resolved.sourcePath}\n`);
     }
-    return resolved.leaders;
+    return resolved.actors;
   } catch (err) {
     process.stderr.write(`  ${err instanceof Error ? err.message : String(err)}\n`);
     process.exit(1);
   }
 }
 
-function parseLeaderFromArgs(args: readonly string[]): Partial<ActorConfig> {
-  const leader: Partial<ActorConfig> & { hexaco?: Partial<ActorConfig['hexaco']> } = {};
+function parseActorFromArgs(args: readonly string[]): Partial<ActorConfig> {
+  const actor: Partial<ActorConfig> & { hexaco?: Partial<ActorConfig['hexaco']> } = {};
   const hexaco: Partial<ActorConfig['hexaco']> = {};
   for (let i = 0; i < args.length; i += 1) {
     const arg = args[i];
     const next = args[i + 1];
-    if (arg === '--name' && next) { leader.name = next; i += 1; }
-    else if (arg === '--archetype' && next) { leader.archetype = next; i += 1; }
-    else if (arg === '--unit' && next) { leader.unit = next; i += 1; }
-    else if (arg === '--instructions' && next) { leader.instructions = next; i += 1; }
+    if (arg === '--name' && next) { actor.name = next; i += 1; }
+    else if (arg === '--archetype' && next) { actor.archetype = next; i += 1; }
+    else if (arg === '--unit' && next) { actor.unit = next; i += 1; }
+    else if (arg === '--instructions' && next) { actor.instructions = next; i += 1; }
     else if (arg === '--openness' && next) { hexaco.openness = parseFloat(next); i += 1; }
     else if (arg === '--conscientiousness' && next) { hexaco.conscientiousness = parseFloat(next); i += 1; }
     else if (arg === '--extraversion' && next) { hexaco.extraversion = parseFloat(next); i += 1; }
@@ -69,18 +69,18 @@ function parseLeaderFromArgs(args: readonly string[]): Partial<ActorConfig> {
     else if (arg === '--emotionality' && next) { hexaco.emotionality = parseFloat(next); i += 1; }
     else if (arg === '--honesty' && next) { hexaco.honestyHumility = parseFloat(next); i += 1; }
   }
-  if (Object.keys(hexaco).length) leader.hexaco = hexaco as ActorConfig['hexaco'];
-  return leader as Partial<ActorConfig>;
+  if (Object.keys(hexaco).length) actor.hexaco = hexaco as ActorConfig['hexaco'];
+  return actor as Partial<ActorConfig>;
 }
 
-function getLeaderIndex(args: readonly string[]): number {
-  const idx = args.indexOf('--leader');
+function getActorIndex(args: readonly string[]): number {
+  const idx = args.indexOf('--actor');
   if (idx >= 0 && args[idx + 1]) return parseInt(args[idx + 1], 10);
   return 0;
 }
 
 /**
- * Run a simulation. Reads leaders, applies CLI overrides, calls
+ * Run a simulation. Reads actors, applies CLI overrides, calls
  * runSimulation against marsScenario by default. Returns the process
  * exit code so the caller can choose whether to call process.exit().
  */
@@ -88,31 +88,31 @@ export async function runSim(argv: readonly string[]): Promise<number> {
   loadEnv();
 
   const cliOptions = parseCliRunOptions(argv);
-  const leaderIdx = getLeaderIndex(argv);
-  const cliLeader = parseLeaderFromArgs(argv);
+  const actorIdx = getActorIndex(argv);
+  const cliActor = parseActorFromArgs(argv);
 
-  const leaders = loadLeaders(argv);
-  if (!leaders.length) {
-    process.stderr.write('  No leaders defined in leaders.json\n');
+  const actors = loadActors(argv);
+  if (!actors.length) {
+    process.stderr.write('  No actors defined in actors.json\n');
     return 1;
   }
 
-  const baseLeader = leaders[leaderIdx] || leaders[0];
-  const leader: ActorConfig = {
-    ...baseLeader,
-    ...cliLeader,
-    hexaco: { ...baseLeader.hexaco, ...(cliLeader.hexaco || {}) },
+  const baseActor = actors[actorIdx] || actors[0];
+  const actor: ActorConfig = {
+    ...baseActor,
+    ...cliActor,
+    hexaco: { ...baseActor.hexaco, ...(cliActor.hexaco || {}) },
   };
 
-  if (cliLeader.name && !cliLeader.instructions) {
-    leader.instructions = `You are Commander ${leader.name}. ${leader.archetype}. Respond with JSON.`;
+  if (cliActor.name && !cliActor.instructions) {
+    actor.instructions = `You are ${actor.name}. ${actor.archetype}. Respond with JSON.`;
   }
 
-  process.stdout.write(`\n  Leader: ${leader.name} (${leader.archetype}): ${leader.unit}\n`);
-  process.stdout.write(`  HEXACO: O=${leader.hexaco.openness} C=${leader.hexaco.conscientiousness} E=${leader.hexaco.extraversion}\n`);
+  process.stdout.write(`\n  Actor: ${actor.name} (${actor.archetype}): ${actor.unit}\n`);
+  process.stdout.write(`  HEXACO: O=${actor.hexaco.openness} C=${actor.hexaco.conscientiousness} E=${actor.hexaco.extraversion}\n`);
 
   try {
-    await runSimulation(leader, DEFAULT_KEY_PERSONNEL, {
+    await runSimulation(actor, DEFAULT_KEY_PERSONNEL, {
       seed: 950,
       ...cliOptions,
       scenario: marsScenario,

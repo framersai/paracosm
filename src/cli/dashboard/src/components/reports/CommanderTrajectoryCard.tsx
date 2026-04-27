@@ -55,7 +55,7 @@ interface CommanderSnapshot {
  * Minimal event shape this card needs. Compatible with both the live
  * `SimEvent` stream (carries `leader`) and the per-leader `ProcessedEvent[]`
  * that `useGameState` exposes (where every event on
- * `state.leaders[actorIds[i]].events` is already attributed to that
+ * `state.actors[actorIds[i]].events` is already attributed to that
  * leader and the `leader` field is optional).
  */
 interface TrajectoryEvent {
@@ -67,7 +67,7 @@ interface TrajectoryEvent {
 /**
  * Either a strict HEXACO snapshot or the looser `Record<string, number>`
  * shape used on ActorConfig. Widening the prop type so
- * `state.leaders[id].leader?.hexaco` (typed as a loose record) flows in
+ * `state.actors[id].leader?.hexaco` (typed as a loose record) flows in
  * without a cast.
  */
 type BaselineHexacoInput = CommanderSnapshot | Record<string, number>;
@@ -97,7 +97,7 @@ function extractCommanderTrajectory(
   for (const e of events) {
     if (e.type !== 'personality_drift' || !e.data) continue;
     // Accept events without a leader field (ProcessedEvent on a
-    // per-leader bucket in state.leaders is already attributed to that
+    // per-leader bucket in state.actors is already attributed to that
     // leader); filter only when present.
     if (e.leader !== undefined && e.leader !== actorName) continue;
     const commander = (e.data as Record<string, unknown>).commander as CommanderSnapshot | undefined;

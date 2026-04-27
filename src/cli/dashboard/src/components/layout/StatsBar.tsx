@@ -1,5 +1,5 @@
 import { useMemo, useRef, useEffect } from 'react';
-import type { LeaderSideState } from '../../hooks/useGameState';
+import type { ActorSideState } from '../../hooks/useGameState';
 import { getActorColorVar } from '../../hooks/useGameState';
 import type { ToolRegistry } from '../../hooks/useToolRegistry';
 import { useScenarioContext } from '../../App';
@@ -8,17 +8,17 @@ import styles from './StatsBar.module.scss';
 
 export interface StatsBarLeader {
   id: string;
-  state: LeaderSideState;
+  state: ActorSideState;
 }
 
 interface StatsBarProps {
-  /** Ordered leader list. Index 0 renders with vis palette, index 1 with eng.
+  /** Ordered actor list. Index 0 renders with vis palette, index 1 with eng.
    *  F2/F3 will extend beyond two columns; today only the first two render
    *  in the pills row. */
-  leaders: StatsBarLeader[];
+  actors: StatsBarLeader[];
   crisisText?: string;
-  /** Per-simulation forged-tool registry. Used to surface per-leader reuse
-   *  counts so users can see how much each leader leaned on emergent tools
+  /** Per-simulation forged-tool registry. Used to surface per-actor reuse
+   *  counts so users can see how much each actor leaned on emergent tools
    *  across the run. */
   toolRegistry?: ToolRegistry;
 }
@@ -93,11 +93,11 @@ function formatCauses(causes: Record<string, number> | undefined): string {
   return rest > 0 ? `${top.join(' \u00b7 ')} +${rest}` : top.join(' \u00b7 ');
 }
 
-export function StatsBar({ leaders, crisisText, toolRegistry }: StatsBarProps) {
+export function StatsBar({ actors, crisisText, toolRegistry }: StatsBarProps) {
   const scenario = useScenarioContext();
 
-  const aLeader = leaders[0];
-  const bLeader = leaders[1];
+  const aLeader = actors[0];
+  const bLeader = actors[1];
   const aState = aLeader?.state;
   const bState = bLeader?.state;
   const metricsA = aState?.metrics ?? null;

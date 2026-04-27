@@ -40,7 +40,7 @@ export interface ScenarioClientPayload {
   presets: Array<{
     id: string;
     label: string;
-    leaders?: Array<{ name: string; archetype: string; hexaco: Record<string, number>; instructions: string }>;
+    actors?: Array<{ name: string; archetype: string; hexaco: Record<string, number>; instructions: string }>;
     personnel?: Array<{ name: string; department: string; role: string; specialization: string; age: number; featured: boolean }>;
   }>;
   ui: {
@@ -80,7 +80,7 @@ const MARS_FALLBACK: ScenarioClientPayload = {
     tooltipFields: ['boneDensityPct', 'cumulativeRadiationMsv', 'psychScore', 'marsborn'],
     reportSections: ['crisis', 'departments', 'decision', 'outcome', 'quotes'],
     departmentIcons: { medical: '🏥', engineering: '⚙️', agriculture: '🌱', psychology: '🧠', governance: '🏛️' },
-    setupSections: ['leaders', 'personnel', 'resources', 'departments', 'events', 'models', 'advanced'],
+    setupSections: ['actors', 'personnel', 'resources', 'departments', 'events', 'models', 'advanced'],
   },
   policies: { toolForging: true, bulletin: true, characterChat: true },
 };

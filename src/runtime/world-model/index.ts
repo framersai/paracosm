@@ -88,9 +88,9 @@ export interface WorldModelQuickstartOptions {
 export interface WorldModelQuickstartResult {
   /** The scenario the quickstart ran against. */
   scenario: ScenarioPackage;
-  /** The leaders the LLM generated for this run. */
-  leaders: ActorConfig[];
-  /** One {@link RunArtifact} per leader, in the same order as `leaders`. */
+  /** The actors the LLM generated for this run. */
+  actors: ActorConfig[];
+  /** One {@link RunArtifact} per actor, in the same order as `actors`. */
   artifacts: RunArtifact[];
 }
 
@@ -422,8 +422,8 @@ export class WorldModel {
    * @example
    * ```ts
    * const wm = await WorldModel.fromPrompt({ seedText });
-   * const { leaders, artifacts } = await wm.quickstart({ actorCount: 3 });
-   * artifacts.forEach((a, i) => console.log(leaders[i].name, a.fingerprint));
+   * const { actors, artifacts } = await wm.quickstart({ actorCount: 3 });
+   * artifacts.forEach((a, i) => console.log(actors[i].name, a.fingerprint));
    * ```
    */
   async quickstart(options: WorldModelQuickstartOptions = {}): Promise<WorldModelQuickstartResult> {
@@ -440,9 +440,9 @@ export class WorldModel {
       throw new Error(`WorldModel.quickstart: actorCount must be between 2 and 6, got ${actorCount}.`);
     }
 
-    const leaders = await generateQuickstartLeaders(this.scenario, actorCount, { provider, model });
+    const actors = await generateQuickstartActors(this.scenario, actorCount, { provider, model });
 
-    const artifacts = await Promise.all(leaders.map(leader => runSimulation(leader, [], {
+    const artifacts = await Promise.all(actors.map(actor => runSimulation(actor, [], {
       scenario: this.scenario,
       maxTurns,
       seed,
@@ -450,7 +450,7 @@ export class WorldModel {
       provider,
     })));
 
-    return { scenario: this.scenario, leaders, artifacts };
+    return { scenario: this.scenario, actors, artifacts };
   }
 
   /**
@@ -639,7 +639,7 @@ function describeKind(v: unknown): string {
 // it from this module without learning the orchestrator import path.
 export { WorldModelReplayError } from '../orchestrator.js';
 
-const QuickstartLeaderSchema = z.object({
+const QuickstartActorSchema = z.object({
   name: z.string().min(2).max(64),
   archetype: z.string().min(2).max(48),
   unit: z.string().min(2).max(64),
@@ -654,18 +654,18 @@ const QuickstartLeaderSchema = z.object({
   instructions: z.string().min(10).max(400),
 });
 
-const QuickstartLeadersSchema = z.object({
-  leaders: z.array(QuickstartLeaderSchema).min(2).max(6),
+const QuickstartActorsSchema = z.object({
+  actors: z.array(QuickstartActorSchema).min(2).max(6),
 });
 
 /**
- * Generate `count` archetypal HEXACO leaders for `scenario` via a
- * structured-output LLM call. Exported so the server `/api/quickstart/generate-leaders`
+ * Generate `count` archetypal HEXACO actors for `scenario` via a
+ * structured-output LLM call. Exported so the server `/api/quickstart/generate-actors`
  * route can reuse the exact same prompt + schema.
  *
  * @internal
  */
-export async function generateQuickstartLeaders(
+export async function generateQuickstartActors(
   scenario: ScenarioPackage,
   count: number,
   opts: { provider?: string; model?: string } = {},
@@ -674,26 +674,26 @@ export async function generateQuickstartLeaders(
   const model = opts.model ?? 'claude-sonnet-4-6';
   const deptRoles = scenario.departments.map(d => `${d.label} (${d.role})`).join(', ');
   const systemPrompt = `You generate archetypal decision-maker profiles for paracosm simulation runs.
-Every leader must have a distinct HEXACO profile designed to diverge from the others on at least one high-impact trait (openness, conscientiousness, emotionality).
+Every actor must have a distinct HEXACO profile designed to diverge from the others on at least one high-impact trait (openness, conscientiousness, emotionality).
 Names and units match the scenario domain: for a space settlement use space-appropriate names; for a corporate scenario use corporate names.
-Instructions are short directives the leader internalizes (one to three sentences).`;
+Instructions are short directives the actor internalizes (one to three sentences).`;
   const prompt = `Scenario: ${scenario.labels.name}
 Population: ${scenario.labels.populationNoun}
 Settlement: ${scenario.labels.settlementNoun}
 Time unit: ${scenario.labels.timeUnitNoun}
-Departments under the leader: ${deptRoles}
+Departments under the actor: ${deptRoles}
 
-Generate exactly ${count} archetypal leaders. Each one makes recognizably different decisions against the same events.`;
+Generate exactly ${count} archetypal actors. Each one makes recognizably different decisions against the same events.`;
 
   const result = await generateValidatedObject({
     provider,
     model,
-    schema: QuickstartLeadersSchema,
-    schemaName: 'QuickstartLeaders',
+    schema: QuickstartActorsSchema,
+    schemaName: 'QuickstartActors',
     systemCacheable: systemPrompt,
     prompt,
     maxRetries: 1,
   });
 
-  return result.object.leaders as ActorConfig[];
+  return result.object.actors as ActorConfig[];
 }

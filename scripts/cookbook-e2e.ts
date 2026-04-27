@@ -11,11 +11,11 @@
  * Steps:
  *   1. WorldModel.fromPrompt({ seedText, domainHint })
  *   2. wm.quickstart({ actorCount: 3 })
- *   3. wm.forkFromArtifact(trunk, atTurn=1).simulate(altLeader)
+ *   3. wm.forkFromArtifact(trunk, atTurn=1).simulate(altActor)
  *   4. wm.replay(trunk)
  *   5. POST /simulate (in-process server)
- *   6. wm.simulateIntervention(subject, intervention, leader)
- *   7. runBatch({ scenarios, leaders, turns })
+ *   6. wm.simulateIntervention(subject, intervention, actor)
+ *   7. runBatch({ scenarios, actors, turns })
  *
  * Cost ceiling: $5 (economy preset, short runs). Aborts if any single
  * artifact exceeds $1.
@@ -202,8 +202,8 @@ async function loadKnownGoodWorld(): Promise<WorldModel> {
   return WorldModel.fromScenario(compiled);
 }
 
-async function step2Quickstart(wm: WorldModel): Promise<{ trunk: RunArtifact; allLeaders: ActorConfig[]; allArtifacts: RunArtifact[] }> {
-  log('\n[2/7] wm.quickstart: auto-generated leaders run in parallel');
+async function step2Quickstart(wm: WorldModel): Promise<{ trunk: RunArtifact; allActors: ActorConfig[]; allArtifacts: RunArtifact[] }> {
+  log('\n[2/7] wm.quickstart: auto-generated actors run in parallel');
   const t0 = Date.now();
   const result = await wm.quickstart({
     actorCount: 3,
@@ -213,11 +213,11 @@ async function step2Quickstart(wm: WorldModel): Promise<{ trunk: RunArtifact; al
     provider: 'openai',
     model: 'gpt-5.4-nano',
   });
-  log(`  generated ${result.leaders.length} leaders: ${result.leaders.map(l => `${l.name} (${l.archetype})`).join(', ')}`);
+  log(`  generated ${result.actors.length} actors: ${result.actors.map(a => `${a.name} (${a.archetype})`).join(', ')}`);
   result.artifacts.forEach((a, i) => {
-    log(`  [${result.leaders[i].name}] fingerprint=${fpDigest(a.fingerprint)} cost=$${(a.cost?.totalUSD ?? 0).toFixed(3)}`);
+    log(`  [${result.actors[i].name}] fingerprint=${fpDigest(a.fingerprint)} cost=$${(a.cost?.totalUSD ?? 0).toFixed(3)}`);
     if ((a.cost?.totalUSD ?? 0) > COST_CEILING_PER_ARTIFACT_USD) {
-      throw new Error(`Per-artifact cost ceiling exceeded for ${result.leaders[i].name}: $${a.cost?.totalUSD}`);
+      throw new Error(`Per-artifact cost ceiling exceeded for ${result.actors[i].name}: $${a.cost?.totalUSD}`);
     }
   });
   log(`  ${((Date.now() - t0) / 1000).toFixed(1)}s`);
@@ -226,17 +226,17 @@ async function step2Quickstart(wm: WorldModel): Promise<{ trunk: RunArtifact; al
     actorCount: 3, maxTurns: 3, seed: 42, captureSnapshots: true,
     provider: 'openai', model: 'gpt-5.4-nano',
   });
-  persist('02-output-leaders.json', result.leaders);
+  persist('02-output-actors.json', result.actors);
   persist('02-output-artifacts.json', result.artifacts.map(summarizeArtifact));
 
-  return { trunk: result.artifacts[0], allLeaders: result.leaders, allArtifacts: result.artifacts };
+  return { trunk: result.artifacts[0], allActors: result.actors, allArtifacts: result.artifacts };
 }
 
-async function step3Fork(wm: WorldModel, trunk: RunArtifact, altLeader: ActorConfig): Promise<RunArtifact> {
-  log('\n[3/7] wm.forkFromArtifact: branch at turn 1 with a different leader');
+async function step3Fork(wm: WorldModel, trunk: RunArtifact, altActor: ActorConfig): Promise<RunArtifact> {
+  log('\n[3/7] wm.forkFromArtifact: branch at turn 1 with a different actor');
   const t0 = Date.now();
   const branchWm = await wm.forkFromArtifact(trunk, 1);
-  const branch = await branchWm.simulate(altLeader, {
+  const branch = await branchWm.simulate(altActor, {
     maxTurns: 3,
     seed: 42,
     captureSnapshots: true,
@@ -255,7 +255,7 @@ async function step3Fork(wm: WorldModel, trunk: RunArtifact, altLeader: ActorCon
   persist('03-input-fork.json', {
     parentRunId: trunk.metadata.runId,
     atTurn: 1,
-    altLeader: { name: altLeader.name, archetype: altLeader.archetype, hexaco: altLeader.hexaco },
+    altActor: { name: altActor.name, archetype: altActor.archetype, hexaco: altActor.hexaco },
     branchOptions: { maxTurns: 3, seed: 42, captureSnapshots: true, provider: 'openai', costPreset: 'economy' },
   });
   persist('03-output-branch.json', summarizeArtifact(branch));
@@ -274,7 +274,7 @@ async function step4Replay(wm: WorldModel, trunk: RunArtifact): Promise<void> {
   persist('04-output-replay-result.json', { matches: replay.matches, divergence: replay.divergence });
 }
 
-async function step5HttpSimulate(wm: WorldModel, leader: ActorConfig): Promise<void> {
+async function step5HttpSimulate(wm: WorldModel, actor: ActorConfig): Promise<void> {
   log('\n[5/7] POST /simulate: in-process server, real curl-equivalent fetch');
   const t0 = Date.now();
 
@@ -288,7 +288,7 @@ async function step5HttpSimulate(wm: WorldModel, leader: ActorConfig): Promise<v
 
   const requestBody = {
     scenario: wm.scenario,
-    leader,
+    actor,
     options: {
       maxTurns: 2,
       seed: 7,
@@ -324,7 +324,7 @@ async function step5HttpSimulate(wm: WorldModel, leader: ActorConfig): Promise<v
       curl: `curl -X POST http://localhost:${port}/simulate \\\n  -H 'Content-Type: application/json' \\\n  -H 'X-OpenAI-Key: sk-...' \\\n  -d <body>`,
       requestBody: {
         scenario: '<full scenario object: see 01-output-scenario-package.json>',
-        leader,
+        actor,
         options: requestBody.options,
       },
     });
@@ -340,7 +340,7 @@ async function step5HttpSimulate(wm: WorldModel, leader: ActorConfig): Promise<v
   log(`  ${((Date.now() - t0) / 1000).toFixed(1)}s`);
 }
 
-async function step6DigitalTwin(wm: WorldModel, leader: ActorConfig): Promise<RunArtifact> {
+async function step6DigitalTwin(wm: WorldModel, actor: ActorConfig): Promise<RunArtifact> {
   log('\n[6/7] wm.simulateIntervention: digital-twin pattern');
   const t0 = Date.now();
   const subject: SubjectConfig = {
@@ -363,7 +363,7 @@ async function step6DigitalTwin(wm: WorldModel, leader: ActorConfig): Promise<Ru
     adherenceProfile: { expected: 1.0 },
   };
 
-  const artifact = await wm.simulateIntervention(subject, intervention, leader, {
+  const artifact = await wm.simulateIntervention(subject, intervention, actor, {
     maxTurns: 2,
     seed: 11,
     provider: 'openai',
@@ -376,23 +376,23 @@ async function step6DigitalTwin(wm: WorldModel, leader: ActorConfig): Promise<Ru
   log(`  cost: $${artifact.cost?.totalUSD?.toFixed(3) ?? '?'}`);
   log(`  ${((Date.now() - t0) / 1000).toFixed(1)}s`);
 
-  persist('06-input-digital-twin.json', { subject, intervention, leader: { name: leader.name, archetype: leader.archetype, hexaco: leader.hexaco }, options: { maxTurns: 2, seed: 11, provider: 'openai', costPreset: 'economy' } });
+  persist('06-input-digital-twin.json', { subject, intervention, actor: { name: actor.name, archetype: actor.archetype, hexaco: actor.hexaco }, options: { maxTurns: 2, seed: 11, provider: 'openai', costPreset: 'economy' } });
   persist('06-output-digital-twin-artifact.json', summarizeArtifact(artifact));
   return artifact;
 }
 
-async function step7Batch(wm: WorldModel, leaders: ActorConfig[]): Promise<void> {
-  log('\n[7/7] runBatch: N scenarios x M leaders manifest');
+async function step7Batch(wm: WorldModel, actors: ActorConfig[]): Promise<void> {
+  log('\n[7/7] runBatch: N scenarios x M actors manifest');
   const t0 = Date.now();
   // marsScenario is already a compiled ScenarioPackage exported from
   // paracosm/mars; no recompile needed.
   const compiledMars = marsScenario;
   log(`  scenarios: [${wm.scenario.id}, ${compiledMars.id}]`);
-  log(`  leaders: [${leaders.map(l => l.name).join(', ')}]`);
+  log(`  actors: [${actors.map(l => l.name).join(', ')}]`);
 
   const manifest = await runBatch({
     scenarios: [wm.scenario, compiledMars],
-    leaders: leaders.slice(0, 2),
+    actors: actors.slice(0, 2),
     turns: 2,
     seed: 950,
     maxConcurrency: 2,
@@ -403,13 +403,13 @@ async function step7Batch(wm: WorldModel, leaders: ActorConfig[]): Promise<void>
   log(`  results: ${manifest.results.length} runs`);
   manifest.results.forEach(r => {
     const fpHash = (r.fingerprint as Record<string, string>).hash ?? Object.values(r.fingerprint)[0] ?? '';
-    log(`    ${r.scenarioId} x ${r.leader}: fingerprint=${String(fpHash).slice(0, 16)}...`);
+    log(`    ${r.scenarioId} x ${r.actor}: fingerprint=${String(fpHash).slice(0, 16)}...`);
   });
   log(`  ${((Date.now() - t0) / 1000).toFixed(1)}s`);
 
   persist('07-input-batch-config.json', {
     scenarios: [wm.scenario.id, compiledMars.id],
-    leaders: leaders.slice(0, 2).map(l => ({ name: l.name, archetype: l.archetype, hexaco: l.hexaco })),
+    actors: actors.slice(0, 2).map(l => ({ name: l.name, archetype: l.archetype, hexaco: l.hexaco })),
     turns: 2, seed: 950, maxConcurrency: 2, provider: 'openai', costPreset: 'economy',
   });
   persist('07-output-batch-manifest.json', {
@@ -421,7 +421,7 @@ async function step7Batch(wm: WorldModel, leaders: ActorConfig[]): Promise<void>
       return {
         scenarioId: r.scenarioId,
         scenarioVersion: r.scenarioVersion,
-        leader: r.leader,
+        actor: r.actor,
         seed: r.seed,
         turns: r.turns,
         fingerprint: r.fingerprint,
@@ -450,32 +450,32 @@ async function main(): Promise<void> {
     totalCost += a?.cost?.totalUSD ?? 0;
   };
 
-  // Resume mode: when output/cookbook/02-output-leaders.json exists,
+  // Resume mode: when output/cookbook/02-output-actors.json exists,
   // skip steps 1-4 (which are deterministic given OPENAI seed and idempotent
-  // on output) and reuse the captured leaders for steps 5-7. Lets a partial
+  // on output) and reuse the captured actors for steps 5-7. Lets a partial
   // run that aborted on /simulate or batch be re-driven without re-paying
   // for the expensive quickstart simulations. Set FORCE=1 to override.
-  const resumeAvailable = !process.env.FORCE && existsSync(join(OUTPUT_DIR, '02-output-leaders.json'));
+  const resumeAvailable = !process.env.FORCE && existsSync(join(OUTPUT_DIR, '02-output-actors.json'));
   let wm: WorldModel;
-  let allLeaders: ActorConfig[];
+  let allActors: ActorConfig[];
   if (resumeAvailable) {
-    log('\n[resume] reusing captured leaders + scenario from prior run');
+    log('\n[resume] reusing captured actors + scenario from prior run');
     wm = await loadKnownGoodWorld();
-    allLeaders = JSON.parse(readFileSync(join(OUTPUT_DIR, '02-output-leaders.json'), 'utf8')) as ActorConfig[];
+    allActors = JSON.parse(readFileSync(join(OUTPUT_DIR, '02-output-actors.json'), 'utf8')) as ActorConfig[];
   } else {
     await step1FromPrompt();
     wm = await loadKnownGoodWorld();
     const r = await step2Quickstart(wm);
     r.allArtifacts.forEach(trackCost);
-    const branch = await step3Fork(wm, r.trunk, r.allLeaders[1]);
+    const branch = await step3Fork(wm, r.trunk, r.allActors[1]);
     trackCost(branch);
     await step4Replay(wm, r.trunk);
-    allLeaders = r.allLeaders;
+    allActors = r.allActors;
   }
-  await step5HttpSimulate(wm, allLeaders[0]);
-  const dt = await step6DigitalTwin(wm, allLeaders[0]);
+  await step5HttpSimulate(wm, allActors[0]);
+  const dt = await step6DigitalTwin(wm, allActors[0]);
   trackCost(dt);
-  await step7Batch(wm, allLeaders);
+  await step7Batch(wm, allActors);
 
   log(`\n[done] total wall: ${((Date.now() - totalStart) / 1000).toFixed(1)}s, total cost (tracked): $${totalCost.toFixed(3)}`);
   if (totalCost > COST_CEILING_TOTAL_USD) {

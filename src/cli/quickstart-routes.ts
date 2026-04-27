@@ -3,7 +3,7 @@
  *
  * - `POST /api/quickstart/fetch-seed`: URL -> extracted main text + title.
  * - `POST /api/quickstart/compile-from-seed`: seedText -> compiled ScenarioPackage.
- * - `POST /api/quickstart/generate-leaders`: scenarioId -> ActorConfig[].
+ * - `POST /api/quickstart/generate-actors`: scenarioId -> ActorConfig[].
  *
  * Each is stateless except for the compiled-scenario install: a
  * successful `compile-from-seed` installs the result as the active
@@ -15,7 +15,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { z } from 'zod';
 import { compileFromSeed } from '../engine/compiler/compile-from-seed.js';
-import { generateQuickstartLeaders } from '../runtime/world-model/index.js';
+import { generateQuickstartActors } from '../runtime/world-model/index.js';
 import type { ScenarioPackage } from '../engine/types.js';
 
 const FetchSeedSchema = z.object({
@@ -27,12 +27,12 @@ const CompileFromSeedSchema = z.object({
   domainHint: z.string().max(80).optional(),
   sourceUrl: z.string().url().max(2048).optional(),
   // Number of parallel actors to generate + run. Default 3; max 50.
-  // Threaded into generate-leaders + the subsequent /setup batch path.
+  // Threaded into generate-actors + the subsequent /setup batch path.
   // The compiler ignores it; only the dashboard reads it back.
   actorCount: z.number().int().min(1).max(50).optional(),
 });
 
-const GenerateLeadersSchema = z.object({
+const GenerateActorsSchema = z.object({
   scenarioId: z.string().min(3).max(64),
   // Max 50 actors per bundle. Each actor is ~$0.30 LLM spend; the
   // SeedInput cost preview surfaces this so users opt in consciously.
@@ -118,13 +118,13 @@ export async function handleCompileFromSeed(
   }
 }
 
-export async function handleGenerateLeaders(
+export async function handleGenerateActors(
   _req: IncomingMessage,
   res: ServerResponse,
   body: unknown,
   deps: QuickstartDeps,
 ): Promise<void> {
-  const parsed = GenerateLeadersSchema.safeParse(body);
+  const parsed = GenerateActorsSchema.safeParse(body);
   if (!parsed.success) {
     res.writeHead(400, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'Invalid payload', issues: parsed.error.issues.slice(0, 3).map(i => i.message) }));
@@ -137,14 +137,14 @@ export async function handleGenerateLeaders(
     return;
   }
   try {
-    const leaders = await generateQuickstartLeaders(scenario, parsed.data.count, {
+    const actors = await generateQuickstartActors(scenario, parsed.data.count, {
       provider: deps.defaultProvider,
       model: deps.defaultModel,
     });
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ leaders }));
+    res.end(JSON.stringify({ actors }));
   } catch (err) {
     res.writeHead(500, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: `Leader generation failed: ${String(err)}` }));
+    res.end(JSON.stringify({ error: `Actor generation failed: ${String(err)}` }));
   }
 }

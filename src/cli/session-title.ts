@@ -86,13 +86,13 @@ export function summariseForTitle(events: TimestampedEvent[]): RunHighlights {
       out.scenarioName = data.name;
     }
     if (event === 'status' && data.phase === 'parallel') {
-      const leaders = Array.isArray(data.leaders)
+      const actors = Array.isArray(data.leaders)
         ? (data.leaders as Array<{ name?: string; archetype?: string }>)
         : [];
-      if (typeof leaders[0]?.name === 'string') out.leaderA = leaders[0].name;
-      if (typeof leaders[1]?.name === 'string') out.leaderB = leaders[1].name;
-      if (typeof leaders[0]?.archetype === 'string') out.archetypeA = leaders[0].archetype;
-      if (typeof leaders[1]?.archetype === 'string') out.archetypeB = leaders[1].archetype;
+      if (typeof actors[0]?.name === 'string') out.leaderA = actors[0].name;
+      if (typeof actors[1]?.name === 'string') out.leaderB = actors[1].name;
+      if (typeof actors[0]?.archetype === 'string') out.archetypeA = actors[0].archetype;
+      if (typeof actors[1]?.archetype === 'string') out.archetypeB = actors[1].archetype;
     }
     const isSim = event === 'sim';
     const innerType = isSim && typeof data.type === 'string' ? data.type : null;

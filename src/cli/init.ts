@@ -1,7 +1,7 @@
 /**
  * `paracosm init` subcommand. Scaffolds a runnable paracosm project
  * from a seed text or URL via the existing compileFromSeed +
- * generateQuickstartLeaders infrastructure.
+ * generateQuickstartActors infrastructure.
  *
  * Flag-driven only (no interactive prompts) so it composes with shell
  * scripts and CI. URL handling mirrors the server-app.ts pattern that
@@ -13,7 +13,7 @@ import { mkdirSync, readdirSync, writeFileSync, existsSync, readFileSync } from 
 import { resolve, basename, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { compileFromSeed } from '../engine/compiler/compile-from-seed.js';
-import { generateQuickstartLeaders } from '../runtime/world-model/index.js';
+import { generateQuickstartActors } from '../runtime/world-model/index.js';
 import { fetchSeedFromUrl as fetchSeedFromUrlViaAgentOS } from './fetch-seed-url.js';
 import {
   renderPackageJson,
@@ -29,7 +29,7 @@ export interface InitOptions {
   outputDir: string;
   domain: string;
   mode: SimulationMode;
-  leaders: number;
+  actors: number;
   name: string;
   force: boolean;
 }
@@ -47,17 +47,17 @@ const VALID_MODES: ReadonlySet<SimulationMode> = new Set([
   'batch-point',
 ]);
 
-const USAGE = `paracosm init [dir] --domain <text|url> [--mode <m>] [--leaders <n>] [--name <name>] [--force]
+const USAGE = `paracosm init [dir] --domain <text|url> [--mode <m>] [--actors <n>] [--name <name>] [--force]
 
   dir         output directory (default: ./paracosm-app)
   --domain    required: seed text describing the scenario, OR a URL
   --mode      turn-loop | batch-trajectory | batch-point (default: turn-loop)
-  --leaders   number of HEXACO leaders, 2-6 (default: 3)
+  --actors   number of HEXACO leaders, 2-6 (default: 3)
   --name      project name, default: derived from --domain
   --force     overwrite non-empty target dir
 
 example:
-  paracosm init my-app --domain "Submarine crew of 8 in deep ocean for 30 days" --leaders 3
+  paracosm init my-app --domain "Submarine crew of 8 in deep ocean for 30 days" --actors 3
 `;
 
 /**
@@ -69,7 +69,7 @@ export function parseInitArgs(argv: readonly string[]): InitArgResult {
   let outputDir: string | undefined;
   let domain: string | undefined;
   let mode: SimulationMode = 'turn-loop';
-  let leaders = 3;
+  let actors = 3;
   let name: string | undefined;
   let force = false;
 
@@ -83,12 +83,12 @@ export function parseInitArgs(argv: readonly string[]): InitArgResult {
         return { ok: false, message: `Invalid --mode "${candidate}". Must be one of: turn-loop, batch-trajectory, batch-point.\n\n${USAGE}` };
       }
       mode = candidate as SimulationMode;
-    } else if (arg === '--leaders') {
+    } else if (arg === '--actors') {
       const n = Number(argv[++i]);
       if (!Number.isFinite(n) || n < 2 || n > 6 || !Number.isInteger(n)) {
-        return { ok: false, message: `Invalid --leaders "${argv[i]}". Must be an integer in [2, 6].\n\n${USAGE}` };
+        return { ok: false, message: `Invalid --actors "${argv[i]}". Must be an integer in [2, 6].\n\n${USAGE}` };
       }
-      leaders = n;
+      actors = n;
     } else if (arg === '--name') {
       name = argv[++i];
     } else if (arg === '--force') {
@@ -118,7 +118,7 @@ export function parseInitArgs(argv: readonly string[]): InitArgResult {
       outputDir: resolvedDir,
       domain,
       mode,
-      leaders,
+      actors,
       name: resolvedName,
       force,
     },
@@ -154,12 +154,12 @@ function readOwnVersion(): string {
 
 /**
  * Hook seam for tests. Real implementation calls compileFromSeed +
- * generateQuickstartLeaders + URL fetch directly. Tests pass mocks.
+ * generateQuickstartActors + URL fetch directly. Tests pass mocks.
  */
 export interface RunInitDeps {
   fetchSeedFromUrl?: (url: string) => Promise<{ text: string; title: string }>;
   compileFromSeed?: typeof compileFromSeed;
-  generateQuickstartLeaders?: typeof generateQuickstartLeaders;
+  generateQuickstartActors?: typeof generateQuickstartActors;
   readEnv?: () => NodeJS.ProcessEnv;
   paracosmVersion?: string;
   log?: (msg: string) => void;
@@ -222,13 +222,13 @@ export async function runInit(argv: readonly string[], deps: RunInitDeps = {}): 
     return 2;
   }
 
-  log(`[paracosm init] Generating ${opts.leaders} HEXACO leaders...`);
-  let leaders;
+  log(`[paracosm init] Generating ${opts.actors} HEXACO actors...`);
+  let actors;
   try {
-    const gen = deps.generateQuickstartLeaders ?? generateQuickstartLeaders;
-    leaders = await gen(scenario, opts.leaders, {});
+    const gen = deps.generateQuickstartActors ?? generateQuickstartActors;
+    actors = await gen(scenario, opts.actors, {});
   } catch (err) {
-    process.stderr.write(`Leader generation failed: ${String(err)}\n`);
+    process.stderr.write(`Actor generation failed: ${String(err)}\n`);
     return 2;
   }
 
@@ -237,9 +237,9 @@ export async function runInit(argv: readonly string[], deps: RunInitDeps = {}): 
   const paracosmVersion = deps.paracosmVersion ?? readOwnVersion();
   writeFileSync(`${opts.outputDir}/package.json`, renderPackageJson({ name: opts.name, paracosmVersion }));
   writeFileSync(`${opts.outputDir}/scenario.json`, JSON.stringify(scenario, null, 2) + '\n');
-  writeFileSync(`${opts.outputDir}/leaders.json`, JSON.stringify(leaders, null, 2) + '\n');
+  writeFileSync(`${opts.outputDir}/actors.json`, JSON.stringify(actors, null, 2) + '\n');
   writeFileSync(`${opts.outputDir}/run.mjs`, renderRunMjs());
-  writeFileSync(`${opts.outputDir}/README.md`, renderReadme({ name: opts.name, domain: opts.domain, mode: opts.mode, leaders: opts.leaders }));
+  writeFileSync(`${opts.outputDir}/README.md`, renderReadme({ name: opts.name, domain: opts.domain, mode: opts.mode, actors: opts.actors }));
   writeFileSync(`${opts.outputDir}/.env.example`, renderEnvExample());
   writeFileSync(`${opts.outputDir}/.gitignore`, renderGitignore());
 

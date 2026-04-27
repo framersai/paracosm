@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTheme } from '../../theme/ThemeProvider';
 import type { ScenarioClientPayload } from '../../hooks/useScenario';
-import type { GameState } from '../../hooks/useGameState';
+import type { GameState, ActorSideState } from '../../hooks/useGameState';
 import type { useSSE } from '../../hooks/useSSE';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { Tooltip } from '../shared/Tooltip';
@@ -70,7 +70,7 @@ const toolBtnStyle: React.CSSProperties = {
 
 export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRun, onTour, onCopy, launching = false, history, onRestoreHistory, onClearHistory }: TopBarProps) {
   const { resolved, setTheme } = useTheme();
-  const hasEvents = Object.values(gameState.leaders).some(s => s.events.length > 0);
+  const hasEvents = Object.values(gameState.actors).some((s: ActorSideState) => s.events.length > 0);
 
   // Secondary run actions (Save / Copy / Clear) consolidate behind a
   // single overflow trigger so the right cluster does not carry 9+

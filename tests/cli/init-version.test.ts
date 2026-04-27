@@ -17,7 +17,7 @@ const FAKE_SCENARIO = {
   world: { metrics: {}, capacities: {}, statuses: {}, environment: {} },
 };
 
-const FAKE_LEADERS = [
+const FAKE_ACTORS = [
   { name: 'A', archetype: 'cautious', unit: 'Sub', hexaco: { openness: 0.5, conscientiousness: 0.7, extraversion: 0.4, agreeableness: 0.6, emotionality: 0.5, honestyHumility: 0.6 }, instructions: '' },
 ];
 
@@ -25,7 +25,7 @@ test('runInit defaults paracosmVersion to the actual published version, never 1.
   const dir = join(makeTmpDir(), 'app');
   const code = await runInit([dir, '--domain', 'a'.repeat(250)], {
     compileFromSeed: async () => FAKE_SCENARIO as never,
-    generateQuickstartLeaders: async (_s, n) => FAKE_LEADERS.slice(0, n) as never,
+    generateQuickstartActors: async (_s: unknown, n: number) => FAKE_ACTORS.slice(0, n) as never,
     readEnv: () => ({ OPENAI_API_KEY: 'sk-test' } as NodeJS.ProcessEnv),
     log: () => {},
     // No paracosmVersion override; the test verifies the default.

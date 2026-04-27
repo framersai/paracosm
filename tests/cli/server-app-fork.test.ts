@@ -80,7 +80,7 @@ function fakeLeader(name = 'Forked Leader') {
 test('normalizeSimulationConfig: passes forkFrom through verbatim', () => {
   const parent = fakeParentArtifact();
   const normalized = normalizeSimulationConfig({
-    leaders: [fakeLeader()],
+    actors: [fakeLeader()],
     turns: 3,
     seed: 42,
     forkFrom: { parentArtifact: parent, atTurn: 1 },
@@ -92,7 +92,7 @@ test('normalizeSimulationConfig: passes forkFrom through verbatim', () => {
 
 test('normalizeSimulationConfig: captureSnapshots defaults to false when absent', () => {
   const normalized = normalizeSimulationConfig({
-    leaders: [fakeLeader(), fakeLeader('B')],
+    actors: [fakeLeader(), fakeLeader('B')],
     turns: 3,
     seed: 42,
   } as never);
@@ -102,7 +102,7 @@ test('normalizeSimulationConfig: captureSnapshots defaults to false when absent'
 
 test('normalizeSimulationConfig: forkFrom omitted when not supplied', () => {
   const normalized = normalizeSimulationConfig({
-    leaders: [fakeLeader(), fakeLeader('B')],
+    actors: [fakeLeader(), fakeLeader('B')],
     turns: 3,
     seed: 42,
   } as never);

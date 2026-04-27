@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { normalizeSimulationConfig, applyDemoCaps, type NormalizedSimulationConfig } from './sim-config.js';
 import { runPairSimulations, runForkSimulation, runBatchSimulations, type BroadcastFn } from './pair-runner.js';
 import {
-  handleFetchSeed, handleCompileFromSeed, handleGenerateLeaders,
+  handleFetchSeed, handleCompileFromSeed, handleGenerateActors,
   type QuickstartDeps,
 } from './quickstart-routes.js';
 import { handleSimulate, type SimulateDeps } from './simulate-route.js';
@@ -301,7 +301,7 @@ export function buildResultsPayloadFromEventBuffer(eventBuffer: readonly string[
       slot.systemsSnapshots.push({ turn, time, ...data });
     }
   }
-  const leaders = [...byLeader.entries()].map(([name, slot]) => ({ name, ...slot }));
+  const actors = [...byLeader.entries()].map(([name, slot]) => ({ name, ...slot }));
 
   return {
     results,
@@ -309,7 +309,7 @@ export function buildResultsPayloadFromEventBuffer(eventBuffer: readonly string[
     isComplete,
     turnsCompleted: Math.floor(turns),
     totalEvents: simEvents.length,
-    leaders,
+    actors,
   };
 }
 
@@ -1079,8 +1079,8 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
           await handleCompileFromSeed(req, res, body, quickstartDeps);
           return;
         }
-        if (req.url === '/api/quickstart/generate-leaders') {
-          await handleGenerateLeaders(req, res, body, quickstartDeps);
+        if (req.url === '/api/quickstart/generate-actors') {
+          await handleGenerateActors(req, res, body, quickstartDeps);
           return;
         }
         res.writeHead(404, { 'Content-Type': 'application/json' });
@@ -1692,18 +1692,18 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         } else if (hasUserKeys) {
           console.log(`  [rate-limit] Bypassed — user provided API keys`);
         }
-        // Fork setups take exactly one leader (the override for the
+        // Fork setups take exactly one actor (the override for the
         // forked branch). Regular setups take exactly two. Spec 2B.
         const isForkSetup = !!config.forkFrom;
         if (isForkSetup) {
-          if (!config.leaders || config.leaders.length !== 1) {
+          if (!config.actors || config.actors.length !== 1) {
             res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Fork setup requires exactly one leader.' }));
+            res.end(JSON.stringify({ error: 'Fork setup requires exactly one actor.' }));
             return;
           }
-        } else if (!config.leaders || config.leaders.length < 2) {
+        } else if (!config.actors || config.actors.length < 2) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Two leaders required' }));
+          res.end(JSON.stringify({ error: 'Two actors required' }));
           return;
         }
 
@@ -1763,12 +1763,12 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         // query. Solo runs (1 leader) leave bundleId undefined and
         // render as solo cards exactly as today.
         const { generateBundleId } = await import('./server/bundle-id.js');
-        const bundleId = simConfig.leaders.length >= 2 ? generateBundleId() : undefined;
+        const bundleId = simConfig.actors.length >= 2 ? generateBundleId() : undefined;
         const runRecord = createRunRecord({
           scenarioId: activeScenario.id,
           scenarioVersion: activeScenario.version,
           actorConfigHash: hashActorConfig({
-            leaders: simConfig.leaders,
+            actors: simConfig.actors,
             turns: simConfig.turns,
             seed: simConfig.seed,
           }),
@@ -2180,7 +2180,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         // config carries a forkFrom reference.
         if (config.forkFrom) {
           await runForkSimulation(config, broadcast, controller.signal, activeScenario, hooks?.onArtifact);
-        } else if (config.leaders.length >= 3) {
+        } else if (config.actors.length >= 3) {
           // Tier 5 Quickstart dispatches N >= 3 leaders to the batch
           // runner (same SSE contract per leader, no verdict).
           await runBatchSimulations(config, broadcast, controller.signal, activeScenario, hooks?.onArtifact);

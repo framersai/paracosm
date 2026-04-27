@@ -71,8 +71,8 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
   const secondLeaderId = state.actorIds[1];
   const snapsA = (firstLeaderId ? snapshotMap[firstLeaderId] : undefined) ?? [];
   const snapsB = (secondLeaderId ? snapshotMap[secondLeaderId] : undefined) ?? [];
-  const sideStateA = firstLeaderId ? state.leaders[firstLeaderId] : null;
-  const sideStateB = secondLeaderId ? state.leaders[secondLeaderId] : null;
+  const sideStateA = firstLeaderId ? state.actors[firstLeaderId] : null;
+  const sideStateB = secondLeaderId ? state.actors[secondLeaderId] : null;
   const maxTurn = Math.max(snapsA.length, snapsB.length);
   const [currentTurn, setCurrentTurn] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -273,7 +273,7 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
       if (state.actorIds[0]) slots.push({ side: 'a', actorName: state.actorIds[0] });
       if (state.actorIds[1]) slots.push({ side: 'b', actorName: state.actorIds[1] });
       for (const { side, actorName } of slots) {
-        const sideState = state.leaders[actorName];
+        const sideState = state.actors[actorName];
         if (!sideState) continue;
         const events = sideState.events as Evt[];
         for (let i = events.length - 1; i >= 0; i--) {
@@ -301,7 +301,7 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
       if (prev && prev.key === latest.key) return prev;
       return { ...latest, expiresAt: performance.now() + 5500 };
     });
-  }, [state.actorIds, state.leaders, gridSettings.alerts, state.isRunning]);
+  }, [state.actorIds, state.actors, gridSettings.alerts, state.isRunning]);
 
   // Dismiss crisis toast after timeout.
   useEffect(() => {
@@ -459,11 +459,11 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
   const snapATurn = snapA?.turn ?? 0;
   const snapBTurn = snapB?.turn ?? 0;
   const defaultPreset = scenario.presets.find(p => p.id === 'default');
-  const presetA: LeaderInfo | null = defaultPreset?.leaders?.[0]
-    ? { name: defaultPreset.leaders[0].name, archetype: defaultPreset.leaders[0].archetype, unit: 'Colony Alpha', hexaco: defaultPreset.leaders[0].hexaco, instructions: defaultPreset.leaders[0].instructions, quote: '' }
+  const presetA: LeaderInfo | null = defaultPreset?.actors?.[0]
+    ? { name: defaultPreset.actors[0].name, archetype: defaultPreset.actors[0].archetype, unit: 'Colony Alpha', hexaco: defaultPreset.actors[0].hexaco, instructions: defaultPreset.actors[0].instructions, quote: '' }
     : null;
-  const presetB: LeaderInfo | null = defaultPreset?.leaders?.[1]
-    ? { name: defaultPreset.leaders[1].name, archetype: defaultPreset.leaders[1].archetype, unit: 'Colony Beta', hexaco: defaultPreset.leaders[1].hexaco, instructions: defaultPreset.leaders[1].instructions, quote: '' }
+  const presetB: LeaderInfo | null = defaultPreset?.actors?.[1]
+    ? { name: defaultPreset.actors[1].name, archetype: defaultPreset.actors[1].archetype, unit: 'Colony Beta', hexaco: defaultPreset.actors[1].hexaco, instructions: defaultPreset.actors[1].instructions, quote: '' }
     : null;
   const leaderA = sideStateA?.leader ?? presetA;
   const leaderB = sideStateB?.leader ?? presetB;
@@ -738,7 +738,7 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
     if (state.actorIds[0]) slots.push({ side: 'a', actorName: state.actorIds[0] });
     if (state.actorIds[1]) slots.push({ side: 'b', actorName: state.actorIds[1] });
     for (const { side, actorName } of slots) {
-      const sideState = state.leaders[actorName];
+      const sideState = state.actors[actorName];
       if (!sideState) continue;
       const firstByName = new Map<string, string>();
       for (const evt of sideState.events) {
@@ -809,7 +809,7 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
   const hexacoById = useMemo(() => {
     const m = new Map<string, HexacoShape>();
     for (const actorName of state.actorIds) {
-      const sideState = state.leaders[actorName];
+      const sideState = state.actors[actorName];
       if (!sideState) continue;
       for (const evt of sideState.events) {
         if (evt.type !== 'agent_reactions') continue;

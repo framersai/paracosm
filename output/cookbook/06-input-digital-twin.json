@@ -42,7 +42,7 @@
       "expected": 1
     }
   },
-  "leader": {
+  "actor": {
     "name": "Marin Kade",
     "archetype": "Aggressive Sales Optimizer",
     "hexaco": {

@@ -56,10 +56,10 @@ function Card({ s, onPick }: { s: StoredSessionMeta; onPick: () => void }) {
     ? `${s.leaderA} vs ${s.leaderB}${s.scenarioName ? ` · ${s.scenarioName}` : ''}`
     : s.scenarioName || 'Simulation Run';
   const title = s.title || s.scenarioName || deterministicTitle;
-  const leaders = s.leaderA && s.leaderB ? `${s.leaderA} vs ${s.leaderB}` : '';
+  const actors = s.leaderA && s.leaderB ? `${s.leaderA} vs ${s.leaderB}` : '';
   const scenarioSub = s.title && s.scenarioName ? s.scenarioName : '';
   const turns = s.turnCount != null ? `${s.turnCount} turn${s.turnCount === 1 ? '' : 's'}` : '';
-  const line2 = [leaders, scenarioSub, turns].filter(Boolean).join(' · ');
+  const line2 = [actors, scenarioSub, turns].filter(Boolean).join(' · ');
   const line3 = `${formatExplicit(s.createdAt)} (${formatRelative(s.createdAt)}) · ${formatDuration(s.durationMs)} · ${formatCost(s.totalCostUSD)}`;
   return (
     <button

@@ -74,7 +74,7 @@ export interface ScenarioSetupSchema {
   /** Maximum events the Event Director can generate per turn. Default: 3 */
   maxEventsPerTurn?: number;
   /** Which setup form sections to expose in the dashboard */
-  configurableSections: Array<'leaders' | 'personnel' | 'resources' | 'departments' | 'events' | 'models' | 'advanced'>;
+  configurableSections: Array<'actors' | 'personnel' | 'resources' | 'departments' | 'events' | 'models' | 'advanced'>;
 }
 
 // ---------------------------------------------------------------------------
@@ -188,7 +188,7 @@ export interface ScenarioUiDefinition {
   reportSections: Array<'crisis' | 'departments' | 'decision' | 'outcome' | 'quotes' | 'causality'>;
   departmentIcons: Record<string, string>;
   eventRenderers: Record<string, { icon: string; color: string }>;
-  setupSections: Array<'leaders' | 'personnel' | 'resources' | 'departments' | 'events' | 'models' | 'advanced'>;
+  setupSections: Array<'actors' | 'personnel' | 'resources' | 'departments' | 'events' | 'models' | 'advanced'>;
 }
 
 // ---------------------------------------------------------------------------

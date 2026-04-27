@@ -18,7 +18,7 @@ function frame(eventName: string, data: Record<string, unknown>): TimestampedEve
   return { ts: 0, sse: `event: ${eventName}\ndata: ${JSON.stringify(data)}\n\n` };
 }
 
-test('summariseForTitle pulls scenario, leaders, turns, crisis, verdict', () => {
+test('summariseForTitle pulls scenario, actors, turns, crisis, verdict', () => {
   const events: TimestampedEvent[] = [
     frame('active_scenario', { id: 'mars', name: 'Mars Genesis' }),
     frame('status', {

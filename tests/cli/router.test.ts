@@ -73,7 +73,7 @@ describe('paracosm subcommand router', () => {
       const { result, stdout } = await captureIO(() => dispatch(['run', '--help']));
       assert.deepEqual(result, { exitCode: 0 });
       assert.match(stdout, /paracosm run/);
-      assert.match(stdout, /--leader/);
+      assert.match(stdout, /--actor/);
       assert.match(stdout, /--turns/);
     });
 

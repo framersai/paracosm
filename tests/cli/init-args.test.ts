@@ -7,7 +7,7 @@ test('parseInitArgs returns defaults with only --domain', () => {
   assert.equal(result.ok, true);
   if (result.ok) {
     assert.equal(result.options.mode, 'turn-loop');
-    assert.equal(result.options.leaders, 3);
+    assert.equal(result.options.actors, 3);
     assert.equal(result.options.force, false);
     assert.ok(result.options.outputDir.endsWith('paracosm-app'));
   }
@@ -30,8 +30,8 @@ test('parseInitArgs rejects missing --domain', () => {
   }
 });
 
-test('parseInitArgs rejects out-of-range --leaders', () => {
-  const result = parseInitArgs(['--domain', 'a'.repeat(250), '--leaders', '10']);
+test('parseInitArgs rejects out-of-range --actors', () => {
+  const result = parseInitArgs(['--domain', 'a'.repeat(250), '--actors', '10']);
   assert.equal(result.ok, false);
   if (!result.ok) {
     assert.ok(result.message.includes('[2, 6]'));

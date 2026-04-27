@@ -33,7 +33,7 @@ const leaderB = {
 };
 
 test('normalizeSimulationConfig applies defaults for omitted optional fields', () => {
-  const config = normalizeSimulationConfig({ leaders: [leaderA, leaderB] });
+  const config = normalizeSimulationConfig({ actors: [leaderA, leaderB] });
 
   assert.equal(config.turns, 12);
   assert.equal(config.seed, 950);
@@ -49,7 +49,7 @@ test('normalizeSimulationConfig applies defaults for omitted optional fields', (
   assert.equal(config.startingPolitics.earthDependencyPct, 95);
   assert.equal(config.execution.commanderMaxSteps, 5);
   assert.equal(config.execution.departmentMaxSteps, 4);
-  assert.equal(config.models.commander, 'gpt-5.4-mini');
+  assert.equal(config.models.commander, 'gpt-4o');
   assert.equal(config.models.departments, 'gpt-5.4');
   assert.equal(config.models.judge, 'gpt-5.4-mini');
   assert.equal(config.models.director, 'gpt-5.4-mini');
@@ -61,7 +61,7 @@ test('normalizeSimulationConfig applies defaults for omitted optional fields', (
 
 test('normalizeSimulationConfig preserves explicit setup overrides', () => {
   const config = normalizeSimulationConfig({
-    leaders: [leaderA, leaderB],
+    actors: [leaderA, leaderB],
     turns: 6,
     seed: 4242,
     startTime: 2042,
@@ -113,7 +113,7 @@ test('normalizeSimulationConfig preserves explicit setup overrides', () => {
 
 test('normalizeSimulationConfig honors anthropic provider defaults and rejects mismatched model family by coercion', () => {
   const config = normalizeSimulationConfig({
-    leaders: [leaderA, leaderB],
+    actors: [leaderA, leaderB],
     provider: 'anthropic',
     models: {
       commander: 'gpt-5.4',
@@ -131,7 +131,7 @@ test('normalizeSimulationConfig honors anthropic provider defaults and rejects m
 
 test('normalizeSimulationConfig infers provider from selected model family when provider is omitted', () => {
   const config = normalizeSimulationConfig({
-    leaders: [leaderA, leaderB],
+    actors: [leaderA, leaderB],
     models: {
       commander: 'claude-sonnet-4-6',
       departments: 'claude-sonnet-4-6',
@@ -144,7 +144,7 @@ test('normalizeSimulationConfig infers provider from selected model family when 
 
 test('normalizeSimulationConfig keeps medical and engineering active even if omitted', () => {
   const config = normalizeSimulationConfig({
-    leaders: [leaderA, leaderB],
+    actors: [leaderA, leaderB],
     activeDepartments: ['governance'],
   });
 
@@ -162,7 +162,7 @@ test('resolveSimulationModels uses provider defaults when models are omitted for
 
 test('normalizeSimulationConfig resolves explicit economics profiles', () => {
   const config = normalizeSimulationConfig({
-    leaders: [leaderA, leaderB],
+    actors: [leaderA, leaderB],
     economics: { profileId: 'economy', batchConcurrency: 3 },
   });
 

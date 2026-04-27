@@ -15,7 +15,7 @@ test('balanced profile preserves the default model mix', () => {
 
   assert.equal(profile.id, 'balanced');
   assert.equal(profile.models.departments, 'gpt-5.4');
-  assert.equal(profile.models.commander, 'gpt-5.4-mini');
+  assert.equal(profile.models.commander, 'gpt-4o');
   assert.equal(profile.models.judge, 'gpt-5.4-mini');
   assert.equal(profile.verdict.mode, 'balanced');
   assert.equal(profile.search.mode, 'adaptive');

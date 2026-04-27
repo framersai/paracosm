@@ -46,7 +46,7 @@ export function useCitationRegistry(state: GameState): CitationRegistry {
     let next = 1;
 
     for (const actorName of state.actorIds) {
-      const sideState = state.leaders[actorName];
+      const sideState = state.actors[actorName];
       if (!sideState) continue;
       for (const evt of sideState.events) {
         if (evt.type !== 'specialist_done') continue;

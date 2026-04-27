@@ -330,11 +330,11 @@ function deriveMetadata(events: TimestampedEvent[]): SessionMetaOverride {
       if (typeof leaderB === 'string') out.leaderB = leaderB;
     }
     if (eventType === 'status' && data.phase === 'parallel') {
-      const leaders = Array.isArray((data as { leaders?: unknown[] }).leaders)
+      const actors = Array.isArray((data as { leaders?: unknown[] }).leaders)
         ? (data as { leaders: Array<{ name?: string }> }).leaders
         : [];
-      if (typeof leaders[0]?.name === 'string') out.leaderA = leaders[0].name;
-      if (typeof leaders[1]?.name === 'string') out.leaderB = leaders[1].name;
+      if (typeof actors[0]?.name === 'string') out.leaderA = actors[0].name;
+      if (typeof actors[1]?.name === 'string') out.leaderB = actors[1].name;
     }
     // Count the highest `turn` observed. innerType covers both the
     // wrapped prod shape (`event: sim` + data.type=turn_done) and the

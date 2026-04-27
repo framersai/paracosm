@@ -362,8 +362,8 @@ function AppContent() {
   const handleCopySummary = useCallback(() => {
     const firstId = gameState.actorIds[0];
     const secondId = gameState.actorIds[1];
-    const a = firstId ? gameState.leaders[firstId] : null;
-    const b = secondId ? gameState.leaders[secondId] : null;
+    const a = firstId ? gameState.actors[firstId] : null;
+    const b = secondId ? gameState.actors[secondId] : null;
     // Fallback names when the SSE stream has not yet sent a leader
     // identity. Use the scenario's per-domain label (e.g. "Commander A"
     // for Mars Genesis, "Mayor A" for a hurricane scenario) with a
@@ -512,8 +512,8 @@ function AppContent() {
       return;
     }
     const defaultPreset = scenario.presets.find(p => p.id === 'default');
-    const leaders = defaultPreset?.leaders?.slice(0, 2).map((l, i) => ({
-      ...l,
+    const actors = defaultPreset?.actors?.slice(0, 2).map((a, i) => ({
+      ...a,
       unit: i === 0 ? 'Colony Alpha' : 'Colony Beta',
     })) || [
       { name: 'Actor A', archetype: 'The Visionary', unit: 'Colony Alpha', hexaco: { openness: 0.95, conscientiousness: 0.35, extraversion: 0.85, agreeableness: 0.55, emotionality: 0.3, honestyHumility: 0.65 }, instructions: '' },
@@ -538,7 +538,7 @@ function AppContent() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          leaders,
+          actors,
           provider: 'openai',
           turns: scenario.setup.defaultTurns,
           timePerTurn: scenario.setup.defaultTimePerTurn,

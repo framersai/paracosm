@@ -115,9 +115,9 @@ export function EventLogFilterBar({
         </div>
       )}
 
-      {(facets.leaders.length > 1 || facets.maxTurn > 3) && (
+      {(facets.actors.length > 1 || facets.maxTurn > 3) && (
         <div className={styles.facetsRow}>
-          {facets.leaders.length > 1 && (
+          {facets.actors.length > 1 && (
             <>
               <span className={styles.facetLabel}>leader</span>
               <select
@@ -127,7 +127,7 @@ export function EventLogFilterBar({
                 onChange={(e) => setFilters({ leader: e.target.value || null })}
               >
                 <option value="">all</option>
-                {facets.leaders.map((l) => (
+                {facets.actors.map((l) => (
                   <option key={l} value={l}>{l}</option>
                 ))}
               </select>

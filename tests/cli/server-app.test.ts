@@ -173,10 +173,11 @@ test('POST /setup normalizes config and hands it to the simulation runner', asyn
   };
 
   const server = createMarsServer({
+    maxSimsPerDay: 0,
     runPairSimulations: async (config, _broadcast, _signal, _scenario, onArtifact) => {
       captured = config;
       // Per-artifact insert is now wired via onArtifact rather than a
-      // fire-at-/setup hook. Simulate one completed leader so the test
+      // fire-at-/setup hook. Simulate one completed actor so the test
       // asserts the new persistence shape.
       if (onArtifact) {
         const fakeArtifact = {
@@ -207,7 +208,7 @@ test('POST /setup normalizes config and hands it to the simulation runner', asyn
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        leaders: [leaderA, leaderB],
+        actors: [leaderA, leaderB],
         provider: 'anthropic',
         turns: 1,
         startTime: 2042,
@@ -310,7 +311,7 @@ test('GET /results reconstructs timelines from current stream event names', asyn
     frame('complete', {}),
   ]);
 
-  const leader = json.leaders.find((entry: any) => entry.name === leaderA.name);
+  const leader = json.actors.find((entry: any) => entry.name === leaderA.name);
   assert.ok(leader, 'leader timeline should be present');
   assert.equal(leader.decisions[0]?.decision, 'Seal the breach');
   assert.equal(leader.decisions[0]?.outcome, 'conservative_success');
@@ -733,7 +734,7 @@ test('POST /chat replies using simulation colonist data after a completed run', 
  */
 function makeConfig(): NormalizedSimulationConfig {
   return {
-    leaders: [leaderA, leaderB],
+    actors: [leaderA, leaderB],
     turns: 3,
     timePerTurn: 0,
     seed: 1,

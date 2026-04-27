@@ -2,7 +2,7 @@
   "curl": "curl -X POST http://localhost:5188/simulate \\\n  -H 'Content-Type: application/json' \\\n  -H 'X-Anthropic-Key: sk-ant-...' \\\n  -d <body>",
   "requestBody": {
     "scenario": "<full scenario object — see 01-output-scenario-package.json>",
-    "leader": {
+    "actor": {
       "name": "Marin Kade",
       "archetype": "Aggressive Sales Optimizer",
       "unit": "Sales (VP of Sales)",

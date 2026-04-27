@@ -4,7 +4,7 @@
 
 **Status at handoff:** every line of code from 2026-04-24 is committed and pushed across all repos:
 
-- `framersai/agentos@9d4c77a4` (npm `@framers/agentos@0.2.6` live)
+- `framersai/agentos@1fdef22a` (npm `@framers/agentos@0.2.11` live; local package source still reports 0.2.10 until the next release commit)
 - `framersai/agentos-extensions@81c1738`
 - `framersai/agentos-extensions-registry@5d6ad12`
 - `framersai/agentos-skills-registry@ac89415`
@@ -33,7 +33,7 @@ What's shipping (post-2026-04-24):
 | T5.2 paracosm init CLI | SHIPPED | paracosm `ca5446c9` |
 | T5.3 Quickstart onboarding | SHIPPED | paracosm `a32eafbc` |
 
-`@framers/agentos` is at `0.2.6` on npm. All consumers pinned at `^0.2.5` or `workspace:*` semver-resolve to the live 0.2.6 on next install.
+`@framers/agentos` is at `0.2.11` on npm. Paracosm and registry consumers are pinned at `^0.2.11` or `workspace:*`; workspace consumers resolve to the checked-out package source.
 
 Tier 4 row is closed. Open work lives in T5.1, T5.4, T5.5, T6+.
 
@@ -357,7 +357,7 @@ I'm continuing the paracosm work from the 2026-04-24 session. Two docs to read e
 
 Session context at handoff:
 - Tier 4 of the paracosm roadmap is COMPLETE (T4.1 sandbox + T4.2 /simulate + T4.3 SQLite + T4.4 fixture cleanup + T4.5 metrics rename + T4.6 useSSE alias). Plus T5.2 paracosm init CLI.
-- @framers/agentos at 0.2.6 on npm. SandboxedToolForge delegates to hardened CodeSandbox.
+- @framers/agentos at 0.2.11 on npm. SandboxedToolForge delegates to hardened CodeSandbox.
 - All 7 repos pushed clean. paracosm tsc 0; agentos sandbox tests 102/102.
 
 Mission: pick from T5.1 / T5.4 / T5.5 / T6.x / T8.x and ship it. Recommended start: T5.1 dashboard viz kit (1 day, user-facing, closes the "T4.2 produces output you can't see" gap for batch-trajectory + batch-point modes). Full spec scope in §3 of the handoff.

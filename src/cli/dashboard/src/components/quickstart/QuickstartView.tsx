@@ -37,8 +37,8 @@ export interface QuickstartViewProps {
 
 type Phase =
   | { kind: 'input' }
-  | { kind: 'progress'; stage: Stage; scenario?: ScenarioPackage; leaders?: ActorConfig[] }
-  | { kind: 'results'; scenario: ScenarioPackage; leaders: ActorConfig[]; artifacts: RunArtifact[] };
+  | { kind: 'progress'; stage: Stage; scenario?: ScenarioPackage; actors?: ActorConfig[] }
+  | { kind: 'results'; scenario: ScenarioPackage; actors: ActorConfig[]; artifacts: RunArtifact[] };
 
 export function QuickstartView({ sse, sessionId }: QuickstartViewProps) {
   const [phase, setPhase] = useState<Phase>({ kind: 'input' });
@@ -66,30 +66,30 @@ export function QuickstartView({ sse, sessionId }: QuickstartViewProps) {
       setPhase({ kind: 'progress', stage: 'research', scenario });
       // Research stage is folded into compileScenario server-side;
       // advance optimistically since we don't get a separate signal.
-      setPhase({ kind: 'progress', stage: 'leaders', scenario });
+      setPhase({ kind: 'progress', stage: 'actors', scenario });
 
       // Honor the actor-count from the seed input; fall back to 3 for
       // back-compat with callers that don't supply one. Server-side
-      // GenerateLeadersSchema clamps 1-50 (Compare-runs UI cap).
+      // GenerateActorsSchema clamps 1-50 (Compare-runs UI cap).
       const requestedCount = Math.max(1, Math.min(50, payload.actorCount ?? 3));
-      const leadersRes = await fetch('/api/quickstart/generate-leaders', {
+      const actorsRes = await fetch('/api/quickstart/generate-actors', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ scenarioId, count: requestedCount }),
       });
-      if (!leadersRes.ok) {
-        const body = await leadersRes.json().catch(() => ({} as { error?: string }));
-        throw new Error(body.error ?? `Leader generation failed: HTTP ${leadersRes.status}`);
+      if (!actorsRes.ok) {
+        const body = await actorsRes.json().catch(() => ({} as { error?: string }));
+        throw new Error(body.error ?? `Actor generation failed: HTTP ${actorsRes.status}`);
       }
-      const { leaders } = await leadersRes.json() as { leaders: ActorConfig[] };
-      setPhase({ kind: 'progress', stage: 'running', scenario, leaders });
+      const { actors } = await actorsRes.json() as { actors: ActorConfig[] };
+      setPhase({ kind: 'progress', stage: 'running', scenario, actors });
 
       sse.reset();
       const setupRes = await fetch('/setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          leaders,
+          actors,
           turns: scenario.setup.defaultTurns,
           seed: scenario.setup.defaultSeed ?? 42,
           captureSnapshots: true,
@@ -109,16 +109,16 @@ export function QuickstartView({ sse, sessionId }: QuickstartViewProps) {
   // Transition to results when all expected artifacts arrive.
   useEffect(() => {
     if (phase.kind !== 'progress' || phase.stage !== 'running') return;
-    if (!phase.scenario || !phase.leaders) return;
+    if (!phase.scenario || !phase.actors) return;
     const artifacts = sse.results
       .map(r => r.artifact)
       .filter((a): a is RunArtifact => !!a);
-    if (artifacts.length >= phase.leaders.length) {
+    if (artifacts.length >= phase.actors.length) {
       setPhase({
         kind: 'results',
         scenario: phase.scenario,
-        leaders: phase.leaders,
-        artifacts: artifacts.slice(0, phase.leaders.length),
+        actors: phase.actors,
+        artifacts: artifacts.slice(0, phase.actors.length),
       });
     }
   }, [sse.results, phase]);
@@ -147,10 +147,10 @@ export function QuickstartView({ sse, sessionId }: QuickstartViewProps) {
     return () => { cancelled = true; };
   }, [phase, bundleId]);
 
-  // Derive per-leader progress from SSE events for the running phase.
+  // Derive per-actor progress from SSE events for the running phase.
   const actorProgress: ActorProgress[] | undefined =
-    phase.kind === 'progress' && phase.stage === 'running' && phase.leaders
-      ? phase.leaders.map((l, i) => {
+    phase.kind === 'progress' && phase.stage === 'running' && phase.actors
+      ? phase.actors.map((a, i) => {
           const lastTurn = sse.events
             .filter(e => e.type === 'turn_done' || e.type === 'turn_start')
             .reduce((max, e) => {
@@ -167,8 +167,8 @@ export function QuickstartView({ sse, sessionId }: QuickstartViewProps) {
                 ? 'complete'
                 : 'running';
           return {
-            name: l.name,
-            archetype: l.archetype,
+            name: a.name,
+            archetype: a.archetype,
             currentTurn: result ? (phase.scenario?.setup.defaultTurns ?? lastTurn) : lastTurn,
             maxTurns: phase.scenario?.setup.defaultTurns ?? 6,
             status,
@@ -178,10 +178,10 @@ export function QuickstartView({ sse, sessionId }: QuickstartViewProps) {
 
   const handleSwap = useCallback((actorIndex: number, preset: LeaderPreset) => {
     // MVP: swap points users at the Branches Fork flow for now.
-    // v1.1 will wire this to a single-leader /setup POST that reruns
+    // v1.1 will wire this to a single-actor /setup POST that reruns
     // just that card in place.
     void actorIndex; void preset;
-    setErrorBanner('Leader swap rerun is a v1.1 follow-up. Use "Fork in Branches" on the Branches tab to try a preset leader against this run.');
+    setErrorBanner('Actor swap rerun is a v1.1 follow-up. Use "Fork in Branches" on the Branches tab to try a preset actor against this run.');
   }, []);
 
   return (
@@ -190,14 +190,14 @@ export function QuickstartView({ sse, sessionId }: QuickstartViewProps) {
         <>
           <header className={styles.header}>
             <h2>Quickstart</h2>
-            <p>Paste a brief, drop a PDF, or supply a URL. Paracosm compiles a scenario and runs three distinct leaders against it.</p>
+            <p>Paste a brief, drop a PDF, or supply a URL. Paracosm compiles a scenario and runs three distinct actors against it.</p>
           </header>
           {errorBanner && <p className={styles.errorBanner} role="alert">{errorBanner}</p>}
           <SeedInput onSeedReady={handleSeedReady} />
         </>
       )}
       {phase.kind === 'progress' && (
-        <QuickstartProgress stage={phase.stage} leaders={actorProgress} />
+        <QuickstartProgress stage={phase.stage} actors={actorProgress} />
       )}
       {phase.kind === 'results' && (
         <>
@@ -213,7 +213,7 @@ export function QuickstartView({ sse, sessionId }: QuickstartViewProps) {
             </button>
           )}
           <QuickstartResults
-            leaders={phase.leaders}
+            actors={phase.actors}
             artifacts={phase.artifacts}
             sessionId={sessionId}
             onSwap={handleSwap}

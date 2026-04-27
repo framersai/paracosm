@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import type { GameState, LeaderSideState } from '../../hooks/useGameState';
+import type { GameState, ActorSideState } from '../../hooks/useGameState';
 import { getActorColorVar } from '../../hooks/useGameState';
 import { Tooltip } from '../shared/Tooltip';
 
@@ -20,7 +20,7 @@ interface TurnEntry {
   subEvents?: Array<{ index: number; title: string; category: string }>;
 }
 
-function extractTurns(sideState: LeaderSideState, isComplete: boolean): TurnEntry[] {
+function extractTurns(sideState: ActorSideState, isComplete: boolean): TurnEntry[] {
   const turns: TurnEntry[] = [];
   const s = sideState;
   for (const evt of s.events) {
@@ -192,8 +192,8 @@ function SideTimeline({ turns, actorIndex }: { turns: TurnEntry[]; actorIndex: n
 export function Timeline({ state }: TimelineProps) {
   const firstId = state.actorIds[0];
   const secondId = state.actorIds[1];
-  const sideA = firstId ? state.leaders[firstId] : null;
-  const sideB = secondId ? state.leaders[secondId] : null;
+  const sideA = firstId ? state.actors[firstId] : null;
+  const sideB = secondId ? state.actors[secondId] : null;
   const turnsA = sideA ? extractTurns(sideA, state.isComplete) : [];
   const turnsB = sideB ? extractTurns(sideB, state.isComplete) : [];
 

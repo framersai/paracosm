@@ -78,8 +78,8 @@ function seriesForSide(
 export function collectMetricSeries(state: GameState): MetricSeries[] {
   const firstId = state.actorIds[0];
   const secondId = state.actorIds[1];
-  const aEvents = (firstId ? state.leaders[firstId]?.events : undefined) as Array<{ turn?: number; data: Record<string, unknown> }> | undefined;
-  const bEvents = (secondId ? state.leaders[secondId]?.events : undefined) as Array<{ turn?: number; data: Record<string, unknown> }> | undefined;
+  const aEvents = (firstId ? state.actors[firstId]?.events : undefined) as Array<{ turn?: number; data: Record<string, unknown> }> | undefined;
+  const bEvents = (secondId ? state.actors[secondId]?.events : undefined) as Array<{ turn?: number; data: Record<string, unknown> }> | undefined;
   return METRIC_DEFS.map(def => ({
     id: def.id,
     label: def.label,

@@ -108,25 +108,25 @@ function matchesToolHash(e: SimEvent, substring: string): boolean {
  */
 export function extractAvailableFacets(events: SimEvent[]): {
   types: string[];
-  leaders: string[];
+  actors: string[];
   maxTurn: number;
 } {
   const types = new Set<string>();
-  const leaders: string[] = [];
-  const seenLeaders = new Set<string>();
+  const actors: string[] = [];
+  const seenActors = new Set<string>();
   let maxTurn = 0;
   for (const e of events) {
     if (e.type) types.add(e.type);
-    if (typeof e.leader === 'string' && e.leader && !seenLeaders.has(e.leader)) {
-      seenLeaders.add(e.leader);
-      leaders.push(e.leader);
+    if (typeof e.leader === 'string' && e.leader && !seenActors.has(e.leader)) {
+      seenActors.add(e.leader);
+      actors.push(e.leader);
     }
     const t = extractTurn(e);
     if (t !== undefined && t > maxTurn) maxTurn = t;
   }
   return {
     types: [...types].sort(),
-    leaders,
+    actors,
     maxTurn,
   };
 }

@@ -37,7 +37,7 @@ interface RunRow {
   created_at: string;
   scenario_id: string;
   scenario_version: string;
-  leader_config_hash: string;
+  actor_config_hash: string;
   economics_profile: string;
   source_mode: string;
   created_by: string;
@@ -45,8 +45,8 @@ interface RunRow {
   cost_usd: number | null;
   duration_ms: number | null;
   mode: string | null;
-  leader_name: string | null;
-  leader_archetype: string | null;
+  actor_name: string | null;
+  actor_archetype: string | null;
   bundle_id: string | null;
   summary_trajectory: string | null;
   replay_attempts: number | null;
@@ -61,7 +61,7 @@ function rowToRecord(row: RunRow): RunRecord {
     createdAt: row.created_at,
     scenarioId: row.scenario_id,
     scenarioVersion: row.scenario_version,
-    actorConfigHash: row.leader_config_hash,
+    actorConfigHash: row.actor_config_hash,
     economicsProfile: row.economics_profile,
     sourceMode: row.source_mode as RunRecord['sourceMode'],
     createdBy: row.created_by as RunRecord['createdBy'],
@@ -70,8 +70,8 @@ function rowToRecord(row: RunRow): RunRecord {
   if (row.cost_usd !== null) record.costUSD = row.cost_usd;
   if (row.duration_ms !== null) record.durationMs = row.duration_ms;
   if (row.mode !== null) record.mode = row.mode as RunRecord['mode'];
-  if (row.leader_name !== null) record.actorName = row.leader_name;
-  if (row.leader_archetype !== null) record.actorArchetype = row.leader_archetype;
+  if (row.actor_name !== null) record.actorName = row.actor_name;
+  if (row.actor_archetype !== null) record.actorArchetype = row.actor_archetype;
   if (row.bundle_id !== null) record.bundleId = row.bundle_id;
   if (row.summary_trajectory !== null) {
     try {
@@ -98,8 +98,8 @@ function ensureRunsColumns(db: Database.Database): void {
     ['cost_usd', 'REAL'],
     ['duration_ms', 'INTEGER'],
     ['mode', 'TEXT'],
-    ['leader_name', 'TEXT'],
-    ['leader_archetype', 'TEXT'],
+    ['actor_name', 'TEXT'],
+    ['actor_archetype', 'TEXT'],
     ['replay_attempts', 'INTEGER DEFAULT 0'],
     ['replay_matches', 'INTEGER DEFAULT 0'],
     ['bundle_id', 'TEXT'],
@@ -126,14 +126,14 @@ export function createSqliteRunHistoryStore(options: SqliteRunHistoryStoreOption
       created_at          TEXT NOT NULL,
       scenario_id         TEXT NOT NULL,
       scenario_version    TEXT NOT NULL,
-      leader_config_hash  TEXT NOT NULL,
+      actor_config_hash  TEXT NOT NULL,
       economics_profile   TEXT NOT NULL,
       source_mode         TEXT NOT NULL,
       created_by          TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_runs_created_at        ON runs (created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_runs_scenario_created  ON runs (scenario_id, created_at DESC);
-    CREATE INDEX IF NOT EXISTS idx_runs_leader_created    ON runs (leader_config_hash, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_runs_actor_created    ON runs (actor_config_hash, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_runs_mode_created      ON runs (source_mode, created_at DESC);
   `);
   ensureRunsColumns(db);
@@ -153,9 +153,9 @@ export function createSqliteRunHistoryStore(options: SqliteRunHistoryStoreOption
 
   const insertStmt = db.prepare(`
     INSERT OR IGNORE INTO runs
-      (run_id, created_at, scenario_id, scenario_version, leader_config_hash,
+      (run_id, created_at, scenario_id, scenario_version, actor_config_hash,
        economics_profile, source_mode, created_by,
-       artifact_path, cost_usd, duration_ms, mode, leader_name, leader_archetype,
+       artifact_path, cost_usd, duration_ms, mode, actor_name, actor_archetype,
        bundle_id, summary_trajectory)
     VALUES
       (@runId, @createdAt, @scenarioId, @scenarioVersion, @actorConfigHash,
@@ -205,11 +205,11 @@ export function createSqliteRunHistoryStore(options: SqliteRunHistoryStoreOption
       params.scenarioId = filters.scenarioId;
     }
     if (filters?.actorConfigHash) {
-      clauses.push('leader_config_hash = @actorConfigHash');
+      clauses.push('actor_config_hash = @actorConfigHash');
       params.actorConfigHash = filters.actorConfigHash;
     }
     if (filters?.q) {
-      clauses.push('(scenario_id LIKE @q OR leader_name LIKE @q OR leader_archetype LIKE @q)');
+      clauses.push('(scenario_id LIKE @q OR actor_name LIKE @q OR actor_archetype LIKE @q)');
       params.q = `%${filters.q}%`;
     }
     if (filters?.bundleId) {
