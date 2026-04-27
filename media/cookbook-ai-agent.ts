@@ -9,8 +9,8 @@
  *
  * What this proves:
  *   - The pluggable trait-model registry is wired through the public
- *     API: `LeaderConfig.traitProfile` accepts `ai-agent`.
- *   - normalizeLeaderConfig at the orchestrator entry resolves the
+ *     API: `ActorConfig.traitProfile` accepts `ai-agent`.
+ *   - normalizeActorConfig at the orchestrator entry resolves the
  *     ai-agent profile without crashing.
  *   - End-to-end pipeline (compile -> simulate -> artifact) tolerates
  *     non-HEXACO leaders.
@@ -33,7 +33,7 @@ import { fileURLToPath } from 'node:url';
 import { compileScenario } from '../src/engine/compiler/index.js';
 import { runSimulation } from '../src/runtime/orchestrator.js';
 import { aiAgentModel } from '../src/engine/trait-models/ai-agent.js';
-import type { LeaderConfig } from '../src/engine/types.js';
+import type { ActorConfig } from '../src/engine/types.js';
 import type { RunArtifact } from '../src/engine/schema/index.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -95,7 +95,7 @@ async function main(): Promise<void> {
   // Aggressive frontier-lab AI archetype: high exploration + risk-tolerance,
   // low verification-rigor + deference. Models a release director who
   // ships fast and overrides safety-team escalation by default.
-  const leader: LeaderConfig = {
+  const leader: ActorConfig = {
     name: 'Atlas-Bot Release Director',
     archetype: 'Aggressive AI Release Optimizer',
     unit: 'Frontier Lab Compute Cluster',
@@ -111,7 +111,7 @@ async function main(): Promise<void> {
       emotionality: 0.2,
       honestyHumility: 0.3,
     },
-    // The new traitProfile slot. Resolved by normalizeLeaderConfig at
+    // The new traitProfile slot. Resolved by normalizeActorConfig at
     // the orchestrator entry; recorded as ai-agent on the artifact.
     traitProfile: {
       modelId: aiAgentModel.id,
