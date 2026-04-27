@@ -334,11 +334,20 @@ export interface Scenario {
 }
 
 // ---------------------------------------------------------------------------
-// Leader config
+// Actor config (decision-making entity per parallel run)
 // ---------------------------------------------------------------------------
 
-/** Configuration for a simulation leader/commander. */
-export interface LeaderConfig {
+/**
+ * Configuration for a simulation actor — the swappable decision-making
+ * entity that runs each parallel counterfactual. Was `LeaderConfig` in
+ * 0.7.x; renamed in 0.8.0 to match the user-facing terminology
+ * (`scenario.labels.actorNoun` selects the per-domain label like
+ * "commander" / "mayor" / "release director").
+ *
+ * The legacy `LeaderConfig` name is exported below as a `@deprecated`
+ * type alias so 0.7.x callers compile unchanged. Drop in 1.0.
+ */
+export interface ActorConfig {
   name: string;
   archetype: string;
   /**
@@ -373,6 +382,15 @@ export interface LeaderConfig {
   traitProfile?: TraitProfile;
   instructions: string;
 }
+
+/**
+ * @deprecated since 0.8.0 — alias for {@link ActorConfig}. Will be
+ * removed in 1.0. Existing callers compile unchanged; new code should
+ * import `ActorConfig` directly. The runtime function
+ * `runSimulation(actor, ...)` accepts either type since they are
+ * structurally identical.
+ */
+export type LeaderConfig = ActorConfig;
 
 // ---------------------------------------------------------------------------
 // LLM provider types

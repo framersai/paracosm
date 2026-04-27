@@ -20,7 +20,7 @@
  * @module paracosm/engine/trait-models/normalize-leader
  */
 
-import type { LeaderConfig } from '../types.js';
+import type { ActorConfig, LeaderConfig } from '../types.js';
 import type { HexacoProfile } from '../core/state.js';
 import type { TraitModel, TraitProfile, TraitModelRegistry } from './index.js';
 import { traitModelRegistry, withDefaults } from './index.js';
@@ -38,9 +38,25 @@ import './builtins.js';
  * cue translation, drift, and prompt builders never have to handle
  * the missing-traitProfile branch.
  */
-export interface NormalizedLeaderConfig extends LeaderConfig {
+/**
+ * A LeaderConfig where `traitProfile` is guaranteed populated and
+ * filled with the model's defaults for any omitted axis. The runtime
+ * passes this shape downstream instead of the raw LeaderConfig so
+ * cue translation, drift, and prompt builders never have to handle
+ * the missing-traitProfile branch.
+ *
+ * Renamed from `NormalizedLeaderConfig` in 0.8.0; the legacy name is
+ * preserved as a deprecated alias below.
+ */
+export interface NormalizedActorConfig extends ActorConfig {
   traitProfile: TraitProfile;
 }
+
+/**
+ * @deprecated since 0.8.0 — alias for {@link NormalizedActorConfig}.
+ * Removed in 1.0.
+ */
+export type NormalizedLeaderConfig = NormalizedActorConfig;
 
 export interface NormalizeOptions {
   /**
@@ -56,10 +72,14 @@ export interface NormalizeOptions {
  * fill omissions). Throws `UnknownTraitModelError` when
  * `traitProfile.modelId` references an unregistered model.
  */
-export function normalizeLeaderConfig(
-  leader: LeaderConfig,
+/**
+ * Normalize an actor config. Renamed from `normalizeLeaderConfig` in
+ * 0.8.0; the legacy name is re-exported below as a deprecated alias.
+ */
+export function normalizeActorConfig(
+  leader: ActorConfig,
   options: NormalizeOptions = {},
-): NormalizedLeaderConfig {
+): NormalizedActorConfig {
   const registry = options.registry ?? traitModelRegistry;
 
   // Path 1: leader supplied a traitProfile explicitly.
@@ -108,6 +128,12 @@ export function normalizeLeaderConfig(
     traitProfile: { modelId: 'hexaco', traits },
   };
 }
+
+/**
+ * @deprecated since 0.8.0 — alias for {@link normalizeActorConfig}.
+ * Removed in 1.0.
+ */
+export const normalizeLeaderConfig = normalizeActorConfig;
 
 /**
  * Translate a HexacoProfile into the trait map the registered hexaco

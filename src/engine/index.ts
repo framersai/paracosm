@@ -37,11 +37,18 @@ export {
   driftLeaderProfile,
 } from './trait-models/drift.js';
 export {
+  normalizeActorConfig,
+  /** @deprecated since 0.8.0 — alias for normalizeActorConfig. Removed in 1.0. */
   normalizeLeaderConfig,
   hexacoToTraits,
   traitsToHexaco,
 } from './trait-models/normalize-leader.js';
-export type { NormalizedLeaderConfig, NormalizeOptions } from './trait-models/normalize-leader.js';
+export type {
+  NormalizedActorConfig,
+  /** @deprecated since 0.8.0 — alias for NormalizedActorConfig. */
+  NormalizedLeaderConfig,
+  NormalizeOptions,
+} from './trait-models/normalize-leader.js';
 
 // Type system
 export type {
@@ -91,7 +98,17 @@ export type {
 export type { KeyPersonnel } from './core/agent-generator.js';
 export type { SystemsPatch, PolicyEffect, SimulationInitOverrides } from './core/kernel.js';
 export type { HexacoSnapshot, LifeEvent } from './core/state.js';
-export type { LeaderConfig, LlmProvider, SimulationModelConfig, Scenario, EventOptionDef, MilestoneEventDef, TurnOutcomeType } from './types.js';
+export type {
+  ActorConfig,
+  /** @deprecated since 0.8.0 — alias for ActorConfig. Removed in 1.0. */
+  LeaderConfig,
+  LlmProvider,
+  SimulationModelConfig,
+  Scenario,
+  EventOptionDef,
+  MilestoneEventDef,
+  TurnOutcomeType,
+} from './types.js';
 
 // Registry types
 export type { ScenarioMetric } from './mars/metrics.js';
