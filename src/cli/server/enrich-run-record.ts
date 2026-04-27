@@ -18,6 +18,7 @@
  */
 import type { RunRecord } from './run-record.js';
 import type { RunArtifact } from '../../engine/schema/index.js';
+import { extractSummaryTrajectory } from './run-summary-trajectory.js';
 
 export function enrichRunRecordFromArtifact(base: RunRecord, artifact: RunArtifact): RunRecord {
   const ext = artifact.scenarioExtensions as { outputPath?: string } | undefined;
@@ -40,6 +41,11 @@ export function enrichRunRecordFromArtifact(base: RunRecord, artifact: RunArtifa
   }
   if (leader?.name) enriched.leaderName = leader.name;
   if (leader?.archetype) enriched.leaderArchetype = leader.archetype;
+
+  // Sample 8 trajectory points for the Compare view's cell sparkline so
+  // the SmallMultiplesGrid can render without fetching the full artifact.
+  const summary = extractSummaryTrajectory(artifact, 8);
+  if (summary.length > 0) enriched.summaryTrajectory = summary;
 
   return enriched;
 }

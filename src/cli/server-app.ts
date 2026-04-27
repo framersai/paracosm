@@ -1756,6 +1756,14 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         // captures artifact-derived fields (artifactPath, costUSD,
         // durationMs, mode, leaderName, leaderArchetype) which the Library
         // tab needs to render gallery cards and to load full artifacts.
+        // Generate a bundleId once per /setup invocation when the run
+        // is a multi-leader batch. Every per-artifact RunRecord then
+        // shares the same bundleId so the LIBRARY can collapse them
+        // into one card and the CompareModal can fetch them in one
+        // query. Solo runs (1 leader) leave bundleId undefined and
+        // render as solo cards exactly as today.
+        const { generateBundleId } = await import('./server/bundle-id.js');
+        const bundleId = simConfig.leaders.length >= 2 ? generateBundleId() : undefined;
         const runRecord = createRunRecord({
           scenarioId: activeScenario.id,
           scenarioVersion: activeScenario.version,
@@ -1767,6 +1775,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
           economicsProfile: simConfig.economics.id,
           sourceMode: serverMode,
           createdBy: hasUserKeys ? 'user' : 'anonymous',
+          bundleId,
         });
         // Insert a per-artifact RunRecord at run-end: the runner fires
         // `onArtifact` for each completed leader, we enrich the base
