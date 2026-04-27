@@ -85,7 +85,7 @@
     "@framers/agentos": "^0.5.2",
     "@framers/sql-storage-adapter": "^0.6.3",
     "better-sqlite3": "^12.9.0",
-    "pdfjs-dist": "^4.10.38",
+    "pdfjs-dist": "^5.7.284",
     "zod": "^4.3.6"
   },
   "devDependencies": {
