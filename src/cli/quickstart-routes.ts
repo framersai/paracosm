@@ -26,11 +26,17 @@ const CompileFromSeedSchema = z.object({
   seedText: z.string().min(200).max(50_000),
   domainHint: z.string().max(80).optional(),
   sourceUrl: z.string().url().max(2048).optional(),
+  // Number of parallel actors to generate + run. Default 3; max 50.
+  // Threaded into generate-leaders + the subsequent /setup batch path.
+  // The compiler ignores it; only the dashboard reads it back.
+  actorCount: z.number().int().min(1).max(50).optional(),
 });
 
 const GenerateLeadersSchema = z.object({
   scenarioId: z.string().min(3).max(64),
-  count: z.number().int().min(2).max(6).default(3),
+  // Max 50 actors per bundle. Each actor is ~$0.30 LLM spend; the
+  // SeedInput cost preview surfaces this so users opt in consciously.
+  count: z.number().int().min(2).max(50).default(3),
 });
 
 export interface QuickstartDeps {
