@@ -1,0 +1,55 @@
+.strip {
+  display: grid;
+  grid-template-columns: 110px 130px 150px 1fr;
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.tile, .overlayTile {
+  background: var(--bg-card);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  padding: 0.7rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.overlayTile { padding: 0.55rem 0.85rem; }
+
+.tileLabel {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-3);
+  text-transform: uppercase;
+}
+
+.tileValue {
+  font-family: var(--mono);
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--amber);
+}
+
+.tileEmpty {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--text-3);
+}
+
+.overlay {
+  width: 100%;
+  height: 60px;
+  display: block;
+}
+
+@media (max-width: 900px) {
+  .strip {
+    grid-template-columns: 1fr 1fr;
+  }
+  .overlayTile {
+    grid-column: 1 / -1;
+  }
+}
