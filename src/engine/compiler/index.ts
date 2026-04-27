@@ -328,8 +328,19 @@ export async function compileScenario(
       ? [{ id: 'category_effects', type: 'category_outcome', label: 'Category Outcome Effects', categoryDefaults: json.effects }]
       : [];
 
-  // Build UI definition
+  // Build UI definition. ScenarioUiDefinition has six required fields
+  // (engine/types.ts:173); spreading `json.ui ?? {}` alone leaves any
+  // omitted field undefined, which crashes downstream consumers (the
+  // dashboard's REPORTS tab does `for (const x of ui.reportSections)`
+  // and unmounts the tab bar on undefined). Default each field to a
+  // benign value so any `compileScenario` caller — including the
+  // schema-light `compileFromSeed` path — gets a consumable shape.
   const ui = {
+    headerMetrics: [] as Array<{ id: string; format: 'number' | 'percent' | 'currency' | 'duration' }>,
+    tooltipFields: [] as string[],
+    reportSections: ['crisis', 'departments', 'decision', 'outcome'] as Array<'crisis' | 'departments' | 'decision' | 'outcome' | 'quotes' | 'causality'>,
+    departmentIcons: {} as Record<string, string>,
+    setupSections: ['leaders', 'departments', 'models'] as Array<'leaders' | 'personnel' | 'resources' | 'departments' | 'events' | 'models' | 'advanced'>,
     ...(json.ui ?? {}),
     eventRenderers: Object.fromEntries(
       (json.events ?? []).map((e: any) => [e.id, { icon: e.icon, color: e.color }])

@@ -84,9 +84,16 @@ function isEventReportSection(value: ScenarioReportSection): value is EventRepor
   return value !== 'quotes';
 }
 
-function uniqueSections(sections: string[]): ScenarioReportSection[] {
+function uniqueSections(sections: string[] | undefined | null): ScenarioReportSection[] {
   const deduped: ScenarioReportSection[] = [];
-  for (const section of sections) {
+  // Defensive default. ScenarioPackage.ui.reportSections is typed as
+  // required, but the compiler's index.ts:332 spread (`...(json.ui ?? {})`)
+  // can produce a `ui` without `reportSections` when the seed draft
+  // lacks one. Without this guard the for-of throws "is not iterable"
+  // inside the REPORTS useMemo, the whole REPORTS tab unmounts via the
+  // root error path, and the dashboard's tab bar disappears with it.
+  // Compiler is being fixed in parallel; this stays as defense in depth.
+  for (const section of sections ?? []) {
     if (!isScenarioReportSection(section) || deduped.includes(section)) continue;
     deduped.push(section);
   }

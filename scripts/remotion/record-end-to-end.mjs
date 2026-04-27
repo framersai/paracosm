@@ -42,7 +42,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const OUT_NAME = process.argv[2] || 'e2e-atlas-7';
 const HOST = process.argv[3] || 'https://paracosm.agentos.sh';
-const DURATION_SECONDS = parseInt(process.argv[4] || '210', 10);
+// `DURATION_SECONDS` is now informational only -- the recorder runs
+// until the Quickstart results region appears, plus a fixed 35s tab
+// tour. Kept on the CLI for back-compat with prior callers; ignored
+// internally.
+const DURATION_SECONDS = parseInt(process.argv[4] || '420', 10);
+void DURATION_SECONDS;
 const HEADED = process.env.E2E_HEADED === '1';
 const KEEP_WEBM = process.env.E2E_KEEP_WEBM === '1';
 
@@ -72,12 +77,17 @@ page.on('console', (m) => {
   if (t.includes('[error]') || m.type() === 'error') console.log(`  [browser ${m.type()}]`, t.slice(0, 240));
 });
 
-// Pre-seed localStorage so the onboarding tour does not block the
-// quickstart form on first load. Mirrors record-sim.mjs.
+// Pre-seed the tour-seen flag so the onboarding tour does not auto-
+// start. Without this, App.tsx fires `setActiveTab('sim')` 600ms
+// after mount on the quickstart tab, clobbering the form we want to
+// fill. The exact key is `paracosm:tourSeen=1` (App.tsx:309); the
+// other keys are belt-and-suspenders for older builds and
+// dev-only test harnesses.
 await page.addInitScript(() => {
   try {
-    const keys = ['paracosm.tour.seen', 'tour.seen', 'tour-completed', 'paracosm.onboarding.dismissed'];
-    keys.forEach(k => localStorage.setItem(k, 'true'));
+    localStorage.setItem('paracosm:tourSeen', '1');
+    const legacy = ['paracosm.tour.seen', 'tour.seen', 'tour-completed', 'paracosm.onboarding.dismissed'];
+    legacy.forEach(k => localStorage.setItem(k, 'true'));
   } catch {}
 });
 
@@ -130,38 +140,48 @@ const submit = page.locator('button', { hasText: /Generate \+ Run/i }).first();
 await submit.waitFor({ state: 'visible', timeout: 4000 });
 await submit.click();
 
-// ── 2. COMPILE WAIT ─────────────────────────────────────────────────────
-// Compile + scenario hooks generation runs $0.10 of LLM calls; takes
-// 30-90s on prod depending on the model and seed-search settings. We
-// wait for the URL to flip to ?tab=sim, which the dashboard does as
-// soon as the runtime kicks in. Hard cap at 180s so a stuck compile
-// doesn't hang the recorder forever.
-console.log('[e2e] waiting for ?tab=sim (compile + run start)');
-const COMPILE_TIMEOUT_MS = 180_000;
+// ── 2. COMPILE + RUN WAIT ──────────────────────────────────────────────
+// Quickstart runs the compile + ground-with-citations + leader generation
+// + 3 parallel sims inside the QuickstartView -- it never redirects the
+// URL to ?tab=sim. The progress UI walks 4 steps to checkmark, then
+// flips to a results region (`<div role="region" aria-label="Quickstart
+// results">`) when all artifacts have arrived (QuickstartView.tsx:106).
+//
+// We wait for that results region to appear so the tab tour below
+// shows the just-completed Atlas-7 run instead of a stale cached run.
+// Total wait covers compile (~60s) + grounding + leader gen + 3 sims
+// of N turns; ~5-7 min on default 6-turn scenarios with gpt-5.4-mini.
+console.log('[e2e] waiting for Quickstart results region (full run done)');
+const RUN_TIMEOUT_MS = 600_000;            // 10 min hard cap
 const compileStarted = Date.now();
+let runCompleted = false;
 try {
-  await page.waitForURL(/[?&]tab=sim(?:&|$)/, { timeout: COMPILE_TIMEOUT_MS });
-  console.log(`[e2e] sim tab activated after ${((Date.now() - compileStarted) / 1000).toFixed(1)}s`);
+  await page.waitForSelector('[role="region"][aria-label="Quickstart results"]', {
+    state: 'visible',
+    timeout: RUN_TIMEOUT_MS,
+  });
+  runCompleted = true;
+  console.log(`[e2e] run finished after ${((Date.now() - compileStarted) / 1000).toFixed(1)}s`);
 } catch {
-  console.log('[e2e] compile did not finish within timeout -- continuing with whatever is on screen');
+  console.log('[e2e] run did not complete within timeout -- recording whatever is on screen');
 }
-await page.waitForTimeout(1500);
+// Hold the results card briefly so the verdict + leader fingerprint are
+// visible in the recording before we tab-tour onto extras.
+const RESULTS_HOLD_S = runCompleted ? 8 : 0;
+if (RESULTS_HOLD_S > 0) {
+  console.log(`[e2e] hold Quickstart results for ${RESULTS_HOLD_S}s`);
+  await page.waitForTimeout(RESULTS_HOLD_S * 1000);
+}
 
-// ── 3-4. SIM + VIZ TAB TOUR ─────────────────────────────────────────────
-// Recording continues across all of these. Total budget is the leftover
-// of DURATION_SECONDS minus the prompt+compile time we already spent.
-const elapsedSeconds = (Date.now() - compileStarted) / 1000;
-const remaining = Math.max(60, DURATION_SECONDS - Math.floor(elapsedSeconds) - 12);
-console.log(`[e2e] sim+viz+reports+library tour: ${remaining}s of remaining budget`);
-
-const SIM_HOLD_S = Math.max(20, Math.floor(remaining * 0.55));
+// ── 3-4. VIZ / REPORTS / LIBRARY TAB TOUR ─────────────────────────────
+// With the Atlas-7 run installed in the runs database (the results
+// region appearing implies artifacts in `sse.results` and a backing
+// RunRecord), tab-switching now shows real Atlas-7 state instead of
+// whatever cached run was last on screen.
 const VIZ_HOLD_S = 10;
 const REPORTS_HOLD_S = 10;
 const LIBRARY_HOLD_S = 6;
 const DRAWER_HOLD_S = 8;
-
-console.log(`[e2e] hold SIM tab for ${SIM_HOLD_S}s`);
-await page.waitForTimeout(SIM_HOLD_S * 1000);
 
 async function clickTab(id) {
   const ok = await page.evaluate((tid) => {
