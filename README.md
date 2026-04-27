@@ -27,13 +27,13 @@
 
 ## What paracosm is
 
-Paracosm starts from a prompt, brief, URL, or hand-written scenario draft; every path compiles down to an LLM-readable world contract before simulation. The durable contract is still JSON: a typed `ScenarioPackage` with five state bags, labels, departments, metrics, setup defaults, and generated hooks. A leader with a HEXACO personality profile runs that world. A deterministic kernel drives state, time, and randomness. An LLM generates events, specialist analyses, and the leader's decisions. Specialists can forge new computational tools at runtime inside a V8 sandbox; an LLM judge approves each forge before it enters the decision pipeline. The kernel applies consequences. Personality traits drift. One turn ends, the next begins.
+Paracosm starts from a prompt, brief, URL, or hand-written scenario draft; every path compiles down to an LLM-readable world contract before simulation. The durable contract is still JSON: a typed `ScenarioPackage` with five state bags, labels, departments, metrics, setup defaults, and generated hooks. An actor with a HEXACO personality profile runs that world. A deterministic kernel drives state, time, and randomness. An LLM generates events, specialist analyses, and the actor's decisions. Specialists can forge new computational tools at runtime inside a V8 sandbox; an LLM judge approves each forge before it enters the decision pipeline. The kernel applies consequences. Personality traits drift. One turn ends, the next begins.
 
 **JSON is the contract, not the product boundary.** Today, `compileScenario()` accepts a scenario JSON draft and can ground it with `seedText` or `seedUrl`. The next API layer should be a one-call prompt/document wrapper that asks an LLM to propose that same JSON contract, validates it, then compiles and runs it. It should not bypass the schema, the kernel, or the artifact.
 
-**Same seed. Different leader. Different world.**
+**Same seed. Different actor. Different world.**
 
-Two runs against an identical seed, starting from the same compiled world contract, produce measurably divergent trajectories when you swap one variable: the leader's personality. The kernel's side is reproducible. The divergence comes from the LLM stages reading HEXACO profiles and deciding differently. That structural contrast is the product.
+Two runs against an identical seed, starting from the same compiled world contract, produce measurably divergent trajectories when you swap one variable: the actor's personality. The kernel's side is reproducible. The divergence comes from the LLM stages reading HEXACO profiles and deciding differently. That structural contrast is the product.
 
 Paracosm is a **structured world model** in the sense of [Xing 2025](https://arxiv.org/abs/2507.05169) and the [ACM CSUR 2025 world-model survey](https://dl.acm.org/doi/full/10.1145/3746449): a simulator for *actionable possibilities*, not a video generator. It is also a **counterfactual world simulation model** ([Kirfel et al, 2025](https://link.springer.com/article/10.1007/s43681-025-00718-4)): a substrate for replaying an event with one variable changed and surfacing the effect. The closest LLM-world-model implementation anchor is [Yang et al, 2026](https://openreview.net/forum?id=XmYCERErcD), which evaluates LLM-based world models through policy verification, action proposal, and policy planning. Paracosm takes the safe product version of that idea: externalize the world into schema, citations, tools, snapshots, and seeded transitions, then let the LLM reason over that structure. Full taxonomy mapping in [`docs/positioning/world-model-mapping.md`](docs/positioning/world-model-mapping.md).
 
@@ -42,14 +42,14 @@ Paracosm is a **structured world model** in the sense of [Xing 2025](https://arx
 - **Not a generative visual world model.** Sora, Genie 3, and World Labs Marble produce pixels or 3D scenes. Paracosm produces a structured `RunArtifact`: metrics, decisions, specialist notes, citations, forged tool summaries.
 - **Not a JEPA-style predictive-representation model.** LeCun's AMI Labs trains neural representations from sensor streams. Paracosm composes a kernel with an LLM reasoner; no training pipeline.
 - **Not a multi-agent task orchestration framework.** LangGraph, AutoGen, CrewAI, OpenAI Agents SDK, Google ADK all build agentic workflows that execute real tasks. Paracosm is a simulation; nothing leaves the run.
-- **Not a bottom-up swarm intelligence simulator.** MiroFish and OASIS simulate thousands to a million emergent agents for aggregate prediction. Paracosm is top-down (one leader decides), runs ~100 agents by design, and outputs a deterministic trajectory plus divergence across leaders.
+- **Not a bottom-up swarm intelligence simulator.** MiroFish and OASIS simulate thousands to a million emergent agents for aggregate prediction. Paracosm is top-down (one actor decides), runs ~100 agents by design, and outputs a deterministic trajectory plus divergence across actors.
 - **Not a generative-agents library.** Stanford Generative Agents (Smallville) and Google DeepMind Concordia build emergent social simulacra in open-ended sandboxes. Paracosm ships a deterministic turn loop, personality drift, runtime tool forging, and a universal result schema.
 
-Leaders can be colony commanders, CEOs, generals, ship captains, department heads, AI systems, governing councils, or any entity that receives information, evaluates options, and makes choices that shape the world. The simulation does not care what they represent. It cares how they decide.
+Actors can be colony commanders, CEOs, generals, ship captains, department heads, AI systems, governing councils, or any entity that receives information, evaluates options, and makes choices that shape the world. The simulation does not care what they represent. It cares how they decide.
 
 ### Counterfactual simulations with `WorldModel.fork()`
 
-The CWSM positioning is operationalized through `WorldModel.fork()`: run a simulation with snapshots enabled, then branch at any past turn with a different leader or seed, and compare. On resumed runs, `maxTurns` remains the absolute final turn index. To run three additional turns from turn 3, pass `maxTurns: 6`.
+The CWSM positioning is operationalized through `WorldModel.fork()`: run a simulation with snapshots enabled, then branch at any past turn with a different actor or seed, and compare. On resumed runs, `maxTurns` remains the absolute final turn index. To run three additional turns from turn 3, pass `maxTurns: 6`.
 
 ```typescript
 import { WorldModel } from 'paracosm/world-model';
@@ -58,14 +58,14 @@ import worldJson from './my-world.json' with { type: 'json' };
 const wm = await WorldModel.fromJson(worldJson);
 
 // Run the trunk with per-turn snapshots captured.
-const trunk = await wm.simulate(visionaryLeader, {
+const trunk = await wm.simulate(visionaryActor, {
   maxTurns: 6, seed: 42, captureSnapshots: true,
 });
 
-// Branch at turn 3 with a different leader. No re-compute of turns 1-3;
+// Branch at turn 3 with a different actor. No re-compute of turns 1-3;
 // the forked kernel resumes from the captured state.
 const branch = await (await wm.forkFromArtifact(trunk, 3)).simulate(
-  pragmatistLeader,
+  pragmatistActor,
   { maxTurns: 6, seed: 42 },
 );
 
@@ -76,7 +76,7 @@ console.log(trunk.fingerprint, branch.fingerprint); // divergent futures from th
 
 The kernel round-trips through `JSON.stringify`, so snapshots persist to disk cleanly for later replay or audit. `captureSnapshots` defaults to `false` to keep normal artifacts lean; set it when you want fork capability.
 
-The paracosm dashboard exposes the same mechanism end-to-end. Every UI-initiated run captures snapshots by default, so the Reports tab shows a `↳ Fork at {Time} N` button on each completed turn. Clicking it opens a fork modal (leader override, optional seed, optional custom events), POSTs to `/setup` with the full parent artifact, and routes the user to a new **Branches** tab where all forks launched from the current parent accumulate as cards with per-metric deltas rendered live as each branch streams to completion.
+The paracosm dashboard exposes the same mechanism end-to-end. Every UI-initiated run captures snapshots by default, so the Reports tab shows a `↳ Fork at {Time} N` button on each completed turn. Clicking it opens a fork modal (actor override, optional seed, optional custom events), POSTs to `/setup` with the full parent artifact, and routes the user to a new **Branches** tab where all forks launched from the current parent accumulate as cards with per-metric deltas rendered live as each branch streams to completion.
 
 ### Replay any run for audit
 
@@ -94,14 +94,14 @@ The kernel's between-turn progression hook re-runs deterministically from each r
 import { DigitalTwin, type SubjectConfig, type InterventionConfig } from 'paracosm/digital-twin';
 
 const twin = await DigitalTwin.fromJson(scenarioJson);
-const artifact = await twin.simulateIntervention(subject, intervention, leader);
+const artifact = await twin.simulateIntervention(subject, intervention, actor);
 ```
 
 `DigitalTwin` is an alias of `WorldModel`; the subpath names the use case in the import path. The new `simulateIntervention()` sugar populates `RunArtifact.subject` and `RunArtifact.intervention` for traceability.
 
 ### Quickstart: prompt or document to running simulation
 
-`WorldModel.fromPrompt` compiles a scenario from seed source material (paste, URL, or extracted PDF text), then `wm.quickstart` generates N contextual HEXACO leaders and runs them in parallel. Every prompt/document path validates against `DraftScenarioSchema` and routes into the existing `compileScenario` pipeline: the canonical `ScenarioPackage` contract is never bypassed.
+`WorldModel.fromPrompt` compiles a scenario from seed source material (paste, URL, or extracted PDF text), then `wm.quickstart` generates N contextual HEXACO actors and runs them in parallel. Every prompt/document path validates against `DraftScenarioSchema` and routes into the existing `compileScenario` pipeline: the canonical `ScenarioPackage` contract is never bypassed.
 
 ```typescript
 import { WorldModel } from 'paracosm/world-model';
@@ -111,11 +111,11 @@ const wm = await WorldModel.fromPrompt({
   domainHint: 'corporate strategic decision',
 });
 
-const { leaders, artifacts } = await wm.quickstart({ leaderCount: 3 });
-artifacts.forEach((a, i) => console.log(leaders[i].name, a.fingerprint));
+const { actors, artifacts } = await wm.quickstart({ actorCount: 3 });
+artifacts.forEach((a, i) => console.log(actors[i].name, a.fingerprint));
 ```
 
-In the dashboard, the Quickstart tab is the default landing view. A user pastes a brief (or drops a PDF, or supplies a URL) and receives three streaming-live leaders plus per-card Download JSON, Copy shareable link, and Fork-in-Branches actions within a minute of first click. A curated library of 10 HEXACO archetypes is exported at `paracosm/leader-presets` for programmatic `runBatch` sweeps or Swap-leader controls in downstream UIs.
+In the dashboard, the Quickstart tab is the default landing view. A user pastes a brief (or drops a PDF, or supplies a URL) and receives three streaming-live actors plus per-card Download JSON, Copy shareable link, and Fork-in-Branches actions within a minute of first click. A curated library of 10 HEXACO archetypes is exported at `paracosm/leader-presets` for programmatic `runBatch` sweeps or Swap-actor controls in downstream UIs.
 
 ## Install
 
@@ -140,7 +140,7 @@ If you omit `labels`, Paracosm falls back to `"colonists"` /
 feel sharper when you pick your own. "Colony" is the default because
 it's narratively richer than a neutral "group" / "unit" while still
 translating to Mars habitats, medieval holds, corporate teams, or any
-bounded collective under a leader's decisions.
+bounded collective under an actor's decisions.
 
 ```json
 {
@@ -215,11 +215,11 @@ const scenario = await compileScenario(worldJson, {
   model: 'claude-sonnet-4-6',
 });
 
-// Define leaders with HEXACO personality profiles.
-// Leaders can be any top-down decision maker: commander, CEO, general,
+// Define actors with HEXACO personality profiles.
+// Actors can be any top-down decision maker: commander, CEO, general,
 // governing council, AI system, department head. The engine doesn't care
 // what they represent, only how their personality shapes decisions.
-const leaders = [
+const actors = [
   {
     name: 'Captain Reyes',
     archetype: 'The Pragmatist',
@@ -242,8 +242,8 @@ const leaders = [
 
 // Run in parallel: same seed, same crises, different outcomes
 const results = await Promise.all(
-  leaders.map(leader =>
-    runSimulation(leader, [], {
+  actors.map(actor =>
+    runSimulation(actor, [], {
       scenario,
       maxTurns: 6,
       seed: 42,
@@ -256,7 +256,7 @@ const results = await Promise.all(
       //   if (e.type === 'event_start') e.data.title          // string
       //   if (e.type === 'outcome')     e.data.systemDeltas   // Record<string,number>
       //   if (e.type === 'forge_attempt') e.data.approved     // boolean
-      onEvent(e) { console.log(leader.name, e.type, e.data.summary); },
+      onEvent(e) { console.log(actor.name, e.type, e.data.summary); },
     })
   )
 );
@@ -275,7 +275,7 @@ for (const r of results) {
 }
 ```
 
-Each call to `runSimulation` takes one leader. Run one, two, or twenty. The dashboard runs two side-by-side for comparison, but the API has no limit. Leaders don't need to be people. They can model competing strategies, policy frameworks, organizational philosophies, or autonomous systems responding to the same events with different decision profiles.
+Each call to `runSimulation` takes one actor. Run one, two, or twenty. The dashboard runs two side-by-side for comparison, but the API has no limit. Actors don't need to be people. They can model competing strategies, policy frameworks, organizational philosophies, or autonomous systems responding to the same events with different decision profiles.
 
 ### The universal result contract
 
@@ -285,7 +285,7 @@ Every simulation returns a `RunArtifact`: one universal Zod-validated shape expo
 import { RunArtifactSchema, type RunArtifact } from 'paracosm/schema';
 import { runSimulation } from 'paracosm/runtime';
 
-const artifact: RunArtifact = await runSimulation(leader, [], { scenario, maxTurns: 6 });
+const artifact: RunArtifact = await runSimulation(actor, [], { scenario, maxTurns: 6 });
 
 // Optional runtime validation (dev mode, untrusted JSON, replays, etc.):
 const parsed = RunArtifactSchema.parse(artifact);
@@ -331,7 +331,7 @@ const intervention: InterventionConfig = InterventionConfigSchema.parse({
   adherenceProfile: { expected: 0.7 },
 });
 
-const artifact = await runSimulation(leader, [], { scenario, maxTurns: 6, subject, intervention });
+const artifact = await runSimulation(actor, [], { scenario, maxTurns: 6, subject, intervention });
 // artifact.subject + artifact.intervention carry through to any consumer
 ```
 
@@ -356,39 +356,39 @@ After `npm install paracosm -g` you get one umbrella binary with subcommands. Ev
 paracosm --help                        # lists every subcommand
 paracosm --version                     # prints "paracosm 0.7.x"
 
-paracosm run                           # run a sim against leaders.json
-paracosm run --leader 1 --turns 5      # leader index 1, 5 turns
+paracosm run                           # run a sim against actors.json
+paracosm run --actor 1 --turns 5      # actor index 1, 5 turns
 paracosm run --name "Reyes" --openness 0.85 --conscientiousness 0.4 --turns 6
-paracosm run --leaders ./my-leaders.json --live   # custom roster + live web search
+paracosm run --actors ./my-actors.json --live   # custom roster + live web search
 
 paracosm dashboard                     # SSE dashboard at http://localhost:3456
 paracosm dashboard 6                   # auto-launch with 6 turns
 
 paracosm compile scenarios/lunar.json --seed-url <url> --max-searches 5
 
-paracosm init my-app --domain "Submarine crew of 8" --leaders 3
+paracosm init my-app --domain "Submarine crew of 8" --actors 3
 ```
 
 A second back-compat binary `paracosm-dashboard` is shipped as an alias for `paracosm dashboard` so existing scripts and Docker invocations don't break.
 
-The CLI looks for `leaders.json` in this order:
+The CLI looks for `actors.json` in this order:
 
-1. `--leaders <path>` flag (explicit)
-2. `./leaders.json` in your current directory
-3. `./config/leaders.json` in your current directory
-4. A bundled `config/leaders.example.json` (so commands work out of the box)
+1. `--actors <path>` flag (explicit)
+2. `./actors.json` in your current directory
+3. `./config/actors.json` in your current directory
+4. A bundled `config/actors.example.json` (so commands work out of the box)
 
 Copy the example to start customizing:
 
 ```bash
 # Option 1: in your project root
-cp node_modules/paracosm/config/leaders.example.json leaders.json
+cp node_modules/paracosm/config/actors.example.json actors.json
 
 # Option 2: organized in a config/ folder
-mkdir -p config && cp node_modules/paracosm/config/leaders.example.json config/leaders.json
+mkdir -p config && cp node_modules/paracosm/config/actors.example.json config/actors.json
 ```
 
-Then edit the HEXACO sliders and `instructions` fields to describe your own leaders. The simulation picks up the file on the next run.
+Then edit the HEXACO sliders and `instructions` fields to describe your own actors. The simulation picks up the file on the next run.
 
 ## Scenario Compiler
 
@@ -435,13 +435,13 @@ Running a simulation calls real LLM APIs against your key. Paracosm assigns a di
 | **`quality`** (default) | `gpt-5.4` / `claude-sonnet-4-6` | `gpt-5.4-mini` / `claude-haiku-4-5-20251001` | `gpt-5.4-nano` / `claude-haiku-4-5-20251001` | **~$1-3** | **~$3-7** |
 | **`economy`** | `gpt-4o` / `claude-sonnet-4-6` | `gpt-5.4-nano` / `claude-haiku-4-5-20251001` | `gpt-5.4-nano` / `claude-haiku-4-5-20251001` | **~$0.20-0.60** | ~$3-5 |
 
-Numbers assume 6 turns, 5 departments, 100 agents, up to 3 events per turn. An 8-turn run on OpenAI `quality` tends to land at ~$1.50-2.00 per leader. The call budget is ~10/turn (1 director + ~5 dept + 1 commander + ~3 reaction batches + 0-2 forges + 0-1 judge), and departments on flagship carry most of the cost.
+Numbers assume 6 turns, 5 departments, 100 agents, up to 3 events per turn. An 8-turn run on OpenAI `quality` tends to land at ~$1.50-2.00 per actor. The call budget is ~10/turn (1 director + ~5 dept + 1 commander + ~3 reaction batches + 0-2 forges + 0-1 judge), and departments on flagship carry most of the cost.
 
 Pick the preset explicitly for quick iteration:
 
 ```typescript
 const scenario = await compileScenario(worldJson);
-const output = await runSimulation(leader, [], {
+const output = await runSimulation(actor, [], {
   scenario,
   maxTurns: 4,              // fewer turns = linear cost reduction
   seed: 42,
@@ -472,7 +472,7 @@ curl -s -X POST http://localhost:3456/simulate \
   -H 'X-Anthropic-Key: sk-ant-...' \
   -d '{
     "scenario": { "id": "submarine-habitat", "labels": { "name": "Deep Ocean Habitat", "populationNoun": "crew", "settlementNoun": "habitat", "timeUnitNoun": "day" }, "setup": { "defaultTurns": 4, "defaultPopulation": 25, "defaultStartTime": 2040 }, "departments": [...], "metrics": [...] },
-    "leader": { "name": "Captain Reyes", "archetype": "The Pragmatist", "unit": "Deep Ocean Habitat", "hexaco": { "openness": 0.4, "conscientiousness": 0.9, "extraversion": 0.3, "agreeableness": 0.6, "emotionality": 0.5, "honestyHumility": 0.8 }, "instructions": "" },
+    "actor": { "name": "Captain Reyes", "archetype": "The Pragmatist", "unit": "Deep Ocean Habitat", "hexaco": { "openness": 0.4, "conscientiousness": 0.9, "extraversion": 0.3, "agreeableness": 0.6, "emotionality": 0.5, "honestyHumility": 0.8 }, "instructions": "" },
     "options": { "maxTurns": 4, "seed": 42, "captureSnapshots": true, "provider": "anthropic" }
   }' | jq '.artifact.fingerprint'
 ```
@@ -507,16 +507,16 @@ const client = createParacosmClient({
 });
 
 const scenario = await client.compileScenario(worldJson);
-const out = await client.runSimulation(leader, [], { maxTurns: 6, seed: 42 });
+const out = await client.runSimulation(actor, [], { maxTurns: 6, seed: 42 });
 
 // Promote one specific run to quality without touching the client:
-const gold = await client.runSimulation(leader, [], {
+const gold = await client.runSimulation(actor, [], {
   maxTurns: 8, seed: 42, costPreset: 'quality',
 });
 
 // Batch 20 ablations with shared config:
 const manifest = await client.runBatch({
-  scenarios: [scenarioA, scenarioB], leaders, turns: 6, seed: 42, maxConcurrency: 4,
+  scenarios: [scenarioA, scenarioB], actors, turns: 6, seed: 42, maxConcurrency: 4,
 });
 ```
 
@@ -551,7 +551,7 @@ const client = createParacosmClient();   // no args, pulls from env
 
 Direct `runSimulation(...)` / `runBatch(...)` / `compileScenario(...)` calls without a client are still fully supported. The client is purely additive for multi-run workflows.
 
-### Batch runner: N scenarios × M leaders
+### Batch runner: N scenarios × M actors
 
 ```typescript
 import { runBatch } from 'paracosm/runtime';
@@ -559,14 +559,14 @@ import { marsScenario, lunarScenario } from 'paracosm';
 
 const manifest = await runBatch({
   scenarios: [marsScenario, lunarScenario],
-  leaders,                // LeaderConfig[], same shape as runSimulation
+  actors,                // ActorConfig[], same shape as runSimulation
   turns: 6,
   seed: 950,
   maxConcurrency: 2,      // how many sims to run in parallel
   provider: 'anthropic',
 });
 
-// manifest.results[i] carries { scenarioId, leader, fingerprint, output, duration }
+// manifest.results[i] carries { scenarioId, actor, fingerprint, output, duration }
 // manifest.timestamp + manifest.config is a reproducible audit trail
 ```
 
@@ -592,7 +592,7 @@ The server wires this to a cancel-on-disconnect watchdog; any programmatic consu
 const ctrl = new AbortController();
 setTimeout(() => ctrl.abort(), 60_000);            // kill after 60s wall time
 
-const output = await runSimulation(leader, [], {
+const output = await runSimulation(actor, [], {
   scenario, maxTurns: 8, seed: 42,
   signal: ctrl.signal,
 });
@@ -605,7 +605,7 @@ if (output.aborted) console.log('partial result; turns completed:', output.turnA
 When you want a scripted event at a fixed turn (smoke tests, pedagogical demos, reproducing a scenario from a paper), supply `customEvents`:
 
 ```typescript
-await runSimulation(leader, [], {
+await runSimulation(actor, [], {
   scenario, maxTurns: 8, seed: 42,
   customEvents: [
     { turn: 3, title: 'Dust storm', description: 'A 72-hour planetary dust storm cuts solar output by 80%.' },
@@ -620,7 +620,7 @@ await runSimulation(leader, [], {
 import { runSimulation, ProviderKeyMissingError } from 'paracosm';
 
 try {
-  const output = await runSimulation(leader, [], { scenario, maxTurns: 8, seed: 42 });
+  const output = await runSimulation(actor, [], { scenario, maxTurns: 8, seed: 42 });
   if (output.providerError) {
     // Terminal provider failure (invalid key, quota exhausted). The run
     // aborted mid-way. turnArtifacts / finalState are partial.
@@ -681,17 +681,17 @@ The Event Director also receives the bundle's `topics` and `categories`, so its 
 
 ## Pluggable Trait Models
 
-Leaders aren't just human personalities. paracosm ships a `TraitModel` registry with two built-ins, and registering more is one call:
+Actors aren't just human personalities. paracosm ships a `TraitModel` registry with two built-ins, and registering more is one call:
 
 | Model | Axes | Use for |
 |-------|------|---------|
-| `hexaco` | openness, conscientiousness, extraversion, agreeableness, emotionality, honesty-humility | Human leaders: CEOs, captains, governors, councils, military commanders |
-| `ai-agent` | exploration, verification-rigor, deference, risk-tolerance, transparency, instruction-following | AI-system leaders: frontier-lab release directors, autonomous coordinators, alignment-eval substrates |
+| `hexaco` | openness, conscientiousness, extraversion, agreeableness, emotionality, honesty-humility | Human actors: CEOs, captains, governors, councils, military commanders |
+| `ai-agent` | exploration, verification-rigor, deference, risk-tolerance, transparency, instruction-following | AI-system actors: frontier-lab release directors, autonomous coordinators, alignment-eval substrates |
 
 ```typescript
 import { runSimulation, hexacoModel, aiAgentModel, traitModelRegistry } from 'paracosm';
 
-// Human leader (legacy hexaco field, still works)
+// Human actor (legacy hexaco field, still works)
 const captain = {
   name: 'Captain Reyes', archetype: 'Pragmatist', unit: 'Station Alpha',
   hexaco: { openness: 0.4, conscientiousness: 0.9, extraversion: 0.3,
@@ -699,7 +699,7 @@ const captain = {
   instructions: 'lead by protocol',
 };
 
-// AI-system leader (new traitProfile slot)
+// AI-system actor (new traitProfile slot)
 const releaseDirector = {
   name: 'Atlas-Bot Release Director',
   archetype: 'Aggressive AI Release Optimizer',
@@ -724,12 +724,12 @@ const releaseDirector = {
 };
 
 // Both run through the same runSimulation; the orchestrator's
-// normalizeLeaderConfig resolves either shape.
+// normalizeActorConfig resolves either shape.
 await runSimulation(captain, [], { scenario, maxTurns: 6, seed: 42 });
 await runSimulation(releaseDirector, [], { scenario, maxTurns: 6, seed: 42 });
 ```
 
-Run [`scripts/cookbook-ai-agent.ts`](scripts/cookbook-ai-agent.ts) to capture an end-to-end ai-agent run with full input + output JSON. The captured fingerprint shifts from `riskBehavior:steady` (HEXACO Dr. Sora Wen leader) to `riskBehavior:bold` (ai-agent Atlas-Bot leader) on identical scenario + seed; decision rationale clearly tracks the ai-agent profile.
+Run [`scripts/cookbook-ai-agent.ts`](scripts/cookbook-ai-agent.ts) to capture an end-to-end ai-agent run with full input + output JSON. The captured fingerprint shifts from `riskBehavior:steady` (HEXACO Dr. Sora Wen actor) to `riskBehavior:bold` (ai-agent Atlas-Bot actor) on identical scenario + seed; decision rationale clearly tracks the ai-agent profile.
 
 Full surface: [`docs/cookbook.md#pluggable-trait-models-ai-agent-end-to-end`](docs/cookbook.md). Spec: [`docs/superpowers/specs/2026-04-26-trait-model-generalization-design.md`](docs/superpowers/specs/2026-04-26-trait-model-generalization-design.md).
 
@@ -808,7 +808,7 @@ If you omit `timeUnitNoun`, paracosm falls back to `tick` / `ticks`. The built-i
 
 ### Turn 0: Promotions
 
-The commander evaluates the full agent roster and promotes department heads. Each department (Medical, Engineering, Agriculture, etc.) gets a leader chosen by the commander based on personality fit, specialization, and experience. A high-openness commander picks unconventional candidates. A high-conscientiousness commander picks by-the-book specialists.
+The commander evaluates the full agent roster and promotes department heads. Each department (Medical, Engineering, Agriculture, etc.) gets a head chosen by the commander based on personality fit, specialization, and experience. A high-openness commander picks unconventional candidates. A high-conscientiousness commander picks by-the-book specialists.
 
 This matters because promoted agents become the department analysis LLM agents for the rest of the simulation. Their personality colors every analysis they produce, which shapes the information the commander sees, which shapes decisions. The commander never directly analyzes events. They only read department reports and decide.
 
@@ -846,7 +846,7 @@ Each turn represents a configurable time period. Mars and Lunar tick in years (M
                          consolidate into long-term beliefs. Stances drift.
                          Relationships shift based on shared experiences.
 
-9. PERSONALITY DRIFT     HEXACO traits shift through leader pull, role activation,
+9. PERSONALITY DRIFT     HEXACO traits shift through actor pull, role activation,
                          and outcome reinforcement. All six traits drift
                          (openness, conscientiousness, extraversion,
                          agreeableness, emotionality, honesty-humility)
@@ -931,14 +931,14 @@ Paracosm uses [AgentOS](https://agentos.sh) for agent orchestration, LLM calls, 
 
 ## What You Can Simulate
 
-Leaders are abstract decision-making entities. The same engine handles any domain where top-down decisions shape outcomes over time:
+Actors are abstract decision-making entities. The same engine handles any domain where top-down decisions shape outcomes over time:
 
-| Domain | Leaders | Departments | Events |
+| Domain | Actors | Departments | Events |
 |--------|---------|-------------|--------|
 | **Space colonies** | Colony commanders | Medical, Engineering, Agriculture | Dust storms, water crises, first native-born generation |
 | **Corporate strategy** | CEOs, board members | Finance, Operations, R&D, Legal | Market shifts, acquisitions, regulatory changes |
 | **Military wargaming** | Theater commanders | Intelligence, Logistics, Air, Ground | Escalation, supply disruption, allied coordination |
-| **Game worlds** | Faction leaders, AI governors | Economy, Military, Diplomacy, Culture | Invasions, trade disputes, technological breakthroughs |
+| **Game worlds** | Faction actors, AI governors | Economy, Military, Diplomacy, Culture | Invasions, trade disputes, technological breakthroughs |
 | **Policy simulation** | Government agencies, councils | Healthcare, Education, Infrastructure | Pandemics, budget crises, demographic shifts |
 | **Autonomous systems** | AI decision frameworks | Sensor, Planning, Execution | Sensor failure, objective conflict, resource contention |
 
@@ -948,14 +948,14 @@ Define departments, metrics, events, and progression hooks in JSON. The engine g
 
 | | Open Source (Apache-2.0) | Hosted Dashboard (Planned) |
 |-|--------------------------|---------------------------|
-| **Leaders** | Unlimited via API. Dashboard shows 2 side-by-side. | N leaders in parallel with fleet management UI. |
+| **Actors** | Unlimited via API. Dashboard shows 2 side-by-side. | N actors in parallel with fleet management UI. |
 | **Simulations** | Sequential or self-managed parallelism. | Distributed parallelization across worker nodes. |
 | **Scenarios** | JSON + Compiler, unlimited. | Visual scenario editor, team sharing, version control. |
 | **Agent Chat** | Available after first turn completes. | Persistent agents with durable memory across sessions. |
 | **Cost** | Free forever. You provide LLM API keys. | Tiered pricing for teams, orgs, and government agencies. |
 | **Support** | Community (Discord, GitHub). | SLA, dedicated support, private deployment. |
 
-The open-source engine and library are the permanent foundation. The API (`runSimulation`, `runBatch`, `compileScenario`) supports unlimited leaders and simulations today. The dashboard demo at [paracosm.agentos.sh](https://paracosm.agentos.sh) runs two leaders side-by-side to demonstrate divergence.
+The open-source engine and library are the permanent foundation. The API (`runSimulation`, `runBatch`, `compileScenario`) supports unlimited actors and simulations today. The dashboard demo at [paracosm.agentos.sh](https://paracosm.agentos.sh) runs two actors side-by-side to demonstrate divergence.
 
 The planned hosted product targets organizations that need to run dozens or hundreds of simulations in parallel: defense agencies stress-testing doctrine, corporations modeling leadership scenarios, game studios generating divergent NPC civilizations at scale. Distributed parallelization, fleet orchestration, team workspaces, persistent storage, and enterprise auth are on the roadmap.
 
@@ -967,11 +967,11 @@ Contact [team@frame.dev](mailto:team@frame.dev) for early access or partnership.
 
 | Feature | Description |
 |---------|-------------|
-| **Fleet Orchestration** | Run 10, 50, or 100+ leaders through the same scenario in parallel. Distributed worker nodes. Aggregate comparison dashboards. |
-| **Alternate Timelines** | Fork a simulation mid-run to explore "what if" branches. Split at any turn, change leader or settings, compare divergent futures from a single decision point. |
+| **Fleet Orchestration** | Run 10, 50, or 100+ actors through the same scenario in parallel. Distributed worker nodes. Aggregate comparison dashboards. |
+| **Alternate Timelines** | Fork a simulation mid-run to explore "what if" branches. Split at any turn, change actor or settings, compare divergent futures from a single decision point. |
 | **Custom Scenario Forms** | Visual form-based scenario editor instead of raw JSON. Drag-and-drop departments, metric configuration, event category builder. |
 | **Persistent Agents** | Agent chat that persists across sessions with durable memory. Resume conversations days later with full recall. |
-| **Multi-Scenario Comparison** | Run the same leaders across different scenarios and compare how personality adapts to different domains. |
+| **Multi-Scenario Comparison** | Run the same actors across different scenarios and compare how personality adapts to different domains. |
 | **Private Deployment** | Self-hosted or cloud-managed deployment for organizations that need data sovereignty, audit trails, and compliance controls. |
 
 ## License
