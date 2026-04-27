@@ -14,6 +14,11 @@ import { marsScenario } from '../engine/mars/index.js';
 import { lunarScenario } from '../engine/lunar/index.js';
 import type { ScenarioPackage } from '../engine/types.js';
 import {
+  hasProviderCredentials,
+  normalizeCredential,
+  resolveProviderFromCredentials,
+} from '../engine/provider-credentials.js';
+import {
   describeCustomScenarioSource,
   isRunnableScenarioPackage,
   loadDiskCustomScenarios,
@@ -1032,8 +1037,17 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
             return customScenarioCatalog.get(id)?.scenario;
           },
           fetchSeedFromUrl,
-          defaultProvider: 'anthropic',
-          defaultModel: 'claude-sonnet-4-6',
+          // Default to OpenAI to match compileScenario's existing
+          // default (compiler/index.ts:162) and the codebase's
+          // default-to-openai posture. The quickstart SeedInput form
+          // does not yet collect user-supplied keys, so this default
+          // is what hosted prod hits when the user does not override.
+          // Self-hosted deployments can change this at the call site
+          // (or pass `defaultProvider` from a custom server).
+          // `inferProviderFromCredentials` still honors single-key
+          // intent when only one of OPENAI/ANTHROPIC is in env.
+          defaultProvider: 'openai',
+          defaultModel: 'gpt-5.4-mini',
         };
         if (req.url === '/api/quickstart/fetch-seed') {
           await handleFetchSeed(req, res, body, quickstartDeps);
@@ -1068,7 +1082,11 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         const body = JSON.parse(await readBody(req, maxRequestBodyBytes));
         const userApiKey = typeof req.headers['x-api-key'] === 'string' ? req.headers['x-api-key'] : undefined;
         const userAnthropicKey = typeof req.headers['x-anthropic-key'] === 'string' ? req.headers['x-anthropic-key'] : undefined;
-        const hasUserKeys = !!(userApiKey || userAnthropicKey);
+        const simulateCredentials = {
+          apiKey: normalizeCredential(userApiKey),
+          anthropicKey: normalizeCredential(userAnthropicKey),
+        };
+        const hasUserKeys = hasProviderCredentials(simulateCredentials);
         // Rate limit with BYO-key bypass, matching the /setup pattern.
         // `.check()` alone is advisory; `.record()` consumes the slot.
         if (rateLimiter && !hasUserKeys) {
@@ -1094,27 +1112,6 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         } else if (hasUserKeys) {
           console.log(`  [rate-limit] /simulate bypassed. BYO key present.`);
         }
-        // Scope user-supplied API keys into the env for the duration of
-        // the simulate call. The orchestrator's downstream LLM providers
-        // read `process.env.OPENAI_API_KEY` / `ANTHROPIC_API_KEY`; passing
-        // the keys through `RunOptions` does nothing because RunOptions
-        // does not declare those fields. Mirrors the inline `scopeKey`
-        // pattern used at the /setup handler around line 1732.
-        const simulateEnvSnapshot: Array<[string, string | undefined]> = [];
-        const scopeSimulateKey = (envName: string, userValue: string | undefined) => {
-          if (!userValue || userValue.includes('...')) return;
-          simulateEnvSnapshot.push([envName, env[envName]]);
-          env[envName] = userValue;
-        };
-        scopeSimulateKey('OPENAI_API_KEY', userApiKey);
-        scopeSimulateKey('ANTHROPIC_API_KEY', userAnthropicKey);
-        const restoreSimulateEnv = () => {
-          for (const [name, prior] of simulateEnvSnapshot) {
-            if (prior === undefined) delete env[name];
-            else env[name] = prior;
-          }
-        };
-
         const deps: SimulateDeps = {
           compileScenario: (raw, opts) => {
             const userCompile = options.compileScenario;
@@ -1126,11 +1123,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
             return runSimulation(leader, keyPersonnel, runOpts);
           },
         };
-        try {
-          await handleSimulate(req, res, body, deps);
-        } finally {
-          restoreSimulateEnv();
-        }
+        await handleSimulate(req, res, body, deps, simulateCredentials);
       } catch (err) {
         writeJsonError(res, err);
       }
@@ -1147,6 +1140,10 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
           res.end(JSON.stringify({ error: 'scenario JSON object required' }));
           return;
         }
+        const compileCredentials = {
+          apiKey: normalizeCredential(apiKey),
+          anthropicKey: normalizeCredential(anthropicKey),
+        };
 
         // Rate-limit compile against its own daily bucket. Each compile
         // costs ~$0.10 against the host's API key, so even 10 uncontrolled
@@ -1154,7 +1151,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         // billing the host: either a session key was supplied, or the
         // server is in local mode (PARACOSM_HOSTED_DEMO unset) where
         // env keys belong to the operator.
-        const userSuppliedKey = !!(apiKey || anthropicKey);
+        const userSuppliedKey = hasProviderCredentials(compileCredentials);
         const isHostedDemoCompile = serverMode === 'hosted_demo';
         const hostBilled = !userSuppliedKey && isHostedDemoCompile;
         if (rateLimiter && hostBilled) {
@@ -1178,27 +1175,8 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
           console.log(`  [rate-limit] /compile ${ip}: ${remaining} remaining of ${limit}`);
         }
 
-        // Apply user-supplied keys to env for this request so downstream
-        // LLM calls route to the user's account, not the host's. Keys are
-        // snapshotted + restored after the compile completes so they don't
-        // leak into subsequent unrelated requests. Placeholder values
-        // (e.g. "sk-...") are ignored so a masked display string never
-        // replaces a real key.
-        const compileEnvSnapshot: Array<[string, string | undefined]> = [];
-        const scopeCompileKey = (name: string, value: unknown) => {
-          if (typeof value !== 'string' || !value || value.includes('...')) return;
-          compileEnvSnapshot.push([name, env[name]]);
-          env[name] = value;
-        };
-        scopeCompileKey('OPENAI_API_KEY', apiKey);
-        scopeCompileKey('ANTHROPIC_API_KEY', anthropicKey);
-        const restoreCompileEnv = () => {
-          for (const [name, prior] of compileEnvSnapshot) {
-            if (prior === undefined) delete env[name]; else env[name] = prior;
-          }
-        };
-
-        const provider = requestedProvider || (env.ANTHROPIC_API_KEY ? 'anthropic' : 'openai');
+        const envDefaultProvider = env.ANTHROPIC_API_KEY && !env.OPENAI_API_KEY ? 'anthropic' : 'openai';
+        const provider = resolveProviderFromCredentials(requestedProvider, compileCredentials, envDefaultProvider);
         // Force the cheapest class only when the host is billing
         // (hosted-demo mode + no session key). Local dev and BYO-key
         // paths honor the requested model.
@@ -1231,24 +1209,21 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
           snapshot: () => baseCompileTelemetry.snapshot(),
         };
 
-        let compiled;
-        try {
-          compiled = await runCompileScenario(scenarioJson, {
-            provider,
-            model,
-            cache: true,
-            seedText,
-            seedUrl,
-            webSearch: webSearch ?? true,
-            maxSearches,
-            telemetry: compileTelemetry,
-            onProgress(hookName: string, status: string) {
-              res.write(`event: progress\ndata: ${JSON.stringify({ hook: hookName, status })}\n\n`);
-            },
-          });
-        } finally {
-          restoreCompileEnv();
-        }
+        const compiled = await runCompileScenario(scenarioJson, {
+          provider,
+          model,
+          cache: true,
+          seedText,
+          seedUrl,
+          webSearch: webSearch ?? true,
+          maxSearches,
+          apiKey: compileCredentials.apiKey,
+          anthropicKey: compileCredentials.anthropicKey,
+          telemetry: compileTelemetry,
+          onProgress(hookName: string, status: string) {
+            res.write(`event: progress\ndata: ${JSON.stringify({ hook: hookName, status })}\n\n`);
+          },
+        });
 
         // Update the active scenario for GET /scenario
         activeScenario = compiled;
@@ -1311,16 +1286,6 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
     // Rate limit status endpoint
     // Post-simulation colonist chat
     if (req.url === '/chat' && req.method === 'POST') {
-      // Hoist env-scoping helpers OUTSIDE the try so the catch can
-      // still call restoreChatEnv. Without this, an exception thrown
-      // between scopeChatKey() and the inner restore would leak the
-      // caller's keys into subsequent requests.
-      const chatEnvSnapshot: Array<[string, string | undefined]> = [];
-      const restoreChatEnv = () => {
-        for (const [name, prior] of chatEnvSnapshot) {
-          if (prior === undefined) delete env[name]; else env[name] = prior;
-        }
-      };
       try {
         const { agentId, message, apiKey, anthropicKey } = JSON.parse(await readBody(req, maxRequestBodyBytes));
         if (!agentId || !message) {
@@ -1329,18 +1294,11 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
           return;
         }
 
-        // Apply user-supplied keys to env for this request so the
-        // downstream chat agent routes to the user's account when a
-        // BYO key is present. Placeholder masks like 'sk-...' are
-        // rejected so a displayed masked string never replaces a real key.
-        const chatUserKey = !!(apiKey || anthropicKey);
-        const scopeChatKey = (name: string, value: unknown) => {
-          if (typeof value !== 'string' || !value || value.includes('...')) return;
-          chatEnvSnapshot.push([name, env[name]]);
-          env[name] = value;
+        const chatCredentials = {
+          apiKey: normalizeCredential(apiKey),
+          anthropicKey: normalizeCredential(anthropicKey),
         };
-        scopeChatKey('OPENAI_API_KEY', apiKey);
-        scopeChatKey('ANTHROPIC_API_KEY', anthropicKey);
+        const chatUserKey = hasProviderCredentials(chatCredentials);
 
         // Rate-limit chat per IP per hour. Runs against the host's
         // key unless a session key was provided in the request body,
@@ -1423,9 +1381,12 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         const roster = extractColonistRoster(simEvents);
 
         // Get or create the agent (lazy init with memory seeding)
-        const provider = (simConfig?.provider || (env.ANTHROPIC_API_KEY && !env.OPENAI_API_KEY ? 'anthropic' : 'openai')) as any;
+        const envDefaultProvider = env.ANTHROPIC_API_KEY && !env.OPENAI_API_KEY ? 'anthropic' : 'openai';
+        const provider = resolveProviderFromCredentials(simConfig?.provider, chatCredentials, envDefaultProvider);
         const { session, isNew } = await getOrCreateChatAgent(profile, memories, {
           provider,
+          apiKey: chatCredentials.apiKey,
+          anthropicKey: chatCredentials.anthropicKey,
           settlementNoun: activeScenario.labels?.settlementNoun,
           populationNoun: activeScenario.labels?.populationNoun,
           roster,
@@ -1433,7 +1394,6 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
 
         // Send message through the agent session (full history + memory + RAG automatic)
         const result = await session.send(message);
-        restoreChatEnv();
 
         // Surface per-turn token usage + cost so the dashboard footer
         // can fold chat spend into the run-total display. Without this,
@@ -1456,10 +1416,6 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
           },
         }));
       } catch (err) {
-        // Restore env on error path too — mutations happened before
-        // whatever threw. Without this, a failed chat call leaves the
-        // caller's keys persisted in env for subsequent requests.
-        try { restoreChatEnv(); } catch {}
         writeJsonError(res, err, 500);
       }
       return;
@@ -1685,8 +1641,12 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       try {
         const config = JSON.parse(await readBody(req, maxRequestBodyBytes));
 
-        // Rate limit check: bypass when user provides their own API keys
-        const hasUserKeys = !!(config.apiKey || config.anthropicKey);
+        // Rate limit check: bypass when user provides real API keys.
+        const requestCredentials = {
+          apiKey: normalizeCredential(config.apiKey),
+          anthropicKey: normalizeCredential(config.anthropicKey),
+        };
+        const hasUserKeys = hasProviderCredentials(requestCredentials);
         if (rateLimiter && !hasUserKeys) {
           const ip = IpRateLimiter.getIp(req);
           const { allowed, remaining, limit } = rateLimiter.check(ip);
@@ -1815,30 +1775,6 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
           }
         };
 
-        // Key-scope safety: snapshot the env values we're about to mutate
-        // so we can restore them when THIS sim ends. Without this, user A's
-        // key persists in process.env after their sim completes; user B's
-        // subsequent sim then silently uses A's key if B didn't provide one.
-        // The restore runs in the startWithConfig().finally() below.
-        const envKeysToRestore: Array<[string, string | undefined]> = [];
-        const scopeKey = (envName: string, userValue: string | undefined) => {
-          if (!userValue || userValue.includes('...')) return;
-          envKeysToRestore.push([envName, env[envName]]);
-          env[envName] = userValue;
-        };
-        scopeKey('OPENAI_API_KEY', simConfig.apiKey);
-        scopeKey('ANTHROPIC_API_KEY', simConfig.anthropicKey);
-        scopeKey('SERPER_API_KEY', simConfig.serperKey);
-        scopeKey('FIRECRAWL_API_KEY', simConfig.firecrawlKey);
-        scopeKey('TAVILY_API_KEY', simConfig.tavilyKey);
-        scopeKey('COHERE_API_KEY', simConfig.cohereKey);
-        const restoreEnv = () => {
-          for (const [name, prior] of envKeysToRestore) {
-            if (prior === undefined) delete env[name];
-            else env[name] = prior;
-          }
-        };
-
         // If a run is already in flight, abort it before starting the
         // new one. Previously /setup silently no-op'd on simRunning,
         // which left the old sim draining API credits while the user
@@ -1875,10 +1811,9 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         });
         console.log(`  Running scenario: "${activeScenario.labels?.name ?? activeScenario.id}" (${activeScenario.id})`);
 
-        // Start the sim and restore env when it finishes — prevents the
-        // caller's keys from leaking into any subsequent /setup from a
-        // different user that doesn't pass their own keys.
-        marsServer.startWithConfig(simConfig, { onArtifact: onArtifactPersist }).finally(restoreEnv);
+        marsServer.startWithConfig(simConfig, { onArtifact: onArtifactPersist }).catch((error) => {
+          console.warn('[setup] simulation failed:', error);
+        });
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
