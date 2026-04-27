@@ -438,9 +438,14 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
   const sessionsDbPath = resolve(env.APP_DIR || '.', 'data', 'sessions.db');
   if (!sessionStore) try {
     sessionStore = openSessionStore(sessionsDbPath);
-    console.log(`  [sessions] Opened session store at ${sessionsDbPath} (${sessionStore.count()} stored)`);
+    // The store opens its underlying adapter lazily — fire-and-forget
+    // an initial count() so we surface the stored-rows hint at boot
+    // without forcing createMarsServer itself to be async.
+    sessionStore.count()
+      .then((n) => console.log(`  [sessions] Opened session store at ${sessionsDbPath} (${n} stored)`))
+      .catch((err) => console.log(`  [sessions] Initial count failed: ${err}`));
   } catch (err) {
-    // Don't crash the server if SQLite init fails (missing native binary,
+    // Don't crash the server if SQL backend init fails (missing native binary,
     // disk full, etc) — sims still run, the /sessions and /admin/sessions
     // routes just return 503.
     console.log(`  [sessions] Failed to open session store: ${err}`);
@@ -592,7 +597,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
    * but never propagate: a cache write failure must not fail the
    * client-facing broadcast.
    */
-  const autoSaveOnComplete = () => {
+  const autoSaveOnComplete = async () => {
     // Every branch logs a single [sessions] line so production can see
     // in server stderr/stdout WHY a run did or did not make it into the
     // ring. Without these, a save silently failing on a writable-but-
@@ -649,15 +654,23 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       return;
     }
 
+    // Claim the save BEFORE the first await so a synchronous double
+    // `complete` broadcast doesn't race past the `currentRunSaved`
+    // guard above. The sync better-sqlite3 implementation got this for
+    // free because saveSession returned before the next event landed;
+    // the async sql-storage-adapter version has to flip the flag up
+    // front so re-entrant calls early-return. Stays true on failure
+    // (matches sync behavior — throws bubble out of saveSession either
+    // way and a doubled `complete` shouldn't trigger a retry).
+    currentRunSaved = true;
     try {
       const now = Date.now();
       const events: TimestampedEvent[] = eventBuffer.map((sse, i) => ({
         ts: eventTimestamps[i] || now,
         sse,
       }));
-      const result = sessionStore.saveSession(events);
-      currentRunSaved = true;
-      const storeCount = sessionStore.count();
+      const result = await sessionStore.saveSession(events);
+      const storeCount = await sessionStore.count();
       console.log(`[sessions] auto-saved run ${result.id}: ${events.length} events, ${turnDoneCount} turns (store count: ${storeCount})`);
       emitSaveStatus('saved', {
         id: result.id,
@@ -674,10 +687,10 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       // without a round-trip to /sessions.
       const titleProvider = simConfig?.provider === 'anthropic' ? 'anthropic' : 'openai';
       const store = sessionStore; // non-null inside this closure
-      void generateSessionTitle(events, titleProvider, runGenerateText).then((title) => {
+      void generateSessionTitle(events, titleProvider, runGenerateText).then(async (title) => {
         if (!title) return;
         try {
-          store.updateTitle(result.id, title);
+          await store.updateTitle(result.id, title);
           console.log(`[sessions] titled run ${result.id}: "${title}"`);
           try {
             broadcast('sim_saved', {
@@ -720,7 +733,9 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
     // picture.
     if (event === 'complete') {
       captureRetrySnapshot();
-      autoSaveOnComplete();
+      autoSaveOnComplete().catch((err) => {
+        console.error('[sessions] auto-save failed:', err);
+      });
     }
   };
 
@@ -1533,12 +1548,13 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
           ts: eventTimestamps[i] || now,
           sse,
         }));
-        const result = sessionStore.saveSession(events);
+        const result = await sessionStore.saveSession(events);
+        const totalStored = await sessionStore.count();
         res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders });
         res.end(JSON.stringify({
           ...result,
           eventCount: events.length,
-          totalStored: sessionStore.count(),
+          totalStored,
         }));
       } catch (err) {
         res.writeHead(500, { 'Content-Type': 'application/json', ...corsHeaders });
@@ -1554,8 +1570,9 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         return;
       }
       try {
+        const sessions = await sessionStore.listSessions();
         res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders });
-        res.end(JSON.stringify({ sessions: sessionStore.listSessions() }));
+        res.end(JSON.stringify({ sessions }));
       } catch (err) {
         res.writeHead(500, { 'Content-Type': 'application/json', ...corsHeaders });
         res.end(JSON.stringify({ error: String(err) }));
@@ -1580,7 +1597,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         res.end(JSON.stringify({ error: 'invalid session id' }));
         return;
       }
-      const session = sessionStore.getSession(id);
+      const session = await sessionStore.getSession(id);
       if (!session) {
         res.writeHead(404, { 'Content-Type': 'application/json', ...corsHeaders });
         res.end(JSON.stringify({ error: 'session not found', id }));
@@ -1601,7 +1618,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       const id = url.pathname.replace(/^\/sessions\//, '').replace(/\/replay$/, '');
       const speedRaw = url.searchParams.get('speed');
       const speed = Math.max(0.25, Math.min(50, speedRaw ? parseFloat(speedRaw) || 1 : 1));
-      const session = sessionStore.getSession(id);
+      const session = await sessionStore.getSession(id);
       if (!session) {
         res.writeHead(404, { 'Content-Type': 'application/json', ...corsHeaders });
         res.end(JSON.stringify({ error: 'session not found', id }));

@@ -652,6 +652,23 @@ bun src/index.ts
 PARACOSM_OUTPUT_DIR=./artifacts/run-001 bun src/index.ts
 ```
 
+## Storage backend
+
+Paracosm persists run history (the Library tab) and replayable session blobs (the Load menu) through [`@framers/sql-storage-adapter`](https://github.com/framersai/sql-storage-adapter), the open-source SQL abstraction maintained by Frame.dev. The same code paths run unchanged against SQLite (default), Postgres, sql.js, and IndexedDB; switching backends is one env var.
+
+```bash
+# Default: better-sqlite3 against ./data/runs.db + ./data/sessions.db
+paracosm dashboard
+
+# Postgres in production (Library + sessions persist to your existing cluster)
+STORAGE_ADAPTER=postgres DATABASE_URL=postgres://user:pass@host/db paracosm dashboard
+
+# Pure-WASM SQLite fallback when the native module isn't available
+STORAGE_ADAPTER=sqljs paracosm dashboard
+```
+
+Run-history schema (`runs` table) and session schema (`sessions` table) are bootstrapped idempotently on first boot. Legacy v0.7 databases auto-migrate the `leader_*` columns to `actor_*` in place via `ALTER TABLE RENAME COLUMN`; no manual step needed.
+
 ## Seed Enrichment & Citation Flow
 
 Pass real-world source material into the compiler and Paracosm grounds the scenario in citations that flow all the way through to department reports.
