@@ -12,6 +12,12 @@ export interface ScenarioClientPayload {
     currency: string;
     eventNoun?: string;
     eventNounSingular?: string;
+    /** Singular display word for the swappable decision-making entity
+     *  (the type the Compare view's bundles run in parallel). Default
+     *  "actor"; specialized per-scenario in compiled drafts. */
+    actorNoun?: string;
+    /** Plural form of `actorNoun`. Default "actors". */
+    actorNounPlural?: string;
   };
   theme: {
     primaryColor: string;

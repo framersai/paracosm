@@ -103,8 +103,19 @@ test('generate-leaders: count < 2 rejected', async () => {
   assert.equal(get().status, 400);
 });
 
-test('generate-leaders: count > 6 rejected', async () => {
+test('generate-leaders: count > 50 rejected (Compare-runs UI cap)', async () => {
   const { res, get } = fakeRes();
-  await handleGenerateLeaders({} as IncomingMessage, res, { scenarioId: marsScenario.id, count: 7 }, fakeDeps());
+  await handleGenerateLeaders({} as IncomingMessage, res, { scenarioId: marsScenario.id, count: 51 }, fakeDeps());
   assert.equal(get().status, 400);
+});
+
+test('generate-leaders: count up to 50 accepted', async () => {
+  const { res, get } = fakeRes();
+  // count: 50 is the cap; 50 itself should pass schema validation. The
+  // handler may still 404 if the scenario is not in the catalog under
+  // the test deps, but it should NOT 400 for a schema reason.
+  await handleGenerateLeaders({} as IncomingMessage, res, { scenarioId: marsScenario.id, count: 50 }, fakeDeps());
+  // Either 200 (full success) or 404/500 (downstream issue) is acceptable
+  // here -- we only care that schema validation doesn't reject 50.
+  assert.notEqual(get().status, 400);
 });

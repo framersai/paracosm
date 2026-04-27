@@ -368,7 +368,7 @@ function AppContent() {
     // identity. Use the scenario's per-domain label (e.g. "Commander A"
     // for Mars Genesis, "Mayor A" for a hurricane scenario) with a
     // benign "Actor" default when the scenario doesn't specify.
-    const actorTitle = (scenario.labels.actorNoun ?? 'actor').replace(/^./, c => c.toUpperCase());
+    const actorTitle = (scenario.labels.actorNoun ?? 'actor').replace(/^./, (c: string) => c.toUpperCase());
     const nameA = a?.leader?.name || `${actorTitle} A`;
     const nameB = b?.leader?.name || `${actorTitle} B`;
     const archA = a?.leader?.archetype || '';
