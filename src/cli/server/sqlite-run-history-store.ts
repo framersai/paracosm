@@ -133,10 +133,19 @@ export function createSqliteRunHistoryStore(options: SqliteRunHistoryStoreOption
     );
     CREATE INDEX IF NOT EXISTS idx_runs_created_at        ON runs (created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_runs_scenario_created  ON runs (scenario_id, created_at DESC);
-    CREATE INDEX IF NOT EXISTS idx_runs_actor_created    ON runs (actor_config_hash, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_runs_mode_created      ON runs (source_mode, created_at DESC);
   `);
   ensureRunsColumns(db);
+  // Index over actor_config_hash sits after ensureRunsColumns so legacy
+  // databases that pre-date the leader -> actor rename get the column
+  // added (or the column-missing error surfaced) before the index
+  // creation references it. Mirrors the idx_runs_sim_mode_created
+  // pattern below.
+  try {
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_runs_actor_created ON runs (actor_config_hash, created_at DESC);`);
+  } catch (err) {
+    console.warn('[sqlite] idx_runs_actor_created skipped:', err);
+  }
   // Index for filtering by simulation mode (Library tab).
   try {
     db.exec(`CREATE INDEX IF NOT EXISTS idx_runs_sim_mode_created ON runs (mode, created_at DESC);`);

@@ -97,8 +97,8 @@ function extractCommanderTrajectory(
   for (const e of events) {
     if (e.type !== 'personality_drift' || !e.data) continue;
     // Accept events without a leader field (ProcessedEvent on a
-    // per-leader bucket in state.actors is already attributed to that
-    // leader); filter only when present.
+    // per-actor bucket in state.actors is already attributed to that
+    // actor); filter only when present.
     if (e.leader !== undefined && e.leader !== actorName) continue;
     const commander = (e.data as Record<string, unknown>).commander as CommanderSnapshot | undefined;
     const turn = (e.data as Record<string, unknown>).turn as number | undefined;

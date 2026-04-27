@@ -52,7 +52,7 @@ const USAGE = `paracosm init [dir] --domain <text|url> [--mode <m>] [--actors <n
   dir         output directory (default: ./paracosm-app)
   --domain    required: seed text describing the scenario, OR a URL
   --mode      turn-loop | batch-trajectory | batch-point (default: turn-loop)
-  --actors   number of HEXACO leaders, 2-6 (default: 3)
+  --actors   number of HEXACO actors, 2-6 (default: 3)
   --name      project name, default: derived from --domain
   --force     overwrite non-empty target dir
 
