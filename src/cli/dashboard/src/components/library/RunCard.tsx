@@ -41,7 +41,7 @@ export function RunCard(props: RunCardProps): JSX.Element {
       <div className={styles.actions}>
         <button onClick={(e) => { e.stopPropagation(); onOpen(); }} className={styles.actionBtn}>Open</button>
         <button onClick={(e) => { e.stopPropagation(); onReplay(); }} className={styles.actionBtn} aria-label="Replay">Replay</button>
-        <button disabled className={styles.actionBtn} aria-label="Compare (coming soon)" title="Compare (coming soon)">Compare</button>
+        {/* Compare lives at the bundle level (BundleCard). Solo runs only get Open + Replay. */}
       </div>
     </article>
   );

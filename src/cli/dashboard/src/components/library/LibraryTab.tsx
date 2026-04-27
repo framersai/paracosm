@@ -19,6 +19,7 @@ import { RecentlyViewedStrip } from './RecentlyViewedStrip.js';
 import { RunGallery } from './RunGallery.js';
 import { RunTable } from './RunTable.js';
 import { RunDetailDrawer } from './RunDetailDrawer.js';
+import { CompareModal } from '../compare/CompareModal.js';
 import { EmptyState } from './EmptyState.js';
 
 export function LibraryTab(): JSX.Element {
@@ -42,12 +43,26 @@ export function LibraryTab(): JSX.Element {
     return new URLSearchParams(window.location.search).get('runId');
   });
 
+  // Compare-runs UI: opening a bundle card slides the CompareModal over
+  // the LibraryTab. Bundle id lives in the URL alongside `runId` so the
+  // page is shareable / restorable.
+  const [compareBundleId, setCompareBundleId] = React.useState<string | null>(() => {
+    return new URLSearchParams(window.location.search).get('bundleId');
+  });
+
   React.useEffect(() => {
     const url = new URL(window.location.href);
     if (selectedRunId) url.searchParams.set('runId', selectedRunId);
     else url.searchParams.delete('runId');
     window.history.replaceState({}, '', url.toString());
   }, [selectedRunId]);
+
+  React.useEffect(() => {
+    const url = new URL(window.location.href);
+    if (compareBundleId) url.searchParams.set('bundleId', compareBundleId);
+    else url.searchParams.delete('bundleId');
+    window.history.replaceState({}, '', url.toString());
+  }, [compareBundleId]);
 
   // Build scenario + leader option lists from the current page of runs.
   // De-duplicated; populated as the user browses.
@@ -132,6 +147,7 @@ export function LibraryTab(): JSX.Element {
           loading={loading}
           onOpen={(runId) => setSelectedRunId(runId)}
           onReplay={(runId) => setSelectedRunId(runId)}
+          onOpenBundle={(bundleId) => setCompareBundleId(bundleId)}
           currentOffset={filters.offset ?? 0}
           pageSize={filters.limit ?? 24}
           onPageChange={(offset) => setFilters({ ...filters, offset })}
@@ -150,6 +166,16 @@ export function LibraryTab(): JSX.Element {
         onClose={() => setSelectedRunId(null)}
         onArtifactLoaded={pushRecent}
       />
+
+      {/* CompareModal mounts above the LibraryTab when a bundle is
+          opened. It is its own dialog with backdrop + Esc handling. */}
+      {compareBundleId && (
+        <CompareModal
+          bundleId={compareBundleId}
+          open
+          onClose={() => setCompareBundleId(null)}
+        />
+      )}
 
       {/* Touch recentRecords so React tracks it for the strip. */}
       <span hidden aria-hidden="true">{recentRecords.length}</span>

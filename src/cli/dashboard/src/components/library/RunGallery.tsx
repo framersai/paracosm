@@ -1,6 +1,8 @@
 import * as React from 'react';
 import styles from './RunGallery.module.scss';
 import { RunCard } from './RunCard.js';
+import { BundleCard } from './BundleCard.js';
+import { groupRunsByBundle } from './groupRunsByBundle.js';
 import type { RunRecord } from '../../../../server/run-record.js';
 
 export interface RunGalleryProps {
@@ -10,15 +12,26 @@ export interface RunGalleryProps {
   loading: boolean;
   onOpen: (runId: string) => void;
   onReplay: (runId: string) => void;
+  /** Open the Compare modal for a bundle. Bundles are auto-grouped from
+   *  RunRecords sharing a bundleId via {@link groupRunsByBundle}. */
+  onOpenBundle: (bundleId: string) => void;
   onPageChange: (offset: number) => void;
   currentOffset: number;
   pageSize: number;
 }
 
 export function RunGallery(props: RunGalleryProps): JSX.Element {
-  const { runs, total, hasMore, loading, onOpen, onReplay, onPageChange, currentOffset, pageSize } = props;
+  const { runs, total, hasMore, loading, onOpen, onReplay, onOpenBundle, onPageChange, currentOffset, pageSize } = props;
   const page = Math.floor(currentOffset / pageSize) + 1;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  // Group bundles inline. The `runs` prop is the flat per-page result;
+  // groups are built per render so paging changes refresh the grouping.
+  // The gallery still reverses presentation order (newest first).
+  const entries = React.useMemo(() => {
+    const grouped = groupRunsByBundle(runs);
+    return [...grouped].reverse();
+  }, [runs]);
 
   return (
     <section className={styles.gallery}>
@@ -32,14 +45,22 @@ export function RunGallery(props: RunGalleryProps): JSX.Element {
         </div>
       ) : (
         <div className={styles.grid}>
-          {runs.map(r => (
-            <RunCard
-              key={r.runId}
-              record={r}
-              onOpen={() => onOpen(r.runId)}
-              onReplay={() => onReplay(r.runId)}
-            />
-          ))}
+          {entries.map((entry) =>
+            entry.kind === 'bundle' ? (
+              <BundleCard
+                key={`bundle:${entry.bundleId}`}
+                entry={entry}
+                onOpen={() => onOpenBundle(entry.bundleId)}
+              />
+            ) : (
+              <RunCard
+                key={entry.record.runId}
+                record={entry.record}
+                onOpen={() => onOpen(entry.record.runId)}
+                onReplay={() => onReplay(entry.record.runId)}
+              />
+            )
+          )}
         </div>
       )}
 
