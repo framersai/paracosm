@@ -1,0 +1,106 @@
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  padding: 1rem;
+  cursor: pointer;
+  transition: transform 200ms ease, border-color 200ms ease, box-shadow 200ms ease;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  position: relative;
+
+  &:hover, &:focus-visible {
+    transform: translateY(-2px);
+    border-color: var(--amber);
+    box-shadow: var(--card-shadow);
+    outline: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    transition: none;
+    &:hover, &:focus-visible { transform: none; }
+  }
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--text-3);
+}
+
+.bundleBadge {
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--amber);
+  background: rgba(232, 180, 74, 0.12);
+  border: 1px solid rgba(232, 180, 74, 0.35);
+  border-radius: 4px;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.65rem;
+}
+
+.count { font-weight: 600; color: var(--text-2); }
+.cost { color: var(--text-2); margin-left: auto; }
+.time { color: var(--text-3); }
+
+.scenario {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-1);
+  word-break: break-word;
+}
+
+.actors {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.actor {
+  font-size: 0.8rem;
+  color: var(--text-2);
+}
+
+.archetype {
+  color: var(--text-3);
+}
+
+.more {
+  font-size: 0.75rem;
+  color: var(--text-3);
+  font-style: italic;
+}
+
+.actions {
+  margin-top: auto;
+  display: flex;
+  gap: 0.4rem;
+}
+
+.actionBtn {
+  background: transparent;
+  border: 1px solid var(--amber);
+  border-radius: 4px;
+  padding: 0.3rem 0.7rem;
+  cursor: pointer;
+  color: var(--amber);
+  font-size: 0.75rem;
+  font-family: var(--mono);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+
+  &:hover {
+    background: rgba(232, 180, 74, 0.1);
+  }
+}

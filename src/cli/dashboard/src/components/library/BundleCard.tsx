@@ -1,0 +1,63 @@
+import * as React from 'react';
+import styles from './BundleCard.module.scss';
+import type { GalleryEntry } from './groupRunsByBundle.js';
+
+export interface BundleCardProps {
+  /** A bundle entry from groupRunsByBundle. Exposes scenarioId,
+   *  memberCount, totalCostUSD, and the member RunRecords. */
+  entry: Extract<GalleryEntry, { kind: 'bundle' }>;
+  /** Open the Compare view for this bundle. */
+  onOpen: () => void;
+}
+
+export function BundleCard({ entry, onOpen }: BundleCardProps): JSX.Element {
+  return (
+    <article
+      className={styles.card}
+      role="article"
+      tabIndex={0}
+      aria-label={`Bundle ${entry.bundleId} · ${entry.memberCount} actors against ${entry.scenarioId}`}
+      data-bundle-card
+      data-bundle-id={entry.bundleId}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
+    >
+      <header className={styles.head}>
+        <span className={styles.bundleBadge}>BUNDLE</span>
+        <span className={styles.count}>{entry.memberCount} actors</span>
+        <span className={styles.cost}>
+          {entry.totalCostUSD > 0 ? `$${entry.totalCostUSD.toFixed(2)}` : '—'}
+        </span>
+        <span className={styles.time}>{relativeTime(entry.earliestCreatedAt)}</span>
+      </header>
+      <h3 className={styles.scenario}>{entry.scenarioId}</h3>
+      <ul className={styles.actors} aria-label="Bundle members">
+        {entry.members.slice(0, 5).map((m) => (
+          <li key={m.runId} className={styles.actor}>
+            {m.leaderName ?? 'Unknown'}
+            {m.leaderArchetype ? <span className={styles.archetype}> · {m.leaderArchetype}</span> : null}
+          </li>
+        ))}
+        {entry.members.length > 5 && (
+          <li className={styles.more}>+ {entry.members.length - 5} more</li>
+        )}
+      </ul>
+      <div className={styles.actions}>
+        <button onClick={(e) => { e.stopPropagation(); onOpen(); }} className={styles.actionBtn}>Compare</button>
+      </div>
+    </article>
+  );
+}
+
+function relativeTime(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  if (ms < 60_000) return 'just now';
+  if (ms < 3_600_000) return `${Math.floor(ms / 60_000)}m ago`;
+  if (ms < 86_400_000) return `${Math.floor(ms / 3_600_000)}h ago`;
+  return `${Math.floor(ms / 86_400_000)}d ago`;
+}
