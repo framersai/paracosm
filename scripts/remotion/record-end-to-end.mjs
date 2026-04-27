@@ -229,10 +229,42 @@ console.log(`[e2e] -> LIBRARY tab (${LIBRARY_HOLD_S}s)`);
 await clickTab('library');
 await page.waitForTimeout(LIBRARY_HOLD_S * 1000);
 
-// ── 5. LIBRARY DRAWER ───────────────────────────────────────────────────
-// Click the first run card (latest run = the one we just produced).
-// RunCard.tsx renders [data-run-card] articles; first-of-type targets
-// the most recent because RunGallery sorts createdAt-desc.
+// ── 5a. COMPARE MODAL ──────────────────────────────────────────────────
+// Open the most-recent bundle card (the just-finished bundle). The
+// LIBRARY now collapses bundle members into a single BundleCard
+// (data-bundle-card). Click opens the CompareModal with aggregate
+// strip + small-multiples grid + (when cells are pinned) the
+// PinnedDiffPanel showing the four diff dimensions.
+const COMPARE_HOLD_S = 6;
+const COMPARE_PIN_HOLD_S = 5;
+console.log(`[e2e] open Compare modal for the most-recent bundle (~${COMPARE_HOLD_S + COMPARE_PIN_HOLD_S}s total)`);
+const firstBundle = page.locator('[data-bundle-card]').first();
+if (await firstBundle.isVisible({ timeout: 2000 }).catch(() => false)) {
+  await firstBundle.click();
+  await page.waitForSelector('[role="dialog"][aria-modal="true"]', { state: 'visible', timeout: 4000 }).catch(() => {});
+  await page.waitForTimeout(COMPARE_HOLD_S * 1000); // hold on aggregate + grid
+  // Pin two cells so PinnedDiffPanel renders.
+  const pinCheckboxes = page.locator('[role="dialog"] input[type="checkbox"]');
+  const pinCount = await pinCheckboxes.count();
+  if (pinCount >= 2) {
+    await pinCheckboxes.nth(0).check().catch(() => {});
+    await page.waitForTimeout(1500);
+    await pinCheckboxes.nth(1).check().catch(() => {});
+    await page.waitForTimeout(COMPARE_PIN_HOLD_S * 1000);
+  } else {
+    await page.waitForTimeout(COMPARE_PIN_HOLD_S * 1000);
+  }
+  // Close modal with Esc to return to LIBRARY.
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(800);
+} else {
+  console.log('[e2e] no bundle cards visible (run may not have completed or count=1)');
+}
+
+// ── 5b. RUN DRAWER ──────────────────────────────────────────────────────
+// Click the first run card (latest solo run, if any). RunCard renders
+// [data-run-card] articles. After the bundle card pass above, the
+// drawer shows a single artifact's full detail.
 console.log(`[e2e] open most-recent run drawer (${DRAWER_HOLD_S}s)`);
 const firstCard = page.locator('[data-run-card]').first();
 if (await firstCard.isVisible({ timeout: 2000 }).catch(() => false)) {
