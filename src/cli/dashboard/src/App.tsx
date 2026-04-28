@@ -238,6 +238,7 @@ function AppContent() {
     )) return;
     persistence.clearCache();
     sse.reset();
+    setUserTriggeredRun(false);
 
     // Server-side wipe. Gated by ADMIN_WRITE on the server — when off,
     // the endpoint returns 403 and we just report the local clear.
@@ -485,6 +486,12 @@ function AppContent() {
     eventsCount: sse.events.length,
   });
 
+  // Gate the run-finish + cache-saved toasts on whether the user
+  // actually clicked Run during this session. Cold loads that hydrate
+  // straight into a terminal state (server event-buffer replay or
+  // localStorage cache) shouldn't announce results the user didn't
+  // ask to start.
+  const [userTriggeredRun, setUserTriggeredRun] = useState(false);
   useTerminalToast({
     isComplete: sse.isComplete,
     isAborted: sse.isAborted,
@@ -493,6 +500,7 @@ function AppContent() {
     hasVerdict: Boolean(sse.verdict),
     replayDone: sse.replayDone,
     tourActive,
+    userTriggeredRun,
   });
 
   // Local cache fallback: write completed runs to localStorage keyed
@@ -531,7 +539,7 @@ function AppContent() {
     tourActive,
   ]);
 
-  useSimSavedToast({ events: sse.events, tourActive });
+  useSimSavedToast({ events: sse.events, tourActive, userTriggeredRun });
 
   const handleRun = useCallback(async () => {
     // Guard against double-fire. The RUN button is also hidden
@@ -553,6 +561,9 @@ function AppContent() {
     ];
     try {
       setLaunching(true);
+      // Mark the run as user-triggered so the run-finish + cache-saved
+      // toasts unlock for this session. Cleared by handleClear / Wipe.
+      setUserTriggeredRun(true);
       // Clear prior-run state on the client before launching a new sim.
       // handleClear does this via sse.reset() but Run previously did not,
       // so a user who loaded a completed run from cache and then hit Run

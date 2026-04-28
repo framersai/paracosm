@@ -4,15 +4,15 @@
  * abort. Dedup'd across remounts via sessionStorage fingerprint so a
  * page reload after a completed run doesn't re-toast.
  *
- * Cold-load gate: only fires on a live transition from non-terminal
- * to terminal during this session. A page that loads with the run
- * already complete (rehydrated from server event-buffer or local
- * persistence) does NOT toast — the user wasn't watching it finish,
- * so announcing it is noise.
+ * Cold-load gate: requires `userTriggeredRun` (the user clicked Run
+ * during this session). A page that loads with the run already
+ * complete via server event-buffer replay or local persistence cache
+ * does NOT toast — the user wasn't watching it finish, so announcing
+ * it is noise.
  *
  * Extracted from App.tsx.
  */
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { useToast } from '../components/shared/Toast';
 import type { AbortReasonState } from './useSSE';
 
@@ -26,6 +26,8 @@ export interface UseTerminalToastOptions {
   hasVerdict: boolean;
   replayDone: boolean;
   tourActive: boolean;
+  /** True only after the user clicked Run during this session. */
+  userTriggeredRun: boolean;
 }
 
 export function useTerminalToast({
@@ -36,20 +38,14 @@ export function useTerminalToast({
   hasVerdict,
   replayDone,
   tourActive,
+  userTriggeredRun,
 }: UseTerminalToastOptions): void {
   const { toast } = useToast();
-  // Track whether we've ever observed the run in a non-terminal state
-  // during this mount. A cold load that hydrates straight into a
-  // terminal state never flips this true → toast suppressed.
-  const sawNonTerminalRef = useRef(false);
   useEffect(() => {
-    if (!isComplete && !isAborted) {
-      sawNonTerminalRef.current = true;
-      return;
-    }
     if (tourActive) return;
+    if (!userTriggeredRun) return;
+    if (!isComplete && !isAborted) return;
     if (!replayDone) return;
-    if (!sawNonTerminalRef.current) return;
     const fingerprint = isAborted
       ? `aborted:${abortReason?.reason ?? 'unknown'}:${abortReason?.leader ?? ''}:${abortReason?.turn ?? ''}`
       : `complete:${resultsCount}:${hasVerdict ? 'v' : 'nv'}`;
@@ -64,5 +60,5 @@ export function useTerminalToast({
     } else {
       toast('success', 'Simulation complete', 'Open the Reports tab for the verdict + full breakdown.');
     }
-  }, [isComplete, isAborted, abortReason, resultsCount, hasVerdict, replayDone, tourActive, toast]);
+  }, [isComplete, isAborted, abortReason, resultsCount, hasVerdict, replayDone, tourActive, userTriggeredRun, toast]);
 }
