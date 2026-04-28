@@ -52,7 +52,7 @@
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"TechArticle","headline":"Paracosm: Structured World Model for AI Agents","description":"Open-source structured world model. Compile prompts, briefs, URLs into typed ScenarioPackages. Deterministic seeded kernel, HEXACO-personality leaders, runtime tool forging in sandboxed node:vm, replay-verified counterfactual simulations.","url":"https://paracosm.agentos.sh","author":{"@type":"Organization","name":"Manic Agency / Frame.dev","url":"https://frame.dev"},"publisher":{"@type":"Organization","name":"Frame.dev","url":"https://frame.dev"},"datePublished":"2026-04-13","dateModified":"2026-04-25","articleSection":"AI Engineering","keywords":"world model, structured world model, LLM world model, counterfactual simulation, CWSM, digital twin, HEXACO, agent-based modeling, AgentOS, paracosm","proficiencyLevel":"Expert"}
 </script>
-<link rel="stylesheet" href="/brand/landing.css">
+<link rel="stylesheet" href="/brand/landing.css?v=__PARACOSM_VERSION__">
 </head>
 <body>
 
@@ -148,25 +148,29 @@
 </nav>
 <div class="nav-mobile" id="nav-mobile">
   <details class="nav-mobile-group">
-    <summary>Sections</summary>
-    <a href="#positioning">Positioning</a>
-    <a href="#features">Features</a>
-    <a href="#how-it-works">How It Works</a>
-    <a href="#scenarios">Scenarios</a>
-    <a href="#hosted">Hosted</a>
-    <a href="#faq">FAQ</a>
-    <a href="#about">About</a>
+    <summary><span>Sections</span></summary>
+    <div class="nav-mobile-group-body">
+      <a href="#positioning">Positioning</a>
+      <a href="#features">Features</a>
+      <a href="#how-it-works">How It Works</a>
+      <a href="#scenarios">Scenarios</a>
+      <a href="#hosted">Hosted</a>
+      <a href="#faq">FAQ</a>
+      <a href="#about">About</a>
+    </div>
   </details>
-  <a href="#cookbook">Cookbook</a>
+  <a href="#cookbook" class="nav-mobile-link">Cookbook</a>
   <details class="nav-mobile-group">
-    <summary>Docs</summary>
-    <a href="/docs">API Reference</a>
-    <a href="https://github.com/framersai/paracosm/blob/master/docs/cookbook.md" target="_blank" rel="noopener">Cookbook (markdown)</a>
-    <a href="https://github.com/framersai/paracosm/blob/master/docs/positioning/world-model-mapping.md" target="_blank" rel="noopener">Positioning Map</a>
-    <a href="https://agentos.sh/blog" target="_blank" rel="noopener">Blog</a>
+    <summary><span>Docs</span></summary>
+    <div class="nav-mobile-group-body">
+      <a href="/docs">API Reference</a>
+      <a href="https://github.com/framersai/paracosm/blob/master/docs/cookbook.md" target="_blank" rel="noopener">Cookbook (markdown)</a>
+      <a href="https://github.com/framersai/paracosm/blob/master/docs/positioning/world-model-mapping.md" target="_blank" rel="noopener">Positioning Map</a>
+      <a href="https://agentos.sh/blog" target="_blank" rel="noopener">Blog</a>
+    </div>
   </details>
-  <a href="https://github.com/framersai/paracosm" target="_blank" rel="noopener">GitHub</a>
-  <a href="https://www.npmjs.com/package/paracosm" target="_blank" rel="noopener">npm</a>
+  <a href="https://github.com/framersai/paracosm" target="_blank" rel="noopener" class="nav-mobile-link">GitHub</a>
+  <a href="https://www.npmjs.com/package/paracosm" target="_blank" rel="noopener" class="nav-mobile-link">npm</a>
   <a href="/sim" class="cta">Launch Sim <svg width="16" height="16"><use href="#i-arrow"/></svg></a>
 </div>
 
