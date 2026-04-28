@@ -690,18 +690,33 @@ function AppContent() {
             }}
           />
           <TabBar active={activeTab} onTabChange={setActiveTab} scenario={scenario} />
-          <VerdictBanner
-            verdict={sse.verdict}
-            currentTurn={gameState.turn}
-            maxTurns={gameState.maxTurns}
-            dismissedKey={verdictDismissedKey}
-            onOpenModal={() => setVerdictModalOpen(true)}
-            onDismiss={setVerdictDismissedKey}
-            onNavigateTab={setActiveTab}
-          />
+          {/* Cold-load gate: suppress the verdict banner unless the
+              user actually started a run this session. Without this
+              guard, a fresh visitor lands on the page with the SSE
+              event buffer rehydrating someone else's stale verdict
+              ("The Engineer wins · Turn 6/6") which pollutes the
+              Quickstart view + every demo recording. Same gate the
+              terminal/sim-saved toasts already use. */}
+          {userTriggeredRun && (
+            <VerdictBanner
+              verdict={sse.verdict}
+              currentTurn={gameState.turn}
+              maxTurns={gameState.maxTurns}
+              dismissedKey={verdictDismissedKey}
+              onOpenModal={() => setVerdictModalOpen(true)}
+              onDismiss={setVerdictDismissedKey}
+              onNavigateTab={setActiveTab}
+            />
+          )}
 
           <main id="main-content" className={`flex-1 overflow-hidden ${styles.main}`} role="main" aria-label={`${activeTab} view`}>
-            {activeTab === 'quickstart' && <QuickstartView sse={sse} sessionId={replaySessionId ?? undefined} />}
+            {activeTab === 'quickstart' && (
+              <QuickstartView
+                sse={sse}
+                sessionId={replaySessionId ?? undefined}
+                onRunStarted={() => setUserTriggeredRun(true)}
+              />
+            )}
 
             {activeTab === 'sim' && <SimView state={gameState} sseStatus={sse.status} onRun={handleRun} onTour={handleTourStart} verdict={sse.verdict} launching={launching} />}
 

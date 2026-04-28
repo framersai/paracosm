@@ -33,6 +33,12 @@ export interface QuickstartViewProps {
     reset: () => void;
   };
   sessionId?: string;
+  /** Fires the moment the user clicks Generate so App.tsx can flip the
+   *  user-triggered-run gate that controls the verdict banner + the
+   *  terminal/sim-saved toasts. Without it, a Quickstart-started run
+   *  is treated like a stale rehydration and its outputs stay hidden
+   *  in the cross-tab views (VIZ, REPORTS, banner). */
+  onRunStarted?: () => void;
 }
 
 type Phase =
@@ -40,7 +46,7 @@ type Phase =
   | { kind: 'progress'; stage: Stage; scenario?: ScenarioPackage; actors?: ActorConfig[] }
   | { kind: 'results'; scenario: ScenarioPackage; actors: ActorConfig[]; artifacts: RunArtifact[] };
 
-export function QuickstartView({ sse, sessionId }: QuickstartViewProps) {
+export function QuickstartView({ sse, sessionId, onRunStarted }: QuickstartViewProps) {
   const [phase, setPhase] = useState<Phase>({ kind: 'input' });
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
   // Bundle id for the just-finished run; surfaced as a "Compare all N
@@ -51,6 +57,11 @@ export function QuickstartView({ sse, sessionId }: QuickstartViewProps) {
 
   const handleSeedReady = useCallback(async (payload: { seedText: string; sourceUrl?: string; domainHint?: string; actorCount?: number }) => {
     setErrorBanner(null);
+    // Flip the user-triggered-run gate before any UI changes so the
+    // verdict banner + terminal/sim-saved toasts unlock for this
+    // session. Symmetric with handleRun's setUserTriggeredRun(true)
+    // in App.tsx.
+    onRunStarted?.();
     setPhase({ kind: 'progress', stage: 'compile' });
     try {
       const compileRes = await fetch('/api/quickstart/compile-from-seed', {
@@ -104,7 +115,7 @@ export function QuickstartView({ sse, sessionId }: QuickstartViewProps) {
       setPhase({ kind: 'input' });
       setErrorBanner(String(err));
     }
-  }, [sse]);
+  }, [sse, onRunStarted]);
 
   // Transition to results when all expected artifacts arrive.
   useEffect(() => {
