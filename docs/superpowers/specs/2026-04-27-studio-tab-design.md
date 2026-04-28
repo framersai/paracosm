@@ -23,7 +23,7 @@ This closes the loop on three workflows that 0.8.0 doesn't support today:
 
 ## Architecture
 
-A new dashboard tab whose entire ingest path is client-side. The artifact is parsed + validated in the browser, then rendered by feeding `artifact.events` into the already-pure `computeGameState()` reducer (exported from `src/cli/dashboard/src/hooks/useGameState.ts`). The resulting `GameState` flows into the same Timeline + ReportView components the live Sim/Reports tabs use, so there are no new render primitives — Studio is composition over what's already shipped.
+A new dashboard tab whose entire ingest path is client-side. The artifact is parsed + validated in the browser, then rendered through the already-shipped static-mode adapters that the Library tab uses for stored runs: `ReportViewAdapter` for `turn-loop` artifacts, `BatchArtifactView` for `batch-trajectory` / `batch-point`. Studio adds no new render primitives — it reuses the same mode branch `RunDetailDrawer` uses today, just with a client-supplied artifact instead of a server-fetched one.
 
 Two server-bound actions sit alongside the renderer:
 
@@ -38,7 +38,7 @@ Tab placement: between **Library** and **Branches** in `App.tsx`. Library = your
 |---|---|
 | `src/cli/dashboard/src/components/studio/StudioTab.tsx` | Tab root. Manages drop state (`empty \| loading \| single \| bundle \| error`). Renders DropZone or one of the two views. |
 | `src/cli/dashboard/src/components/studio/StudioDropZone.tsx` | Drag-drop + click-to-upload via hidden `<input type=file accept=".json">`. Calls `parseStudioInput` on the loaded text. |
-| `src/cli/dashboard/src/components/studio/StudioArtifactView.tsx` | Single-artifact render. Calls `computeGameState(artifact.events, true)` and passes `state` + `artifact` into Timeline/ReportView. Hosts Promote + Compare buttons. |
+| `src/cli/dashboard/src/components/studio/StudioArtifactView.tsx` | Single-artifact render. Branches on `artifact.metadata.mode` and delegates to `ReportViewAdapter` (turn-loop) or `BatchArtifactView` (batch modes), the same pattern `RunDetailDrawer` uses. Hosts Promote + Compare buttons. |
 | `src/cli/dashboard/src/components/studio/StudioBundleView.tsx` | Bundle render. Grid of artifact cards (mirrors `RunGallery` BundleCard layout). Each card opens an inline drill-in panel reusing `StudioArtifactView`. Bundle-level Promote + Compare. |
 | `src/cli/dashboard/src/components/studio/parseStudioInput.ts` | Pure parser. JSON → discriminated union: `{kind:'single', artifact}` \| `{kind:'bundle', artifacts, bundleId?}` \| `{kind:'error', message, hint?}`. Uses `RunArtifactSchema` from `src/engine/schema/artifact.ts`. |
 | `src/cli/dashboard/src/components/studio/StudioTab.module.scss` | Studio-specific styles. |
@@ -66,8 +66,8 @@ Tab placement: between **Library** and **Branches** in `App.tsx`. Library = your
    - On Zod failure with raw JSON containing `"leader"` keys but not `"actor"`: return `{kind:'error', message:'This artifact was exported from paracosm v0.7. Studio requires v0.8+. Re-run on the latest paracosm to convert leader→actor fields.'}`
    - Otherwise: return `{kind:'single', artifact}` or `{kind:'bundle', artifacts, bundleId?}`
 4. `StudioTab` switches to `StudioArtifactView` (or `StudioBundleView`)
-5. `StudioArtifactView` calls `computeGameState(artifact.events, true)`, receives `GameState`
-6. Renders Timeline + ReportView (existing components) with the synth state
+5. `StudioArtifactView` reads `artifact.metadata.mode` and delegates: `turn-loop` → `<ReportViewAdapter artifact={artifact} />`; otherwise → `<BatchArtifactView artifact={artifact} metricSpecs={metricSpecs} />`
+6. `metricSpecs` is built from `artifact.trajectory.timepoints[0].worldSnapshot.metrics` keys with default range `[0, 1]` (mirrors `RunDetailDrawer.tsx:69-83`)
 7. Promote button → `POST /api/v1/library/import { artifact }` → toast "Added to Library", optional "Open in Library" link that switches tabs and scrolls to the new card
 8. Compare button → opens `CompareModal` with `extraArtifacts: [artifact]` and a Library bundle/run picker
 
@@ -192,7 +192,8 @@ Forward-compat: a v0.9 artifact with extra fields validates fine because Zod is 
   - bundle of 51 → `kind:'error'`
 
 - **`StudioArtifactView.test.tsx`** — render-level:
-  - feed in a fixture artifact; assert Timeline renders with N timepoints
+  - feed in a turn-loop fixture artifact; assert it renders the `ReportViewAdapter`-rendered turn list
+  - feed in a batch-trajectory fixture; assert it renders `BatchArtifactView`
   - assert Promote button click invokes `onPromote`
   - inline mode hides Promote
 
