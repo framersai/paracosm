@@ -11,14 +11,14 @@
   "trajectory": {
     "timeUnit": { "singular": "month", "plural": "months" },
     "timepoints": [
-      { "t": 1, "label": "M1", "worldSnapshot": { "metrics": { "morale": 0.85, "population": 100 } } },
-      { "t": 2, "label": "M2", "worldSnapshot": { "metrics": { "morale": 0.80, "population": 102 } } },
-      { "t": 3, "label": "M3", "worldSnapshot": { "metrics": { "morale": 0.75, "population": 104 } } }
+      { "time": 1, "label": "M1", "worldSnapshot": { "metrics": { "morale": 0.85, "population": 100 } } },
+      { "time": 2, "label": "M2", "worldSnapshot": { "metrics": { "morale": 0.80, "population": 102 } } },
+      { "time": 3, "label": "M3", "worldSnapshot": { "metrics": { "morale": 0.75, "population": 104 } } }
     ]
   },
   "decisions": [
-    { "label": "Conserve power" },
-    { "label": "Mine ice" },
-    { "label": "Expand habitat" }
+    { "time": 1, "choice": "Conserve power" },
+    { "time": 2, "choice": "Mine ice" },
+    { "time": 3, "choice": "Expand habitat" }
   ]
 }
