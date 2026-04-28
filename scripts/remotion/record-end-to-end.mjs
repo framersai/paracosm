@@ -308,21 +308,26 @@ execFileSync('ffmpeg', [
 //   A: 0 .. (submitClicked + 1.0 s)           1× speed, no caption
 //      (prompt typing + 2.5 s read pause + the click landing)
 //   B: (submitClicked + 1.0 s) .. (results - 0.5 s)
-//                                             ~3× speed, "sped up" caption
+//                                             10× speed, "sped up" caption
 //      (compile + ground + leader gen + 3 sims to Turn 6)
 //   C: (results - 0.5 s) .. end of recording  1× speed, no caption
 //      (results region + VIZ + REPORTS + LIBRARY + drawer)
 //
-// Falls back to a uniform 3× speed-up if `runCompleted` is false (the
+// Falls back to a uniform 10× speed-up if `runCompleted` is false (the
 // run hit the 10-min cap and we never got a results timestamp).
+//
+// SPEED_B was 3 originally; users said the compile window dragged on
+// the landing page, so the middle segment now collapses ~5 minutes of
+// real-time work into ~30 seconds. Captions stay legible at 10× for
+// dashboard text the size we render.
 const heroOut = path.resolve(ASSETS_DIR, `${OUT_NAME}-hero.mp4`);
 const aEnd = ((seg.submitClickedMs || 8000) + 1000) / 1000;
 const bEnd = runCompleted
   ? Math.max(aEnd + 5, (seg.resultsAppearedMs - 500) / 1000)
   : null;
+const SPEED_B = 10.0;
 console.log(`[e2e] ffmpeg -> hero mp4: ${heroOut}`);
-console.log(`  segments: A 0..${aEnd.toFixed(1)}s 1×, B ${aEnd.toFixed(1)}..${bEnd?.toFixed(1) ?? '∞'}s 3×, C ${bEnd?.toFixed(1) ?? '?'}s..end 1×`);
-const SPEED_B = 3.0;
+console.log(`  segments: A 0..${aEnd.toFixed(1)}s 1×, B ${aEnd.toFixed(1)}..${bEnd?.toFixed(1) ?? '∞'}s ${SPEED_B}×, C ${bEnd?.toFixed(1) ?? '?'}s..end 1×`);
 // drawtext caption stays inside the B trim window so it does not bleed
 // into A or C frames after the concat. Box + opaque background so it
 // reads cleanly over both light + dark UI states the dashboard cycles
