@@ -324,6 +324,36 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
   // env var or maxSimsPerDay option when hosting on your own infra.
   const maxSims = options.maxSimsPerDay ?? parseInt(env.RATE_LIMIT || '1', 10);
   const adminWrite = (env.ADMIN_WRITE || 'false').toLowerCase() === 'true';
+  // Per-request token gate for /admin/* routes. When ADMIN_WRITE=true,
+  // ADMIN_TOKEN must be set to a non-empty secret (paracosm fails the
+  // request closed otherwise). The dashboard's Wipe All path sends
+  // the token via the `X-Admin-Token` header (read from localStorage,
+  // matches the existing key-overrides pattern). Operators set
+  // ADMIN_TOKEN once in /opt/paracosm/.env; the dashboard pastes it
+  // once into Settings. Drive-by visitors get 401.
+  const adminToken = (env.ADMIN_TOKEN || '').trim();
+  const requireAdminToken = (req: IncomingMessage, res: ServerResponse): boolean => {
+    if (!adminWrite) {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'ADMIN_WRITE not enabled on this server' }));
+      return false;
+    }
+    if (!adminToken) {
+      res.writeHead(503, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        error: 'ADMIN_TOKEN must be set in the server env when ADMIN_WRITE=true. ' +
+               'Without it /admin/* routes are unreachable on purpose — open admin endpoints with no per-request auth would let any visitor wipe data.',
+      }));
+      return false;
+    }
+    const headerToken = String(req.headers['x-admin-token'] ?? '').trim();
+    if (!headerToken || headerToken !== adminToken) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Invalid or missing X-Admin-Token header' }));
+      return false;
+    }
+    return true;
+  };
   const parsedMaxRequestBodyBytes = Number.parseInt(env.MAX_REQUEST_BODY_BYTES || '', 10);
   const defaultMaxRequestBodyBytes = Number.isFinite(parsedMaxRequestBodyBytes)
     ? parsedMaxRequestBodyBytes
@@ -1543,11 +1573,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
     // the original pacing (or accelerated via ?speed=N).
 
     if (req.url === '/admin/sessions/save' && req.method === 'POST') {
-      if (!adminWrite) {
-        res.writeHead(403, { 'Content-Type': 'application/json', ...corsHeaders });
-        res.end(JSON.stringify({ error: 'ADMIN_WRITE not enabled on this server' }));
-        return;
-      }
+      if (!requireAdminToken(req, res)) return;
       if (!sessionStore) {
         res.writeHead(503, { 'Content-Type': 'application/json', ...corsHeaders });
         res.end(JSON.stringify({ error: 'session store unavailable' }));
@@ -1585,14 +1611,10 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
 
     // Admin destructive wipe: clears the runs + sessions tables and
     // optionally the on-disk artifact JSONs under <APP_DIR>/output/.
-    // Same ADMIN_WRITE gate as /admin/sessions/save above. Returns the
+    // Same admin gate as /admin/sessions/save above. Returns the
     // counts of deleted rows + files.
     if (req.url === '/admin/data/wipe' && req.method === 'POST') {
-      if (!adminWrite) {
-        res.writeHead(403, { 'Content-Type': 'application/json', ...corsHeaders });
-        res.end(JSON.stringify({ error: 'ADMIN_WRITE not enabled on this server' }));
-        return;
-      }
+      if (!requireAdminToken(req, res)) return;
       let body: { wipeRuns?: boolean; wipeSessions?: boolean; wipeOutput?: boolean; wipeEventBuffer?: boolean } = {};
       try {
         const raw = await readBody(req, maxRequestBodyBytes);

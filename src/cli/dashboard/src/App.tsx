@@ -240,12 +240,38 @@ function AppContent() {
     sse.reset();
     setUserTriggeredRun(false);
 
-    // Server-side wipe. Gated by ADMIN_WRITE on the server — when off,
-    // the endpoint returns 403 and we just report the local clear.
+    // Server-side wipe. /admin/data/wipe requires X-Admin-Token (per-
+    // request auth gate added in the security pass). Token is stored
+    // in localStorage; if it's missing we prompt for it once. The token
+    // lives in /opt/paracosm/.env on the operator's server.
+    let adminToken = '';
+    try {
+      adminToken = localStorage.getItem('paracosm:adminToken') ?? '';
+    } catch {
+      /* localStorage may be disabled (SSR / private window); treat as missing. */
+    }
+    if (!adminToken) {
+      const entered = window.prompt(
+        'Server wipe needs the admin token (set on the server as ADMIN_TOKEN in .env).\n' +
+        'Paste it once and the dashboard will remember it for this browser:',
+      );
+      if (entered === null) {
+        toast('info', 'Cleared', 'Local buffer cleared. Server wipe canceled (no admin token).');
+        setActiveTab('settings');
+        return;
+      }
+      adminToken = entered.trim();
+      try {
+        if (adminToken) localStorage.setItem('paracosm:adminToken', adminToken);
+      } catch {
+        /* silent — fall through; the request below carries the token in-memory either way. */
+      }
+    }
+
     try {
       const res = await fetch('/admin/data/wipe', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Token': adminToken },
         body: JSON.stringify({ wipeRuns: true, wipeSessions: true, wipeOutput: true }),
       });
       if (res.ok) {
@@ -255,8 +281,15 @@ function AppContent() {
           'Cleared',
           `Local buffer + ${body.wiped.runs} runs + ${body.wiped.sessions} sessions + ${body.wiped.outputFiles} files wiped.`,
         );
+      } else if (res.status === 401) {
+        // Wrong / expired token. Drop the saved value so the next click
+        // re-prompts cleanly.
+        try { localStorage.removeItem('paracosm:adminToken'); } catch { /* silent */ }
+        toast('error', 'Partial clear', 'Local cleared; server rejected the admin token. Click Wipe All again to re-enter.');
       } else if (res.status === 403) {
         toast('info', 'Cleared', 'Local buffer cleared. Server wipe disabled (ADMIN_WRITE off).');
+      } else if (res.status === 503) {
+        toast('error', 'Partial clear', 'Local cleared; server has ADMIN_WRITE on but no ADMIN_TOKEN configured. Set ADMIN_TOKEN in /opt/paracosm/.env.');
       } else {
         const err = await res.json().catch(() => ({} as { error?: string }));
         toast('error', 'Partial clear', `Local cleared; server wipe failed: ${err.error ?? `HTTP ${res.status}`}`);

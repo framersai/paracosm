@@ -669,6 +669,34 @@ STORAGE_ADAPTER=sqljs paracosm dashboard
 
 Run-history schema (`runs` table) and session schema (`sessions` table) are bootstrapped idempotently on first boot. Legacy v0.7 databases auto-migrate the `leader_*` columns to `actor_*` in place via `ALTER TABLE RENAME COLUMN`; no manual step needed.
 
+## Admin endpoints
+
+Two destructive admin routes ship with the dashboard:
+
+- `POST /admin/sessions/save` — snapshot the current event buffer as a replayable session
+- `POST /admin/data/wipe` — destructive: clears `runs.db`, `sessions.db`, on-disk artifact JSONs (`output/v3-*.json`), and the SSE event buffer
+
+Both are gated by **two** env vars on the server. Both must be satisfied for a request to land:
+
+| Env var | Purpose |
+|---|---|
+| `ADMIN_WRITE=true` | Master switch. Off → all `/admin/*` routes return `403`. |
+| `ADMIN_TOKEN=<secret>` | Per-request bearer token. Required when `ADMIN_WRITE=true`. Empty/unset → server returns `503` (fail-closed; the routes refuse to serve at all rather than be open). |
+
+Clients send the token in the `X-Admin-Token` header:
+
+```bash
+curl -X POST https://paracosm.example.com/admin/data/wipe \
+  -H 'X-Admin-Token: your-32-char-secret' \
+  -H 'Content-Type: application/json' \
+  -d '{}'
+# → {"wiped":{"runs":N,"sessions":M,"outputFiles":K,"eventBuffer":true}}
+```
+
+The dashboard's **Wipe All** button (⋯ menu) prompts for the token on first use and stores it in `localStorage` under `paracosm:adminToken` for subsequent clicks. Operators rotate the token by editing `/opt/paracosm/.env` and restarting the process; the dashboard re-prompts on the next failed call.
+
+**Why a fail-closed design:** an open `/admin/data/wipe` would let any visitor curl your prod and lose data. Setting `ADMIN_WRITE=true` without `ADMIN_TOKEN` previously did exactly that — the new `503` response makes accidental misconfigurations loud rather than silent.
+
 ## Seed Enrichment & Citation Flow
 
 Pass real-world source material into the compiler and Paracosm grounds the scenario in citations that flow all the way through to department reports.
