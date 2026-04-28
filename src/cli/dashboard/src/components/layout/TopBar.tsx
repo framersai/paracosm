@@ -414,7 +414,11 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
             GITHUB / TOUR / status / theme. Visible only when a run
             has emitted events (same gating the 3 separate buttons
             had before). */}
-        {hasEvents && (onSave || onCopy || onClear) && (
+        {/* Clear always opens the menu so the user can wipe server-
+            stored runs + sessions + output files even with an empty
+            local buffer. Save/Copy still require an active run; their
+            individual buttons inside the menu are gated separately. */}
+        {((hasEvents && (onSave || onCopy)) || onClear) && (
           <div ref={overflowRootRef} style={{ position: 'relative' }}>
             <button
               type="button"
@@ -422,7 +426,7 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
               aria-haspopup="menu"
               aria-expanded={overflowOpen}
               aria-label={overflowOpen ? 'Close run actions' : 'Open run actions menu'}
-              title="Save · Copy · Clear"
+              title="Save · Copy · Wipe"
               style={{
                 ...toolBtnStyle,
                 width: 28,
@@ -457,7 +461,7 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
                   gap: 2,
                 }}
               >
-                {onSave && (
+                {hasEvents && onSave && (
                   <button
                     role="menuitem"
                     type="button"
@@ -479,7 +483,7 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
                     Save
                   </button>
                 )}
-                {onCopy && (
+                {hasEvents && onCopy && (
                   <button
                     role="menuitem"
                     type="button"
@@ -518,9 +522,9 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
                       fontWeight: 600,
                       borderRadius: 3,
                     }}
-                    title="Clear all data. Cannot be undone."
+                    title="Wipe local buffer + server-stored runs/sessions + output JSONs. Cannot be undone."
                   >
-                    Clear
+                    Wipe All
                   </button>
                 )}
               </div>

@@ -227,11 +227,42 @@ function AppContent() {
     },
   });
 
-  const handleClear = useCallback(() => {
-    if (!confirm('Clear all simulation data? This cannot be undone.')) return;
+  const handleClear = useCallback(async () => {
+    if (!confirm(
+      'Clear ALL data? This wipes:\n' +
+      '  • Current simulation buffer (this browser)\n' +
+      '  • Library runs (server)\n' +
+      '  • Saved sessions / replays (server)\n' +
+      '  • On-disk artifact JSON files\n\n' +
+      'Cannot be undone.',
+    )) return;
     persistence.clearCache();
     sse.reset();
-    toast('info', 'Cleared', 'Simulation data cleared.');
+
+    // Server-side wipe. Gated by ADMIN_WRITE on the server — when off,
+    // the endpoint returns 403 and we just report the local clear.
+    try {
+      const res = await fetch('/admin/data/wipe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wipeRuns: true, wipeSessions: true, wipeOutput: true }),
+      });
+      if (res.ok) {
+        const body = await res.json() as { wiped: { runs: number; sessions: number; outputFiles: number } };
+        toast(
+          'info',
+          'Cleared',
+          `Local buffer + ${body.wiped.runs} runs + ${body.wiped.sessions} sessions + ${body.wiped.outputFiles} files wiped.`,
+        );
+      } else if (res.status === 403) {
+        toast('info', 'Cleared', 'Local buffer cleared. Server wipe disabled (ADMIN_WRITE off).');
+      } else {
+        const err = await res.json().catch(() => ({} as { error?: string }));
+        toast('error', 'Partial clear', `Local cleared; server wipe failed: ${err.error ?? `HTTP ${res.status}`}`);
+      }
+    } catch (err) {
+      toast('error', 'Partial clear', `Local cleared; server wipe failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
     setActiveTab('settings');
   }, [persistence, sse, toast]);
 
