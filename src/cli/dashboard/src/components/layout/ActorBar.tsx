@@ -1,3 +1,4 @@
+import * as React from 'react';
 import type { LeaderInfo } from '../../hooks/useGameState';
 import { getActorColorVar } from '../../hooks/useGameState';
 import { SparkLine } from '../shared/SparkLine';
