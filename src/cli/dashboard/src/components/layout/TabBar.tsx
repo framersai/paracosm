@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { ScenarioClientPayload } from '../../hooks/useScenario';
 
-type Tab = 'quickstart' | 'sim' | 'viz' | 'settings' | 'reports' | 'branches' | 'library' | 'chat' | 'log' | 'about';
+type Tab = 'quickstart' | 'sim' | 'viz' | 'settings' | 'reports' | 'branches' | 'library' | 'studio' | 'chat' | 'log' | 'about';
 
 interface TabBarProps {
   active: Tab;
@@ -27,6 +27,8 @@ function TabIcon({ id, size = 16 }: { id: Tab; size?: number }) {
       return <svg {...props}><line x1="6" y1="3" x2="6" y2="15" /><circle cx="18" cy="6" r="3" /><circle cx="6" cy="18" r="3" /><path d="M18 9a9 9 0 0 1-9 9" /></svg>;
     case 'library':
       return <svg {...props}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" /></svg>;
+    case 'studio':
+      return <svg {...props}><polyline points="4 7 4 4 20 4 20 7" /><line x1="9" y1="20" x2="15" y2="20" /><line x1="12" y1="4" x2="12" y2="20" /></svg>;
     case 'chat':
       return <svg {...props}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>;
     case 'log':
@@ -45,6 +47,7 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'branches', label: 'BRANCHES' },
   { id: 'chat', label: 'CHAT' },
   { id: 'library', label: 'LIBRARY' },
+  { id: 'studio', label: 'STUDIO' },
   { id: 'log', label: 'LOG' },
   { id: 'about', label: 'ABOUT' },
 ];

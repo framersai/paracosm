@@ -23,6 +23,7 @@ import { BranchesProvider } from './components/branches/BranchesContext';
 import { BranchesSyncer } from './components/branches/BranchesSyncer';
 import { BranchesTab } from './components/branches/BranchesTab';
 import { LibraryTab } from './components/library/index.js';
+import { StudioTab } from './components/studio/StudioTab.js';
 import { QuickstartView } from './components/quickstart/QuickstartView';
 import { useCitationRegistry, CitationRegistryContext } from './hooks/useCitationRegistry';
 import { useToolRegistry, ToolRegistryContext } from './hooks/useToolRegistry';
@@ -628,6 +629,8 @@ function AppContent() {
             {activeTab === 'branches' && <BranchesTab />}
 
             {activeTab === 'library' && <LibraryTab />}
+
+            {activeTab === 'studio' && <StudioTab />}
 
             {/* ChatPanel stays mounted across tab switches so per-agent
                 message threads survive when the user jumps to Sim / Reports
