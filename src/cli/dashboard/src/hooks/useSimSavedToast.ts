@@ -5,12 +5,17 @@
  * (`below_min_turns`) are silenced so aborted-too-early runs don't
  * spam the user.
  *
+ * Cold-load gate: only fires when a `sim_saved` event ARRIVES during
+ * this mount. A page load that rehydrates with `sim_saved` already
+ * present in the buffer does NOT toast — the cache write happened
+ * on a previous session, announcing it is noise.
+ *
  * Dedup'd via sessionStorage fingerprint keyed on status + id + reason
  * so returning to the tab after a reload doesn't re-toast.
  *
  * Extracted from App.tsx.
  */
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useToast } from '../components/shared/Toast';
 import type { SimEvent } from './useSSE';
 
@@ -23,9 +28,28 @@ export interface UseSimSavedToastOptions {
 
 export function useSimSavedToast({ events, tourActive }: UseSimSavedToastOptions): void {
   const { toast } = useToast();
+  // Snapshot the set of sim_saved event ids present at mount time so
+  // we can ignore any that were already in the buffer when the page
+  // loaded. Only events that arrive AFTER mount trigger toasts.
+  const baselineIdsRef = useRef<Set<string> | null>(null);
   useEffect(() => {
+    if (baselineIdsRef.current === null) {
+      baselineIdsRef.current = new Set(
+        events.filter((e) => e.type === 'sim_saved').map((e) => {
+          const d = (e.data ?? {}) as Record<string, unknown>;
+          return `${String(d.status ?? '')}:${String(d.id ?? '')}:${String(d.reason ?? '')}`;
+        }),
+      );
+      return;
+    }
     if (tourActive) return;
-    const savedEvent = events.find((e) => e.type === 'sim_saved');
+    const baseline = baselineIdsRef.current;
+    const savedEvent = events.find((e) => {
+      if (e.type !== 'sim_saved') return false;
+      const d = (e.data ?? {}) as Record<string, unknown>;
+      const key = `${String(d.status ?? '')}:${String(d.id ?? '')}:${String(d.reason ?? '')}`;
+      return !baseline.has(key);
+    });
     if (!savedEvent) return;
     const d = (savedEvent.data ?? {}) as Record<string, unknown>;
     const status = String(d.status ?? 'unknown');
