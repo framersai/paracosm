@@ -534,14 +534,20 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
 
         <span style={{ color: 'var(--border)', fontSize: '12px' }} aria-hidden="true">|</span>
 
-        {/* Status */}
+        {/* Status. The text label hides under .topbar-status-text at
+            narrow viewports (<640px) so the colored dot alone signals
+            connection state on phones; the title attribute still
+            carries the full explanation for hover, and the aria-label
+            keeps screen-reader semantics intact. */}
         <span
-          style={{ fontSize: '10px', fontFamily: 'var(--mono)', color: statusColor, fontWeight: 700, cursor: 'help' }}
+          style={{ fontSize: '10px', fontFamily: 'var(--mono)', color: statusColor, fontWeight: 700, cursor: 'help', display: 'inline-flex', alignItems: 'center', gap: 4 }}
           role="status"
           aria-live="polite"
+          aria-label={`${statusText}. ${statusTitle}`}
           title={statusTitle}
         >
-          {sse.status === 'connected' && !sse.isComplete ? '\u25CF' : '\u25CB'} {statusText}
+          <span aria-hidden="true">{sse.status === 'connected' && !sse.isComplete ? '\u25CF' : '\u25CB'}</span>
+          <span className="topbar-status-text" style={{ marginLeft: 4 }}>{statusText}</span>
         </span>
 
         {/* Theme toggle */}
