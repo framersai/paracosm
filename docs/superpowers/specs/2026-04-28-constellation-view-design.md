@@ -84,8 +84,8 @@ Click any node → opens `ActorDrillInModal`. The modal:
 **Modal contents:**
 
 - `<ActorBar>` reused as-is (top-of-modal header). Already takes `leader`, `popHistory`, `moraleHistory`, `actorIndex`, `verdictPlacement` — all available on the `ActorSideState`.
-- Events list: maps `state.actors[name].events` into a vertical timeline of turn cards (one per `turn_done` boundary), reusing existing `ReportViewAdapter` styling for consistency with Library + Studio.
-- Decisions list: maps `state.actors[name].decisions` into a "Decisions" section.
+- Events list: maps `state.actors[name].events` (a `ProcessedEvent[]`) into a vertical timeline of turn cards. Group events by `event.turn` for a per-turn fold; within each group, render lightly (event type + title + summary).
+- Decisions section: filters `state.actors[name].events` to entries with `type === 'decision_made'` and renders title + outcome. Note: `state.actors[name].decisions` on `ActorSideState` is a **count** (number), not an array — decisions live in the events stream.
 
 This is ~120 LOC of glue code with no new visual primitives.
 
