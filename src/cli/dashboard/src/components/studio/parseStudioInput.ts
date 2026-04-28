@@ -29,7 +29,13 @@ const MAX_BUNDLE_SIZE = 50;
  */
 function validateOne(raw: unknown): { ok: true; artifact: RunArtifact } | { ok: false; issues: string[] } {
   const parsed = RunArtifactSchema.safeParse(raw);
-  if (parsed.success) return { ok: true, artifact: parsed.data as unknown as RunArtifact };
+  if (parsed.success) {
+    // Zod strips non-schema fields by default; downstream renderers
+    // read `artifact.leader` and `artifact.cost` which aren't in the
+    // schema, so we forward the raw input — schema acts as a gate,
+    // not a transformer.
+    return { ok: true, artifact: raw as RunArtifact };
+  }
   const issues = parsed.error.issues.slice(0, 3).map((i) => `${i.path.join('.') || '<root>'}: ${i.message}`);
   return { ok: false, issues };
 }
