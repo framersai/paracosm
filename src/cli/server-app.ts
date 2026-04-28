@@ -850,6 +850,26 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       return;
     }
 
+    // Studio drop-zone: POST /api/v1/library/import accepts a single
+    // RunArtifact or array of RunArtifacts and inserts each into the
+    // run-history store as a fresh Library row. Same gating as the
+    // bundle GETs below.
+    if (paracosmRoutesEnabled && req.url === '/api/v1/library/import' && req.method === 'POST') {
+      if (!runHistoryStore) {
+        res.writeHead(503, { 'Content-Type': 'application/json', ...corsHeaders });
+        res.end(JSON.stringify({ error: 'Run-history store disabled' }));
+        return;
+      }
+      try {
+        const body = JSON.parse(await readBody(req, maxRequestBodyBytes));
+        const { handleLibraryImport } = await import('./server/library-import-route.js');
+        await handleLibraryImport(req, res, body, { runHistoryStore, sourceMode: serverMode });
+      } catch (err) {
+        writeJsonError(res, err);
+      }
+      return;
+    }
+
     // Compare-runs UI: bundle endpoints. /api/v1/bundles/:id and
     // /api/v1/bundles/:id/aggregate are read-only views over the
     // RunHistoryStore. Same gating as platform-api routes above.
