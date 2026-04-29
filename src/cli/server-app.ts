@@ -1200,6 +1200,13 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
             groundingCitationsByScenarioId.set(scenarioId, citations);
           },
           getDigitalTwinWorld,
+          // Pipe simulate-intervention's per-event stream into the same
+          // SSE bus /setup uses. The dashboard's useSSE is already
+          // listening; flipping this on lights up live SIM progress for
+          // digital-twin runs without any client reset on the SSE
+          // connection itself.
+          broadcast,
+          resetEventBuffer: clearEventBuffer,
         };
         if (req.url === '/api/quickstart/fetch-seed') {
           await handleFetchSeed(req, res, body, quickstartDeps);

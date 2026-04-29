@@ -62,6 +62,15 @@ export interface QuickstartViewProps {
    *  interventionArtifact state, and switches to the SIM tab so
    *  DigitalTwinPanel renders. */
   onInterventionResult?: (artifact: RunArtifact) => void;
+  /** Fired the instant the user clicks Run inside InterventionDemoCard,
+   *  before the fetch lands. App.tsx uses it to switch to SIM
+   *  immediately so live SSE events from the run render in
+   *  DigitalTwinProgress while the synchronous fetch is still in
+   *  flight. Carries the prefilled subject + intervention. */
+  onInterventionStart?: (payload: {
+    subject: { id: string; name: string; profile?: Record<string, unknown> };
+    intervention: { id: string; name: string; description: string; duration?: { value: number; unit: string } };
+  }) => void;
 }
 
 type Phase =
@@ -69,7 +78,7 @@ type Phase =
   | { kind: 'progress'; stage: Stage; scenario?: ScenarioPackage; actors?: ActorConfig[] }
   | { kind: 'results'; scenario: ScenarioPackage; actors: ActorConfig[]; artifacts: RunArtifact[] };
 
-export function QuickstartView({ sse, sessionId, onRunStarted, onInterventionResult }: QuickstartViewProps) {
+export function QuickstartView({ sse, sessionId, onRunStarted, onInterventionResult, onInterventionStart }: QuickstartViewProps) {
   const [phase, setPhase] = useState<Phase>({ kind: 'input' });
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
   // Bundle id for the just-finished run; surfaced as a "Compare all N
@@ -250,7 +259,11 @@ export function QuickstartView({ sse, sessionId, onRunStarted, onInterventionRes
           {errorBanner && <p className={styles.errorBanner} role="alert">{errorBanner}</p>}
           <SeedInput onSeedReady={handleSeedReady} />
           {onInterventionResult && (
-            <InterventionDemoCard onResult={onInterventionResult} onError={(msg) => setErrorBanner(msg)} />
+            <InterventionDemoCard
+              onResult={onInterventionResult}
+              onRunStart={onInterventionStart}
+              onError={(msg) => setErrorBanner(msg)}
+            />
           )}
         </>
       )}

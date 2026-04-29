@@ -20,6 +20,7 @@ import { WorldModel } from '../runtime/world-model/index.js';
 import type { ScenarioPackage, ActorConfig } from '../engine/types.js';
 import type { SubjectConfig, InterventionConfig, RunArtifact } from '../engine/schema/index.js';
 import { groundScenario, type GroundingResult } from './server/deep-research.js';
+import type { BroadcastFn } from './pair-runner.js';
 
 const FetchSeedSchema = z.object({
   url: z.string().url().max(2048),
@@ -151,6 +152,22 @@ export interface QuickstartDeps {
    * compile fails (caller writes a 502 in that case).
    */
   getDigitalTwinWorld?: () => Promise<WorldModel | null>;
+  /**
+   * SSE broadcast function (same one /setup uses). When wired, the
+   * simulate-intervention handler streams every per-turn event the
+   * underlying runSimulation emits to the dashboard's /events channel
+   * so the SIM tab renders live progress while the synchronous fetch
+   * is still in flight. Without it, the run still works but the user
+   * sees nothing until the artifact returns.
+   */
+  broadcast?: BroadcastFn;
+  /**
+   * Reset the in-memory event buffer + per-run state before a new
+   * digital-twin run starts. Mirrors what /setup does on a fresh sim:
+   * without it, prior events from another run bleed into the
+   * dashboard's gameState while the new intervention is streaming.
+   */
+  resetEventBuffer?: () => void;
 }
 
 export async function handleFetchSeed(
@@ -382,6 +399,26 @@ export async function handleSimulateIntervention(
     ? { ...leader, unit: leader.unit ?? 'Lab leadership', instructions: leader.instructions ?? '' }
     : DEFAULT_DIGITAL_TWIN_LEADER;
 
+  // Reset the SSE event buffer before broadcasting this run's events so
+  // the dashboard's gameState does not interleave them with whatever
+  // run came before. /setup does the same thing at its top.
+  deps.resetEventBuffer?.();
+
+  // Build an onEvent shim that forwards each typed SimEvent emitted by
+  // runSimulation to the SSE broadcast bus. Without it, the dashboard
+  // sees nothing until the artifact returns at the bottom of this
+  // handler. With it, the SIM tab renders specialist_done /
+  // turn_done / decision events as they arrive — the same live feel
+  // /setup-driven runs already have. The handler still returns the full
+  // artifact synchronously at the end so existing clients
+  // (InterventionDemoCard) keep working unchanged.
+  const broadcast = deps.broadcast;
+  const onEvent = broadcast
+    ? (event: { type: string }) => {
+        try { broadcast(event.type, event); } catch { /* one bad event must not fail the run */ }
+      }
+    : undefined;
+
   const startedAt = Date.now();
   let artifact: RunArtifact;
   try {
@@ -394,6 +431,7 @@ export async function handleSimulateIntervention(
         seed: options.seed ?? 11,
         costPreset: options.costPreset ?? 'economy',
         captureSnapshots: false,
+        onEvent,
       },
     );
   } catch (err) {

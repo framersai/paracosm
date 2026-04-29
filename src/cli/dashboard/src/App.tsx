@@ -485,6 +485,16 @@ function AppContent() {
   // than trying to merge both shapes into one view. Cleared by the panel's
   // dismiss button or by triggering a fresh /setup run.
   const [interventionArtifact, setInterventionArtifact] = useState<RunArtifact | null>(null);
+  // While set, SIM renders DigitalTwinProgress (live-streaming events
+  // from the in-flight simulate-intervention run) instead of the
+  // parallel-actor layout or the static panel. Carries the prefilled
+  // subject + intervention so the progress view can echo them on
+  // screen before any artifact comes back. Cleared when the artifact
+  // arrives (panel takes over) or when the user dismisses.
+  const [interventionRunning, setInterventionRunning] = useState<{
+    subject: { id: string; name: string; profile?: Record<string, unknown> };
+    intervention: { id: string; name: string; description: string; duration?: { value: number; unit: string } };
+  } | null>(null);
 
   // Accumulator for /chat turn cost + tokens. Folded into the Footer's
   // `cost` prop so users see the real run-plus-chat total spend. Prior
@@ -536,16 +546,34 @@ function AppContent() {
   const [userTriggeredRun, setUserTriggeredRun] = useState(false);
 
   // Handlers for the digital-twin intervention path: declared here so
-  // setUserTriggeredRun is in scope. handleInterventionResult flips the
-  // user-triggered-run gate (so the SIM tab does not suppress the
-  // returned result the same way it suppresses cold-load rehydrations)
-  // and switches to the SIM tab so DigitalTwinPanel renders immediately.
+  // setUserTriggeredRun is in scope.
+  //
+  // Start: fires the moment the user clicks "Run intervention demo".
+  // We reset prior SSE state, switch to SIM immediately (so streaming
+  // events from the server show up live), and park the prefilled
+  // subject + intervention so DigitalTwinProgress can echo them.
+  //
+  // Result: artifact landed, swap progress -> panel (single render
+  // pass; the artifact carries subject + intervention so the panel
+  // does not need the running payload).
+  const handleInterventionStart = useCallback((payload: {
+    subject: { id: string; name: string; profile?: Record<string, unknown> };
+    intervention: { id: string; name: string; description: string; duration?: { value: number; unit: string } };
+  }) => {
+    sse.reset();
+    setInterventionArtifact(null);
+    setInterventionRunning(payload);
+    setUserTriggeredRun(true);
+    setActiveTab('sim');
+  }, [sse, setActiveTab]);
   const handleInterventionResult = useCallback((artifact: RunArtifact) => {
+    setInterventionRunning(null);
     setInterventionArtifact(artifact);
     setUserTriggeredRun(true);
     setActiveTab('sim');
   }, [setActiveTab]);
   const handleInterventionDismiss = useCallback(() => {
+    setInterventionRunning(null);
     setInterventionArtifact(null);
   }, []);
   useTerminalToast({
@@ -738,6 +766,7 @@ function AppContent() {
                 sse={sse}
                 sessionId={replaySessionId ?? undefined}
                 onRunStarted={() => setUserTriggeredRun(true)}
+                onInterventionStart={handleInterventionStart}
                 onInterventionResult={handleInterventionResult}
               />
             )}
@@ -751,6 +780,7 @@ function AppContent() {
                 verdict={sse.verdict}
                 launching={launching}
                 interventionArtifact={interventionArtifact}
+                interventionRunning={interventionRunning}
                 onInterventionDismiss={handleInterventionDismiss}
               />
             )}

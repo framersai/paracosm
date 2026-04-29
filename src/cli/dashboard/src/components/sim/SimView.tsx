@@ -3,6 +3,7 @@ import type { GameState, ActorSideState, LeaderInfo } from '../../hooks/useGameS
 import { getActorColorVar } from '../../hooks/useGameState';
 import { useScenarioContext } from '../../App';
 import { DigitalTwinPanel } from '../digital-twin/DigitalTwinPanel';
+import { DigitalTwinProgress } from '../digital-twin/DigitalTwinProgress';
 import type { RunArtifact } from '../../../../../engine/schema/index.js';
 import { useCitationContext } from '../../hooks/useCitationRegistry';
 import { useToolContext } from '../../hooks/useToolRegistry';
@@ -38,6 +39,16 @@ interface SimViewProps {
    *  SimView replaces the parallel-actor layout with DigitalTwinPanel
    *  rendered against this single artifact. */
   interventionArtifact?: RunArtifact | null;
+  /** While set (and no artifact yet), SimView renders DigitalTwinProgress
+   *  with subject + intervention echo plus the live SSE event log. The
+   *  payload carries just the prefilled subject + intervention shapes
+   *  the dashboard knew about when the user clicked Run; once the
+   *  artifact lands, App.tsx clears this field and DigitalTwinPanel
+   *  renders the full result. */
+  interventionRunning?: {
+    subject: { id: string; name: string; profile?: Record<string, unknown> };
+    intervention: { id: string; name: string; description: string; duration?: { value: number; unit: string } };
+  } | null;
   /** Clears the intervention artifact so SimView returns to the standard
    *  parallel-actor layout. */
   onInterventionDismiss?: () => void;
@@ -155,7 +166,7 @@ function IntroBar({ onDismiss }: { onDismiss: () => void }) {
   );
 }
 
-export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: launchingProp, interventionArtifact, onInterventionDismiss }: SimViewProps) {
+export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: launchingProp, interventionArtifact, interventionRunning, onInterventionDismiss }: SimViewProps) {
   const scenario = useScenarioContext();
   // Digital-twin short-circuit: when the dashboard receives an artifact
   // produced by simulateIntervention (subject + intervention populated),
@@ -165,7 +176,18 @@ export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: l
   if (interventionArtifact) {
     return (
       <div className={styles.root}>
-        <DigitalTwinPanel artifact={interventionArtifact} onDismiss={onInterventionDismiss} />
+        <DigitalTwinPanel artifact={interventionArtifact} state={state} onDismiss={onInterventionDismiss} />
+      </div>
+    );
+  }
+  // Live phase: server is still streaming SSE events for this run. We
+  // know the prefilled subject + intervention from the click that
+  // initiated it, so we can render their cards immediately and let the
+  // event log + counters fill in as broadcast() pushes events through.
+  if (interventionRunning) {
+    return (
+      <div className={styles.root}>
+        <DigitalTwinProgress state={state} subject={interventionRunning.subject} intervention={interventionRunning.intervention} />
       </div>
     );
   }

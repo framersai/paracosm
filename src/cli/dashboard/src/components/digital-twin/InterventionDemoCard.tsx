@@ -20,6 +20,17 @@ import styles from './InterventionDemoCard.module.scss';
 export interface InterventionDemoCardProps {
   onResult: (artifact: RunArtifact) => void;
   onError?: (message: string) => void;
+  /**
+   * Fires the moment the user clicks Run, before the fetch starts.
+   * Carries the prefilled subject + intervention payload so App.tsx
+   * can park it in interventionRunning state, reset SSE, and switch
+   * to the SIM tab. The dashboard then renders DigitalTwinProgress
+   * with subject/intervention echoed and live events streaming.
+   */
+  onRunStart?: (payload: {
+    subject: { id: string; name: string; profile?: Record<string, unknown> };
+    intervention: { id: string; name: string; description: string; duration?: { value: number; unit: string } };
+  }) => void;
 }
 
 const SUBJECT_PREVIEW = {
@@ -55,7 +66,7 @@ const INTERVENTION_PAYLOAD = {
   adherenceProfile: { expected: 1.0 },
 };
 
-export function InterventionDemoCard({ onResult, onError }: InterventionDemoCardProps) {
+export function InterventionDemoCard({ onResult, onError, onRunStart }: InterventionDemoCardProps) {
   const [running, setRunning] = useState(false);
   const [elapsedSec, setElapsedSec] = useState(0);
   const startedAtRef = useRef<number>(0);
@@ -72,6 +83,18 @@ export function InterventionDemoCard({ onResult, onError }: InterventionDemoCard
     setRunning(true);
     setElapsedSec(0);
     startedAtRef.current = Date.now();
+    // Tell App.tsx we just kicked off a digital-twin run BEFORE the
+    // fetch lands so the SIM tab can switch and DigitalTwinProgress
+    // can start consuming SSE events the server is about to stream.
+    onRunStart?.({
+      subject: { id: SUBJECT_PAYLOAD.id, name: SUBJECT_PAYLOAD.name, profile: SUBJECT_PAYLOAD.profile },
+      intervention: {
+        id: INTERVENTION_PAYLOAD.id,
+        name: INTERVENTION_PAYLOAD.name,
+        description: INTERVENTION_PAYLOAD.description,
+        duration: INTERVENTION_PAYLOAD.duration,
+      },
+    });
     try {
       const res = await fetch('/api/quickstart/simulate-intervention', {
         method: 'POST',

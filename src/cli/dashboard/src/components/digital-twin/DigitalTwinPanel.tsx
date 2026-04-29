@@ -18,12 +18,23 @@
  *
  * @module paracosm/dashboard/digital-twin/DigitalTwinPanel
  */
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import type { RunArtifact } from '../../../../../engine/schema/index.js';
+import type { GameState } from '../../hooks/useGameState';
 import styles from './DigitalTwinPanel.module.scss';
 
 export interface DigitalTwinPanelProps {
   artifact: RunArtifact;
+  /**
+   * GameState built from the SSE events the server broadcast during
+   * the run. When present, the panel exposes a "Playback" section
+   * that lets the viewer scrub through every event the run emitted —
+   * specialist analyses, forge attempts, the decision, the outcome —
+   * matched to the live trail the SIM tab showed while the run was
+   * in flight. Optional so a panel rendered against an artifact
+   * loaded from disk (no live events) still works.
+   */
+  state?: GameState;
   onDismiss?: () => void;
 }
 
@@ -77,7 +88,39 @@ function formatProfileValue(value: unknown): string {
   return JSON.stringify(value);
 }
 
-export function DigitalTwinPanel({ artifact, onDismiss }: DigitalTwinPanelProps) {
+const EVENT_LABELS: Record<string, string> = {
+  run_started: 'Run started',
+  turn_started: 'Turn started',
+  event_start: 'Crisis event',
+  specialist_start: 'Specialist analyzing',
+  specialist_done: 'Specialist done',
+  forge_attempt: 'Forge attempt',
+  forge_approved: 'Tool forged',
+  forge_rejected: 'Forge rejected',
+  decision_pending: 'Decision pending',
+  decision_made: 'Decision made',
+  outcome: 'Outcome',
+  bulletin: 'Bulletin',
+  turn_done: 'Turn complete',
+  agent_reactions: 'Agent reactions',
+  promotion: 'Promotion',
+  systems_snapshot: 'Snapshot',
+  complete: 'Complete',
+};
+
+function eventBody(event: { type: string; data: Record<string, unknown> }): string {
+  const d = event.data ?? {};
+  if (typeof d.title === 'string') return d.title;
+  if (typeof d.summary === 'string') return d.summary;
+  if (typeof d.name === 'string') return d.name;
+  if (typeof d.description === 'string') return d.description;
+  if (typeof d.outcome === 'string') return d.outcome;
+  if (typeof d.toolName === 'string') return d.toolName;
+  if (typeof d.department === 'string') return d.department;
+  return '';
+}
+
+export function DigitalTwinPanel({ artifact, state, onDismiss }: DigitalTwinPanelProps) {
   const { subject, intervention, finalState, trajectory, cost, fingerprint, metadata } = artifact;
 
   const initialMetrics = useMemo(() => {
@@ -285,6 +328,8 @@ export function DigitalTwinPanel({ artifact, onDismiss }: DigitalTwinPanelProps)
         </div>
       )}
 
+      <DigitalTwinPlayback state={state} />
+
       {onDismiss && (
         <div className={styles.dismissBar}>
           <button onClick={onDismiss} className={styles.dismissButton}>
@@ -292,6 +337,125 @@ export function DigitalTwinPanel({ artifact, onDismiss }: DigitalTwinPanelProps)
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Scrubbable playback of the run's SSE event trail. Renders a slider
+ * that walks the user through every event the run emitted (specialist
+ * analyses, forge attempts, decision, outcome, completion) plus a
+ * play/pause control that reveals events sequentially at ~600ms each.
+ *
+ * Reads events directly from gameState (the same stream
+ * DigitalTwinProgress consumed live), so the playback timeline matches
+ * the live feed exactly.
+ */
+function DigitalTwinPlayback({ state }: { state?: GameState }) {
+  const events = useMemo(() => {
+    if (!state) return [];
+    const leaderId = state.actorIds[0];
+    return leaderId ? state.actors[leaderId]?.events ?? [] : [];
+  }, [state]);
+
+  const totalEvents = events.length;
+  const [position, setPosition] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  // Park the slider at the end the first time events arrive so a
+  // freshly-completed run shows the final state by default. Tracked via
+  // a ref so the effect only fires once even if events grow further.
+  const initializedRef = useRef(false);
+  useEffect(() => {
+    if (!initializedRef.current && totalEvents > 0) {
+      initializedRef.current = true;
+      setPosition(totalEvents);
+    }
+  }, [totalEvents]);
+
+  // Auto-advance one event every 600ms while playing.
+  useEffect(() => {
+    if (!playing) return;
+    if (position >= totalEvents) {
+      setPlaying(false);
+      return;
+    }
+    const id = window.setTimeout(() => setPosition((p) => p + 1), 600);
+    return () => window.clearTimeout(id);
+  }, [playing, position, totalEvents]);
+
+  if (totalEvents === 0) return null;
+
+  const visibleEvents = events.slice(0, position);
+
+  return (
+    <div className={styles.section}>
+      <h3 className={styles.sectionTitle}>Playback · {position} / {totalEvents} events</h3>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <button
+          onClick={() => setPlaying(!playing)}
+          style={{
+            background: 'var(--amber)', color: '#1a1a1a', border: 'none',
+            borderRadius: 6, padding: '6px 14px', fontFamily: 'var(--mono)',
+            fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase',
+            cursor: 'pointer',
+          }}
+        >
+          {playing ? 'Pause' : (position >= totalEvents ? 'Replay' : 'Play')}
+        </button>
+        <button
+          onClick={() => { setPosition(0); setPlaying(false); }}
+          style={{
+            background: 'var(--bg-card)', color: 'var(--text-2)',
+            border: '1px solid var(--border-soft)', borderRadius: 6,
+            padding: '6px 12px', fontFamily: 'var(--mono)', fontSize: 11,
+            letterSpacing: 0.5, textTransform: 'uppercase', cursor: 'pointer',
+          }}
+        >
+          Reset
+        </button>
+        <input
+          type="range"
+          min={0}
+          max={totalEvents}
+          value={position}
+          onChange={(e) => { setPosition(Number(e.target.value)); setPlaying(false); }}
+          style={{ flex: 1, minWidth: 200, accentColor: '#ffd970' }}
+        />
+      </div>
+      <div
+        style={{
+          background: 'var(--bg-card)', border: '1px solid var(--border-soft)',
+          borderRadius: 6, padding: 10, maxHeight: 240, overflowY: 'auto',
+          fontFamily: 'var(--mono)', fontSize: 11, lineHeight: 1.5,
+          display: 'flex', flexDirection: 'column', gap: 4,
+        }}
+      >
+        {visibleEvents.length === 0 ? (
+          <div style={{ color: 'var(--text-3)', fontStyle: 'italic', padding: 8 }}>
+            Drag the slider or press Play to step through the run.
+          </div>
+        ) : (
+          visibleEvents.map((event) => (
+            <div
+              key={event.id}
+              style={{
+                display: 'grid', gridTemplateColumns: '40px 110px 1fr',
+                gap: 8, padding: '4px 6px', alignItems: 'baseline',
+              }}
+            >
+              <span style={{ color: 'var(--text-3)', fontSize: 10 }}>
+                {event.turn != null ? `T${event.turn}` : ''}
+              </span>
+              <span style={{ color: 'var(--amber)', fontSize: 10, fontWeight: 700, textTransform: 'uppercase' }}>
+                {EVENT_LABELS[event.type] ?? event.type}
+              </span>
+              <span style={{ color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {eventBody(event)}
+              </span>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }
