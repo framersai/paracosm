@@ -131,12 +131,17 @@ seg.clickedMs = since();
 // an artifact. App.tsx parks it in interventionArtifact, switches the
 // active tab to 'sim', and SimView short-circuits to DigitalTwinPanel
 // which renders an h2 with "Digital Twin · Intervention Result".
+//
+// The :has-text matcher is substring, so we have to disambiguate from
+// DigitalTwinProgress's "Digital Twin · Running" header (rendered the
+// instant the user clicks). Anchoring to "Intervention Result" is the
+// surest hit on the completed panel.
 console.log('[dt] waiting for DigitalTwinPanel (up to 120s)');
 const RUN_TIMEOUT_MS = 120_000;
 const runStart = Date.now();
 let resultRendered = false;
 try {
-  await page.waitForSelector('h2:has-text("Digital Twin")', {
+  await page.waitForSelector('h2:has-text("Intervention Result")', {
     state: 'visible',
     timeout: RUN_TIMEOUT_MS,
   });
@@ -216,10 +221,11 @@ console.log(`  segments: A ${A_START_S.toFixed(1)}..${aEnd.toFixed(1)}s 1×, B $
 // rather than aspirational.
 const captionA = 'What if Atlas Lab held Atlas-7 for 90 days of red-team passes?';
 const captionB = `twin.simulateIntervention runs against the live scenario · ${SPEED_B}× speed`;
-// `$` inside drawtext text= breaks bash interpolation when this script
-// is invoked from a shell with the filtergraph rebuilt inline; spell out
-// "USD" instead so the caption survives manual re-runs too.
-const captionC = 'Answer · subject, intervention, trajectory, delta, cost · 0.057 USD';
+// Drop the specific cost figure (was 0.057 USD) since costs vary per
+// run — at maxTurns=2 this run hit $0.275 with 28 LLM calls; at
+// maxTurns=1 the earlier run was $0.057 with 16 calls. The caption
+// stays accurate across both.
+const captionC = 'Answer · subject, intervention, trajectory, delta, cost · all under $1';
 
 const drawCaption = (text, color = '#ffd970') => (
   `drawtext=text='${text.replace(/'/g, "\\\\'")}':enable='gte(t,0)':fontsize=20:font='Helvetica-Bold':fontcolor=${color}:shadowcolor=black:shadowx=0:shadowy=2:x=(w-tw)/2:y=h-72:box=1:boxcolor=black@0.95:boxborderw=22`
