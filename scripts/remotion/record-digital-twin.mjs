@@ -208,10 +208,18 @@ console.log(`[dt] ffmpeg -> hero mp4: ${heroOut}`);
 console.log(`  segments: A ${A_START_S.toFixed(1)}..${aEnd.toFixed(1)}s 1×, B ${aEnd.toFixed(1)}..${bEnd?.toFixed(1) ?? '∞'}s ${SPEED_B}×, C ${bEnd?.toFixed(1) ?? '?'}s..end 1×`);
 
 // drawtext rejects unescaped colons in `text=...`, and escaping them is
-// brittle. Use · or em dashes instead so the captions stay readable.
-const captionA = 'Click Run intervention demo · Atlas Lab + 90-day release delay';
-const captionB = `Server runs wm.simulateIntervention · ${SPEED_B}× speed`;
-const captionC = 'Digital twin result · subject + intervention + trajectory + delta + cost';
+// brittle. Use · or commas instead so the captions stay readable.
+//
+// Caption arc tracks the digital-twin pattern: question (what if?) ->
+// the API call answering it -> the typed result. Names a real subject
+// (Atlas Lab) and real cost ($0.057) so the demo reads as concrete
+// rather than aspirational.
+const captionA = 'What if Atlas Lab held Atlas-7 for 90 days of red-team passes?';
+const captionB = `wm.simulateIntervention runs against the live scenario · ${SPEED_B}× speed`;
+// `$` inside drawtext text= breaks bash interpolation when this script
+// is invoked from a shell with the filtergraph rebuilt inline; spell out
+// "USD" instead so the caption survives manual re-runs too.
+const captionC = 'Answer · subject, intervention, trajectory, delta, cost · 0.057 USD';
 
 const drawCaption = (text, color = '#ffd970') => (
   `drawtext=text='${text.replace(/'/g, "\\\\'")}':enable='gte(t,0)':fontsize=20:font='Helvetica-Bold':fontcolor=${color}:shadowcolor=black:shadowx=0:shadowy=2:x=(w-tw)/2:y=h-72:box=1:boxcolor=black@0.95:boxborderw=22`
