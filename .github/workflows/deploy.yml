@@ -117,6 +117,7 @@ jobs:
             src/cli/dashboard/dist/
             docs/api/
             assets/
+            scenarios/
             package.json
             package-lock.json
             src/
