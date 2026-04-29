@@ -119,7 +119,7 @@ const card = page.locator('text=Or test an intervention').first();
 await card.waitFor({ state: 'visible', timeout: 15000 });
 await card.scrollIntoViewIfNeeded();
 seg.introHoldMs = since();
-await page.waitForTimeout(6000);
+await page.waitForTimeout(9000);
 
 // ── 3. CLICK "Run intervention demo" ───────────────────────────────────
 console.log('[dt] click Run intervention demo button');
@@ -205,13 +205,12 @@ execFileSync('ffmpeg', [
 // caption, C (DigitalTwinPanel hold) at 1× with caption. Total target
 // ~25-35s.
 const heroOut = path.resolve(ASSETS_DIR, `${OUT_NAME}-hero.mp4`);
-// Trim 4s off the front so the page-top empty Quickstart + scroll
-// transition gets fully cut. The recorder waits ~2s for hydration +
-// killTour, then scrolls to the dt card around real time 2-3s, then
-// holds. Starting segment A at 4.0s of source means the very first
-// hero frame is the dt card already parked in frame with Maria's
-// profile visible — no empty-state dead air.
-const A_START_S = 4.0;
+// Trim 2s off the front. Recorder waits ~2s for hydration + killTour
+// before scrolling, so cutting the first 2s of source removes most of
+// the empty-Quickstart phase. Source 2s onward shows the scroll
+// landing on the dt card and the typewriter animation running through
+// subject + intervention fields.
+const A_START_S = 2.0;
 const aEnd = ((seg.clickedMs || 8000) + 800) / 1000;
 const bEnd = resultRendered
   ? Math.max(aEnd + 4, (seg.resultRenderedMs - 500) / 1000)
