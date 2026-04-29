@@ -51,6 +51,12 @@ mkdirSync(ASSETS_DIR, { recursive: true });
 
 console.log(`[dt] launching ${HEADED ? 'headed' : 'headless'} chromium`);
 const browser = await chromium.launch({ headless: !HEADED });
+// Recording starts when ctx is created. Anchor the seg timestamps
+// here (source-video time) so the ffmpeg trims line up with the
+// recorded webm. Earlier we set recStartMs after killTour, which made
+// seg.clickedMs ~3s smaller than the actual source-time click; the
+// hero's segment A then trimmed out most of the typing.
+const ctxCreationMs = Date.now();
 const ctx = await browser.newContext({
   viewport: VIEW,
   recordVideo: { dir: OUT_DIR, size: VIEW },
@@ -98,9 +104,11 @@ for (const text of ['Got it', 'Skip', 'Dismiss', 'Skip tour', 'Close']) {
 await killTour();
 
 // Track key timestamps so the hero ffmpeg pass can split + accelerate.
-const recStartMs = Date.now();
+// Anchor to ctxCreationMs (set above, when recording started) so
+// seg values are in source-video time, the same time base the ffmpeg
+// trim uses.
 const seg = { introHoldMs: 0, clickedMs: 0, resultRenderedMs: 0 };
-const since = () => Date.now() - recStartMs;
+const since = () => Date.now() - ctxCreationMs;
 
 // ── 1. TYPE THE PATIENT CASE INTO THE DT TEXTAREA ──────────────────────
 // The dt card has a free-text case-description textarea at the top
