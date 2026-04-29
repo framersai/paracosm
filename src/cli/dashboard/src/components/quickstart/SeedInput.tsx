@@ -129,6 +129,7 @@ export function SeedInput({ onSeedReady, disabled = false }: SeedInputProps) {
 
       {tab === 'paste' && (
         <textarea
+          data-quickstart-seed
           className={styles.textarea}
           placeholder="Type or paste a brief, article, meeting notes, or any domain-specific source material (at least 200 characters)."
           value={seedText}

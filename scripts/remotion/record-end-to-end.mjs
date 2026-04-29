@@ -133,7 +133,12 @@ const seg = { promptDoneMs: 0, submitClickedMs: 0, resultsAppearedMs: 0 };
 const since = () => Date.now() - recStartMs;
 
 console.log('[e2e] focus seed textarea + fill prompt');
-const seedTextarea = page.locator('textarea').first();
+// Target the SeedInput's textarea explicitly via data-quickstart-seed.
+// `textarea.first()` used to work, but the dt card now sits ABOVE
+// SeedInput in QuickstartView and its case-input textarea matches
+// .first() instead, leaving the seed input empty and the Generate
+// button disabled.
+const seedTextarea = page.locator('textarea[data-quickstart-seed]').first();
 await seedTextarea.waitFor({ state: 'visible', timeout: 8000 });
 await seedTextarea.click();
 // `fill` paints the prompt in one frame instead of streaming
