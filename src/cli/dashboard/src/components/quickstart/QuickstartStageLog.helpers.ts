@@ -135,6 +135,17 @@ function eventToLogLine(e: SimEvent): LogLine | null {
   };
 }
 
+export interface GroundingSummaryForLog {
+  skipped?: boolean;
+  reason?: string;
+  citations?: Array<{
+    query: string;
+    sources: Array<{ title: string; link: string; domain: string }>;
+  }>;
+  totalSources?: number;
+  durationMs?: number;
+}
+
 export interface BuildLogContext {
   /** Currently-active stage. Drives synthesized lines for compile/etc. */
   stage: Stage;
@@ -149,6 +160,10 @@ export interface BuildLogContext {
   /** Live SSE event buffer from useSSE. Sourced verbatim for the running
    *  stage. */
   events: SimEvent[];
+  /** Result of the deep-research grounding pass, surfaced as citation
+   *  log lines on the Research stage card. Null/undefined → fall back
+   *  to the legacy "folded into compile" line. */
+  groundingSummary?: GroundingSummaryForLog | null;
 }
 
 /**
@@ -181,21 +196,83 @@ export function buildCompileLog(ctx: BuildLogContext): LogLine[] {
 }
 
 /**
- * RESEARCH stage. Folded into compile server-side, so the only line
- * we can emit is the post-compile "research grounded" confirmation,
- * shown once we know compile succeeded.
+ * RESEARCH stage. Three modes:
+ *  - groundingSummary present + has citations → render real per-citation
+ *    lines (one per source, grouped under their query).
+ *  - groundingSummary present + skipped → render a single "skipped:
+ *    no SERPER_API_KEY" line tagged WARN.
+ *  - groundingSummary absent → fall back to the legacy "folded into
+ *    compile" placeholder so a server without the new endpoint still
+ *    renders a sensible card.
  */
 export function buildResearchLog(ctx: BuildLogContext): LogLine[] {
-  const { stage, startMs, phaseTransitionMs } = ctx;
+  const { stage, startMs, phaseTransitionMs, groundingSummary } = ctx;
   const lines: LogLine[] = [];
   const researchStart = phaseTransitionMs.research;
   if (!researchStart) return lines;
+  const baseTs = formatTs(researchStart - startMs);
+
+  if (groundingSummary?.skipped) {
+    lines.push({
+      ts: baseTs,
+      glyph: '⚠',
+      tag: 'SKIP',
+      body: `Deep research skipped: ${groundingSummary.reason ?? 'unknown'}`,
+      tone: 'warn',
+    });
+    return lines;
+  }
+
+  if (groundingSummary?.citations && groundingSummary.citations.length > 0) {
+    lines.push({
+      ts: baseTs,
+      glyph: '→',
+      tag: 'POST',
+      body: `/api/quickstart/ground-scenario · ${groundingSummary.citations.length} queries`,
+      tone: stage === 'research' ? 'active' : 'info',
+    });
+    for (const bucket of groundingSummary.citations) {
+      lines.push({
+        ts: baseTs,
+        glyph: '·',
+        tag: 'QUERY',
+        body: `"${bucket.query}" → ${bucket.sources.length} source${bucket.sources.length === 1 ? '' : 's'}`,
+        tone: 'info',
+      });
+      for (const src of bucket.sources.slice(0, 3)) {
+        lines.push({
+          ts: baseTs,
+          glyph: '·',
+          tag: src.domain.toUpperCase().slice(0, 16) || 'SRC',
+          body: src.title,
+          tone: 'done',
+        });
+      }
+    }
+    if (typeof groundingSummary.totalSources === 'number') {
+      const dur = typeof groundingSummary.durationMs === 'number'
+        ? ` · ${(groundingSummary.durationMs / 1000).toFixed(1)}s`
+        : '';
+      lines.push({
+        ts: baseTs,
+        glyph: '✓',
+        tag: 'OK',
+        body: `${groundingSummary.totalSources} unique sources attached to ScenarioPackage${dur}`,
+        tone: 'done',
+      });
+    }
+    return lines;
+  }
+
+  // Fallback: server doesn't have the new endpoint, OR the response
+  // is still in flight. Emit the legacy placeholder so the card isn't
+  // empty — but tone=info so it doesn't read as a green confirmation.
   lines.push({
-    ts: formatTs(researchStart - startMs),
+    ts: baseTs,
     glyph: '·',
     tag: 'NOTE',
-    body: 'Folded into compile · seed text grounded with citations server-side',
-    tone: stage === 'research' ? 'active' : 'done',
+    body: 'Grounding scenario with web research…',
+    tone: stage === 'research' ? 'active' : 'info',
   });
   const actorsAt = phaseTransitionMs.actors;
   if (actorsAt) {

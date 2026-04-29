@@ -68,14 +68,61 @@ test('buildResearchLog: empty until research fires', () => {
   assert.deepEqual(buildResearchLog(ctx({ stage: 'compile' })), []);
 });
 
-test('buildResearchLog: emits note when research is active', () => {
+test('buildResearchLog: fallback note when no groundingSummary', () => {
   const lines = buildResearchLog(ctx({
     stage: 'research',
     phaseTransitionMs: { compile: T0, research: T0 + 5_000 },
   }));
   assert.equal(lines.length, 1);
   assert.equal(lines[0].tone, 'active');
-  assert.match(lines[0].body, /Folded into compile/);
+  assert.match(lines[0].body, /Grounding scenario with web research/);
+});
+
+test('buildResearchLog: skipped surfaces a single warn line with reason', () => {
+  const lines = buildResearchLog(ctx({
+    stage: 'research',
+    phaseTransitionMs: { compile: T0, research: T0 + 100 },
+    groundingSummary: { skipped: true, reason: 'SERPER_API_KEY not configured' },
+  }));
+  assert.equal(lines.length, 1);
+  assert.equal(lines[0].tone, 'warn');
+  assert.equal(lines[0].tag, 'SKIP');
+  assert.match(lines[0].body, /SERPER_API_KEY not configured/);
+});
+
+test('buildResearchLog: real citations render dispatch + per-query + per-source + summary lines', () => {
+  const lines = buildResearchLog(ctx({
+    stage: 'research',
+    phaseTransitionMs: { compile: T0, research: T0 + 100, actors: T0 + 4_500 },
+    groundingSummary: {
+      citations: [
+        {
+          query: 'hurricane evacuation',
+          sources: [
+            { title: 'NHC Hurricane Prep Guide', link: 'https://nhc.noaa.gov/prepare', domain: 'nhc.noaa.gov' },
+            { title: 'Coastal Evacuation Best Practices', link: 'https://fema.gov/evac', domain: 'fema.gov' },
+          ],
+        },
+        {
+          query: 'storm surge response',
+          sources: [
+            { title: 'Storm Surge Modeling 2024', link: 'https://noaa.gov/surge', domain: 'noaa.gov' },
+          ],
+        },
+      ],
+      totalSources: 3,
+      durationMs: 4400,
+    },
+  }));
+  // dispatch + 2 query buckets + 3 source rows + 1 summary = 7 lines.
+  assert.equal(lines.length, 7);
+  assert.equal(lines[0].tag, 'POST');
+  assert.match(lines[0].body, /2 queries/);
+  assert.equal(lines[1].tag, 'QUERY');
+  assert.equal(lines[2].tag, 'NHC.NOAA.GOV');
+  assert.equal(lines[lines.length - 1].tone, 'done');
+  assert.match(lines[lines.length - 1].body, /3 unique sources attached/);
+  assert.match(lines[lines.length - 1].body, /4\.4s/);
 });
 
 test('buildActorsLog: dispatch + OK lines once next stage starts', () => {

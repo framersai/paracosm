@@ -17,6 +17,7 @@ import { z } from 'zod';
 import { compileFromSeed } from '../engine/compiler/compile-from-seed.js';
 import { generateQuickstartActors } from '../runtime/world-model/index.js';
 import type { ScenarioPackage } from '../engine/types.js';
+import { groundScenario, type GroundingResult } from './server/deep-research.js';
 
 const FetchSeedSchema = z.object({
   url: z.string().url().max(2048),
@@ -39,6 +40,10 @@ const GenerateActorsSchema = z.object({
   count: z.number().int().min(2).max(50).default(3),
 });
 
+const GroundScenarioSchema = z.object({
+  scenarioId: z.string().min(3).max(64),
+});
+
 export interface QuickstartDeps {
   /** Installs a compiled scenario as the active scenario. */
   setActiveScenario: (scenario: ScenarioPackage) => void;
@@ -49,6 +54,14 @@ export interface QuickstartDeps {
   /** Default provider + model for the LLM calls. */
   defaultProvider: string;
   defaultModel: string;
+  /** Stash deep-research citations keyed by scenario id. Optional so
+   *  legacy callers (older test fixtures) don't have to construct the
+   *  full record. The grounding route is the only writer; future
+   *  actor-generation prompts can read via a sibling helper. */
+  recordGroundingCitations?: (
+    scenarioId: string,
+    citations: Array<{ query: string; sources: Array<{ title: string; link: string; domain: string }> }>,
+  ) => void;
 }
 
 export async function handleFetchSeed(
@@ -146,5 +159,64 @@ export async function handleGenerateActors(
   } catch (err) {
     res.writeHead(500, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: `Actor generation failed: ${String(err)}` }));
+  }
+}
+
+/**
+ * POST /api/quickstart/ground-scenario
+ *
+ * Runs the deep-research grounding pass over a previously-compiled
+ * scenario. Returns citations + the ScenarioPackage gets the same
+ * citations attached to its `metadata.groundingCitations` slot so the
+ * subsequent actor-generation + run prompts can reference them.
+ *
+ * Returns `{ skipped: true, reason }` rather than 4xx when SERPER_API_KEY
+ * isn't configured — the Quickstart flow continues without grounding
+ * rather than failing the whole run.
+ */
+export async function handleGroundScenario(
+  _req: IncomingMessage,
+  res: ServerResponse,
+  body: unknown,
+  deps: QuickstartDeps,
+): Promise<void> {
+  const parsed = GroundScenarioSchema.safeParse(body);
+  if (!parsed.success) {
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Invalid payload', issues: parsed.error.issues.slice(0, 3).map(i => i.message) }));
+    return;
+  }
+  const scenario = deps.getScenarioById(parsed.data.scenarioId);
+  if (!scenario) {
+    res.writeHead(404, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: `Scenario '${parsed.data.scenarioId}' not found. Compile it via /api/quickstart/compile-from-seed first.` }));
+    return;
+  }
+  try {
+    const result: GroundingResult | null = await groundScenario(scenario);
+    if (!result) {
+      // SERPER_API_KEY missing — skip gracefully so the Quickstart UI
+      // can show a single "skipped: no API key" line instead of breaking
+      // the run.
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ skipped: true, reason: 'SERPER_API_KEY not configured' }));
+      return;
+    }
+    // Stash citations under the scenario id so future actor-generation
+    // and narration prompts can read them. ScenarioPackage doesn't have
+    // a free-form metadata slot today; this in-memory side-channel is
+    // intentionally scoped to the server process so a restart drops
+    // citations along with the scenario itself.
+    deps.recordGroundingCitations?.(scenario.id, result.citations);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      citations: result.citations,
+      totalSources: result.totalSources,
+      durationMs: result.durationMs,
+      emptyQueries: result.emptyQueries,
+    }));
+  } catch (err) {
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: `Grounding failed: ${String(err)}` }));
   }
 }

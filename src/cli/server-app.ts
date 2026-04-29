@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { normalizeSimulationConfig, applyDemoCaps, type NormalizedSimulationConfig } from './sim-config.js';
 import { runPairSimulations, runForkSimulation, runBatchSimulations, type BroadcastFn } from './pair-runner.js';
 import {
-  handleFetchSeed, handleCompileFromSeed, handleGenerateActors,
+  handleFetchSeed, handleCompileFromSeed, handleGenerateActors, handleGroundScenario,
   type QuickstartDeps,
 } from './quickstart-routes.js';
 import { handleSimulate, type SimulateDeps } from './simulate-route.js';
@@ -415,6 +415,14 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
   const customScenarioCatalog = loadDiskCustomScenarios(scenarioDir);
   customScenarioCatalog.set(marsScenario.id, { scenario: marsScenario, source: 'builtin' });
   customScenarioCatalog.set(lunarScenario.id, { scenario: lunarScenario, source: 'builtin' });
+
+  // Side-channel for ground-scenario citations keyed by scenario id.
+  // ScenarioPackage has no free-form metadata slot today; this Map
+  // lives for the lifetime of the server process so a restart drops
+  // citations along with the scenario itself. Future actor-generation
+  // and narration prompts can read via a sibling helper if we want to
+  // ground prompts on the cited sources directly.
+  const groundingCitationsByScenarioId = new Map<string, unknown>();
   const clients: Set<ServerResponse> = new Set();
 
   // Event buffer: stores all broadcast events so new clients can catch up.
@@ -1135,6 +1143,9 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
           // intent when only one of OPENAI/ANTHROPIC is in env.
           defaultProvider: 'openai',
           defaultModel: 'gpt-5.4-mini',
+          recordGroundingCitations: (scenarioId, citations) => {
+            groundingCitationsByScenarioId.set(scenarioId, citations);
+          },
         };
         if (req.url === '/api/quickstart/fetch-seed') {
           await handleFetchSeed(req, res, body, quickstartDeps);
@@ -1146,6 +1157,10 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         }
         if (req.url === '/api/quickstart/generate-actors') {
           await handleGenerateActors(req, res, body, quickstartDeps);
+          return;
+        }
+        if (req.url === '/api/quickstart/ground-scenario') {
+          await handleGroundScenario(req, res, body, quickstartDeps);
           return;
         }
         res.writeHead(404, { 'Content-Type': 'application/json' });

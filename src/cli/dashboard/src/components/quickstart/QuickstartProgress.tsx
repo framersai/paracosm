@@ -44,6 +44,10 @@ export interface QuickstartProgressProps {
    *  Generate stage and the synthesized log lines (e.g. "Generate 4
    *  actors"). Defaults to 3 to match the legacy copy. */
   actorCount?: number;
+  /** Result of the ground-scenario pass. Surfaced as citation log
+   *  lines on the Research stage card. Null/undefined falls back to
+   *  the legacy placeholder copy. */
+  groundingSummary?: import('./QuickstartStageLog.helpers').GroundingSummaryForLog | null;
   onCancel?: () => void;
 }
 
@@ -62,6 +66,7 @@ export function QuickstartProgress({
   actors,
   events,
   actorCount,
+  groundingSummary,
   onCancel,
 }: QuickstartProgressProps): JSX.Element {
   // First render captures wall-clock t=0 for the whole run; phase
@@ -102,8 +107,9 @@ export function QuickstartProgress({
       phaseTransitionMs,
       actorCount: resolvedActorCount,
       events: events ?? [],
+      groundingSummary: groundingSummary ?? null,
     }),
-    [stage, phaseTransitionMs, resolvedActorCount, events],
+    [stage, phaseTransitionMs, resolvedActorCount, events, groundingSummary],
   );
 
   const stages: Array<{ id: Stage; label: string }> = [

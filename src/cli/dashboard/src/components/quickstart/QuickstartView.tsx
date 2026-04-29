@@ -15,6 +15,21 @@ import type { LeaderPreset } from '../../../../../engine/leader-presets.js';
 import type { SimEvent } from '../../hooks/useSSE';
 import styles from './QuickstartView.module.scss';
 
+/** Shape returned by /api/quickstart/ground-scenario, surfaced to the
+ *  Quickstart progress panel so the Research stage card can render
+ *  real citation events instead of the legacy "folded into compile"
+ *  placeholder. */
+export type GroundingSummary =
+  | { skipped: true; reason: string }
+  | {
+      citations: Array<{
+        query: string;
+        sources: Array<{ title: string; link: string; domain: string }>;
+      }>;
+      totalSources: number;
+      durationMs: number;
+    };
+
 interface SseResultItem {
   leader: string;
   summary: Record<string, unknown>;
@@ -54,6 +69,10 @@ export function QuickstartView({ sse, sessionId, onRunStarted }: QuickstartViewP
   // artifact's RunRecord (the RunRecord carries bundleId from /setup).
   const [bundleId, setBundleId] = useState<string | null>(null);
   const [compareOpen, setCompareOpen] = useState(false);
+  // Citations from the ground-scenario pass, set after compile + before
+  // generate-actors. Forwarded into QuickstartProgress so the Research
+  // stage card can render real citation events.
+  const [groundingSummary, setGroundingSummary] = useState<GroundingSummary | null>(null);
 
   const handleSeedReady = useCallback(async (payload: { seedText: string; sourceUrl?: string; domainHint?: string; actorCount?: number }) => {
     setErrorBanner(null);
@@ -75,8 +94,27 @@ export function QuickstartView({ sse, sessionId, onRunStarted }: QuickstartViewP
       }
       const { scenario, scenarioId } = await compileRes.json() as { scenario: ScenarioPackage; scenarioId: string };
       setPhase({ kind: 'progress', stage: 'research', scenario });
-      // Research stage is folded into compileScenario server-side;
-      // advance optimistically since we don't get a separate signal.
+      // Real grounding pass: hits Serper for 3 derived queries, attaches
+      // citations to the scenario's metadata server-side. Returns
+      // { skipped: true } when SERPER_API_KEY is missing on the server,
+      // in which case we just continue — the run isn't blocked by
+      // missing grounding, only impoverished.
+      try {
+        const groundRes = await fetch('/api/quickstart/ground-scenario', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scenarioId }),
+        });
+        if (groundRes.ok) {
+          const groundBody = await groundRes.json() as
+            | { skipped: true; reason: string }
+            | { citations: Array<{ query: string; sources: Array<{ title: string; link: string; domain: string }> }>; totalSources: number; durationMs: number };
+          setGroundingSummary(groundBody);
+        }
+      } catch {
+        // Network/parse error — surface nothing, still let the run continue.
+        setGroundingSummary({ skipped: true, reason: 'request failed' });
+      }
       setPhase({ kind: 'progress', stage: 'actors', scenario });
 
       // Honor the actor-count from the seed input; fall back to 3 for
@@ -213,6 +251,7 @@ export function QuickstartView({ sse, sessionId, onRunStarted }: QuickstartViewP
           actors={actorProgress}
           events={sse.events}
           actorCount={phase.actors?.length ?? actorProgress?.length ?? 3}
+          groundingSummary={groundingSummary}
         />
       )}
       {phase.kind === 'results' && (
