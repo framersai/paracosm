@@ -790,62 +790,16 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
       </div>
 
       <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:14px">
-        <div style="font-family:var(--mono);font-size:11px;color:var(--rust);letter-spacing:1.5px;text-transform:uppercase">Output · artifact.trajectory</div>
+        <div style="font-family:var(--mono);font-size:11px;color:var(--rust);letter-spacing:1.5px;text-transform:uppercase">Live · /sim?tab=quickstart</div>
 
-        <svg viewBox="0 0 460 220" style="width:100%;height:auto" role="img" aria-label="Trajectory across 4 quarters: alignment bench, spec-gaming rate, and board confidence post 90-day delay">
-          <defs>
-            <linearGradient id="dt-align" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stop-color="var(--teal)" stop-opacity="0.9"/>
-              <stop offset="100%" stop-color="var(--teal)" stop-opacity="0.6"/>
-            </linearGradient>
-            <linearGradient id="dt-specgame" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stop-color="var(--rust)" stop-opacity="0.9"/>
-              <stop offset="100%" stop-color="var(--rust)" stop-opacity="0.6"/>
-            </linearGradient>
-            <linearGradient id="dt-board" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stop-color="var(--amber)" stop-opacity="0.9"/>
-              <stop offset="100%" stop-color="var(--amber)" stop-opacity="0.6"/>
-            </linearGradient>
-          </defs>
+        <video class="demo-video" autoplay muted loop playsinline preload="metadata"
+          poster="/demo/digital-twin-atlas-lab-poster.jpg?v=dt-1"
+          style="width:100%;height:auto;border-radius:8px;display:block;background:#000"
+          aria-label="Digital twin demo recorded against paracosm.agentos.sh: clicking 'Run intervention demo' fires simulateIntervention(Atlas Lab, 90-day delay) and returns the trajectory inline in the SIM tab.">
+          <source src="/demo/digital-twin-atlas-lab-hero.mp4?v=dt-1" type="video/mp4">
+        </video>
 
-          <text x="20"  y="210" fill="var(--t3)" font-family="var(--mono)" font-size="10">Q0</text>
-          <text x="125" y="210" fill="var(--t3)" font-family="var(--mono)" font-size="10">Q1</text>
-          <text x="230" y="210" fill="var(--t3)" font-family="var(--mono)" font-size="10">Q2</text>
-          <text x="335" y="210" fill="var(--t3)" font-family="var(--mono)" font-size="10">Q3</text>
-          <text x="430" y="210" fill="var(--t3)" font-family="var(--mono)" font-size="10">Q4</text>
-
-          <!-- Alignment bench: 0.84 → 0.86 → 0.89 → 0.91 → 0.91 (rising on red-team passes) -->
-          <polyline points="20,80 130,65 235,42 340,28 440,28" fill="none" stroke="url(#dt-align)" stroke-width="2.5"/>
-          <circle cx="20"  cy="80" r="3.5" fill="var(--teal)"/>
-          <circle cx="130" cy="65" r="3.5" fill="var(--teal)"/>
-          <circle cx="235" cy="42" r="3.5" fill="var(--teal)"/>
-          <circle cx="340" cy="28" r="3.5" fill="var(--teal)"/>
-          <circle cx="440" cy="28" r="3.5" fill="var(--teal)"/>
-
-          <!-- Spec-gaming: 0.042 → 0.038 → 0.024 → 0.014 → 0.011 (dropping on DPO mitigation) -->
-          <polyline points="20,115 130,125 235,150 340,170 440,178" fill="none" stroke="url(#dt-specgame)" stroke-width="2.5"/>
-          <circle cx="20"  cy="115" r="3.5" fill="var(--rust)"/>
-          <circle cx="130" cy="125" r="3.5" fill="var(--rust)"/>
-          <circle cx="235" cy="150" r="3.5" fill="var(--rust)"/>
-          <circle cx="340" cy="170" r="3.5" fill="var(--rust)"/>
-          <circle cx="440" cy="178" r="3.5" fill="var(--rust)"/>
-
-          <!-- Board confidence: 75 → 60 → 55 → 68 → 78 (dips on delay, recovers when wins ship) -->
-          <polyline points="20,55 130,95 235,110 340,75 440,45" fill="none" stroke="url(#dt-board)" stroke-width="2.5"/>
-          <circle cx="20"  cy="55"  r="3.5" fill="var(--amber)"/>
-          <circle cx="130" cy="95"  r="3.5" fill="var(--amber)"/>
-          <circle cx="235" cy="110" r="3.5" fill="var(--amber)"/>
-          <circle cx="340" cy="75"  r="3.5" fill="var(--amber)"/>
-          <circle cx="440" cy="45"  r="3.5" fill="var(--amber)"/>
-        </svg>
-
-        <div style="display:flex;gap:14px;flex-wrap:wrap;font-family:var(--mono);font-size:11px">
-          <span style="display:flex;align-items:center;gap:6px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--teal)"></span><span style="color:var(--t2)">alignmentBench</span> <span style="color:var(--t3)">0.84 → 0.91</span></span>
-          <span style="display:flex;align-items:center;gap:6px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--rust)"></span><span style="color:var(--t2)">spec_gaming_rate</span> <span style="color:var(--t3)">0.042 → 0.011</span></span>
-          <span style="display:flex;align-items:center;gap:6px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--amber)"></span><span style="color:var(--t2)">boardConfidence</span> <span style="color:var(--t3)">75 → 60 → 78 (dips Q1, recovers Q4)</span></span>
-        </div>
-
-        <p style="font-size:12px;color:var(--t3);line-height:1.6;margin:4px 0 0">Real cookbook output — see <a href="https://github.com/framersai/paracosm/blob/master/output/cookbook/06-output-digital-twin-artifact.json" target="_blank" rel="noopener" style="color:var(--amber)">06-output-digital-twin-artifact.json</a>. Fork at Q1 with an expansion-minded leader HEXACO to compare counterfactuals: ship-now vs. delay-and-mitigate.</p>
+        <p style="font-size:12px;color:var(--t3);line-height:1.6;margin:4px 0 0">Recorded end-to-end against <code>paracosm.agentos.sh</code>: the click hits <code>POST /api/quickstart/simulate-intervention</code>, the server runs <code>wm.simulateIntervention(subject, intervention, leader)</code>, and the SIM tab renders the returned <code>RunArtifact</code> — subject + intervention echo, final-state delta, trajectory chart, fingerprint chips. Real cookbook output: <a href="https://github.com/framersai/paracosm/blob/master/output/cookbook/06-output-digital-twin-artifact.json" target="_blank" rel="noopener" style="color:var(--amber)">06-output-digital-twin-artifact.json</a>.</p>
       </div>
     </div>
 
