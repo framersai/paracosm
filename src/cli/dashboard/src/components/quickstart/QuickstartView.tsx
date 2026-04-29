@@ -6,6 +6,7 @@
  */
 import { useState, useCallback, useEffect } from 'react';
 import { SeedInput } from './SeedInput';
+import { InterventionDemoCard } from '../digital-twin/InterventionDemoCard';
 import { CompareModal } from '../compare/CompareModal.js';
 import { QuickstartProgress, type Stage, type ActorProgress } from './QuickstartProgress';
 import { QuickstartResults } from './QuickstartResults';
@@ -56,6 +57,11 @@ export interface QuickstartViewProps {
    *  is treated like a stale rehydration and its outputs stay hidden
    *  in the cross-tab views (VIZ, REPORTS, banner). */
   onRunStarted?: () => void;
+  /** Forwarded to the InterventionDemoCard. When the digital-twin run
+   *  completes, App.tsx receives the artifact, parks it in
+   *  interventionArtifact state, and switches to the SIM tab so
+   *  DigitalTwinPanel renders. */
+  onInterventionResult?: (artifact: RunArtifact) => void;
 }
 
 type Phase =
@@ -63,7 +69,7 @@ type Phase =
   | { kind: 'progress'; stage: Stage; scenario?: ScenarioPackage; actors?: ActorConfig[] }
   | { kind: 'results'; scenario: ScenarioPackage; actors: ActorConfig[]; artifacts: RunArtifact[] };
 
-export function QuickstartView({ sse, sessionId, onRunStarted }: QuickstartViewProps) {
+export function QuickstartView({ sse, sessionId, onRunStarted, onInterventionResult }: QuickstartViewProps) {
   const [phase, setPhase] = useState<Phase>({ kind: 'input' });
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
   // Bundle id for the just-finished run; surfaced as a "Compare all N
@@ -243,6 +249,9 @@ export function QuickstartView({ sse, sessionId, onRunStarted }: QuickstartViewP
           </header>
           {errorBanner && <p className={styles.errorBanner} role="alert">{errorBanner}</p>}
           <SeedInput onSeedReady={handleSeedReady} />
+          {onInterventionResult && (
+            <InterventionDemoCard onResult={onInterventionResult} onError={(msg) => setErrorBanner(msg)} />
+          )}
         </>
       )}
       {phase.kind === 'progress' && (

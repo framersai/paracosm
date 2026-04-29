@@ -1,0 +1,297 @@
+/**
+ * DigitalTwinPanel — renders a finished `simulateIntervention` artifact
+ * inline in the SIM tab. Activates when the loaded artifact has both
+ * `subject` and `intervention` populated; otherwise SimView falls back
+ * to the standard parallel-actor layout.
+ *
+ * Sections rendered:
+ *  - Subject card (id, name, profile fields, signal trail)
+ *  - Intervention card (name, description, duration, adherence)
+ *  - Final-state metrics with delta against the first kernel snapshot
+ *  - Trajectory mini-chart (per-metric line for up to three key metrics)
+ *  - Cost / fingerprint summary row
+ *
+ * Designed to be self-contained: takes a single `artifact` prop and
+ * renders read-only. The "dismiss" button calls `onDismiss` which the
+ * parent (App.tsx) uses to clear the in-memory intervention artifact
+ * and re-show the empty SIM state.
+ *
+ * @module paracosm/dashboard/digital-twin/DigitalTwinPanel
+ */
+import { useMemo } from 'react';
+import type { RunArtifact } from '../../../../../engine/schema/index.js';
+import styles from './DigitalTwinPanel.module.scss';
+
+export interface DigitalTwinPanelProps {
+  artifact: RunArtifact;
+  onDismiss?: () => void;
+}
+
+const METRIC_LABELS: Record<string, string> = {
+  morale: 'Morale',
+  population: 'Population',
+  runwayMonths: 'Runway',
+  marketShare: 'Market Share',
+  revenueArr: 'Revenue ARR',
+  burnRate: 'Burn',
+  scienceOutput: 'Science',
+  hiringCapacity: 'Hiring',
+  deliveryCapacity: 'Delivery',
+  boardConfidence: 'Board Confidence',
+  investorPressure: 'Investor Pressure',
+  alignmentBench: 'AlignmentBench',
+};
+
+const CHART_METRICS = ['morale', 'runwayMonths', 'marketShare'];
+
+const CHART_COLORS: Record<string, string> = {
+  morale: '#ffd970',
+  runwayMonths: '#5fd49a',
+  marketShare: '#7cb6ff',
+};
+
+function formatNumber(value: number): string {
+  if (Number.isNaN(value)) return '—';
+  if (Math.abs(value) >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}M`;
+  if (Math.abs(value) >= 1_000) return `${(value / 1_000).toFixed(1)}k`;
+  if (Number.isInteger(value)) return String(value);
+  if (Math.abs(value) < 1) return value.toFixed(3);
+  return value.toFixed(2);
+}
+
+function formatDelta(initial: number, final: number): { text: string; direction: 'up' | 'down' | 'flat' } {
+  const delta = final - initial;
+  if (Math.abs(delta) < 1e-6) return { text: '·', direction: 'flat' };
+  const sign = delta > 0 ? '+' : '';
+  return {
+    text: `${sign}${formatNumber(delta)}`,
+    direction: delta > 0 ? 'up' : 'down',
+  };
+}
+
+function formatProfileValue(value: unknown): string {
+  if (value == null) return '—';
+  if (typeof value === 'number') return formatNumber(value);
+  if (typeof value === 'boolean') return value ? 'true' : 'false';
+  if (typeof value === 'string') return value;
+  return JSON.stringify(value);
+}
+
+export function DigitalTwinPanel({ artifact, onDismiss }: DigitalTwinPanelProps) {
+  const { subject, intervention, finalState, trajectory, cost, fingerprint, metadata } = artifact;
+
+  const initialMetrics = useMemo(() => {
+    const tj = trajectory as { sampleTimepoint?: { worldSnapshot?: { metrics?: Record<string, number> } }; timepoints?: Array<{ worldSnapshot?: { metrics?: Record<string, number> } }> } | undefined;
+    if (tj?.timepoints && tj.timepoints.length > 0) {
+      return tj.timepoints[0]?.worldSnapshot?.metrics ?? {};
+    }
+    return tj?.sampleTimepoint?.worldSnapshot?.metrics ?? {};
+  }, [trajectory]);
+
+  const finalMetrics = (finalState as { metrics?: Record<string, number> } | undefined)?.metrics ?? {};
+
+  const profileEntries = subject?.profile
+    ? Object.entries(subject.profile).slice(0, 6)
+    : [];
+
+  const chartData = useMemo(() => {
+    const tj = trajectory as { timepoints?: Array<{ time?: number; label?: string; worldSnapshot?: { metrics?: Record<string, number> } }> } | undefined;
+    const points = tj?.timepoints ?? [];
+    if (points.length === 0) return null;
+    const series = CHART_METRICS.map(metric => {
+      const values = points.map(p => p.worldSnapshot?.metrics?.[metric] ?? null);
+      const valid = values.filter((v): v is number => typeof v === 'number');
+      if (valid.length < 1) return null;
+      const min = Math.min(...valid);
+      const max = Math.max(...valid);
+      return { metric, values, min, max };
+    }).filter((s): s is { metric: string; values: Array<number | null>; min: number; max: number } => s !== null);
+    return { points, series };
+  }, [trajectory]);
+
+  const metricKeys = useMemo(() => {
+    const keys = new Set<string>();
+    Object.keys(finalMetrics).forEach(k => keys.add(k));
+    Object.keys(initialMetrics).forEach(k => keys.add(k));
+    return Array.from(keys).slice(0, 9);
+  }, [finalMetrics, initialMetrics]);
+
+  const fingerprintTop = fingerprint
+    ? Object.entries(fingerprint).slice(0, 6)
+    : [];
+
+  return (
+    <div className={styles.root}>
+      <div className={styles.headerRow}>
+        <div>
+          <h2 className={styles.title}>Digital Twin · Intervention Result</h2>
+          <span className={styles.subTitle}>
+            {metadata?.scenario?.name ?? 'scenario'} · seed {metadata?.seed ?? '?'} · {trajectory?.timepoints?.length ?? 0} turns
+          </span>
+        </div>
+        <div className={styles.runMeta}>
+          {metadata?.runId && <span>run: {metadata.runId.slice(0, 28)}</span>}
+          {cost?.totalUSD != null && <span>${cost.totalUSD.toFixed(3)}</span>}
+          {cost?.llmCalls != null && <span>{cost.llmCalls} LLM calls</span>}
+        </div>
+      </div>
+
+      <div className={styles.cardsRow}>
+        <div className={styles.card}>
+          <div className={styles.cardHeader}>
+            <span className={styles.cardLabel}>Subject</span>
+            <span className={styles.cardId}>{subject?.id}</span>
+          </div>
+          <div className={styles.cardName}>{subject?.name}</div>
+          {profileEntries.length > 0 && (
+            <div className={styles.kvList}>
+              {profileEntries.map(([key, value]) => (
+                <div key={key} className={styles.kv}>
+                  <span>{key}</span>
+                  <span>{formatProfileValue(value)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {subject?.signals && subject.signals.length > 0 && (
+            <div className={styles.signalList}>
+              {subject.signals.slice(0, 4).map((s, i) => (
+                <div key={i} className={styles.signal}>
+                  <span className={styles.signalLabel}>{s.label}</span>
+                  <span className={styles.signalValue}>
+                    {typeof s.value === 'number' ? formatNumber(s.value) : String(s.value)}
+                    {s.unit ? ` ${s.unit}` : ''}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className={styles.card}>
+          <div className={styles.cardHeader}>
+            <span className={styles.cardLabel}>Intervention</span>
+            <span className={styles.cardId}>{intervention?.id}</span>
+          </div>
+          <div className={styles.cardName}>{intervention?.name}</div>
+          {intervention?.description && (
+            <p className={styles.description}>{intervention.description}</p>
+          )}
+          <div className={styles.kvList}>
+            {intervention?.duration && (
+              <div className={styles.kv}>
+                <span>Duration</span>
+                <span>{intervention.duration.value} {intervention.duration.unit}</span>
+              </div>
+            )}
+            {intervention?.adherenceProfile && (
+              <div className={styles.kv}>
+                <span>Adherence</span>
+                <span>{(intervention.adherenceProfile.expected * 100).toFixed(0)}%</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {metricKeys.length > 0 && (
+        <div className={styles.section}>
+          <h3 className={styles.sectionTitle}>Final state · delta vs initial</h3>
+          <div className={styles.metricsGrid}>
+            {metricKeys.map(key => {
+              const initial = initialMetrics[key];
+              const final = finalMetrics[key];
+              if (typeof final !== 'number') return null;
+              const delta = typeof initial === 'number' ? formatDelta(initial, final) : null;
+              return (
+                <div key={key} className={styles.metric}>
+                  <span className={styles.metricLabel}>{METRIC_LABELS[key] ?? key}</span>
+                  <span className={styles.metricValue}>{formatNumber(final)}</span>
+                  {delta && (
+                    <span
+                      className={`${styles.metricDelta} ${delta.direction === 'up' ? styles.metricDeltaUp : delta.direction === 'down' ? styles.metricDeltaDown : ''}`}
+                    >
+                      {delta.text}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {chartData && chartData.series.length > 0 && (
+        <div className={styles.section}>
+          <h3 className={styles.sectionTitle}>Trajectory</h3>
+          <div className={styles.chartWrap}>
+            <svg className={styles.chart} viewBox="0 0 600 200" preserveAspectRatio="none">
+              {chartData.series.map(series => {
+                const range = Math.max(0.0001, series.max - series.min);
+                const stepX = chartData.points.length > 1 ? 580 / (chartData.points.length - 1) : 0;
+                let path = '';
+                series.values.forEach((v, i) => {
+                  if (typeof v !== 'number') return;
+                  const x = 10 + i * stepX;
+                  const normalized = (v - series.min) / range;
+                  const y = 180 - normalized * 160;
+                  path += (path ? ' L' : 'M') + ` ${x.toFixed(1)} ${y.toFixed(1)}`;
+                });
+                return (
+                  <g key={series.metric}>
+                    <path d={path} stroke={CHART_COLORS[series.metric] ?? '#ffd970'} strokeWidth={1.5} fill="none" />
+                    {series.values.map((v, i) => {
+                      if (typeof v !== 'number') return null;
+                      const x = 10 + i * stepX;
+                      const normalized = (v - series.min) / range;
+                      const y = 180 - normalized * 160;
+                      return <circle key={`${series.metric}-${i}`} cx={x} cy={y} r={2.5} fill={CHART_COLORS[series.metric] ?? '#ffd970'} />;
+                    })}
+                  </g>
+                );
+              })}
+              {chartData.points.map((p, i) => {
+                const stepX = chartData.points.length > 1 ? 580 / (chartData.points.length - 1) : 0;
+                const x = 10 + i * stepX;
+                return (
+                  <text key={`label-${i}`} x={x} y={196} fontSize={9} textAnchor="middle" fill="#888">
+                    {p.label ?? `t${p.time ?? i}`}
+                  </text>
+                );
+              })}
+            </svg>
+            <div className={styles.chartLegend}>
+              {chartData.series.map(series => (
+                <span key={series.metric} className={styles.legendItem}>
+                  <span className={styles.legendSwatch} style={{ background: CHART_COLORS[series.metric] }} />
+                  {METRIC_LABELS[series.metric] ?? series.metric}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {fingerprintTop.length > 0 && (
+        <div className={styles.section}>
+          <h3 className={styles.sectionTitle}>Fingerprint</h3>
+          <div className={styles.fingerprintList}>
+            {fingerprintTop.map(([key, value]) => (
+              <span key={key} className={styles.fingerprintChip}>
+                {key}<b>{String(value)}</b>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {onDismiss && (
+        <div className={styles.dismissBar}>
+          <button onClick={onDismiss} className={styles.dismissButton}>
+            Clear · run another
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

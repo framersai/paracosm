@@ -6,8 +6,10 @@ import { normalizeSimulationConfig, applyDemoCaps, type NormalizedSimulationConf
 import { runPairSimulations, runForkSimulation, runBatchSimulations, type BroadcastFn } from './pair-runner.js';
 import {
   handleFetchSeed, handleCompileFromSeed, handleGenerateActors, handleGroundScenario,
+  handleSimulateIntervention,
   type QuickstartDeps,
 } from './quickstart-routes.js';
+import { WorldModel } from '../runtime/world-model/index.js';
 import { handleSimulate, type SimulateDeps } from './simulate-route.js';
 import { compileScenario as compileScenarioReal } from '../engine/compiler/index.js';
 import { marsScenario } from '../engine/mars/index.js';
@@ -423,6 +425,43 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
   // and narration prompts can read via a sibling helper if we want to
   // ground prompts on the cited sources directly.
   const groundingCitationsByScenarioId = new Map<string, unknown>();
+
+  // Lazily compiled WorldModel for the Digital Twin tab. Backed by
+  // scenarios/corporate-quarterly.json (a corporate-quarter scenario
+  // with HEXACO-driven decisions and quarter-pace metrics). The first
+  // /api/quickstart/simulate-intervention call compiles + caches; later
+  // calls reuse the same WorldModel so a series of digital-twin runs
+  // costs one compile.
+  let digitalTwinWorld: WorldModel | null = null;
+  let digitalTwinCompilePromise: Promise<WorldModel | null> | null = null;
+  const getDigitalTwinWorld = (): Promise<WorldModel | null> => {
+    if (digitalTwinWorld) return Promise.resolve(digitalTwinWorld);
+    if (digitalTwinCompilePromise) return digitalTwinCompilePromise;
+    digitalTwinCompilePromise = (async () => {
+      const scenarioPath = resolve(scenarioDir, 'corporate-quarterly.json');
+      if (!existsSync(scenarioPath)) {
+        console.log(`  [digital-twin] Scenario file missing: ${scenarioPath}`);
+        digitalTwinCompilePromise = null;
+        return null;
+      }
+      try {
+        const raw = JSON.parse(readFileSync(scenarioPath, 'utf-8')) as Record<string, unknown>;
+        const compiled = await compileScenarioReal(raw, {
+          provider: 'openai',
+          model: 'gpt-5.4-mini',
+          cache: true,
+        });
+        digitalTwinWorld = WorldModel.fromScenario(compiled);
+        console.log(`  [digital-twin] Compiled + cached ${compiled.id} (${compiled.labels?.name ?? 'unnamed'})`);
+        return digitalTwinWorld;
+      } catch (err) {
+        console.error('  [digital-twin] Compile failed:', err);
+        digitalTwinCompilePromise = null;
+        return null;
+      }
+    })();
+    return digitalTwinCompilePromise;
+  };
   const clients: Set<ServerResponse> = new Set();
 
   // Event buffer: stores all broadcast events so new clients can catch up.
@@ -1150,6 +1189,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
           recordGroundingCitations: (scenarioId, citations) => {
             groundingCitationsByScenarioId.set(scenarioId, citations);
           },
+          getDigitalTwinWorld,
         };
         if (req.url === '/api/quickstart/fetch-seed') {
           await handleFetchSeed(req, res, body, quickstartDeps);
@@ -1165,6 +1205,10 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         }
         if (req.url === '/api/quickstart/ground-scenario') {
           await handleGroundScenario(req, res, body, quickstartDeps);
+          return;
+        }
+        if (req.url === '/api/quickstart/simulate-intervention') {
+          await handleSimulateIntervention(req, res, body, quickstartDeps);
           return;
         }
         res.writeHead(404, { 'Content-Type': 'application/json' });

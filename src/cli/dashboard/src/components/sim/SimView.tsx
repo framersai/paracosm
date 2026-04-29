@@ -2,6 +2,8 @@ import { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import type { GameState, ActorSideState, LeaderInfo } from '../../hooks/useGameState';
 import { getActorColorVar } from '../../hooks/useGameState';
 import { useScenarioContext } from '../../App';
+import { DigitalTwinPanel } from '../digital-twin/DigitalTwinPanel';
+import type { RunArtifact } from '../../../../../engine/schema/index.js';
 import { useCitationContext } from '../../hooks/useCitationRegistry';
 import { useToolContext } from '../../hooks/useToolRegistry';
 import { ActorBar } from '../layout/ActorBar';
@@ -31,6 +33,14 @@ interface SimViewProps {
   /** App-level launching flag — survives tab navigation so users can
    *  switch to viz/chat/etc. and come back to a still-loading sim. */
   launching?: boolean;
+  /** Digital-twin artifact returned by /api/quickstart/simulate-intervention
+   *  (or a loaded JSON file with subject + intervention). When set,
+   *  SimView replaces the parallel-actor layout with DigitalTwinPanel
+   *  rendered against this single artifact. */
+  interventionArtifact?: RunArtifact | null;
+  /** Clears the intervention artifact so SimView returns to the standard
+   *  parallel-actor layout. */
+  onInterventionDismiss?: () => void;
 }
 
 function LeaderColumn({ actorIndex, sideState, state }: { actorIndex: number; sideState: ActorSideState; state: GameState }) {
@@ -145,8 +155,20 @@ function IntroBar({ onDismiss }: { onDismiss: () => void }) {
   );
 }
 
-export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: launchingProp }: SimViewProps) {
+export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: launchingProp, interventionArtifact, onInterventionDismiss }: SimViewProps) {
   const scenario = useScenarioContext();
+  // Digital-twin short-circuit: when the dashboard receives an artifact
+  // produced by simulateIntervention (subject + intervention populated),
+  // we replace the entire SIM body with DigitalTwinPanel. Single-actor
+  // intervention runs do not slot into the parallel-actor layout, so
+  // mixing the two would just confuse the read.
+  if (interventionArtifact) {
+    return (
+      <div className={styles.root}>
+        <DigitalTwinPanel artifact={interventionArtifact} onDismiss={onInterventionDismiss} />
+      </div>
+    );
+  }
   const citationRegistry = useCitationContext();
   const toolRegistry = useToolContext();
   // Local fallback only used when no parent-controlled launching flag is

@@ -32,6 +32,7 @@ import { TabBar } from './components/layout/TabBar';
 import { ProviderErrorBanner } from './components/layout/ProviderErrorBanner';
 // Toolbar merged into TopBar
 import { SimView } from './components/sim/SimView';
+import type { RunArtifact } from '../../../engine/schema/index.js';
 import { SettingsPanel } from './components/settings/SettingsPanel';
 import { ReportView } from './components/reports/ReportView';
 import { ChatPanel } from './components/chat/ChatPanel';
@@ -477,6 +478,14 @@ function AppContent() {
   // think nothing happened and click Run again.
   const [launching, setLaunching] = useState(false);
 
+  // Digital-twin artifact returned by /api/quickstart/simulate-intervention.
+  // When set, SIM tab renders DigitalTwinPanel instead of the parallel-actor
+  // layout. Single-actor intervention runs are structurally different from
+  // multi-actor side-by-side runs, so the SIM UI swaps wholesale rather
+  // than trying to merge both shapes into one view. Cleared by the panel's
+  // dismiss button or by triggering a fresh /setup run.
+  const [interventionArtifact, setInterventionArtifact] = useState<RunArtifact | null>(null);
+
   // Accumulator for /chat turn cost + tokens. Folded into the Footer's
   // `cost` prop so users see the real run-plus-chat total spend. Prior
   // behaviour: footer only counted simulation cost, chat turns billed
@@ -525,6 +534,20 @@ function AppContent() {
   // localStorage cache) shouldn't announce results the user didn't
   // ask to start.
   const [userTriggeredRun, setUserTriggeredRun] = useState(false);
+
+  // Handlers for the digital-twin intervention path: declared here so
+  // setUserTriggeredRun is in scope. handleInterventionResult flips the
+  // user-triggered-run gate (so the SIM tab does not suppress the
+  // returned result the same way it suppresses cold-load rehydrations)
+  // and switches to the SIM tab so DigitalTwinPanel renders immediately.
+  const handleInterventionResult = useCallback((artifact: RunArtifact) => {
+    setInterventionArtifact(artifact);
+    setUserTriggeredRun(true);
+    setActiveTab('sim');
+  }, [setActiveTab]);
+  const handleInterventionDismiss = useCallback(() => {
+    setInterventionArtifact(null);
+  }, []);
   useTerminalToast({
     isComplete: sse.isComplete,
     isAborted: sse.isAborted,
@@ -715,10 +738,22 @@ function AppContent() {
                 sse={sse}
                 sessionId={replaySessionId ?? undefined}
                 onRunStarted={() => setUserTriggeredRun(true)}
+                onInterventionResult={handleInterventionResult}
               />
             )}
 
-            {activeTab === 'sim' && <SimView state={gameState} sseStatus={sse.status} onRun={handleRun} onTour={handleTourStart} verdict={sse.verdict} launching={launching} />}
+            {activeTab === 'sim' && (
+              <SimView
+                state={gameState}
+                sseStatus={sse.status}
+                onRun={handleRun}
+                onTour={handleTourStart}
+                verdict={sse.verdict}
+                launching={launching}
+                interventionArtifact={interventionArtifact}
+                onInterventionDismiss={handleInterventionDismiss}
+              />
+            )}
 
             {activeTab === 'viz' && <SwarmViz state={gameState} onNavigateToChat={navigateToChat} />}
 
