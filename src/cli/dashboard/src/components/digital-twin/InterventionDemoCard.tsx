@@ -79,7 +79,11 @@ export function InterventionDemoCard({ onResult, onError }: InterventionDemoCard
         body: JSON.stringify({
           subject: SUBJECT_PAYLOAD,
           intervention: INTERVENTION_PAYLOAD,
-          options: { maxTurns: 2, seed: 11, costPreset: 'economy' },
+          // 1 turn keeps the run under Cloudflare's 100s gateway timeout
+          // even when LLM calls run hot. The trajectory still has the
+          // initial snapshot + post-turn-1 snapshot, which is enough to
+          // show meaningful divergence in the trajectory mini-chart.
+          options: { maxTurns: 1, seed: 11, costPreset: 'economy' },
         }),
       });
       if (!res.ok) {
@@ -123,10 +127,10 @@ export function InterventionDemoCard({ onResult, onError }: InterventionDemoCard
         {running ? (
           <span className={styles.timer}>
             <span className={styles.spinner} />
-            {elapsedSec}s elapsed · 2 turns × LLM decisions, typically 30-90s
+            {elapsedSec}s elapsed · 1 turn × LLM decisions, typically 20-60s
           </span>
         ) : (
-          <span className={styles.helper}>2 turns · seed 11 · economy preset</span>
+          <span className={styles.helper}>1 turn · seed 11 · economy preset</span>
         )}
       </div>
     </div>

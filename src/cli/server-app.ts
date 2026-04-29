@@ -462,6 +462,16 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
     })();
     return digitalTwinCompilePromise;
   };
+  // Pre-warm the digital-twin world on server boot so the first user
+  // request does not pay the ~30-60s compile inside its response. Cloudflare
+  // proxies paracosm.agentos.sh with a 100s gateway timeout, so a cold
+  // compile + 2-turn simulation reliably tripped 524 errors. Pre-warming
+  // moves the compile off the user's critical path; the cookbook's
+  // disk cache means restarts after the first one are nearly free.
+  // Fire-and-forget — failure is logged from inside getDigitalTwinWorld
+  // and the route handler still surfaces a 503 if the user beats the
+  // pre-warm to the request.
+  void getDigitalTwinWorld();
   const clients: Set<ServerResponse> = new Set();
 
   // Event buffer: stores all broadcast events so new clients can catch up.
