@@ -1,6 +1,6 @@
 {
   "id": "frontier-ai-lab",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "engineArchetype": "closed_turn_based_settlement",
 
   "labels": {
@@ -148,28 +148,15 @@
   },
 
   "knowledge": {
-    "topics": {
-      "rlhf_dpo": { "id": "rlhf_dpo", "label": "RLHF / DPO", "category": "alignment" },
-      "interpretability": { "id": "interpretability", "label": "Interpretability + mech-interp", "category": "alignment" },
-      "red_team": { "id": "red_team", "label": "Red-team protocols", "category": "alignment" },
-      "scaling_laws": { "id": "scaling_laws", "label": "Scaling laws + training-run efficiency", "category": "capability" },
-      "fine_tune": { "id": "fine_tune", "label": "Fine-tuning + post-training", "category": "capability" },
-      "spec_gaming": { "id": "spec_gaming", "label": "Specification gaming", "category": "safety_breach" },
-      "jailbreak": { "id": "jailbreak", "label": "Jailbreak + prompt-injection", "category": "safety_breach" },
-      "rsp": { "id": "rsp", "label": "Responsible Scaling Policy", "category": "regulatory" },
-      "eu_ai_act": { "id": "eu_ai_act", "label": "EU AI Act + frontier model regulation", "category": "regulatory" },
-      "talent_pipeline": { "id": "talent_pipeline", "label": "Researcher hiring + retention", "category": "talent" },
-      "compute_budget": { "id": "compute_budget", "label": "Compute budget + runway", "category": "financial" },
-      "release_comms": { "id": "release_comms", "label": "Release narrative + press cycle", "category": "press" }
-    },
+    "topics": {},
     "categoryMapping": {
-      "alignment":     ["rlhf_dpo", "interpretability", "red_team"],
-      "capability":    ["scaling_laws", "fine_tune"],
-      "safety_breach": ["spec_gaming", "jailbreak"],
-      "regulatory":    ["rsp", "eu_ai_act"],
-      "talent":        ["talent_pipeline"],
-      "financial":     ["compute_budget"],
-      "press":         ["release_comms"]
+      "alignment":     [],
+      "capability":    [],
+      "safety_breach": [],
+      "regulatory":    [],
+      "talent":        [],
+      "financial":     [],
+      "press":         []
     }
   },
 
