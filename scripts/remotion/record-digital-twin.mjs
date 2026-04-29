@@ -202,11 +202,13 @@ execFileSync('ffmpeg', [
 // caption, C (DigitalTwinPanel hold) at 1× with caption. Total target
 // ~25-35s.
 const heroOut = path.resolve(ASSETS_DIR, `${OUT_NAME}-hero.mp4`);
-// Trim a healthy 1.5s off the front so the page-top -> dt-card scroll
-// transition gets cut. The recorder scrolls to the dt card on page
-// load, so by ~1.5s in the card is parked in frame and we can let
-// segment A start there cleanly.
-const A_START_S = 1.5;
+// Trim 4s off the front so the page-top empty Quickstart + scroll
+// transition gets fully cut. The recorder waits ~2s for hydration +
+// killTour, then scrolls to the dt card around real time 2-3s, then
+// holds. Starting segment A at 4.0s of source means the very first
+// hero frame is the dt card already parked in frame with Maria's
+// profile visible — no empty-state dead air.
+const A_START_S = 4.0;
 const aEnd = ((seg.clickedMs || 8000) + 800) / 1000;
 const bEnd = resultRendered
   ? Math.max(aEnd + 4, (seg.resultRenderedMs - 500) / 1000)
