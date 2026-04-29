@@ -103,20 +103,23 @@ const seg = { introHoldMs: 0, clickedMs: 0, resultRenderedMs: 0 };
 const since = () => Date.now() - recStartMs;
 
 // ── 1. SCROLL DIRECTLY TO INTERVENTION DEMO CARD ───────────────────────
-// Earlier the recorder held 3s on the SeedInput before scrolling to the
-// dt card. That meant segment A opened on an empty Quickstart seed
-// input — viewers reasonably read it as "nothing's happening yet". The
-// dt demo's whole point is to show the prefilled subject + intervention
-// being clicked, so we skip the empty-state intro and frame the
-// InterventionDemoCard immediately. The 4s hold gives time to read
-// "Maria Chen, 58 ..." + "12-week semaglutide + lifestyle protocol"
-// before the click.
+// The recorder skips the empty SeedInput intro entirely. After scroll
+// the InterventionDemoCard kicks off a typewriter animation (subject
+// fields type in, then intervention fields). Hold 6s so the full
+// type-in completes BEFORE the click — that's the "input being
+// entered" moment the dt demo needs to convey.
+//
+// Typewriter timing (set in InterventionDemoCard.tsx via
+// IntersectionObserver + startDelayMs):
+//   Subject:     starts 300ms after card enters viewport,  ~3s to type
+//   Intervention: starts 1700ms after viewport entry,      ~3s to type
+//   Both done at: ~4.7s
 console.log('[dt] scroll directly to InterventionDemoCard (skipping empty-seed framing)');
 const card = page.locator('text=Or test an intervention').first();
 await card.waitFor({ state: 'visible', timeout: 15000 });
 await card.scrollIntoViewIfNeeded();
 seg.introHoldMs = since();
-await page.waitForTimeout(4000);
+await page.waitForTimeout(6000);
 
 // ── 3. CLICK "Run intervention demo" ───────────────────────────────────
 console.log('[dt] click Run intervention demo button');

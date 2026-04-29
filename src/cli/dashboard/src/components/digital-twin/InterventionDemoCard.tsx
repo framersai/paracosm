@@ -1,15 +1,12 @@
 /**
  * InterventionDemoCard — Quickstart input-phase CTA that fires the
- * digital-twin demo. Shows a prefilled subject + intervention preview
- * (Atlas Lab + 90-day delay) and a single button. Click hits
- * POST /api/quickstart/simulate-intervention; on 200 the artifact is
- * forwarded to the parent (App.tsx) which parks it and switches to
- * the SIM tab so DigitalTwinPanel renders the result.
- *
- * Renders inline below SeedInput rather than in its own tab so the
- * dashboard tab bar does not balloon to 13 tabs. The capability is
- * surfaced where users decide what to run, not where they review
- * past runs.
+ * digital-twin demo. Renders the subject + intervention as labeled
+ * form fields that type themselves in on mount (typewriter animation)
+ * so the demo visually reads as "input being entered" rather than
+ * "static prefilled card." Click hits POST /api/quickstart/
+ * simulate-intervention; on 200 the artifact is forwarded to the
+ * parent (App.tsx) which parks it and switches to the SIM tab so
+ * DigitalTwinPanel renders the result.
  *
  * @module paracosm/dashboard/digital-twin/InterventionDemoCard
  */
@@ -20,30 +17,35 @@ import styles from './InterventionDemoCard.module.scss';
 export interface InterventionDemoCardProps {
   onResult: (artifact: RunArtifact) => void;
   onError?: (message: string) => void;
-  /**
-   * Fires the moment the user clicks Run, before the fetch starts.
-   * Carries the prefilled subject + intervention payload so App.tsx
-   * can park it in interventionRunning state, reset SSE, and switch
-   * to the SIM tab. The dashboard then renders DigitalTwinProgress
-   * with subject/intervention echoed and live events streaming.
-   */
   onRunStart?: (payload: {
     subject: { id: string; name: string; profile?: Record<string, unknown> };
     intervention: { id: string; name: string; description: string; duration?: { value: number; unit: string } };
   }) => void;
 }
 
-const SUBJECT_PREVIEW = {
-  id: 'patient-maria-2026',
-  name: 'Maria Chen, 58',
-  meta: 'T2D · A1c 7.8% · BMI 31 · sedentary · family-history CVD',
-};
+/** Labeled fields rendered inside the SUBJECT and INTERVENTION cards.
+ *  Each field types itself in sequentially on mount via the
+ *  useTypewriterFields hook below — the visual analog of "you, the
+ *  developer, are filling in the SubjectConfig + InterventionConfig
+ *  payload". Last entry per group is the most "domain-specific" so
+ *  the typewriter rhythm builds toward something interesting. */
+const SUBJECT_FIELDS: Array<{ label: string; value: string }> = [
+  { label: 'Patient',       value: 'Maria Chen' },
+  { label: 'Age',           value: '58' },
+  { label: 'Diagnosis',     value: 'Type 2 diabetes (4 yrs)' },
+  { label: 'HbA1c',         value: '7.8%' },
+  { label: 'Weight',        value: '178 lb · BMI 31' },
+  { label: 'Comorbidities', value: 'hypertension, dyslipidemia, family-hx CVD' },
+];
 
-const INTERVENTION_PREVIEW = {
-  id: 'glp1-12wk-protocol',
-  name: '12-week semaglutide + lifestyle',
-  meta: '84 days · adherence target 0.85',
-};
+const INTERVENTION_FIELDS: Array<{ label: string; value: string }> = [
+  { label: 'Protocol',  value: '12-week semaglutide + lifestyle' },
+  { label: 'Drug',      value: 'Semaglutide 0.25mg → 1.0mg by week 4' },
+  { label: 'Lifestyle', value: '150min/wk graded exercise + dietitian plan' },
+  { label: 'Duration',  value: '84 days' },
+  { label: 'Adherence', value: '85% target' },
+  { label: 'Care team', value: 'endocrinology, nutrition, behavioral, cardiology, coach' },
+];
 
 const SUBJECT_PAYLOAD = {
   id: 'patient-maria-2026',
@@ -79,10 +81,85 @@ const INTERVENTION_PAYLOAD = {
   adherenceProfile: { expected: 0.85 },
 };
 
+/**
+ * Typewriter animation for a list of labeled fields. Reveals one field
+ * at a time, typing each value character-by-character. Triggered by
+ * `start` toggling true — the parent uses an IntersectionObserver to
+ * wait until the card scrolls into view, so the animation runs WHILE
+ * the viewer is looking at it (matters for the dt demo recording: the
+ * recorder takes 2-3s to scroll to the card, and we don't want the
+ * type-in to play while the card is off-screen).
+ */
+function useTypewriter(
+  fields: Array<{ label: string; value: string }>,
+  options: { start: boolean; startDelayMs?: number; fieldDelayMs?: number; charMs?: number },
+) {
+  const { start, startDelayMs = 200, fieldDelayMs = 260, charMs = 16 } = options;
+  const [fieldIndex, setFieldIndex] = useState(-1);
+  const [charsTyped, setCharsTyped] = useState(0);
+
+  useEffect(() => {
+    if (!start) return;
+    let cancelled = false;
+    let timer: number | undefined;
+
+    const advanceField = (i: number) => {
+      if (cancelled || i >= fields.length) return;
+      setFieldIndex(i);
+      setCharsTyped(0);
+      const value = fields[i].value;
+      const typeStep = (n: number) => {
+        if (cancelled) return;
+        if (n >= value.length) {
+          timer = window.setTimeout(() => advanceField(i + 1), fieldDelayMs);
+          return;
+        }
+        setCharsTyped(n + 1);
+        timer = window.setTimeout(() => typeStep(n + 1), charMs);
+      };
+      typeStep(0);
+    };
+
+    const kickoff = window.setTimeout(() => advanceField(0), startDelayMs);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(kickoff);
+      if (timer) window.clearTimeout(timer);
+    };
+  }, [start, fields, startDelayMs, fieldDelayMs, charMs]);
+
+  return { fieldIndex, charsTyped };
+}
+
+function TypewriterFields({ fields, startDelayMs, start }: { fields: Array<{ label: string; value: string }>; startDelayMs: number; start: boolean }) {
+  const { fieldIndex, charsTyped } = useTypewriter(fields, { start, startDelayMs });
+  return (
+    <div className={styles.fieldList}>
+      {fields.map((f, i) => {
+        const visible = i <= fieldIndex;
+        const fullyTyped = i < fieldIndex;
+        const partial = i === fieldIndex ? f.value.slice(0, charsTyped) : (fullyTyped ? f.value : '');
+        return (
+          <div key={f.label} className={styles.field} style={{ opacity: visible ? 1 : 0 }}>
+            <span className={styles.fieldLabel}>{f.label}</span>
+            <span className={styles.fieldValue}>
+              {partial}
+              {i === fieldIndex && !fullyTyped && <span className={styles.cursor}>▋</span>}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function InterventionDemoCard({ onResult, onError, onRunStart }: InterventionDemoCardProps) {
   const [running, setRunning] = useState(false);
   const [elapsedSec, setElapsedSec] = useState(0);
   const startedAtRef = useRef<number>(0);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [typeStart, setTypeStart] = useState(false);
 
   useEffect(() => {
     if (!running) return;
@@ -91,14 +168,37 @@ export function InterventionDemoCard({ onResult, onError, onRunStart }: Interven
     return () => window.clearInterval(id);
   }, [running]);
 
+  // Kick off the typewriter the first time the card scrolls into view.
+  // This guarantees the animation is running WHILE the viewer is
+  // looking — matters both for real users scrolling down and for the
+  // demo recorder which scrolls to the card after page load. Once
+  // started, we never restart even if the card scrolls away again.
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!el) return;
+    if (typeof IntersectionObserver === 'undefined') {
+      // Older browser fallback: just kick off after mount.
+      setTypeStart(true);
+      return;
+    }
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) {
+          setTypeStart(true);
+          observer.disconnect();
+          return;
+        }
+      }
+    }, { threshold: 0.3 });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   const handleRun = async () => {
     if (running) return;
     setRunning(true);
     setElapsedSec(0);
     startedAtRef.current = Date.now();
-    // Tell App.tsx we just kicked off a digital-twin run BEFORE the
-    // fetch lands so the SIM tab can switch and DigitalTwinProgress
-    // can start consuming SSE events the server is about to stream.
     onRunStart?.({
       subject: { id: SUBJECT_PAYLOAD.id, name: SUBJECT_PAYLOAD.name, profile: SUBJECT_PAYLOAD.profile },
       intervention: {
@@ -115,13 +215,6 @@ export function InterventionDemoCard({ onResult, onError, onRunStart }: Interven
         body: JSON.stringify({
           subject: SUBJECT_PAYLOAD,
           intervention: INTERVENTION_PAYLOAD,
-          // 2 turns gives the LLM a chance to emit two events whose
-          // categories hit the scenario's effects map; one turn left
-          // every metric flat at its initial because a single event is
-          // not enough to land a category match on every scenario
-          // metric. Cold compile is pre-warmed on boot, so the wire
-          // budget is just simulation time: ~50-90s for 2 turns at
-          // economy, comfortably under Cloudflare's 100s gateway.
           options: { maxTurns: 2, seed: 11, costPreset: 'economy' },
         }),
       });
@@ -139,7 +232,7 @@ export function InterventionDemoCard({ onResult, onError, onRunStart }: Interven
   };
 
   return (
-    <div className={styles.card}>
+    <div ref={cardRef} className={styles.card}>
       <div className={styles.heading}>
         <h3 className={styles.title}>Or test an intervention</h3>
         <span className={styles.eyebrow}>digital twin · single subject</span>
@@ -149,14 +242,18 @@ export function InterventionDemoCard({ onResult, onError, onRunStart }: Interven
       </p>
       <div className={styles.preview}>
         <div className={styles.previewCell}>
-          <span className={styles.previewLabel}>Subject</span>
-          <span className={styles.previewName}>{SUBJECT_PREVIEW.name}</span>
-          <span className={styles.previewMeta}>{SUBJECT_PREVIEW.meta}</span>
+          <div className={styles.previewHeader}>
+            <span className={styles.previewLabel}>Subject</span>
+            <span className={styles.previewId}>patient-maria-2026</span>
+          </div>
+          <TypewriterFields fields={SUBJECT_FIELDS} startDelayMs={300} start={typeStart} />
         </div>
         <div className={styles.previewCell}>
-          <span className={styles.previewLabel}>Intervention</span>
-          <span className={styles.previewName}>{INTERVENTION_PREVIEW.name}</span>
-          <span className={styles.previewMeta}>{INTERVENTION_PREVIEW.meta}</span>
+          <div className={styles.previewHeader}>
+            <span className={styles.previewLabel}>Intervention</span>
+            <span className={styles.previewId}>glp1-12wk-protocol</span>
+          </div>
+          <TypewriterFields fields={INTERVENTION_FIELDS} startDelayMs={1700} start={typeStart} />
         </div>
       </div>
       <div className={styles.actions}>
