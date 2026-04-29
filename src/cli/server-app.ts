@@ -879,19 +879,14 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       runHistoryEnvFlag === 'true' ? true :
       runHistoryEnvFlag === 'false' ? false :
       runHistoryRoutesDefault;
-    if (await handlePlatformApiRoute(req, res, {
-      runHistoryStore,
-      corsHeaders,
-      paracosmRoutesEnabled,
-      scenarioLookup: (id) => customScenarioCatalog.get(id)?.scenario,
-    })) {
-      return;
-    }
 
-    // Studio drop-zone: POST /api/v1/library/import accepts a single
-    // RunArtifact or array of RunArtifacts and inserts each into the
-    // run-history store as a fresh Library row. Same gating as the
-    // bundle GETs below.
+    // Bundle + Library-import handlers run BEFORE handlePlatformApiRoute
+    // because that handler's "unknown_platform_route" 404 fires for any
+    // /api/v1/* path it doesn't recognize — including these. Without
+    // this ordering the Compare modal showed
+    // 'Failed to load bundle: HTTP 404 unknown_platform_route' on every
+    // bundle fetch, even though a perfectly good bundle handler lived
+    // 30 lines further down.
     if (paracosmRoutesEnabled && req.url === '/api/v1/library/import' && req.method === 'POST') {
       if (!runHistoryStore) {
         res.writeHead(503, { 'Content-Type': 'application/json', ...corsHeaders });
@@ -910,7 +905,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
 
     // Compare-runs UI: bundle endpoints. /api/v1/bundles/:id and
     // /api/v1/bundles/:id/aggregate are read-only views over the
-    // RunHistoryStore. Same gating as platform-api routes above.
+    // RunHistoryStore. Same gating as platform-api routes below.
     if (paracosmRoutesEnabled && req.url?.startsWith('/api/v1/bundles/') && req.method === 'GET') {
       const match = req.url.match(/^\/api\/v1\/bundles\/([^/?]+)(\/aggregate)?(\?.*)?$/);
       if (!match) {
@@ -927,6 +922,15 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       } catch (err) {
         writeJsonError(res, err);
       }
+      return;
+    }
+
+    if (await handlePlatformApiRoute(req, res, {
+      runHistoryStore,
+      corsHeaders,
+      paracosmRoutesEnabled,
+      scenarioLookup: (id) => customScenarioCatalog.get(id)?.scenario,
+    })) {
       return;
     }
 
