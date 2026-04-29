@@ -39,23 +39,40 @@ export interface DigitalTwinPanelProps {
 }
 
 const METRIC_LABELS: Record<string, string> = {
-  morale: 'Morale',
-  population: 'Population',
+  // frontier-ai-lab metrics (the digital-twin scenario)
+  population: 'Researchers',
+  alignmentBench: 'AlignmentBench',
+  specGamingRate: 'Spec Gaming Rate',
+  capabilityIndex: 'Capability Index',
+  releaseReadiness: 'Release Readiness',
+  redTeamCoverage: 'Red-team Coverage',
   runwayMonths: 'Runway',
+  burnRate: 'Burn',
+  boardConfidence: 'Board Confidence',
+  investorPressure: 'Investor Pressure',
+  competitorCapabilityGap: 'Competitor Gap',
+  regulatoryHeat: 'Regulatory Heat',
+  // legacy / cross-scenario metrics (kept so corporate-quarterly +
+  // mars + lunar runs through the same panel still render labels)
+  morale: 'Morale',
   marketShare: 'Market Share',
   revenueArr: 'Revenue ARR',
-  burnRate: 'Burn',
   scienceOutput: 'Science',
   hiringCapacity: 'Hiring',
   deliveryCapacity: 'Delivery',
-  boardConfidence: 'Board Confidence',
-  investorPressure: 'Investor Pressure',
-  alignmentBench: 'AlignmentBench',
 };
 
-const CHART_METRICS = ['morale', 'runwayMonths', 'marketShare'];
+// Three signals that move under a 90-day release delay: alignmentBench
+// climbs as red-team passes accumulate, specGamingRate drops as DPO
+// mitigations land, releaseReadiness recovers as both stabilize. These
+// three together tell the intervention story in one chart.
+const CHART_METRICS = ['alignmentBench', 'specGamingRate', 'releaseReadiness'];
 
 const CHART_COLORS: Record<string, string> = {
+  alignmentBench: '#7cb6ff',
+  specGamingRate: '#ef6f5d',
+  releaseReadiness: '#ffd970',
+  // legacy fallbacks for non-frontier-ai-lab artifacts
   morale: '#ffd970',
   runwayMonths: '#5fd49a',
   marketShare: '#7cb6ff',

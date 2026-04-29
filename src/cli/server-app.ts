@@ -427,18 +427,26 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
   const groundingCitationsByScenarioId = new Map<string, unknown>();
 
   // Lazily compiled WorldModel for the Digital Twin tab. Backed by
-  // scenarios/corporate-quarterly.json (a corporate-quarter scenario
-  // with HEXACO-driven decisions and quarter-pace metrics). The first
-  // /api/quickstart/simulate-intervention call compiles + caches; later
-  // calls reuse the same WorldModel so a series of digital-twin runs
-  // costs one compile.
+  // scenarios/frontier-ai-lab.json (Atlas Lab with subject-shaped
+  // metrics: alignmentBench, specGamingRate, capabilityIndex,
+  // releaseReadiness, redTeamCoverage, runway). Earlier we used
+  // corporate-quarterly here, but that scenario's metrics are colony /
+  // generic-corp metrics — POWERKW, FOODMONTHSRESERVE, etc. — and the
+  // panel rendered AI-lab subject metadata next to colony numbers,
+  // which read like a regular sim with subject labels stapled on. The
+  // frontier-ai-lab scenario's metrics are AI-lab metrics, so the
+  // result panel actually demonstrates the digital-twin pattern.
+  //
+  // The first /api/quickstart/simulate-intervention call compiles and
+  // caches; later calls reuse the same WorldModel so a series of
+  // digital-twin runs costs one compile.
   let digitalTwinWorld: WorldModel | null = null;
   let digitalTwinCompilePromise: Promise<WorldModel | null> | null = null;
   const getDigitalTwinWorld = (): Promise<WorldModel | null> => {
     if (digitalTwinWorld) return Promise.resolve(digitalTwinWorld);
     if (digitalTwinCompilePromise) return digitalTwinCompilePromise;
     digitalTwinCompilePromise = (async () => {
-      const scenarioPath = resolve(scenarioDir, 'corporate-quarterly.json');
+      const scenarioPath = resolve(scenarioDir, 'frontier-ai-lab.json');
       if (!existsSync(scenarioPath)) {
         console.log(`  [digital-twin] Scenario file missing: ${scenarioPath}`);
         digitalTwinCompilePromise = null;
