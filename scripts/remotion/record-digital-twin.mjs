@@ -102,21 +102,21 @@ const recStartMs = Date.now();
 const seg = { introHoldMs: 0, clickedMs: 0, resultRenderedMs: 0 };
 const since = () => Date.now() - recStartMs;
 
-// ── 1. INTRO HOLD ON QUICKSTART ────────────────────────────────────────
-// Brief 3 s hold so the SeedInput card is in frame before we scroll.
-console.log('[dt] hold on Quickstart input phase (3s)');
-await page.waitForTimeout(3000);
-seg.introHoldMs = since();
-
-// ── 2. SCROLL TO INTERVENTION DEMO CARD ────────────────────────────────
-// InterventionDemoCard renders below SeedInput inside QuickstartView.
-// It contains the heading "Or test an intervention" and the button
-// "Run intervention demo". Scroll smoothly so the card lands in frame.
-console.log('[dt] scroll to InterventionDemoCard');
+// ── 1. SCROLL DIRECTLY TO INTERVENTION DEMO CARD ───────────────────────
+// Earlier the recorder held 3s on the SeedInput before scrolling to the
+// dt card. That meant segment A opened on an empty Quickstart seed
+// input — viewers reasonably read it as "nothing's happening yet". The
+// dt demo's whole point is to show the prefilled subject + intervention
+// being clicked, so we skip the empty-state intro and frame the
+// InterventionDemoCard immediately. The 4s hold gives time to read
+// "Maria Chen, 58 ..." + "12-week semaglutide + lifestyle protocol"
+// before the click.
+console.log('[dt] scroll directly to InterventionDemoCard (skipping empty-seed framing)');
 const card = page.locator('text=Or test an intervention').first();
 await card.waitFor({ state: 'visible', timeout: 15000 });
 await card.scrollIntoViewIfNeeded();
-await page.waitForTimeout(2500);
+seg.introHoldMs = since();
+await page.waitForTimeout(4000);
 
 // ── 3. CLICK "Run intervention demo" ───────────────────────────────────
 console.log('[dt] click Run intervention demo button');
@@ -202,7 +202,11 @@ execFileSync('ffmpeg', [
 // caption, C (DigitalTwinPanel hold) at 1× with caption. Total target
 // ~25-35s.
 const heroOut = path.resolve(ASSETS_DIR, `${OUT_NAME}-hero.mp4`);
-const A_START_S = 0.5;
+// Trim a healthy 1.5s off the front so the page-top -> dt-card scroll
+// transition gets cut. The recorder scrolls to the dt card on page
+// load, so by ~1.5s in the card is parked in frame and we can let
+// segment A start there cleanly.
+const A_START_S = 1.5;
 const aEnd = ((seg.clickedMs || 8000) + 800) / 1000;
 const bEnd = resultRendered
   ? Math.max(aEnd + 4, (seg.resultRenderedMs - 500) / 1000)
