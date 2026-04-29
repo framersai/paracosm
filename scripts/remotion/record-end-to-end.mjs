@@ -70,6 +70,12 @@ const ATLAS_DOMAIN = 'Coastal mayor crisis leadership under hurricane time press
 
 console.log(`[e2e] launching ${HEADED ? 'headed' : 'headless'} chromium`);
 const browser = await chromium.launch({ headless: !HEADED });
+// Recording starts when ctx is created. Anchor seg.* timestamps here
+// so they land in the same time base ffmpeg trims use (absolute
+// source video time). Setting recStartMs after killTour offset every
+// seg value by ~3s, and segment A's aEnd ended before the typing
+// finished — the typing got buried in segment B at 12× speed.
+const ctxCreationMs = Date.now();
 const ctx = await browser.newContext({
   viewport: VIEW,
   recordVideo: { dir: OUT_DIR, size: VIEW },
@@ -128,9 +134,11 @@ await killTour();
 // 1× during prompt entry + results + tab tour, ~3× during the
 // compile-and-run middle. Without this the loop would either be a wall
 // of unreadable fast-typing OR 4 minutes of dead-air "compiling…".
-const recStartMs = Date.now();
+// Anchor to ctxCreationMs (set above when video recording starts) so
+// since() returns absolute source time — same time base ffmpeg trims
+// use.
 const seg = { promptDoneMs: 0, submitClickedMs: 0, resultsAppearedMs: 0 };
-const since = () => Date.now() - recStartMs;
+const since = () => Date.now() - ctxCreationMs;
 
 console.log('[e2e] focus seed textarea + fill prompt');
 // Target the SeedInput's textarea explicitly via data-quickstart-seed.
