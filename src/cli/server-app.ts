@@ -1,5 +1,5 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
-import { readFileSync, writeFileSync, existsSync, readdirSync, statSync, unlinkSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, readdirSync, statSync, unlinkSync, createReadStream } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { normalizeSimulationConfig, applyDemoCaps, type NormalizedSimulationConfig } from './sim-config.js';
@@ -2021,16 +2021,86 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       }
     }
 
-    // Serve demo videos (Remotion-rendered loops shown on the landing page).
-    // Long cache: rendered output is content-addressable enough that the
-    // landing's <video src> changes when content changes.
+    // Serve demo videos (Remotion-rendered loops shown on the landing
+    // page). Long cache: rendered output is content-addressable enough
+    // that the landing's <video src> changes when content changes.
+    //
+    // Honors HTTP Range requests so the landing-page <video controls>
+    // scrubber can seek without buffering the whole file. Without this,
+    // the prior implementation sent HTTP 200 + the full body even when
+    // a Range header was present — Cloudflare cached that as a
+    // non-rangeable response, which disabled the timeline scrubber for
+    // every visitor. The mp4 itself has +faststart (moov atom at the
+    // front) so the browser only needs the byte range it asked for to
+    // render any timestamp.
     if (req.url?.split('?')[0].startsWith('/demo/')) {
       const demoPath = resolve(__dirname, '..', '..', 'assets', 'demo', req.url.split('?')[0].replace('/demo/', ''));
       if (existsSync(demoPath)) {
         const ext = demoPath.split('.').pop() || '';
-        const types: Record<string,string> = { mp4:'video/mp4', webm:'video/webm', png:'image/png', jpg:'image/jpeg' };
-        res.writeHead(200, { 'Content-Type': types[ext] || 'application/octet-stream', 'Cache-Control': 'public, max-age=86400' });
-        res.end(readFileSync(demoPath));
+        const types: Record<string, string> = { mp4: 'video/mp4', webm: 'video/webm', png: 'image/png', jpg: 'image/jpeg' };
+        const contentType = types[ext] || 'application/octet-stream';
+        const stat = statSync(demoPath);
+        const fileSize = stat.size;
+        const rangeHeader = req.headers.range;
+
+        if (rangeHeader) {
+          // Parse `bytes=<start>-<end?>`. Accepts open-ended end so
+          // browsers can ask for "everything from offset N onward" and
+          // suffix-byte ranges (`bytes=-N`) for the last N bytes of the
+          // file. Malformed headers fall through to a 416.
+          const match = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader.trim());
+          if (!match) {
+            res.writeHead(416, {
+              'Content-Range': `bytes */${fileSize}`,
+              'Content-Type': 'text/plain',
+            });
+            res.end('Malformed Range header');
+            return;
+          }
+          let start: number;
+          let end: number;
+          if (match[1] === '' && match[2] !== '') {
+            // Suffix range: "bytes=-N" → last N bytes.
+            const suffix = parseInt(match[2], 10);
+            start = Math.max(fileSize - suffix, 0);
+            end = fileSize - 1;
+          } else {
+            start = match[1] === '' ? 0 : parseInt(match[1], 10);
+            end = match[2] === '' ? fileSize - 1 : parseInt(match[2], 10);
+          }
+          if (Number.isNaN(start) || Number.isNaN(end) || start > end || start >= fileSize) {
+            res.writeHead(416, {
+              'Content-Range': `bytes */${fileSize}`,
+              'Content-Type': 'text/plain',
+            });
+            res.end('Requested range not satisfiable');
+            return;
+          }
+          end = Math.min(end, fileSize - 1);
+          const chunkSize = end - start + 1;
+          res.writeHead(206, {
+            'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+            'Accept-Ranges': 'bytes',
+            'Content-Length': String(chunkSize),
+            'Content-Type': contentType,
+            'Cache-Control': 'public, max-age=86400',
+          });
+          // Stream the requested chunk so we don't buffer the whole
+          // file into memory per request.
+          createReadStream(demoPath, { start, end }).pipe(res);
+          return;
+        }
+
+        // No Range header: full-file response, but still advertise
+        // Accept-Ranges so browsers know they can seek on subsequent
+        // requests.
+        res.writeHead(200, {
+          'Content-Type': contentType,
+          'Content-Length': String(fileSize),
+          'Accept-Ranges': 'bytes',
+          'Cache-Control': 'public, max-age=86400',
+        });
+        createReadStream(demoPath).pipe(res);
         return;
       }
     }
