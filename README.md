@@ -5,7 +5,7 @@
 <h1 align="center">PARACOSM</h1>
 
 <p align="center">
-  <em>Counterfactual world simulations for AI agents. From a prompt to a structured world model to forked futures.</em>
+  <em>A structured world model for AI agents. Prompt to runnable world to forked futures.</em>
 </p>
 
 <p align="center">
@@ -27,7 +27,7 @@
 
 Paracosm is a structured world model for AI agents. It compiles a JSON scenario draft (or a prompt, or an extracted document) into a runnable world, plays it through a deterministic kernel, and lets agents with HEXACO personality profiles decide turn by turn how the world unfolds. Snapshots persist on disk. Runs replay byte-for-byte. Any past turn can be forked with a different actor, a different seed, or a custom event, and the divergent branch streams alongside the trunk so the contrast is visible in the artifact, not promised in copy.
 
-The product is the contrast. Same compiled world, same crises, same kernel: swap one variable and the trajectory measurably moves. That is what `WorldModel.fork()` is for.
+The product is the contrast. Same compiled world, same crises, same kernel: swap one variable and the trajectory measurably moves.
 
 ---
 
@@ -37,7 +37,7 @@ The product is the contrast. Same compiled world, same crises, same kernel: swap
 >
 > Jorge Luis Borges, *The Garden of Forking Paths*, 1941
 
-A counterfactual world simulation needs three things: a deterministic substrate that can be rewound, an LLM reasoner that can be replayed against the same state, and a contract for what state actually means. Paracosm carries all three. Snapshots are JSON, the kernel round-trips through `JSON.stringify`, and every fork resumes from the captured state without recomputing the prefix.
+A world model that can be forked needs three things: a deterministic substrate that can be rewound, an LLM reasoner that can be replayed against the same state, and a contract for what state actually means. Paracosm carries all three. Snapshots are JSON, the kernel round-trips through `JSON.stringify`, and every fork resumes from the captured state without recomputing the prefix.
 
 ```typescript
 import { WorldModel } from 'paracosm/world-model';
@@ -192,16 +192,7 @@ The authoring contract is JSON because JSON validates, diffs, caches, and snapsh
 }
 ```
 
-Every scenario declares its own vocabulary via `labels.populationNoun` (plural), `labels.settlementNoun` (singular), and `labels.timeUnitNoun`. The dashboard, kernel, and progression hooks pick those up everywhere user-facing copy renders. Without overrides, paracosm falls back to `colonists` / `colony` / `tick`. A handful of working shapes:
-
-| Scenario          | settlementNoun | populationNoun | timeUnitNoun |
-|-------------------|----------------|----------------|--------------|
-| Mars Genesis      | colony         | colonists      | year         |
-| Submarine patrol  | habitat        | crew           | day          |
-| Medieval kingdom  | kingdom        | subjects       | year         |
-| Corporate strategy| company        | employees      | quarter      |
-| Generation ship   | vessel         | passengers     | year         |
-| Benchmark arena   | session        | agents         | tick         |
+Every scenario declares its own vocabulary via `labels.populationNoun` (plural), `labels.settlementNoun` (singular), and `labels.timeUnitNoun`. The dashboard, kernel, and progression hooks pick those up everywhere user-facing copy renders. Without overrides, paracosm falls back to `colonists` / `colony` / `tick`.
 
 Time is unit-agnostic. `setup.defaultTimePerTurn` and `setup.defaultStartTime` are plain numbers; whether they represent years, quarters, hours, or ticks is decided by `timeUnitNoun`. The dashboard turn header reads `Quarter 5`, `Day 22`, or `Year 2043` straight from the label.
 
@@ -287,7 +278,7 @@ For non-TypeScript consumers, `npm run export:json-schema` emits `schema/run-art
 
 ## Digital twins: subjects and interventions
 
-For simulations that revolve around a single subject under a counterfactual intervention, paracosm exposes a `DigitalTwin` subpath plus `SubjectConfig` and `InterventionConfig` as first-class input primitives.
+For simulations that revolve around a single subject under an intervention, paracosm exposes a `DigitalTwin` subpath plus `SubjectConfig` and `InterventionConfig` as first-class input primitives.
 
 ```typescript
 import { DigitalTwin } from 'paracosm/digital-twin';
@@ -536,15 +527,9 @@ The engine owns the chassis. The scenario owns the domain. The kernel handles st
 
 ---
 
-## What paracosm is not
+## Background
 
-- Not a generative visual world model. Sora, Genie 3, and World Labs Marble produce pixels or 3D scenes. Paracosm produces a structured `RunArtifact`: metrics, decisions, specialist notes, citations, forged tools.
-- Not a JEPA-style predictive-representation model. LeCun's AMI Labs trains neural representations from sensor streams. Paracosm composes a kernel with an LLM reasoner; no training pipeline.
-- Not a multi-agent task orchestration framework. LangGraph, AutoGen, CrewAI, and the OpenAI Agents SDK execute real tasks. Paracosm is a simulation; nothing leaves the run.
-- Not a bottom-up swarm intelligence simulator. MiroFish and OASIS simulate millions of emergent agents for aggregate prediction. Paracosm is top-down (one actor decides), runs on the order of 100 agents by design, and outputs a deterministic trajectory plus divergence across actors.
-- Not a generative-agents library. Stanford Generative Agents and Concordia build emergent social simulacra in open-ended sandboxes. Paracosm ships a deterministic turn loop, personality drift, runtime tool forging, and a universal result schema.
-
-Paracosm sits in the lineage of structured world models ([Xing 2025](https://arxiv.org/abs/2507.05169), [ACM CSUR 2025](https://dl.acm.org/doi/full/10.1145/3746449)) and counterfactual world simulation ([Kirfel et al, 2025](https://link.springer.com/article/10.1007/s43681-025-00718-4)), and the LLM-world-model anchor closest to the implementation is [Yang et al, 2026](https://openreview.net/forum?id=XmYCERErcD). Full taxonomy mapping in [`docs/positioning/world-model-mapping.md`](docs/positioning/world-model-mapping.md).
+Paracosm sits in the structured world model lineage ([Xing 2025](https://arxiv.org/abs/2507.05169), [ACM CSUR 2025](https://dl.acm.org/doi/full/10.1145/3746449)). The LLM-world-model implementation closest to it is [Yang et al, 2026](https://openreview.net/forum?id=XmYCERErcD), which evaluates LLM-based world models through policy verification, action proposal, and policy planning. Full taxonomy mapping in [`docs/positioning/world-model-mapping.md`](docs/positioning/world-model-mapping.md).
 
 ---
 
