@@ -317,7 +317,7 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
           </div>
         )}
         <div className="topbar-center hidden md:block truncate" style={{ color: 'var(--text-3)', fontFamily: 'var(--mono)', fontSize: '10px' }}>
-          {gameState.turn === 0 ? `Two leaders. Same ${scenario.labels.settlementNoun}. Emergent divergence.` : ''}
+          {gameState.turn === 0 ? 'Same input. Different decisions. Emergent divergence.' : ''}
         </div>
       </div>
 

@@ -39,24 +39,25 @@ function TabIcon({ id, size = 16 }: { id: Tab; size?: number }) {
 }
 
 // Tab order matches the user's run-lifecycle journey, left to right:
-//   1. Entry         QUICKSTART
+//   1. Author        QUICKSTART (quick path) / STUDIO (deep path)
 //   2. Live run      SIM / VIZ / CHAT
 //   3. Analyze       REPORTS / BRANCHES / LIBRARY
-//   4. Author        STUDIO
-//   5. Config + dev  SETTINGS / LOG
-//   6. Meta          ABOUT
-// SETTINGS used to sit between SIM and REPORTS, which was confusing —
-// you don't usually flip to settings mid-run. LOG groups with SETTINGS
-// as a developer-leaning surface.
+//   4. Config + dev  SETTINGS / LOG
+//   5. Meta          ABOUT
+//
+// STUDIO sits next to QUICKSTART because both are authoring entry
+// points (paste a brief vs build from scratch). BRANCHES + LOG stay
+// as their own tabs for now; merging them into STUDIO + SETTINGS
+// sub-tabs is a follow-up.
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'quickstart', label: 'QUICKSTART' },
+  { id: 'studio', label: 'STUDIO' },
   { id: 'sim', label: 'SIM' },
   { id: 'viz', label: 'VIZ' },
   { id: 'chat', label: 'CHAT' },
   { id: 'reports', label: 'REPORTS' },
   { id: 'branches', label: 'BRANCHES' },
   { id: 'library', label: 'LIBRARY' },
-  { id: 'studio', label: 'STUDIO' },
   { id: 'settings', label: 'SETTINGS' },
   { id: 'log', label: 'LOG' },
   { id: 'about', label: 'ABOUT' },
