@@ -6,7 +6,7 @@ import { ScenarioEditor } from './ScenarioEditor';
 import { LoadPriorRunsCTA } from './LoadPriorRunsCTA';
 import { EventLogPanel } from '../log/EventLogPanel';
 import { SubTabNav } from '../shared/SubTabNav';
-import { getDashboardTabFromHref, resolveSetupRedirectHref } from '../../tab-routing';
+import { getDashboardTabFromHref, resolveSetupRedirectHref, setSubTabUrlParam } from '../../tab-routing';
 import { subscribeScenarioUpdates } from '../../scenario-sync';
 import type { SimEvent } from '../../hooks/useSSE';
 
@@ -112,6 +112,13 @@ export interface SettingsPanelProps {
 
 export function SettingsPanel({ events = [], initialSubTab = 'config' }: SettingsPanelProps = {}) {
   const [subTab, setSubTab] = useState<SettingsSubTab>(initialSubTab);
+  // Persist sub-tab in the URL so refresh / shared links land back on
+  // the user's last open panel. 'config' is the default — omit the
+  // param for that case to keep the URL clean.
+  const handleSubTabChange = useCallback((next: SettingsSubTab) => {
+    setSubTab(next);
+    setSubTabUrlParam(next === 'config' ? null : next);
+  }, []);
   const scenario = useScenarioContext();
   const labels = useScenarioLabels();
   const navigateTab = useDashboardNavigation();
@@ -343,7 +350,7 @@ export function SettingsPanel({ events = [], initialSubTab = 'config' }: Setting
       <SubTabNav
         options={SETTINGS_SUB_TABS}
         active={subTab}
-        onChange={setSubTab}
+        onChange={handleSubTabChange}
         ariaLabel="Settings sub-navigation"
       />
       {subTab === 'log' && <EventLogPanel events={events} />}

@@ -14,6 +14,7 @@ import { useStudioPromote, type PromoteResult } from './useStudioPromote.js';
 import { CompareModal } from '../compare/CompareModal.js';
 import { BranchesTab } from '../branches/BranchesTab.js';
 import { SubTabNav } from '../shared/SubTabNav.js';
+import { setSubTabUrlParam } from '../../tab-routing.js';
 import type { StudioInput } from './parseStudioInput.js';
 import type { RunArtifact } from '../../../../../engine/schema/index.js';
 
@@ -39,6 +40,14 @@ export interface StudioTabProps {
 
 export function StudioTab({ initialSubTab = 'author' }: StudioTabProps = {}): JSX.Element {
   const [subTab, setSubTab] = React.useState<StudioSubTab>(initialSubTab);
+  // Persist the sub-tab choice in the URL so a page refresh or shared
+  // link lands the user back on the same Branches / Author panel.
+  // 'author' is the default; omit the param for that case so the URL
+  // stays clean, only push '?sub=branches' for the non-default.
+  const handleSubTabChange = React.useCallback((next: StudioSubTab) => {
+    setSubTab(next);
+    setSubTabUrlParam(next === 'author' ? null : next);
+  }, []);
   const [loaded, setLoaded] = React.useState<LoadedState | null>(null);
   const [compareOpen, setCompareOpen] = React.useState(false);
   const promote = useStudioPromote();
@@ -89,7 +98,7 @@ export function StudioTab({ initialSubTab = 'author' }: StudioTabProps = {}): JS
       <SubTabNav
         options={STUDIO_SUB_TABS}
         active={subTab}
-        onChange={setSubTab}
+        onChange={handleSubTabChange}
         ariaLabel="Studio sub-navigation"
       />
       {subTab === 'branches' && <BranchesTab />}

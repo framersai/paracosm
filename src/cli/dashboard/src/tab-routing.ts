@@ -51,8 +51,25 @@ export function getDashboardTabAndSubFromHref(href: string): { tab: DashboardTab
 export function createDashboardTabHref(currentHref: string, tab: Exclude<DashboardTab, 'about'>): string {
   const url = new URL(currentHref);
   url.searchParams.set('tab', tab);
+  // Drop ?sub= when navigating between parent tabs — only Studio and
+  // Settings consume it. Without this, leaving Studio with sub=branches
+  // active leaves the param dangling on every subsequent tab change.
+  url.searchParams.delete('sub');
   url.hash = '';
   return url.toString();
+}
+
+/** Push the ?sub= URL param without reloading so refreshing the page
+ *  (or copying the link) lands the user back on the same Studio /
+ *  Settings sub-tab they had open. Pass null to drop the param when
+ *  the parent tab's default sub-tab is selected so the URL doesn't
+ *  carry redundant noise. */
+export function setSubTabUrlParam(sub: string | null): void {
+  if (typeof window === 'undefined') return;
+  const url = new URL(window.location.href);
+  if (sub) url.searchParams.set('sub', sub);
+  else url.searchParams.delete('sub');
+  window.history.replaceState({}, '', url.toString());
 }
 
 export function resolveSetupRedirectHref(currentHref: string, redirect: string | null | undefined): string {
