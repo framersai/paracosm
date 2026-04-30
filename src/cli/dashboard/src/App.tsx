@@ -148,10 +148,18 @@ function AppContent() {
     return () => window.removeEventListener('keydown', onKey);
   }, [verdictModalOpen]);
 
-  // Dynamic page title
+  // Dynamic page title. The scenario fallback shipped with the dashboard
+  // happens to be the Mars Genesis demo, but using its name as the title
+  // outside of an actually-loaded Mars run leaks scenario-specific
+  // branding onto every fresh visit. Show a universal Paracosm title
+  // until the user has actually loaded a named scenario from a Quickstart
+  // run, a Library bundle, or the Studio drop zone.
   useEffect(() => {
-    document.title = `${scenario.labels.name} \u2014 Paracosm`;
-  }, [scenario.labels.name]);
+    const isFallbackName = scenario.id === 'mars-genesis' && scenario.labels.name === 'Mars Genesis';
+    document.title = isFallbackName
+      ? 'Paracosm \u2014 Structured World Model for AI Agents'
+      : `${scenario.labels.name} \u2014 Paracosm`;
+  }, [scenario.id, scenario.labels.name]);
 
   // When tour is active, use demo events; otherwise use live SSE events.
   // Event Log pin-to-bottom scroll logic lives inside EventLogPanel.
