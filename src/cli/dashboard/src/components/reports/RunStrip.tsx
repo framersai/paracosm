@@ -6,6 +6,7 @@
  */
 import type { RunStripCell } from './reports-shared';
 import { outcomeColor } from './reports-shared';
+import { useMediaQuery, PHONE_QUERY } from '../viz/grid/useMediaQuery';
 
 export interface RunStripProps {
   turns: RunStripCell[];
@@ -21,28 +22,42 @@ const OUTCOME_LABEL: Record<string, string> = {
   risky_failure:        'RISKY LOSS',
 };
 
-function outcomeShort(outcome: string | undefined): string {
+/** Phone-friendly 2-char abbreviation. Color still encodes
+ *  win/loss; the letter pair encodes safe/risky × win/loss for
+ *  users who can read past the color. */
+const OUTCOME_LABEL_SHORT: Record<string, string> = {
+  conservative_success: 'S✓',
+  risky_success:        'R✓',
+  conservative_failure: 'S✗',
+  risky_failure:        'R✗',
+};
+
+function outcomeShort(outcome: string | undefined, compact = false): string {
   if (!outcome) return '·';
+  if (compact) return OUTCOME_LABEL_SHORT[outcome] ?? '·';
   return OUTCOME_LABEL[outcome] ?? outcome.replace(/_/g, ' ').toUpperCase();
 }
 
-function Badge({ outcome, sideColor }: { outcome: string | undefined; sideColor: string }) {
+function Badge({ outcome, sideColor, compact }: { outcome: string | undefined; sideColor: string; compact: boolean }) {
   const color = outcomeColor(outcome);
   return (
     <div style={{
-      fontSize: 9, fontWeight: 800, fontFamily: 'var(--mono)',
-      color, letterSpacing: '0.04em', lineHeight: 1.2,
+      fontSize: compact ? 11 : 9, fontWeight: 800, fontFamily: 'var(--mono)',
+      color, letterSpacing: compact ? 0 : '0.04em', lineHeight: 1.2,
       padding: '2px 4px',
       borderLeft: `2px solid ${sideColor}`,
       whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
     }}>
-      {outcomeShort(outcome)}
+      {outcomeShort(outcome, compact)}
     </div>
   );
 }
 
 export function RunStrip(props: RunStripProps) {
   const { turns, leaderAName, leaderBName, onJumpToTurn } = props;
+  const isPhone = useMediaQuery(PHONE_QUERY);
   if (turns.length === 0) return null;
 
   const handleClick = (turn: number) => {
@@ -92,14 +107,18 @@ export function RunStrip(props: RunStripProps) {
               border: `1px solid ${cell.diverged ? 'var(--rust-dim, var(--rust))' : 'var(--border)'}`,
               borderRadius: 4, cursor: 'pointer', textAlign: 'left',
               fontFamily: 'var(--mono)',
+              // overflow:hidden so the badge text never bleeds into
+              // the next grid column on phone widths where the cell
+              // is narrower than the badge label.
+              overflow: 'hidden',
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-3)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-3)', gap: 2 }}>
               <span style={{ fontWeight: 700 }}>T{cell.turn}</span>
-              {cell.time && <span>Y{cell.time}</span>}
+              {cell.time && !isPhone && <span>Y{cell.time}</span>}
             </div>
-            <Badge outcome={cell.a.outcome} sideColor="var(--vis)" />
-            <Badge outcome={cell.b.outcome} sideColor="var(--eng)" />
+            <Badge outcome={cell.a.outcome} sideColor="var(--vis)" compact={isPhone} />
+            <Badge outcome={cell.b.outcome} sideColor="var(--eng)" compact={isPhone} />
           </button>
         ))}
       </div>
