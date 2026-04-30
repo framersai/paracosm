@@ -7,6 +7,13 @@
  * @module paracosm/dashboard/quickstart/pdf-extract
  */
 
+// Static `?url` import: Vite bundles pdf.worker.min.mjs as its own
+// asset chunk and gives us back its public URL. Doing this with a
+// literal-string import (not a dynamic call) is what lets the static
+// analyzer hook the worker file into the build graph. The pdfjs lib
+// itself (~1MB) still loads lazily via the dynamic import below.
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+
 export interface PdfExtractResult {
   /** Extracted text content, joined across pages with blank-line breaks. */
   text: string;
@@ -37,9 +44,11 @@ export async function extractPdfText(
     throw new Error(`File is not a PDF: ${file.name}`);
   }
   const pdfjs = await import('pdfjs-dist');
-  // Disable worker to avoid needing a bundler-specific worker URL.
-  // Slightly slower but works without additional Vite config.
-  (pdfjs as unknown as { GlobalWorkerOptions: { workerSrc: string } }).GlobalWorkerOptions.workerSrc = '';
+  // Point pdf.js at the bundled worker. Earlier we set workerSrc=''
+  // hoping pdf.js v4 would fall back to main-thread execution; in
+  // practice it just throws 'No "GlobalWorkerOptions.workerSrc"
+  // specified.' on the first getDocument() call.
+  (pdfjs as unknown as { GlobalWorkerOptions: { workerSrc: string } }).GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
   const buffer = await file.arrayBuffer();
   const pdf = await pdfjs.getDocument({ data: buffer }).promise;
