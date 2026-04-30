@@ -197,7 +197,7 @@
 
   <h1>PARACOSM</h1>
   <p class="hero-tagline-line">Run any what-if. See how it actually plays out.</p>
-  <p class="hero-positioning" style="max-width:780px;margin:14px auto 0;color:var(--t2);font-size:15px;line-height:1.65">
+  <p class="hero-positioning" style="max-width:780px;margin:14px auto 0;color:var(--t2);font-size: var(--font-lg);line-height:1.65">
     Type a scenario in plain English. Paracosm compiles it into a typed world, runs LLM-driven decision-makers with measurable personalities turn by turn, and gives back a trajectory you can replay, fork, and compare. Open source, deterministic, built for AI agents that need to test decisions before making them.
   </p>
   <p class="hero-mono" style="margin-top:18px">OPEN SOURCE &middot; APACHE-2.0 &middot; TYPESCRIPT &middot; BUILT ON AGENTOS</p>
@@ -209,7 +209,7 @@
   </div>
 
   <div class="hero-prompts" style="margin:28px auto 0;max-width:880px">
-    <div style="font-family:var(--mono);font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);margin-bottom:10px;text-align:center">Try a scenario · click to open in Quickstart</div>
+    <div style="font-family:var(--mono);font-size: var(--font-xs);letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);margin-bottom:10px;text-align:center">Try a scenario · click to open in Quickstart</div>
     <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center">
       <a href="/sim?tab=quickstart&amp;prompt=A%20coastal%20metro%20of%20800%2C000%20has%2036%20hours%20before%20a%20Category%204%20hurricane%20landfall.%20The%20mayor%20must%20decide%20a%20phased%20evacuation%20across%20three%20districts%20served%20by%20a%20single%20causeway%20bridge%2C%20with%20a%20regional%20hospital%2C%20a%20fuel%20depot%2C%20and%20an%20aging%20levee%20system%20in%20play.%20Departments%20involved%3A%20emergency%20management%2C%20public%20health%2C%20transportation%2C%20utilities%2C%20communications." class="hero-prompt-chip">What if a coastal mayor has 36 hours to evacuate before a hurricane?</a>
       <a href="/sim?tab=quickstart&amp;prompt=A%20mid-stage%20SaaS%20with%20180%2C000%20paid%20users%20introduces%20a%20new%20%2414%2Fmonth%20mid-tier%20pricing%20bracket%20between%20Free%20and%20the%20existing%20%2429%20Pro.%20Existing%20Pro%20subs%20get%2090-day%20grandfathering.%20Test%20the%20impact%20on%20Free-to-Paid%20conversion%2C%20Pro%20downgrade%20rate%2C%20net%20ARPU%2C%20and%20churn%20over%20six%20months.%20Departments%3A%20pricing%2C%20growth%2C%20success%2C%20finance%2C%20engineering." class="hero-prompt-chip">What if a SaaS adds a new mid-tier price mid-funnel?</a>
@@ -229,14 +229,14 @@
   <p class="hero-sub" style="max-width:740px;margin:24px auto 0">Same world, three actors — see how each one's traits drive identical state to different futures. Seven entry points, one engine: brief, JSON contract, granular client, fork-and-replay counterfactuals, pluggable trait models, HTTP, CLI. Every path returns the same Zod-validated RunArtifact.</p>
 
   <div class="world-model-explainer" id="world-models" style="max-width:960px;margin:64px auto 0;padding:24px 28px;border:1px solid var(--border);border-radius:12px;background:var(--bg2);text-align:left;scroll-margin-top:80px">
-    <div style="font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:2px;color:var(--rust);text-transform:uppercase;margin-bottom:12px;text-align:center">What's a world model?</div>
-    <p style="color:var(--t2);font-size:15px;line-height:1.7;margin:0 0 14px">A world model is software that represents how some slice of reality changes over time. AI agents need them to test decisions before making them: rehearse the move, watch what unfolds, decide whether to commit.</p>
-    <p style="color:var(--t2);font-size:15px;line-height:1.7;margin:0 0 18px">Two paths to that. <a href="https://openai.com/sora" target="_blank" rel="noopener" style="color:var(--t1)">Sora</a>, <a href="https://deepmind.google/discover/blog/genie-3/" target="_blank" rel="noopener" style="color:var(--t1)">Genie&nbsp;3</a>, and <a href="https://www.worldlabs.ai/" target="_blank" rel="noopener" style="color:var(--t1)">Marble</a> generate <em>pixels</em> of how a future looks. Paracosm is the structured kind. The output is a typed JSON RunArtifact: each turn's metrics, decisions, specialist analyses, citations, forged tools. Pixels are what humans watch. State is what agents reason inside.</p>
+    <div style="font-family:var(--mono);font-size: var(--font-xs);font-weight:700;letter-spacing:2px;color:var(--rust);text-transform:uppercase;margin-bottom:12px;text-align:center">What's a world model?</div>
+    <p style="color:var(--t2);font-size: var(--font-lg);line-height:1.7;margin:0 0 14px">A world model is software that represents how some slice of reality changes over time. AI agents need them to test decisions before making them: rehearse the move, watch what unfolds, decide whether to commit.</p>
+    <p style="color:var(--t2);font-size: var(--font-lg);line-height:1.7;margin:0 0 18px">Two paths to that. <a href="https://openai.com/sora" target="_blank" rel="noopener" style="color:var(--t1)">Sora</a>, <a href="https://deepmind.google/discover/blog/genie-3/" target="_blank" rel="noopener" style="color:var(--t1)">Genie&nbsp;3</a>, and <a href="https://www.worldlabs.ai/" target="_blank" rel="noopener" style="color:var(--t1)">Marble</a> generate <em>pixels</em> of how a future looks. Paracosm is the structured kind. The output is a typed JSON RunArtifact: each turn's metrics, decisions, specialist analyses, citations, forged tools. Pixels are what humans watch. State is what agents reason inside.</p>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:8px">
       <div style="border:1px solid var(--border);border-radius:8px;padding:14px 16px;background:var(--bg)">
-        <div style="font-family:var(--mono);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);margin-bottom:10px">Visual world model</div>
-        <ul style="list-style:none;padding:0;margin:0;color:var(--t2);font-size:13px;line-height:1.7">
+        <div style="font-family:var(--mono);font-size: var(--font-2xs);letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);margin-bottom:10px">Visual world model</div>
+        <ul style="list-style:none;padding:0;margin:0;color:var(--t2);font-size: var(--font-md);line-height:1.7">
           <li><strong style="color:var(--t1)">Output:</strong> pixels (video / 3D scene)</li>
           <li><strong style="color:var(--t1)">Audience:</strong> humans watching</li>
           <li><strong style="color:var(--t1)">Replay:</strong> rerun the model, get a new sample</li>
@@ -244,8 +244,8 @@
         </ul>
       </div>
       <div style="border:1px solid var(--amber);border-radius:8px;padding:14px 16px;background:rgba(232,180,74,0.04)">
-        <div style="font-family:var(--mono);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--amber);margin-bottom:10px">Structured world model · paracosm</div>
-        <ul style="list-style:none;padding:0;margin:0;color:var(--t2);font-size:13px;line-height:1.7">
+        <div style="font-family:var(--mono);font-size: var(--font-2xs);letter-spacing:1.5px;text-transform:uppercase;color:var(--amber);margin-bottom:10px">Structured world model · paracosm</div>
+        <ul style="list-style:none;padding:0;margin:0;color:var(--t2);font-size: var(--font-md);line-height:1.7">
           <li><strong style="color:var(--t1)">Output:</strong> typed JSON state, decisions, citations</li>
           <li><strong style="color:var(--t1)">Audience:</strong> AI agents deciding and measuring</li>
           <li><strong style="color:var(--t1)">Replay:</strong> deterministic kernel, byte-equal output</li>
@@ -254,7 +254,7 @@
       </div>
     </div>
 
-    <p style="color:var(--t3);font-size:13px;line-height:1.65;margin:18px 0 0">The category is named in <a href="https://arxiv.org/abs/2507.05169" target="_blank" rel="noopener" style="color:var(--amber)">Xing&nbsp;2025</a> and surveyed in the <a href="https://dl.acm.org/doi/full/10.1145/3746449" target="_blank" rel="noopener" style="color:var(--amber)">ACM&nbsp;CSUR&nbsp;2025</a> world-model survey. The closest LLM-world-model implementation anchor is <a href="https://openreview.net/forum?id=XmYCERErcD" target="_blank" rel="noopener" style="color:var(--amber)">Yang&nbsp;et&nbsp;al,&nbsp;2026</a>, which evaluates LLM-based world models through policy verification, action proposal, and policy planning.</p>
+    <p style="color:var(--t3);font-size: var(--font-md);line-height:1.65;margin:18px 0 0">The category is named in <a href="https://arxiv.org/abs/2507.05169" target="_blank" rel="noopener" style="color:var(--amber)">Xing&nbsp;2025</a> and surveyed in the <a href="https://dl.acm.org/doi/full/10.1145/3746449" target="_blank" rel="noopener" style="color:var(--amber)">ACM&nbsp;CSUR&nbsp;2025</a> world-model survey. The closest LLM-world-model implementation anchor is <a href="https://openreview.net/forum?id=XmYCERErcD" target="_blank" rel="noopener" style="color:var(--amber)">Yang&nbsp;et&nbsp;al,&nbsp;2026</a>, which evaluates LLM-based world models through policy verification, action proposal, and policy planning.</p>
   </div>
 
   <div class="code-sec">
@@ -271,8 +271,8 @@ npm install -g paracosm</div>
 
     <!-- Tabbed examples -->
     <div class="example-tabs-header" id="cookbook" style="margin-top:32px;text-align:center;scroll-margin-top:80px">
-      <div style="font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:2px;color:var(--rust);text-transform:uppercase;margin-bottom:6px">Seven ways to use Paracosm</div>
-      <div style="font-size:14px;color:var(--t2);max-width:600px;margin:0 auto;line-height:1.55">From a 3-line brief to fork-and-replay counterfactuals to a custom trait model. Click through the tabs to see the input and output shape for each entry point.</div>
+      <div style="font-family:var(--mono);font-size: var(--font-xs);font-weight:700;letter-spacing:2px;color:var(--rust);text-transform:uppercase;margin-bottom:6px">Seven ways to use Paracosm</div>
+      <div style="font-size: var(--font-lg);color:var(--t2);max-width:600px;margin:0 auto;line-height:1.55">From a 3-line brief to fork-and-replay counterfactuals to a custom trait model. Click through the tabs to see the input and output shape for each entry point.</div>
     </div>
     <div class="example-tabs" role="tablist" aria-label="Paracosm API entry points" style="margin-top:14px;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--bg2);box-shadow:0 4px 24px rgba(0,0,0,.25)">
       <div class="tab-buttons" style="display:flex;flex-wrap:wrap;border-bottom:1px solid var(--border);background:var(--bg3)">
@@ -663,11 +663,11 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
       </div>
     </div>
 
-    <p class="sec-desc rv" style="margin-top:36px;font-size:14px;color:var(--t3);max-width:780px">
+    <p class="sec-desc rv" style="margin-top:36px;font-size: var(--font-lg);color:var(--t3);max-width:780px">
       <strong style="color:var(--t2)">Inspired by</strong> the long arc of world-model research — Ha &amp; Schmidhuber's <a href="https://arxiv.org/abs/1803.10122" target="_blank" rel="noopener" style="color:var(--amber)">World&nbsp;Models&nbsp;(2018)</a> dream-state agents, the deterministic-microworld tradition behind Sugarscape and Schelling, the agent-based modeling lineage from Conway and Wolfram, and the structured-prompting trajectory traced by Kirfel et al's <a href="https://link.springer.com/article/10.1007/s43681-025-00718-4" target="_blank" rel="noopener" style="color:var(--amber)">counterfactual world simulation models</a>. Where prior work used hand-coded rules, learned latents, or unstructured emergence, paracosm uses an LLM as the world's reasoning surface and a typed kernel as its mutable spine — the result is a deterministic, replayable, citation-grounded simulator that fits both research and product use.
     </p>
 
-    <p class="sec-desc rv" style="margin-top:24px;font-size:14px;color:var(--t3)">Full taxonomy mapping with adjacent-category citations lives at <a href="https://github.com/framersai/paracosm/blob/master/docs/positioning/world-model-mapping.md" target="_blank" rel="noopener" style="color:var(--amber)">docs/positioning/world-model-mapping.md</a>.</p>
+    <p class="sec-desc rv" style="margin-top:24px;font-size: var(--font-lg);color:var(--t3)">Full taxonomy mapping with adjacent-category citations lives at <a href="https://github.com/framersai/paracosm/blob/master/docs/positioning/world-model-mapping.md" target="_blank" rel="noopener" style="color:var(--amber)">docs/positioning/world-model-mapping.md</a>.</p>
   </div>
 </section>
 
@@ -774,8 +774,8 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
     <div class="diverge rv">
       <div class="diverge-side" style="border-left:3px solid var(--amber)">
         <h4 style="color:var(--amber)">Leader A: high-openness profile</h4>
-        <p style="font-size:13px;color:var(--t2)">HEXACO openness 0.95, conscientiousness 0.35. The director picks unconventional candidates at promotion and weights risk-tolerant department reports more heavily. Decisions push experimental options; outcomes have higher variance.</p>
-        <div style="font-size:11px;color:var(--t3);font-family:var(--mono);margin-top:12px">
+        <p style="font-size: var(--font-md);color:var(--t2)">HEXACO openness 0.95, conscientiousness 0.35. The director picks unconventional candidates at promotion and weights risk-tolerant department reports more heavily. Decisions push experimental options; outcomes have higher variance.</p>
+        <div style="font-size: var(--font-xs);color:var(--t3);font-family:var(--mono);margin-top:12px">
           <div>Higher variance on metrics under this profile</div>
           <div class="diverge-bar"><div class="diverge-fill" style="width:78%;background:var(--amber)"></div></div>
           <div style="margin-top:6px">Higher forge attempts, higher veto rate</div>
@@ -784,8 +784,8 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
       </div>
       <div class="diverge-side" style="border-left:3px solid var(--teal)">
         <h4 style="color:var(--teal)">Leader B: high-conscientiousness profile</h4>
-        <p style="font-size:13px;color:var(--t2)">HEXACO openness 0.25, conscientiousness 0.97. The director picks by-the-book candidates and weights margin-of-safety reports. Decisions favor conservative options; outcomes have lower variance and longer time-to-resolution.</p>
-        <div style="font-size:11px;color:var(--t3);font-family:var(--mono);margin-top:12px">
+        <p style="font-size: var(--font-md);color:var(--t2)">HEXACO openness 0.25, conscientiousness 0.97. The director picks by-the-book candidates and weights margin-of-safety reports. Decisions favor conservative options; outcomes have lower variance and longer time-to-resolution.</p>
+        <div style="font-size: var(--font-xs);color:var(--t3);font-family:var(--mono);margin-top:12px">
           <div>Lower variance on metrics under this profile</div>
           <div class="diverge-bar"><div class="diverge-fill" style="width:88%;background:var(--teal)"></div></div>
           <div style="margin-top:6px">Lower forge attempts, higher acceptance rate</div>
@@ -793,7 +793,7 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
         </div>
       </div>
     </div>
-    <p class="sec-desc rv" style="margin-top:18px;font-size:13px;color:var(--t3)">Bars are illustrative of the qualitative pattern. Run <a href="https://github.com/framersai/paracosm/blob/master/scripts/cookbook-e2e.ts" target="_blank" rel="noopener" style="color:var(--amber)">scripts/cookbook-e2e.ts</a> to capture real fingerprints + per-metric deltas for your scenario, leader profiles, and seed.</p>
+    <p class="sec-desc rv" style="margin-top:18px;font-size: var(--font-md);color:var(--t3)">Bars are illustrative of the qualitative pattern. Run <a href="https://github.com/framersai/paracosm/blob/master/scripts/cookbook-e2e.ts" target="_blank" rel="noopener" style="color:var(--amber)">scripts/cookbook-e2e.ts</a> to capture real fingerprints + per-metric deltas for your scenario, leader profiles, and seed.</p>
   </div>
 </section>
 
@@ -807,7 +807,7 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
          the whole sec-inner width (1280×720 source plays at the viewer's
          viewport width, ~1100px on desktop, full container on mobile). -->
     <div class="rv" style="margin-top:32px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:14px">
-      <div style="font-family:var(--mono);font-size:11px;color:var(--rust);letter-spacing:1.5px;text-transform:uppercase">Live · /sim?tab=quickstart</div>
+      <div style="font-family:var(--mono);font-size: var(--font-xs);color:var(--rust);letter-spacing:1.5px;text-transform:uppercase">Live · /sim?tab=quickstart</div>
 
       <video class="demo-video" autoplay muted loop playsinline controls preload="metadata"
         poster="/demo/digital-twin-maria-2-poster.jpg?v=dt-11"
@@ -816,7 +816,7 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
         <source src="/demo/digital-twin-maria-2-hero.mp4?v=dt-11" type="video/mp4">
       </video>
 
-      <p style="font-size:12px;color:var(--t3);line-height:1.6;margin:4px 0 0">Recorded end-to-end against <code>paracosm.agentos.sh</code>. The click hits <code>POST /api/quickstart/simulate-intervention</code>, the server runs <code>twin.simulateIntervention(subject, intervention, leader)</code>, and the SIM tab renders the returned <code>RunArtifact</code>: HbA1c trajectory, weight loss, exercise adherence climb, side-effect burden, quality-of-life shifts. Real LLM-driven decisions across endocrinology, nutrition, behavioral health, cardiology, and lifestyle coaching.</p>
+      <p style="font-size: var(--font-sm);color:var(--t3);line-height:1.6;margin:4px 0 0">Recorded end-to-end against <code>paracosm.agentos.sh</code>. The click hits <code>POST /api/quickstart/simulate-intervention</code>, the server runs <code>twin.simulateIntervention(subject, intervention, leader)</code>, and the SIM tab renders the returned <code>RunArtifact</code>: HbA1c trajectory, weight loss, exercise adherence climb, side-effect burden, quality-of-life shifts. Real LLM-driven decisions across endocrinology, nutrition, behavioral health, cardiology, and lifestyle coaching.</p>
     </div>
 
     <div class="code-block rv" style="margin:20px 0 0">
@@ -863,7 +863,7 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
 <span class="cm">//   sleep, QoL, mortality risk, side-effect load</span></div>
     </div>
 
-    <p class="sec-desc rv" style="margin-top:24px;font-size:14px;color:var(--t3)">The same shape applies to medical interventions (subject = patient, intervention = treatment), policy modeling (subject = jurisdiction, intervention = ordinance), and product launches (subject = market, intervention = pricing change). The kernel is domain-agnostic — the scenario contract names the world.</p>
+    <p class="sec-desc rv" style="margin-top:24px;font-size: var(--font-lg);color:var(--t3)">The same shape applies to medical interventions (subject = patient, intervention = treatment), policy modeling (subject = jurisdiction, intervention = ordinance), and product launches (subject = market, intervention = pricing change). The kernel is domain-agnostic — the scenario contract names the world.</p>
   </div>
 </section>
 
@@ -1078,7 +1078,7 @@ curl -X POST http://localhost:3456/simulate \
       <div class="contact-card rv rv-d1">
         <h4>Enterprise &amp; partnerships</h4>
         <p>Private deployment, custom scenarios, government and defense engagements, investment inquiries.</p>
-        <a href="mailto:team@frame.dev?subject=Paracosm Enterprise" style="color:var(--amber);font-weight:700;font-family:var(--mono);font-size:14px">team@frame.dev</a>
+        <a href="mailto:team@frame.dev?subject=Paracosm Enterprise" style="color:var(--amber);font-weight:700;font-family:var(--mono);font-size: var(--font-lg)">team@frame.dev</a>
       </div>
       <div class="contact-card rv rv-d2">
         <h4>Community &amp; open source</h4>
