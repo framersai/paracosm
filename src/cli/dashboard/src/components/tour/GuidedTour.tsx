@@ -178,23 +178,17 @@ export function GuidedTour({ activeTab, onTabChange, onClose, onRun }: GuidedTou
     };
   }, []);
 
-  // Highlight target element and measure its rect.
-  //
-  // Tab content for Quickstart / Studio / Library / Settings is mounted
-  // conditionally on activeTab. When the tour advances to a new step
-  // whose .tab differs from the current active tab, onTabChange triggers
-  // a React re-render. The new tab's content (with the target selector)
-  // doesn't appear in the DOM until that render commits — and heavier
-  // panels (StudioTab + sub-tabs, SettingsPanel + sub-tabs) can take a
-  // few frames to fully mount their sub-trees, especially on slower
-  // devices or after a cold load.
-  //
-  // Earlier the timeout was a flat 120ms — too short for a fresh tab
-  // mount on the first hop, so document.querySelector(s.target) returned
-  // null, the SVG cutout collapsed to (0,0,0,0), and the user saw the
-  // tour silently skip to the next step with no visible highlight. The
-  // poll loop below retries up to ~900ms total so the highlight always
-  // lands once the tab actually paints.
+  // Drive the tab change as a separate effect so it fires the moment
+  // step changes, independent of any other dep. Earlier this was bundled
+  // into measure() and the lookup race, which left a window where the
+  // user could observe a step that hadn't yet pushed its onTabChange
+  // through to App.activeTab — making the URL bar lag behind the tour
+  // card's "VIZ" / "STUDIO" / etc. badge.
+  useEffect(() => {
+    const s = TOUR_STEPS[step];
+    if (s) onTabChange(s.tab);
+  }, [step, onTabChange]);
+
   // Highlight target element and measure its rect.
   //
   // Tab content for Quickstart / Studio / Library / Settings + heavy
@@ -217,7 +211,6 @@ export function GuidedTour({ activeTab, onTabChange, onClose, onRun }: GuidedTou
   const measure = useCallback(() => {
     const s = TOUR_STEPS[step];
     if (!s) return;
-    onTabChange(s.tab);
 
     // Cancel any in-flight target lookup from a previous step.
     attemptCancelRef.current?.();
