@@ -212,7 +212,7 @@ seg.submitClickedMs = since();
 // Total wait covers compile (~60s) + grounding + leader gen + 3 sims
 // of N turns; ~5-7 min on default 6-turn scenarios with gpt-5.4-mini.
 console.log('[e2e] waiting for Quickstart results region (full run done)');
-const RUN_TIMEOUT_MS = 600_000;            // 10 min hard cap
+const RUN_TIMEOUT_MS = 900_000;            // 15 min hard cap
 const compileStarted = Date.now();
 let runCompleted = false;
 try {
