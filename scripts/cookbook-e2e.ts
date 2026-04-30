@@ -5,7 +5,7 @@
  * Exercises the full paracosm public API against one creative scenario
  * (an AI Lab Director facing a model-release decision) and persists the
  * input + output JSON for every step under `output/cookbook/`. The doc
- * `docs/cookbook.md` embeds excerpts from these files so readers see real
+ * `docs/COOKBOOK.md` embeds excerpts from these files so readers see real
  * wire shapes instead of hand-written examples.
  *
  * Steps:

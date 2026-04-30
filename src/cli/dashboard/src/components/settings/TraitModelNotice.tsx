@@ -34,7 +34,7 @@ export function TraitModelNotice() {
         </p>
         <div className={styles.links}>
           <a
-            href="https://github.com/framersai/paracosm/blob/master/docs/cookbook.md#pluggable-trait-models-ai-agent-end-to-end"
+            href="https://github.com/framersai/paracosm/blob/master/docs/COOKBOOK.md#pluggable-trait-models-ai-agent-end-to-end"
             target="_blank"
             rel="noopener"
             className={styles.link}
