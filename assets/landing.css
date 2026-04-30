@@ -667,7 +667,7 @@ a:hover { text-decoration: underline; }
 
 /* ── Features ─────────────────────────────────────────────────────────────── */
 
-.feat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.feat-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 
 .feat {
   background: rgba(28, 25, 21, .7);
@@ -675,7 +675,7 @@ a:hover { text-decoration: underline; }
   -webkit-backdrop-filter: blur(8px);
   border: 1px solid rgba(48, 42, 34, .6);
   border-radius: 8px;
-  padding: 28px 24px;
+  padding: 24px 26px;
   transition: all .35s;
   position: relative;
   overflow: hidden;
@@ -752,7 +752,7 @@ a:hover { text-decoration: underline; }
 
 /* ── Scenarios ────────────────────────────────────────────────────────────── */
 
-.scenarios { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.scenarios { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 
 .sc-card {
   background: rgba(28, 25, 21, .7);
@@ -760,7 +760,7 @@ a:hover { text-decoration: underline; }
   -webkit-backdrop-filter: blur(8px);
   border: 1px solid rgba(48, 42, 34, .6);
   border-radius: 8px;
-  padding: 28px;
+  padding: 24px 26px;
   transition: all .3s;
   box-shadow: 0 4px 20px rgba(0, 0, 0, .3), inset 0 1px 0 rgba(255, 240, 200, .02);
 }
@@ -1173,9 +1173,10 @@ footer { padding: 28px 24px; border-top: 1px solid var(--border); background: va
 }
 
 @media (max-width: 880px) {
-  /* Single-column architecture cards on tablet + phone — two-column
-   * grid would force descriptions through tight wrapping and uneven
-   * card heights. Cards stay in their vertical layout below this. */
+  /* Architecture pillars collapse to single column. Same direction the
+   * 900px block already takes .scenarios and .contact-grid; .arch lives
+   * here at the slightly tighter 880px breakpoint to match its 2-col
+   * minimum content width (denser inline code spans + tech pills). */
   .arch { grid-template-columns: 1fr; }
 }
 
