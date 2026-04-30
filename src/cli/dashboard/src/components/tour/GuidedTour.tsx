@@ -167,7 +167,23 @@ export function GuidedTour({ onTabChange, onClose, onRun }: GuidedTourProps) {
     };
   }, []);
 
-  // Highlight target element and measure its rect
+  // Highlight target element and measure its rect.
+  //
+  // Tab content for Quickstart / Studio / Library / Settings is mounted
+  // conditionally on activeTab. When the tour advances to a new step
+  // whose .tab differs from the current active tab, onTabChange triggers
+  // a React re-render. The new tab's content (with the target selector)
+  // doesn't appear in the DOM until that render commits — and heavier
+  // panels (StudioTab + sub-tabs, SettingsPanel + sub-tabs) can take a
+  // few frames to fully mount their sub-trees, especially on slower
+  // devices or after a cold load.
+  //
+  // Earlier the timeout was a flat 120ms — too short for a fresh tab
+  // mount on the first hop, so document.querySelector(s.target) returned
+  // null, the SVG cutout collapsed to (0,0,0,0), and the user saw the
+  // tour silently skip to the next step with no visible highlight. The
+  // poll loop below retries up to ~900ms total so the highlight always
+  // lands once the tab actually paints.
   const measure = useCallback(() => {
     const s = TOUR_STEPS[step];
     if (!s) return;
@@ -175,12 +191,15 @@ export function GuidedTour({ onTabChange, onClose, onRun }: GuidedTourProps) {
 
     cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(() => {
-      setTimeout(() => {
-        if (prevElRef.current) {
-          prevElRef.current.classList.remove(HIGHLIGHT_CLASS);
-        }
+      let attempt = 0;
+      const MAX_ATTEMPTS = 9;
+      const POLL_MS = 100;
+      const tryFind = () => {
         const el = document.querySelector(s.target);
         if (el) {
+          if (prevElRef.current && prevElRef.current !== el) {
+            prevElRef.current.classList.remove(HIGHLIGHT_CLASS);
+          }
           el.classList.add(HIGHLIGHT_CLASS);
           prevElRef.current = el;
           const r = el.getBoundingClientRect();
@@ -188,11 +207,22 @@ export function GuidedTour({ onTabChange, onClose, onRun }: GuidedTourProps) {
           if (r.top < 0 || r.bottom > window.innerHeight) {
             el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
           }
+          return;
+        }
+        if (++attempt < MAX_ATTEMPTS) {
+          setTimeout(tryFind, POLL_MS);
         } else {
-          prevElRef.current = null;
+          // Target never showed up. Drop the prior highlight (next
+          // step's content won't have it anyway) and fall back to the
+          // bottom-right card position.
+          if (prevElRef.current) {
+            prevElRef.current.classList.remove(HIGHLIGHT_CLASS);
+            prevElRef.current = null;
+          }
           setRect(null);
         }
-      }, 120);
+      };
+      tryFind();
     });
   }, [step, onTabChange]);
 
