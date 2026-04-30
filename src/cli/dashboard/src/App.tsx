@@ -875,6 +875,7 @@ function AppContent() {
           <DropZoneOverlay active={dropZone.isDragging} />
           {tourActive && (
             <GuidedTour
+              activeTab={activeTab}
               onTabChange={setActiveTab}
               onClose={handleTourEnd}
               onRun={handleRun}

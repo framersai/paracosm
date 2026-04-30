@@ -142,12 +142,18 @@ const TOUR_STYLES = `
 `;
 
 interface GuidedTourProps {
+  /** The dashboard's currently-active tab. Threaded in so the tour can
+   *  defer its DOM lookup until React has actually committed the tab
+   *  change requested by onTabChange — without this, the lookup races
+   *  ahead of the new tab's mount on slow viewports and lands on either
+   *  the previous tab's elements or a stale empty container. */
+  activeTab: TourTab | string;
   onTabChange: (tab: TourTab) => void;
   onClose: () => void;
   onRun?: () => void;
 }
 
-export function GuidedTour({ onTabChange, onClose, onRun }: GuidedTourProps) {
+export function GuidedTour({ activeTab, onTabChange, onClose, onRun }: GuidedTourProps) {
   const [step, setStep] = useState(0);
   const [rect, setRect] = useState<Rect | null>(null);
   // Re-render the card layout when the viewport crosses the mobile
@@ -274,18 +280,38 @@ export function GuidedTour({ onTabChange, onClose, onRun }: GuidedTourProps) {
     });
   }, [step, onTabChange]);
 
+  // Re-run measure() whenever:
+  //   - the step changes (drives onTabChange + new target lookup)
+  //   - activeTab catches up to what the step expects (so the highlight
+  //     observer/poll race only starts AFTER the new tab actually mounts)
+  //
+  // Without the activeTab dep, measure ran in the same render pass that
+  // requested the tab change, querying DOM before React had committed
+  // the activeTab state update. The MutationObserver caught it eventually
+  // on heavy panels (SwarmViz / SettingsPanel) but the moment varied
+  // depending on how quickly the new tab's tree painted, so the user
+  // saw flicker. Gating on activeTab makes the lookup deterministic.
   useEffect(() => {
     measure();
+    let resizeRaf = 0;
     const h = () => {
-      setViewportW(window.innerWidth);
-      measure();
+      // Coalesce bursts of resize events (mobile chrome show/hide,
+      // virtual keyboard, orientation animation) into a single
+      // measure() call per frame. Without this, every pixel-level
+      // resize fired a re-measure and the card visibly hopped around.
+      cancelAnimationFrame(resizeRaf);
+      resizeRaf = requestAnimationFrame(() => {
+        setViewportW(window.innerWidth);
+        measure();
+      });
     };
     window.addEventListener('resize', h);
     return () => {
       window.removeEventListener('resize', h);
+      cancelAnimationFrame(resizeRaf);
       cancelAnimationFrame(rafRef.current);
     };
-  }, [measure]);
+  }, [measure, activeTab]);
 
   const handleClose = useCallback(() => {
     if (prevElRef.current) {
@@ -342,6 +368,11 @@ export function GuidedTour({ onTabChange, onClose, onRun }: GuidedTourProps) {
         width: 'calc(100vw - 32px)',
         boxShadow: '0 8px 32px rgba(0,0,0,.45)',
         fontFamily: 'var(--sans)',
+        // Smooth the card's position update when the highlight target
+        // changes between steps. Without this, a step that targets the
+        // opposite side of the viewport (e.g. divergence rail → viz) made
+        // the card visibly teleport, which read as a "jump."
+        transition: 'top 0.25s ease, left 0.25s ease, bottom 0.25s ease, right 0.25s ease',
       };
 
   if (!isMobile && rect) {

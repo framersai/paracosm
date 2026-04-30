@@ -9,6 +9,69 @@
 
 import type { SimEvent } from '../../hooks/useSSE';
 
+/**
+ * Generate a small but visually-rich agent roster for a tour snapshot.
+ * Picked to be just large enough that SwarmViz draws a recognizable
+ * canvas (cells + glyphs + departments) without bloating the demo
+ * bundle. Without these, useVizSnapshots returned empty arrays, maxTurn
+ * stayed 0, and SwarmViz fell back to its empty-state placeholder ("Run
+ * a simulation to see the colony visualization") — leaving the tour's
+ * Viz step looking blank to first-time visitors.
+ */
+function buildDemoAgents(side: 'A' | 'B', turn: number): Array<Record<string, unknown>> {
+  const departments = ['medical', 'engineering', 'agriculture', 'governance', 'science', 'logistics'];
+  const ranks = ['junior', 'senior', 'lead', 'chief'] as const;
+  const moods = ['neutral', 'optimistic', 'tense', 'focused', 'anxious', 'confident'];
+  const firstA = ['Aria', 'Diego', 'Yuki', 'Kira', 'Marco', 'Lila', 'Theo', 'Nia', 'Omar', 'Saanvi', 'Felix', 'Mira'];
+  const firstB = ['Ren', 'Iris', 'Kenji', 'Anya', 'Tomas', 'Zara', 'Vinh', 'Lena', 'Hugo', 'Priya', 'Jonah', 'Mei'];
+  const lastA = ['Vasquez', 'Park', 'Okafor', 'Reyes', 'Singh', 'Cohen', 'Mwangi', 'Roy', 'Tate', 'Lopez', 'Bauer', 'Akin'];
+  const lastB = ['Tanaka', 'Brandt', 'Kim', 'Nilsson', 'Diaz', 'Patel', 'Foley', 'Volkov', 'Cruz', 'Hossain', 'Mukherjee', 'Park'];
+  const firstNames = side === 'A' ? firstA : firstB;
+  const lastNames = side === 'A' ? lastA : lastB;
+  return Array.from({ length: 14 }, (_, i) => {
+    const aliveBias = ((i * 7 + turn * 3) % 13) > 1; // most alive, a few not
+    return {
+      agentId: `${side.toLowerCase()}-${i}`,
+      name: `${firstNames[i % firstNames.length]} ${lastNames[i % lastNames.length]}`,
+      department: departments[i % departments.length],
+      role: i === 0 ? 'Department Head' : (ranks[(i + turn) % ranks.length] === 'lead' ? 'Senior Specialist' : 'Specialist'),
+      rank: ranks[(i + turn) % ranks.length],
+      alive: aliveBias,
+      marsborn: i % 5 === 0,
+      psychScore: 0.55 + ((i * 11 + turn * 7) % 35) / 100,
+      age: 28 + ((i * 3 + turn) % 22),
+      generation: i % 5 === 0 ? 1 : 0,
+      childrenIds: i % 6 === 2 ? [`${side.toLowerCase()}-${(i + 7) % 14}`] : [],
+      featured: i < 3,
+      mood: moods[(i + turn) % moods.length],
+      shortTermMemory: [`Turn ${turn}: working on department duties`],
+    };
+  });
+}
+
+const DEMO_SNAPSHOTS: SimEvent[] = [1, 2, 3].flatMap(turn => [
+  {
+    type: 'systems_snapshot',
+    leader: 'Commander Elena Vasquez',
+    data: {
+      turn, time: 2034 + turn,
+      agents: buildDemoAgents('A', turn),
+      population: 100, morale: 0.85 + turn * 0.01, foodReserve: 18 - turn * 0.5,
+      births: turn === 2 ? 1 : 0, deaths: turn === 3 ? 1 : 0,
+    },
+  } as SimEvent,
+  {
+    type: 'systems_snapshot',
+    leader: 'Commander Hiroshi Tanaka',
+    data: {
+      turn, time: 2034 + turn,
+      agents: buildDemoAgents('B', turn),
+      population: 100, morale: 0.88 + turn * 0.005, foodReserve: 18 - turn * 0.3,
+      births: turn === 3 ? 1 : 0, deaths: 0,
+    },
+  } as SimEvent,
+]);
+
 export const DEMO_EVENTS: SimEvent[] = [
   // ── Status: initialize the simulation ──────────────────────────────
   {
@@ -503,4 +566,7 @@ export const DEMO_EVENTS: SimEvent[] = [
     type: 'turn_done', leader: 'Commander Hiroshi Tanaka',
     data: { turn: 3, metrics: { population: 100, morale: 0.90, foodMonthsReserve: 16, waterLitersPerDay: 815, powerKw: 382, infrastructureModules: 3, lifeSupportCapacity: 120, scienceOutput: 3 } },
   },
+  // systems_snapshot events feed SwarmViz's living-canvas. Without
+  // these, the Viz step of the tour shows only the empty placeholder.
+  ...DEMO_SNAPSHOTS,
 ];
