@@ -38,16 +38,26 @@ function TabIcon({ id, size = 16 }: { id: Tab; size?: number }) {
   }
 }
 
+// Tab order matches the user's run-lifecycle journey, left to right:
+//   1. Entry         QUICKSTART
+//   2. Live run      SIM / VIZ / CHAT
+//   3. Analyze       REPORTS / BRANCHES / LIBRARY
+//   4. Author        STUDIO
+//   5. Config + dev  SETTINGS / LOG
+//   6. Meta          ABOUT
+// SETTINGS used to sit between SIM and REPORTS, which was confusing —
+// you don't usually flip to settings mid-run. LOG groups with SETTINGS
+// as a developer-leaning surface.
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'quickstart', label: 'QUICKSTART' },
   { id: 'sim', label: 'SIM' },
   { id: 'viz', label: 'VIZ' },
-  { id: 'settings', label: 'SETTINGS' },
+  { id: 'chat', label: 'CHAT' },
   { id: 'reports', label: 'REPORTS' },
   { id: 'branches', label: 'BRANCHES' },
-  { id: 'chat', label: 'CHAT' },
   { id: 'library', label: 'LIBRARY' },
   { id: 'studio', label: 'STUDIO' },
+  { id: 'settings', label: 'SETTINGS' },
   { id: 'log', label: 'LOG' },
   { id: 'about', label: 'ABOUT' },
 ];
@@ -76,7 +86,7 @@ export function TabBar({ active, onTabChange, scenario }: TabBarProps) {
       aria-label="Dashboard navigation"
       style={{ background: 'var(--bg-panel)', borderBottom: '1px solid var(--border)' }}
     >
-      {tabs.map(tab => (
+      {tabs.map((tab, idx) => (
         <button
           key={tab.id}
           onClick={() => onTabChange(tab.id)}
@@ -97,6 +107,14 @@ export function TabBar({ active, onTabChange, scenario }: TabBarProps) {
             color: active === tab.id ? 'var(--amber)' : 'var(--text-3)',
             background: active === tab.id ? 'var(--bg-card)' : 'transparent',
             border: 'none',
+            // Vertical divider on every tab except the last so the row
+            // reads as separate cells. Without this, eleven labels at
+            // 12px spacing blurred into one fuzzy band. The right-edge
+            // border drops on the active tab so its amber-underline
+            // chip reads cleanly.
+            borderRight: idx < tabs.length - 1 && active !== tab.id
+              ? '1px solid var(--border)'
+              : 'none',
             borderBottom: active === tab.id ? '2px solid var(--amber)' : '2px solid transparent',
             marginBottom: '-1px',
             display: 'flex',
