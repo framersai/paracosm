@@ -1,16 +1,20 @@
 /**
- * InterventionDemoCard — Quickstart input-phase CTA that fires the
- * digital-twin demo. Renders the subject + intervention as labeled
- * form fields that type themselves in on mount (typewriter animation)
- * so the demo visually reads as "input being entered" rather than
- * "static prefilled card." Click hits POST /api/quickstart/
- * simulate-intervention; on 200 the artifact is forwarded to the
- * parent (App.tsx) which parks it and switches to the SIM tab so
- * DigitalTwinPanel renders the result.
+ * InterventionDemoCard renders the editable Subject + Intervention form
+ * that drives the digital-twin run on the Quickstart input phase. The
+ * form starts empty and the user fills in any subject (patient, market,
+ * jurisdiction, vehicle, ...) plus any intervention (treatment, launch,
+ * ordinance, mission profile, ...). Three preset buttons (medical,
+ * policy, product) load example payloads for users who want a starting
+ * point.
+ *
+ * Click hits POST /api/quickstart/simulate-intervention with the
+ * dynamically-built SubjectConfig + InterventionConfig. On 200 the
+ * artifact is forwarded to the parent (App.tsx) which parks it and
+ * switches to the SIM tab so DigitalTwinPanel renders the result.
  *
  * @module paracosm/dashboard/digital-twin/InterventionDemoCard
  */
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import type { RunArtifact } from '../../../../../engine/schema/index.js';
 import styles from './InterventionDemoCard.module.scss';
 
@@ -23,256 +27,424 @@ export interface InterventionDemoCardProps {
   }) => void;
 }
 
-/** Labeled fields rendered inside the SUBJECT and INTERVENTION cards.
- *  Each field types itself in sequentially on mount via the
- *  useTypewriterFields hook below — the visual analog of "you, the
- *  developer, are filling in the SubjectConfig + InterventionConfig
- *  payload". Last entry per group is the most "domain-specific" so
- *  the typewriter rhythm builds toward something interesting. */
-const SUBJECT_FIELDS: Array<{ label: string; value: string }> = [
-  { label: 'Patient',       value: 'Maria Chen' },
-  { label: 'Age',           value: '58' },
-  { label: 'Diagnosis',     value: 'Type 2 diabetes (4 yrs)' },
-  { label: 'HbA1c',         value: '7.8%' },
-  { label: 'Weight',        value: '178 lb · BMI 31' },
-  { label: 'Comorbidities', value: 'hypertension, dyslipidemia, family-hx CVD' },
-];
-
-const INTERVENTION_FIELDS: Array<{ label: string; value: string }> = [
-  { label: 'Protocol',  value: '12-week semaglutide + lifestyle' },
-  { label: 'Drug',      value: 'Semaglutide 0.25mg → 1.0mg by week 4' },
-  { label: 'Lifestyle', value: '150min/wk graded exercise + dietitian plan' },
-  { label: 'Duration',  value: '84 days' },
-  { label: 'Adherence', value: '85% target' },
-  { label: 'Care team', value: 'endocrinology, nutrition, behavioral, cardiology, coach' },
-];
-
-const SUBJECT_PAYLOAD = {
-  id: 'patient-maria-2026',
-  name: 'Maria Chen',
-  profile: {
-    age: 58,
-    yearsWithT2D: 4,
-    bmi: 31,
-    a1cBaseline: 7.8,
-    weightLb: 178,
-    fastingGlucose: 156,
-    sleepHoursBaseline: 6.2,
-    exerciseMinPerWeek: 0,
-    comorbidities: 'hypertension, dyslipidemia',
-  },
-  signals: [
-    { label: 'HbA1c', value: 7.8, unit: '%', recordedAt: '2026-09-15T00:00:00Z' },
-    { label: 'Fasting glucose', value: 156, unit: 'mg/dL', recordedAt: '2026-09-15T00:00:00Z' },
-    { label: 'Weight', value: 178, unit: 'lb', recordedAt: '2026-09-15T00:00:00Z' },
-    { label: 'BMI', value: 31, unit: 'kg/m²', recordedAt: '2026-09-15T00:00:00Z' },
-  ],
-  markers: [
-    { id: 'family-history-cvd', category: 'cardiovascular', value: 'true' },
-    { id: 'metformin-1000mg-bid', category: 'medication', value: 'baseline' },
-  ],
-};
-
-const INTERVENTION_PAYLOAD = {
-  id: 'glp1-12wk-protocol',
-  name: '12-week semaglutide + lifestyle protocol',
-  description: 'Initiate semaglutide 0.25mg weekly, titrate to 1.0mg by week 4. Pair with dietitian-led nutrition plan and 150min/wk graded exercise. Behavioral health checkpoints biweekly. Monitor for GI side effects, gallbladder, pancreatitis.',
-  duration: { value: 84, unit: 'days' },
-  adherenceProfile: { expected: 0.85 },
-};
-
-/**
- * Typewriter animation for a list of labeled fields. Reveals one field
- * at a time, typing each value character-by-character. Triggered by
- * `start` toggling true — the parent uses an IntersectionObserver to
- * wait until the card scrolls into view, so the animation runs WHILE
- * the viewer is looking at it (matters for the dt demo recording: the
- * recorder takes 2-3s to scroll to the card, and we don't want the
- * type-in to play while the card is off-screen).
- */
-function useTypewriter(
-  fields: Array<{ label: string; value: string }>,
-  options: { start: boolean; startDelayMs?: number; fieldDelayMs?: number; charMs?: number },
-) {
-  const { start, startDelayMs = 200, fieldDelayMs = 260, charMs = 16 } = options;
-  const [fieldIndex, setFieldIndex] = useState(-1);
-  const [charsTyped, setCharsTyped] = useState(0);
-
-  useEffect(() => {
-    if (!start) return;
-    let cancelled = false;
-    let timer: number | undefined;
-
-    const advanceField = (i: number) => {
-      if (cancelled || i >= fields.length) return;
-      setFieldIndex(i);
-      setCharsTyped(0);
-      const value = fields[i].value;
-      const typeStep = (n: number) => {
-        if (cancelled) return;
-        if (n >= value.length) {
-          timer = window.setTimeout(() => advanceField(i + 1), fieldDelayMs);
-          return;
-        }
-        setCharsTyped(n + 1);
-        timer = window.setTimeout(() => typeStep(n + 1), charMs);
-      };
-      typeStep(0);
-    };
-
-    const kickoff = window.setTimeout(() => advanceField(0), startDelayMs);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(kickoff);
-      if (timer) window.clearTimeout(timer);
-    };
-  }, [start, fields, startDelayMs, fieldDelayMs, charMs]);
-
-  return { fieldIndex, charsTyped };
+interface SubjectForm {
+  id: string;
+  name: string;
+  description: string;
+  profileJson: string;
 }
 
-function TypewriterFields({ fields, startDelayMs, start }: { fields: Array<{ label: string; value: string }>; startDelayMs: number; start: boolean }) {
-  const { fieldIndex, charsTyped } = useTypewriter(fields, { start, startDelayMs });
-  return (
-    <div className={styles.fieldList}>
-      {fields.map((f, i) => {
-        const visible = i <= fieldIndex;
-        const fullyTyped = i < fieldIndex;
-        const partial = i === fieldIndex ? f.value.slice(0, charsTyped) : (fullyTyped ? f.value : '');
-        return (
-          <div key={f.label} className={styles.field} style={{ opacity: visible ? 1 : 0 }}>
-            <span className={styles.fieldLabel}>{f.label}</span>
-            <span className={styles.fieldValue}>
-              {partial}
-              {i === fieldIndex && !fullyTyped && <span className={styles.cursor}>▋</span>}
-            </span>
-          </div>
-        );
-      })}
-    </div>
-  );
+interface InterventionForm {
+  id: string;
+  name: string;
+  description: string;
+  durationValue: string;
+  durationUnit: string;
+  adherence: string;
+}
+
+interface Preset {
+  label: string;
+  blurb: string;
+  subject: SubjectForm;
+  intervention: InterventionForm;
+  signalsJson: string;
+}
+
+const EMPTY_SUBJECT: SubjectForm = {
+  id: '',
+  name: '',
+  description: '',
+  profileJson: '{}',
+};
+
+const EMPTY_INTERVENTION: InterventionForm = {
+  id: '',
+  name: '',
+  description: '',
+  durationValue: '12',
+  durationUnit: 'weeks',
+  adherence: '0.85',
+};
+
+const PRESETS: Record<string, Preset> = {
+  medical: {
+    label: 'Patient · treatment',
+    blurb: 'Type 2 diabetes patient on a 12-week semaglutide + lifestyle protocol.',
+    subject: {
+      id: 'patient-maria-2026',
+      name: 'Maria Chen',
+      description: '58 y/o T2D for 4 yrs, sedentary, family hx CVD, on metformin.',
+      profileJson: JSON.stringify({
+        age: 58,
+        yearsWithT2D: 4,
+        bmi: 31,
+        a1cBaseline: 7.8,
+        weightLb: 178,
+        fastingGlucose: 156,
+        sleepHoursBaseline: 6.2,
+        exerciseMinPerWeek: 0,
+        comorbidities: 'hypertension, dyslipidemia',
+      }, null, 2),
+    },
+    intervention: {
+      id: 'glp1-12wk-protocol',
+      name: '12-week semaglutide + lifestyle protocol',
+      description: 'Initiate semaglutide 0.25mg weekly, titrate to 1.0mg by week 4. Pair with dietitian-led nutrition plan and 150min/wk graded exercise. Behavioral health checkpoints biweekly. Monitor for GI side effects, gallbladder, pancreatitis.',
+      durationValue: '84',
+      durationUnit: 'days',
+      adherence: '0.85',
+    },
+    signalsJson: JSON.stringify([
+      { label: 'HbA1c', value: 7.8, unit: '%', recordedAt: '2026-09-15T00:00:00Z' },
+      { label: 'Fasting glucose', value: 156, unit: 'mg/dL', recordedAt: '2026-09-15T00:00:00Z' },
+      { label: 'Weight', value: 178, unit: 'lb', recordedAt: '2026-09-15T00:00:00Z' },
+      { label: 'BMI', value: 31, unit: 'kg/m²', recordedAt: '2026-09-15T00:00:00Z' },
+    ], null, 2),
+  },
+  policy: {
+    label: 'Jurisdiction · ordinance',
+    blurb: 'A mid-size city pilots downtown congestion pricing for 12 months.',
+    subject: {
+      id: 'city-portland-2026',
+      name: 'Portland Metro',
+      description: 'Pacific Northwest mid-size city with dense urban core, mature transit, organized downtown business association.',
+      profileJson: JSON.stringify({
+        population: 650000,
+        downtownEmployment: 110000,
+        modeShareTransit: 0.18,
+        modeShareCar: 0.62,
+        modeShareActive: 0.14,
+        avgPeakSpeedMph: 14.2,
+        annualCO2Tons: 1820000,
+        unemploymentRate: 0.044,
+      }, null, 2),
+    },
+    intervention: {
+      id: 'congestion-pricing-12mo',
+      name: 'Downtown congestion pricing pilot',
+      description: 'Charge $9/peak-hour ($3 off-peak) on vehicles entering the central business district 6am-7pm Mon-Fri. Revenue funds two new BRT lines and a 30% transit fare cut for low-income riders. Pilot runs 12 months with quarterly review.',
+      durationValue: '12',
+      durationUnit: 'months',
+      adherence: '0.78',
+    },
+    signalsJson: JSON.stringify([
+      { label: 'Downtown VMT', value: 1.42, unit: 'million-mi/day', recordedAt: '2026-04-01T00:00:00Z' },
+      { label: 'Transit ridership', value: 118000, unit: 'boardings/day', recordedAt: '2026-04-01T00:00:00Z' },
+      { label: 'Peak speed', value: 14.2, unit: 'mph', recordedAt: '2026-04-01T00:00:00Z' },
+    ], null, 2),
+  },
+  product: {
+    label: 'Market · launch',
+    blurb: 'A SaaS launches a new mid-tier price point against a price-sensitive prosumer segment.',
+    subject: {
+      id: 'segment-prosumer-creators',
+      name: 'Prosumer creators',
+      description: 'Independent creators earning $40k-$120k/yr who self-fund their tooling. Cross-tool stackers; price-sensitive within 20% bands.',
+      profileJson: JSON.stringify({
+        addressableUsers: 1800000,
+        currentPaidConversion: 0.034,
+        avgARPU_USD: 22,
+        churnMonthly: 0.038,
+        npsCurrent: 41,
+        topCompetitorPriceUSD: 18,
+        topCompetitorMarketShare: 0.31,
+      }, null, 2),
+    },
+    intervention: {
+      id: 'mid-tier-pricing-launch',
+      name: 'New $14/mo mid-tier launch',
+      description: 'Introduce a third pricing tier at $14/mo (between Free and the existing $29/mo Pro), unlocking 60% of Pro features. Bundle with 90-day grandfathering for current Pro subs and a quarterly migration check-in. 6-month pilot before deciding to globalize.',
+      durationValue: '6',
+      durationUnit: 'months',
+      adherence: '0.72',
+    },
+    signalsJson: JSON.stringify([
+      { label: 'Free → Paid conversion', value: 0.034, unit: 'rate', recordedAt: '2026-04-01T00:00:00Z' },
+      { label: 'Monthly churn', value: 0.038, unit: 'rate', recordedAt: '2026-04-01T00:00:00Z' },
+      { label: 'NPS', value: 41, unit: 'score', recordedAt: '2026-04-01T00:00:00Z' },
+    ], null, 2),
+  },
+};
+
+function safeParseJson(value: string, fallback: unknown): unknown {
+  if (!value || !value.trim()) return fallback;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
 }
 
 export function InterventionDemoCard({ onResult, onError, onRunStart }: InterventionDemoCardProps) {
+  const [subject, setSubject] = useState<SubjectForm>(EMPTY_SUBJECT);
+  const [intervention, setIntervention] = useState<InterventionForm>(EMPTY_INTERVENTION);
+  const [signalsJson, setSignalsJson] = useState<string>('[]');
   const [running, setRunning] = useState(false);
   const [elapsedSec, setElapsedSec] = useState(0);
-  const startedAtRef = useRef<number>(0);
-  const cardRef = useRef<HTMLDivElement>(null);
-  const [typeStart, setTypeStart] = useState(false);
+  const [activePreset, setActivePreset] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!running) return;
-    const tick = () => setElapsedSec(Math.round((Date.now() - startedAtRef.current) / 1000));
-    const id = window.setInterval(tick, 500);
-    return () => window.clearInterval(id);
-  }, [running]);
+  const loadPreset = (key: string) => {
+    const p = PRESETS[key];
+    if (!p) return;
+    setSubject(p.subject);
+    setIntervention(p.intervention);
+    setSignalsJson(p.signalsJson);
+    setActivePreset(key);
+  };
 
-  // Kick off the typewriter the first time the card scrolls into view.
-  // This guarantees the animation is running WHILE the viewer is
-  // looking — matters both for real users scrolling down and for the
-  // demo recorder which scrolls to the card after page load. Once
-  // started, we never restart even if the card scrolls away again.
-  useEffect(() => {
-    const el = cardRef.current;
-    if (!el) return;
-    if (typeof IntersectionObserver === 'undefined') {
-      // Older browser fallback: just kick off after mount.
-      setTypeStart(true);
-      return;
-    }
-    const observer = new IntersectionObserver((entries) => {
-      for (const entry of entries) {
-        if (entry.isIntersecting) {
-          setTypeStart(true);
-          observer.disconnect();
-          return;
-        }
-      }
-    }, { threshold: 0.3 });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
+  const clearForm = () => {
+    setSubject(EMPTY_SUBJECT);
+    setIntervention(EMPTY_INTERVENTION);
+    setSignalsJson('[]');
+    setActivePreset(null);
+  };
+
+  const formIsValid = subject.id.trim().length > 0
+    && subject.name.trim().length > 0
+    && intervention.id.trim().length > 0
+    && intervention.name.trim().length > 0
+    && intervention.description.trim().length > 0;
 
   const handleRun = async () => {
-    if (running) return;
+    if (running || !formIsValid) return;
+    const profile = safeParseJson(subject.profileJson, {}) as Record<string, unknown>;
+    const signals = safeParseJson(signalsJson, []) as Array<Record<string, unknown>>;
+    const subjectPayload = {
+      id: subject.id.trim(),
+      name: subject.name.trim(),
+      profile: subject.description.trim()
+        ? { ...profile, description: subject.description.trim() }
+        : profile,
+      signals,
+      markers: [],
+    };
+    const durationValueNum = Number(intervention.durationValue);
+    const adherenceNum = Number(intervention.adherence);
+    const interventionPayload = {
+      id: intervention.id.trim(),
+      name: intervention.name.trim(),
+      description: intervention.description.trim(),
+      duration: Number.isFinite(durationValueNum) && durationValueNum > 0
+        ? { value: durationValueNum, unit: intervention.durationUnit.trim() || 'weeks' }
+        : undefined,
+      adherenceProfile: Number.isFinite(adherenceNum)
+        ? { expected: Math.max(0, Math.min(1, adherenceNum)) }
+        : undefined,
+    };
+
     setRunning(true);
     setElapsedSec(0);
-    startedAtRef.current = Date.now();
+    const startedAt = Date.now();
+    const tick = window.setInterval(() => {
+      setElapsedSec(Math.round((Date.now() - startedAt) / 1000));
+    }, 500);
+
     onRunStart?.({
-      subject: { id: SUBJECT_PAYLOAD.id, name: SUBJECT_PAYLOAD.name, profile: SUBJECT_PAYLOAD.profile },
+      subject: { id: subjectPayload.id, name: subjectPayload.name, profile: subjectPayload.profile },
       intervention: {
-        id: INTERVENTION_PAYLOAD.id,
-        name: INTERVENTION_PAYLOAD.name,
-        description: INTERVENTION_PAYLOAD.description,
-        duration: INTERVENTION_PAYLOAD.duration,
+        id: interventionPayload.id,
+        name: interventionPayload.name,
+        description: interventionPayload.description,
+        duration: interventionPayload.duration,
       },
     });
+
     try {
       const res = await fetch('/api/quickstart/simulate-intervention', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          subject: SUBJECT_PAYLOAD,
-          intervention: INTERVENTION_PAYLOAD,
+          subject: subjectPayload,
+          intervention: interventionPayload,
           options: { maxTurns: 2, seed: 11, costPreset: 'economy' },
         }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({} as { error?: string }));
-        throw new Error(body.error ?? `Intervention run failed: HTTP ${res.status}`);
+        throw new Error(body.error ?? `Digital twin run failed: HTTP ${res.status}`);
       }
       const body = await res.json() as { artifact: RunArtifact; durationMs: number };
       onResult(body.artifact);
     } catch (err) {
       onError?.(err instanceof Error ? err.message : String(err));
     } finally {
+      window.clearInterval(tick);
       setRunning(false);
     }
   };
 
   return (
-    <div ref={cardRef} className={styles.card}>
+    <div className={styles.card}>
       <div className={styles.heading}>
         <h3 className={styles.title}>Run a digital twin</h3>
-        <span className={styles.eyebrow}>type a case · single subject</span>
+        <span className={styles.eyebrow}>any subject · any intervention</span>
       </div>
       <p className={styles.copy}>
-        Describe a patient and an intervention. Paracosm runs a real
-        LLM-driven simulation across a five-department care team
-        (endocrinology, nutrition, behavioral health, cardiology,
-        lifestyle coach) and returns a typed RunArtifact with the
-        trajectory.
+        Define a subject (patient, market segment, jurisdiction, vehicle, anything) and an intervention to apply to it.
+        Paracosm runs a real LLM-driven simulation across a five-department analysis team and returns a typed RunArtifact
+        with the trajectory.
       </p>
-      <textarea
-        id="dt-case-input"
-        className={styles.caseInput}
-        placeholder="e.g. Maria Chen, 58, type 2 diabetes for 4 years. HbA1c 7.8%, BMI 31, sedentary, family history of CVD, on metformin. Test a 12-week semaglutide + lifestyle protocol: titrate to 1.0mg by week 4, 150min/wk graded exercise, dietitian-led nutrition, biweekly behavioral checkpoints."
-        rows={5}
-      />
-      <div className={styles.parsedHint}>
-        <span className={styles.parsedHintArrow}>↓</span>
-        <span>Parsed into Subject + Intervention</span>
+
+      <div className={styles.presetRow}>
+        <span className={styles.presetLabel}>Examples</span>
+        {Object.entries(PRESETS).map(([key, preset]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => loadPreset(key)}
+            className={`${styles.presetButton} ${activePreset === key ? styles.presetButtonActive : ''}`}
+            disabled={running}
+          >
+            {preset.label}
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={clearForm}
+          className={styles.presetClear}
+          disabled={running}
+        >
+          Clear
+        </button>
       </div>
-      <div className={styles.preview}>
-        <div className={styles.previewCell}>
-          <div className={styles.previewHeader}>
-            <span className={styles.previewLabel}>Subject</span>
-            <span className={styles.previewId}>patient-maria-2026</span>
+      {activePreset && (
+        <p className={styles.presetBlurb}>{PRESETS[activePreset].blurb}</p>
+      )}
+
+      <div className={styles.formGrid}>
+        <fieldset className={styles.formCell} disabled={running}>
+          <legend className={styles.formLegend}>Subject</legend>
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>ID</span>
+            <input
+              type="text"
+              value={subject.id}
+              onChange={(e) => setSubject((s) => ({ ...s, id: e.target.value }))}
+              placeholder="e.g. patient-001 or city-portland"
+              className={styles.input}
+            />
+          </label>
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>Name</span>
+            <input
+              type="text"
+              value={subject.name}
+              onChange={(e) => setSubject((s) => ({ ...s, name: e.target.value }))}
+              placeholder="e.g. Maria Chen or Portland Metro"
+              className={styles.input}
+            />
+          </label>
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>Description</span>
+            <textarea
+              value={subject.description}
+              onChange={(e) => setSubject((s) => ({ ...s, description: e.target.value }))}
+              placeholder="One or two lines describing the subject (age, key attributes, baseline state)."
+              className={styles.textarea}
+              rows={3}
+            />
+          </label>
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>Profile (JSON)</span>
+            <textarea
+              value={subject.profileJson}
+              onChange={(e) => setSubject((s) => ({ ...s, profileJson: e.target.value }))}
+              placeholder='{"age": 58, "bmi": 31, ...}'
+              className={`${styles.textarea} ${styles.mono}`}
+              rows={5}
+              spellCheck={false}
+            />
+          </label>
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>Signals (JSON)</span>
+            <textarea
+              value={signalsJson}
+              onChange={(e) => setSignalsJson(e.target.value)}
+              placeholder='[{"label": "HbA1c", "value": 7.8, "unit": "%", "recordedAt": "2026-09-15T00:00:00Z"}]'
+              className={`${styles.textarea} ${styles.mono}`}
+              rows={4}
+              spellCheck={false}
+            />
+          </label>
+        </fieldset>
+
+        <fieldset className={styles.formCell} disabled={running}>
+          <legend className={styles.formLegend}>Intervention</legend>
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>ID</span>
+            <input
+              type="text"
+              value={intervention.id}
+              onChange={(e) => setIntervention((iv) => ({ ...iv, id: e.target.value }))}
+              placeholder="e.g. semaglutide-12wk or congestion-pricing-pilot"
+              className={styles.input}
+            />
+          </label>
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>Name</span>
+            <input
+              type="text"
+              value={intervention.name}
+              onChange={(e) => setIntervention((iv) => ({ ...iv, name: e.target.value }))}
+              placeholder="Short label for the intervention"
+              className={styles.input}
+            />
+          </label>
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>Description</span>
+            <textarea
+              value={intervention.description}
+              onChange={(e) => setIntervention((iv) => ({ ...iv, description: e.target.value }))}
+              placeholder="What is being applied, how, by whom, with what monitoring."
+              className={styles.textarea}
+              rows={5}
+            />
+          </label>
+          <div className={styles.fieldRow}>
+            <label className={`${styles.field} ${styles.fieldThird}`}>
+              <span className={styles.fieldLabel}>Duration</span>
+              <input
+                type="number"
+                min="1"
+                value={intervention.durationValue}
+                onChange={(e) => setIntervention((iv) => ({ ...iv, durationValue: e.target.value }))}
+                className={styles.input}
+              />
+            </label>
+            <label className={`${styles.field} ${styles.fieldThird}`}>
+              <span className={styles.fieldLabel}>Unit</span>
+              <select
+                value={intervention.durationUnit}
+                onChange={(e) => setIntervention((iv) => ({ ...iv, durationUnit: e.target.value }))}
+                className={styles.input}
+              >
+                <option value="days">days</option>
+                <option value="weeks">weeks</option>
+                <option value="months">months</option>
+                <option value="quarters">quarters</option>
+                <option value="years">years</option>
+              </select>
+            </label>
+            <label className={`${styles.field} ${styles.fieldThird}`}>
+              <span className={styles.fieldLabel}>Adherence</span>
+              <input
+                type="number"
+                min="0"
+                max="1"
+                step="0.05"
+                value={intervention.adherence}
+                onChange={(e) => setIntervention((iv) => ({ ...iv, adherence: e.target.value }))}
+                className={styles.input}
+              />
+            </label>
           </div>
-          <TypewriterFields fields={SUBJECT_FIELDS} startDelayMs={300} start={typeStart} />
-        </div>
-        <div className={styles.previewCell}>
-          <div className={styles.previewHeader}>
-            <span className={styles.previewLabel}>Intervention</span>
-            <span className={styles.previewId}>glp1-12wk-protocol</span>
-          </div>
-          <TypewriterFields fields={INTERVENTION_FIELDS} startDelayMs={1700} start={typeStart} />
-        </div>
+        </fieldset>
       </div>
+
       <div className={styles.actions}>
-        <button onClick={handleRun} disabled={running} className={styles.button}>
-          {running ? 'Running…' : 'Run intervention demo'}
+        <button onClick={handleRun} disabled={running || !formIsValid} className={styles.button}>
+          {running ? 'Running…' : 'Run digital twin'}
         </button>
         {running ? (
           <span className={styles.timer}>
