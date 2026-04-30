@@ -8,97 +8,99 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 
+export type TourTab = 'quickstart' | 'studio' | 'sim' | 'viz' | 'chat' | 'reports' | 'library' | 'settings';
+
 export interface TourStep {
   target: string;
-  tab: 'sim' | 'viz' | 'settings' | 'reports' | 'chat' | 'log';
+  tab: TourTab;
   title: string;
   description: string;
 }
 
 export const TOUR_STEPS: TourStep[] = [
   {
+    target: '[data-quickstart-seed]',
+    tab: 'quickstart',
+    title: 'Quickstart — author from a brief',
+    description: 'Paste a brief, drop a PDF, or supply a URL. Paracosm grounds the prompt with web research, generates three distinct actors with HEXACO personalities, and runs them against the same scenario in parallel. The Twin demo card below runs a single subject against a single intervention if that\'s your use case.',
+  },
+  {
+    target: '[role="tablist"][aria-label="Studio sub-navigation"]',
+    tab: 'studio',
+    title: 'Studio — author + branches',
+    description: 'Drop any saved Paracosm artifact or bundle here to inspect, fork, and re-run. The Branches sub-tab forks an actor at any turn N and re-runs from that checkpoint with a new HEXACO profile, so you can probe alternate histories from a shared starting state.',
+  },
+  {
     target: '.topbar',
     tab: 'sim',
     title: 'Top Bar',
-    description: 'Scenario name on the left, RUN + status + theme toggle on the right. The T / Y / S tokens in the center show turn, in-sim time, and deterministic seed — hover each for what they mean. A "⋯" menu reveals Save / Copy / Clear once a run has started.',
+    description: 'Scenario name on the left. RUN, status, theme toggle, and HOW IT WORKS (replay this tour) on the right. The T / Y / S tokens in the center show turn, in-sim time, and deterministic seed — hover each for what they mean. A "⋯" menu reveals Save / Copy / Clear once a run has started.',
   },
   {
     target: '.tab-bar',
     tab: 'sim',
     title: 'Navigation',
-    description: 'Switch between Sim, Viz, Settings, Reports, Character Chat, Event Log, and About. Labels collapse to icons below 900px so the row never wraps.',
+    description: 'Quickstart and Studio for authoring. Sim, Viz, Chat for the live run. Reports and Library for analysis. Settings holds config (Event Log lives there as a sub-tab). Labels collapse to icons below 900px so the row never wraps onto two lines.',
+  },
+  {
+    target: '[role="group"][aria-label="Sim layout"]',
+    tab: 'sim',
+    title: 'Sim layout',
+    description: 'Side-by-side for 2 actors, Constellation for 3+. Constellation auto-engages above 3 actors because two columns physically can\'t fit them. Click any node in the Constellation graph to drill into one actor\'s decisions, departments, and tools. The tour pins side-by-side so you can see leader cards and event streams as they\'d render for a 2-actor run.',
   },
   {
     target: '.leaders-row',
     tab: 'sim',
-    title: 'Leader Cards',
-    description: 'Two AI commanders with opposing HEXACO profiles run the same seed. Left column is Leader A (amber), right is Leader B (teal). Every downstream surface — glyph color, Conway tiles, chronicle pills — picks up these same two colors so you always know which side you are looking at.',
-  },
-  {
-    target: '[aria-label="Colony statistics"]',
-    tab: 'sim',
-    title: 'Stats Bar',
-    description: 'Per-leader metrics side by side. Tools + Reuse sit adjacent because together they tell the emergent-capability story: unique tools forged, and how many times those tools got reused without re-forging. Reuse is where cost savings come from.',
+    title: 'Leader cards',
+    description: 'Each actor renders with its name, archetype, HEXACO profile, and a population + morale sparkline. Left is amber, right is teal. Glyph color, Conway tiles, and chronicle pills downstream all pick up these same colors so you always know which side you\'re looking at.',
   },
   {
     target: '.sim-columns',
     tab: 'sim',
-    title: 'Event Streams',
-    description: 'Each turn, both leaders face events the Director generated for them based on accumulated state. Departments analyze in parallel and may forge new tools. Commanders decide. Tools tint by leader side. Every forged tool card gets a "↗ LOG" button that jumps to the Log tab filtered to that tool.',
+    title: 'Event streams',
+    description: 'Each turn, both leaders face events the Director generated based on accumulated state. Departments analyze in parallel and may forge new tools. Commanders decide. Tools tint by side. Every forged tool card gets a "↗ LOG" button that jumps to the Event Log filtered to that tool.',
   },
   {
     target: '[aria-label="Divergence rail"]',
     tab: 'sim',
-    title: 'Divergence Rail',
-    description: 'How far the two colonies have diverged at the current turn. Shows both decision texts and outcomes side by side, humanized. Same seed, different histories — because HEXACO shaped every LLM call the leaders made.',
+    title: 'Divergence rail',
+    description: 'How far the actors have diverged at the current turn. Shows decision texts and outcomes side by side in plain language. Same seed, different histories — because HEXACO shaped every LLM call.',
   },
   {
     target: '.viz-content',
     tab: 'viz',
-    title: 'Viz Tab — Living Canvas',
-    description: 'Two mirrored canvases, one per leader. Conway-style cellular tiles render underneath to encode mood (BLOCK = calm, GLIDER = agitated, etc.) while colonist glyphs sit on top as the primary signal. Hover a tile or a glyph for a tooltip; click either to drill into the colonist.',
+    title: 'Viz — living canvas',
+    description: 'Mirrored canvases, one per actor. Conway-style cellular tiles render underneath to encode mood (BLOCK = calm, GLIDER = agitated) while colonist glyphs sit on top as the primary signal. Hover a tile or a glyph for a tooltip; click either to drill into the colonist. Use the mode pills (LIVING / MOOD / FORGE / ECOLOGY / DIVERGENCE) and event filters above the canvas to reshape the read.',
   },
   {
-    target: '[aria-label="Grid viz mode"]',
-    tab: 'viz',
-    title: 'Mode Pills',
-    description: 'LIVING / MOOD / FORGE / ECOLOGY / DIVERGENCE each reshape the canvas. LIVING is the default stabilized view. MOOD recolors tiles by dominant emotional state. FORGE evolves the CA further and highlights forge activity. ECOLOGY hides glyphs so the metric strip drives. DIVERGENCE clusters by families to surface lineages that diverged between sides.',
-  },
-  {
-    target: '[aria-label="Event filter"]',
-    tab: 'viz',
-    title: 'Event Filters',
-    description: 'ALL / BIRTHS / DEATHS / FORGES / CRISES each overlay a distinct marker on the canvas. BIRTHS drops a green "+" at each native-born colonist; DEATHS drops a gray "×" tombstone at each deceased colonist. The Conway texture stays underneath so context is preserved.',
-  },
-  {
-    target: '.settings-content',
-    tab: 'settings',
-    title: 'Settings',
-    description: 'Configure leaders with HEXACO sliders, pick a scenario, set turns and population, and drop in your own OpenAI or Anthropic key to bypass the hosted-demo caps. Locked demo inputs unlock the moment you paste a key.',
+    target: '.chat-layout',
+    tab: 'chat',
+    title: 'Character chat',
+    description: 'Talk to any colonist from the run. Each carries their HEXACO profile, the memories they formed during the sim, and their relationships. The Viz drilldown popover has a direct Chat handoff that preselects the colonist here.',
   },
   {
     target: '.reports-content',
     tab: 'reports',
     title: 'Reports',
-    description: 'Turn-by-turn rollup: commander decisions, department analyses, forged toolbox across both sides, agent reactions, verdict comparison. Every forged tool has a "↗ LOG" button that scopes the Log tab to just that tool\'s history.',
+    description: 'Turn-by-turn rollup: commander decisions, department analyses, forged toolbox across both sides, agent reactions, verdict comparison. Every forged tool has a "↗ LOG" button that scopes the Event Log sub-tab to just that tool\'s history.',
   },
   {
-    target: '.chat-layout',
-    tab: 'chat',
-    title: 'Character Chat',
-    description: 'Talk to any colonist from the run. Each carries their HEXACO profile, the memories they formed during the sim, and their relationships. The drilldown popover in Viz has a direct Chat handoff button that preselects the colonist here.',
+    target: '[role="group"][aria-label="View mode"]',
+    tab: 'library',
+    title: 'Library — saved runs',
+    description: 'Every run you launch is saved here. Filter by scenario, leader configuration, or free-text search. Gallery view shows hero stats; Table view shows everything. Open any run to inspect, or promote it into Studio to fork a new branch.',
   },
   {
-    target: '[role="log"]',
-    tab: 'log',
-    title: 'Event Log',
-    description: 'Raw SSE event stream. Every status, turn_start, specialist_done, decision_made, outcome, reaction, forge_attempt event as it arrived. The "↗ LOG" buttons elsewhere narrow this feed via a hash filter — clear it from the toolbar above the list to return to the full stream.',
+    target: '[role="tablist"][aria-label="Settings sub-navigation"]',
+    tab: 'settings',
+    title: 'Settings + event log',
+    description: 'Configure actors with HEXACO sliders, pick a scenario, set turns and population, and drop in your own OpenAI or Anthropic key to bypass the hosted-demo caps. The Event Log sub-tab shows the raw SSE stream (status, turn_start, specialist_done, decision_made, outcome, reaction, forge_attempt) and is what the "↗ LOG" buttons elsewhere link into.',
   },
   {
     target: '.topbar',
     tab: 'sim',
-    title: 'Ready to Launch',
-    description: 'That was demo data. Hit RUN in the top bar to launch a live simulation against the host caps, or go to Settings and paste your own API key for full-scope runs. When the run finishes, a "Run Complete" banner lands at the top with the verdict and a jump to the Reports tab.',
+    title: 'Ready to launch',
+    description: 'That was demo data. Hit RUN in the top bar to launch a live simulation against the host caps, or paste your own API key in Settings for full-scope runs. When the run finishes, a "Run Complete" banner lands at the top with the verdict and a jump to the Reports tab.',
   },
 ];
 
@@ -140,7 +142,7 @@ const TOUR_STYLES = `
 `;
 
 interface GuidedTourProps {
-  onTabChange: (tab: 'sim' | 'viz' | 'settings' | 'reports' | 'chat' | 'log') => void;
+  onTabChange: (tab: TourTab) => void;
   onClose: () => void;
   onRun?: () => void;
 }
@@ -169,7 +171,7 @@ export function GuidedTour({ onTabChange, onClose, onRun }: GuidedTourProps) {
   const measure = useCallback(() => {
     const s = TOUR_STEPS[step];
     if (!s) return;
-    onTabChange(s.tab as any);
+    onTabChange(s.tab);
 
     cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(() => {

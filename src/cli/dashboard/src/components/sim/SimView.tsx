@@ -52,6 +52,14 @@ interface SimViewProps {
   /** Clears the intervention artifact so SimView returns to the standard
    *  parallel-actor layout. */
   onInterventionDismiss?: () => void;
+  /** Pins the layout to a fixed value, overriding the auto-default and
+   *  any previous user pick. The GuidedTour passes 'side-by-side' so its
+   *  highlight selectors (`.leaders-row`, `.sim-columns`,
+   *  `[aria-label="Colony statistics"]`) always exist — without this,
+   *  a viewer who had previously run a 3+ actor sim would see the tour
+   *  attempt to highlight nodes that the constellation layout never
+   *  renders, and the tour would silently no-op past Sim. */
+  forceLayout?: SimLayout;
 }
 
 function LeaderColumn({ actorIndex, sideState, state }: { actorIndex: number; sideState: ActorSideState; state: GameState }) {
@@ -166,7 +174,7 @@ function IntroBar({ onDismiss }: { onDismiss: () => void }) {
   );
 }
 
-export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: launchingProp, interventionArtifact, interventionRunning, onInterventionDismiss }: SimViewProps) {
+export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: launchingProp, interventionArtifact, interventionRunning, onInterventionDismiss, forceLayout }: SimViewProps) {
   const scenario = useScenarioContext();
   // Digital-twin short-circuit: when the dashboard receives an artifact
   // produced by simulateIntervention (subject + intervention populated),
@@ -203,20 +211,21 @@ export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: l
   // the existing 2-column layout literally won't fit). User can toggle
   // manually; userPickedLayoutRef sticks the manual choice through
   // mid-run actor count changes.
-  const [layout, setLayout] = useState<SimLayout>(
+  const [layoutState, setLayoutState] = useState<SimLayout>(
     () => state.actorIds.length >= 3 ? 'constellation' : 'side-by-side',
   );
   const userPickedLayoutRef = useRef(false);
   const setLayoutWithOverride = useCallback((next: SimLayout) => {
     userPickedLayoutRef.current = true;
-    setLayout(next);
+    setLayoutState(next);
   }, []);
   useEffect(() => {
     if (userPickedLayoutRef.current) return;
-    if (state.actorIds.length >= 3 && layout === 'side-by-side') {
-      setLayout('constellation');
+    if (state.actorIds.length >= 3 && layoutState === 'side-by-side') {
+      setLayoutState('constellation');
     }
-  }, [state.actorIds.length, layout]);
+  }, [state.actorIds.length, layoutState]);
+  const layout: SimLayout = forceLayout ?? layoutState;
 
   const [drillInActor, setDrillInActor] = useState<string | null>(null);
   const drillInIndex = drillInActor ? state.actorIds.indexOf(drillInActor) : 0;

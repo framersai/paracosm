@@ -793,6 +793,7 @@ function AppContent() {
                 interventionArtifact={interventionArtifact}
                 interventionRunning={interventionRunning}
                 onInterventionDismiss={handleInterventionDismiss}
+                forceLayout={tourActive ? 'side-by-side' : undefined}
               />
             )}
 
@@ -866,18 +867,7 @@ function AppContent() {
           <DropZoneOverlay active={dropZone.isDragging} />
           {tourActive && (
             <GuidedTour
-              onTabChange={(tab) => {
-                // Tour still references the legacy 'log' top-level
-                // tab in its step list. Log is now a sub-tab of
-                // Settings — redirect cleanly so the tour's "show
-                // the log" step lands on Settings (user can flip to
-                // the Log sub-tab from there).
-                if (tab === 'log') {
-                  setActiveTab('settings');
-                  return;
-                }
-                setActiveTab(tab);
-              }}
+              onTabChange={setActiveTab}
               onClose={handleTourEnd}
               onRun={handleRun}
             />
