@@ -327,13 +327,30 @@ export function GuidedTour({ onTabChange, onClose, onRun }: GuidedTourProps) {
 
       {/* Tour card */}
       <div data-tour-overlay style={card} onClick={e => e.stopPropagation()} role="dialog" aria-label="Guided tour">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', gap: 8 }}>
           <span style={{ fontSize: '10px', fontFamily: 'var(--mono)', color: 'var(--text-3)', letterSpacing: '1px' }}>
             {step + 1} / {TOUR_STEPS.length}
           </span>
+          <span
+            aria-label={`Active tab: ${current.tab}`}
+            style={{
+              fontSize: '9px',
+              fontFamily: 'var(--mono)',
+              fontWeight: 700,
+              color: 'var(--amber)',
+              background: 'var(--bg-card)',
+              border: '1px solid var(--amber)',
+              borderRadius: '3px',
+              padding: '2px 6px',
+              letterSpacing: '1px',
+              textTransform: 'uppercase',
+            }}
+          >
+            {current.tab}
+          </span>
           <button
             onClick={handleClose}
-            style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: '18px', padding: '0 2px', lineHeight: 1 }}
+            style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: '18px', padding: '0 2px', lineHeight: 1, marginLeft: 'auto' }}
             aria-label="Close tour"
           >&times;</button>
         </div>
