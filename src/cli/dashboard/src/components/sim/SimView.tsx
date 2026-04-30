@@ -2,6 +2,9 @@ import { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import type { GameState, ActorSideState, LeaderInfo } from '../../hooks/useGameState';
 import { getActorColorVar } from '../../hooks/useGameState';
 import { useScenarioContext } from '../../App';
+import { DigitalTwinPanel } from '../digital-twin/DigitalTwinPanel';
+import { DigitalTwinProgress } from '../digital-twin/DigitalTwinProgress';
+import type { RunArtifact } from '../../../../../engine/schema/index.js';
 import { useCitationContext } from '../../hooks/useCitationRegistry';
 import { useToolContext } from '../../hooks/useToolRegistry';
 import { ActorBar } from '../layout/ActorBar';
@@ -13,6 +16,9 @@ import { Timeline } from './Timeline';
 import { SimFooterBar } from './SimFooterBar';
 import { RerunPanel } from './RerunPanel';
 import { LoadPriorRunsCTA } from '../settings/LoadPriorRunsCTA';
+import { SimLayoutToggle, type SimLayout } from './SimLayoutToggle';
+import { ConstellationView } from './ConstellationView';
+import { ActorDrillInModal } from './ActorDrillInModal';
 import styles from './SimView.module.scss';
 
 interface SimViewProps {
@@ -28,6 +34,32 @@ interface SimViewProps {
   /** App-level launching flag — survives tab navigation so users can
    *  switch to viz/chat/etc. and come back to a still-loading sim. */
   launching?: boolean;
+  /** Digital-twin artifact returned by /api/quickstart/simulate-intervention
+   *  (or a loaded JSON file with subject + intervention). When set,
+   *  SimView replaces the parallel-actor layout with DigitalTwinPanel
+   *  rendered against this single artifact. */
+  interventionArtifact?: RunArtifact | null;
+  /** While set (and no artifact yet), SimView renders DigitalTwinProgress
+   *  with subject + intervention echo plus the live SSE event log. The
+   *  payload carries just the prefilled subject + intervention shapes
+   *  the dashboard knew about when the user clicked Run; once the
+   *  artifact lands, App.tsx clears this field and DigitalTwinPanel
+   *  renders the full result. */
+  interventionRunning?: {
+    subject: { id: string; name: string; profile?: Record<string, unknown> };
+    intervention: { id: string; name: string; description: string; duration?: { value: number; unit: string } };
+  } | null;
+  /** Clears the intervention artifact so SimView returns to the standard
+   *  parallel-actor layout. */
+  onInterventionDismiss?: () => void;
+  /** Pins the layout to a fixed value, overriding the auto-default and
+   *  any previous user pick. The GuidedTour passes 'side-by-side' so its
+   *  highlight selectors (`.leaders-row`, `.sim-columns`,
+   *  `[aria-label="Colony statistics"]`) always exist — without this,
+   *  a viewer who had previously run a 3+ actor sim would see the tour
+   *  attempt to highlight nodes that the constellation layout never
+   *  renders, and the tour would silently no-op past Sim. */
+  forceLayout?: SimLayout;
 }
 
 function LeaderColumn({ actorIndex, sideState, state }: { actorIndex: number; sideState: ActorSideState; state: GameState }) {
@@ -142,8 +174,31 @@ function IntroBar({ onDismiss }: { onDismiss: () => void }) {
   );
 }
 
-export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: launchingProp }: SimViewProps) {
+export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: launchingProp, interventionArtifact, interventionRunning, onInterventionDismiss, forceLayout }: SimViewProps) {
   const scenario = useScenarioContext();
+  // Digital-twin short-circuit: when the dashboard receives an artifact
+  // produced by simulateIntervention (subject + intervention populated),
+  // we replace the entire SIM body with DigitalTwinPanel. Single-actor
+  // intervention runs do not slot into the parallel-actor layout, so
+  // mixing the two would just confuse the read.
+  if (interventionArtifact) {
+    return (
+      <div className={styles.root}>
+        <DigitalTwinPanel artifact={interventionArtifact} state={state} onDismiss={onInterventionDismiss} />
+      </div>
+    );
+  }
+  // Live phase: server is still streaming SSE events for this run. We
+  // know the prefilled subject + intervention from the click that
+  // initiated it, so we can render their cards immediately and let the
+  // event log + counters fill in as broadcast() pushes events through.
+  if (interventionRunning) {
+    return (
+      <div className={styles.root}>
+        <DigitalTwinProgress state={state} subject={interventionRunning.subject} intervention={interventionRunning.intervention} />
+      </div>
+    );
+  }
   const citationRegistry = useCitationContext();
   const toolRegistry = useToolContext();
   // Local fallback only used when no parent-controlled launching flag is
@@ -151,6 +206,29 @@ export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: l
   // through so it survives tab navigation.
   const [localLaunching, setLocalLaunching] = useState(false);
   const launching = launchingProp ?? localLaunching;
+
+  // Constellation layout state. Default constellation when N>=3 (because
+  // the existing 2-column layout literally won't fit). User can toggle
+  // manually; userPickedLayoutRef sticks the manual choice through
+  // mid-run actor count changes.
+  const [layoutState, setLayoutState] = useState<SimLayout>(
+    () => state.actorIds.length >= 3 ? 'constellation' : 'side-by-side',
+  );
+  const userPickedLayoutRef = useRef(false);
+  const setLayoutWithOverride = useCallback((next: SimLayout) => {
+    userPickedLayoutRef.current = true;
+    setLayoutState(next);
+  }, []);
+  useEffect(() => {
+    if (userPickedLayoutRef.current) return;
+    if (state.actorIds.length >= 3 && layoutState === 'side-by-side') {
+      setLayoutState('constellation');
+    }
+  }, [state.actorIds.length, layoutState]);
+  const layout: SimLayout = forceLayout ?? layoutState;
+
+  const [drillInActor, setDrillInActor] = useState<string | null>(null);
+  const drillInIndex = drillInActor ? state.actorIds.indexOf(drillInActor) : 0;
 
   const firstId = state.actorIds[0];
   const secondId = state.actorIds[1];
@@ -237,31 +315,47 @@ export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: l
 
   return (
     <div className={styles.root}>
-      {/* Shared leaders row. Winner/tie/second chip on each card
-          surfaces the verdict even before the user scrolls down to
-          the banner card. */}
-      <div className={`leaders-row ${styles.leadersRow}`}>
-        <ActorBar
-          actorIndex={0}
-          leader={sideA?.leader || presetLeaderA}
-          popHistory={sideA?.popHistory || []}
-          moraleHistory={sideA?.moraleHistory || []}
-          verdictPlacement={verdictPlacementFor('A')}
-        />
-        <ActorBar
-          actorIndex={1}
-          leader={sideB?.leader || presetLeaderB}
-          popHistory={sideB?.popHistory || []}
-          moraleHistory={sideB?.moraleHistory || []}
-          verdictPlacement={verdictPlacementFor('B')}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
+        <SimLayoutToggle
+          layout={layout}
+          actorCount={state.actorIds.length}
+          onChange={setLayoutWithOverride}
         />
       </div>
+      {layout === 'constellation' ? (
+        <ConstellationView
+          state={state}
+          onActorClick={(name) => setDrillInActor(name)}
+        />
+      ) : (
+        <>
+          {/* Shared leaders row. Winner/tie/second chip on each card
+              surfaces the verdict even before the user scrolls down to
+              the banner card. */}
+          <div className={`leaders-row ${styles.leadersRow}`}>
+            <ActorBar
+              actorIndex={0}
+              leader={sideA?.leader || presetLeaderA}
+              popHistory={sideA?.popHistory || []}
+              moraleHistory={sideA?.moraleHistory || []}
+              verdictPlacement={verdictPlacementFor('A')}
+            />
+            <ActorBar
+              actorIndex={1}
+              leader={sideB?.leader || presetLeaderB}
+              popHistory={sideB?.popHistory || []}
+              moraleHistory={sideB?.moraleHistory || []}
+              verdictPlacement={verdictPlacementFor('B')}
+            />
+          </div>
 
-      <StatsBar
-        actors={state.actorIds.slice(0, 2).map(id => ({ id, state: state.actors[id] }))}
-        crisisText={crisisText}
-        toolRegistry={toolRegistry}
-      />
+          <StatsBar
+            actors={state.actorIds.slice(0, 2).map(id => ({ id, state: state.actors[id] }))}
+            crisisText={crisisText}
+            toolRegistry={toolRegistry}
+          />
+        </>
+      )}
 
       {/* Slim sim-progress bar. Visible while the run is active and
           hides on completion. */}
@@ -381,6 +475,15 @@ export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: l
       {/* Re-run-with-seed+1 epilogue. Extracted to its own file in F4
           batch 2 to satisfy audit finding F8 (modular concerns). */}
       <RerunPanel enabled={state.isComplete && !state.isRunning} />
+
+      {/* Drill-in modal for Constellation node clicks. Renders nothing
+          when actorName is null. */}
+      <ActorDrillInModal
+        actorName={drillInActor}
+        actorIndex={drillInIndex >= 0 ? drillInIndex : 0}
+        state={state}
+        onClose={() => setDrillInActor(null)}
+      />
     </div>
   );
 }

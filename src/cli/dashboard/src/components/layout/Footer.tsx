@@ -1,3 +1,5 @@
+import { useMediaQuery, PHONE_QUERY } from '../viz/grid/useMediaQuery';
+
 interface FooterAbortReason {
   reason: string;
   completedTurns?: number;
@@ -140,12 +142,18 @@ function buildCostTooltip(
 }
 
 export function Footer({ cost, costBreakdown, simStatus }: FooterProps) {
+  // Below 480px the footer's four flex items (nav, status, cost, brand)
+  // wrap to 3-4 lines and steal ~80px from the visible content area —
+  // Timeline cards in SimView render under the footer's space. Hide
+  // the link nav and the brand line on phone; the same nav lives in
+  // the TopBar (GitHub icon, ⋯ menu) so we don't lose any path.
+  const isPhone = useMediaQuery(PHONE_QUERY);
   return (
     <footer
       className="shrink-0"
       role="contentinfo"
       style={{
-        padding: '4px 16px',
+        padding: isPhone ? '3px 12px' : '4px 16px',
         background: 'var(--bg-deep)',
         borderTop: '1px solid var(--border)',
         display: 'flex',
@@ -157,13 +165,15 @@ export function Footer({ cost, costBreakdown, simStatus }: FooterProps) {
         color: 'var(--text-3)',
       }}
     >
-      <nav aria-label="Footer links" style={{ display: 'flex', gap: '12px' }}>
-        <a href="https://agentos.sh" target="_blank" rel="noopener" style={{ color: 'var(--rust)', fontWeight: 600 }}>agentos.sh</a>
-        <a href="https://github.com/framersai/paracosm" target="_blank" rel="noopener" style={{ color: 'var(--rust)', fontWeight: 600 }}>github</a>
-        <a href="https://www.npmjs.com/package/paracosm" target="_blank" rel="noopener" style={{ color: 'var(--rust)', fontWeight: 600 }}>npm</a>
-        <a href="/docs" style={{ color: 'var(--rust)', fontWeight: 600 }}>docs</a>
-        <a href="https://agentos.sh/blog" target="_blank" rel="noopener" style={{ color: 'var(--rust)', fontWeight: 600 }}>blog</a>
-      </nav>
+      {!isPhone && (
+        <nav aria-label="Footer links" style={{ display: 'flex', gap: '12px' }}>
+          <a href="https://agentos.sh" target="_blank" rel="noopener" style={{ color: 'var(--rust)', fontWeight: 600 }}>agentos.sh</a>
+          <a href="https://github.com/framersai/paracosm" target="_blank" rel="noopener" style={{ color: 'var(--rust)', fontWeight: 600 }}>github</a>
+          <a href="https://www.npmjs.com/package/paracosm" target="_blank" rel="noopener" style={{ color: 'var(--rust)', fontWeight: 600 }}>npm</a>
+          <a href="/docs" style={{ color: 'var(--rust)', fontWeight: 600 }}>docs</a>
+          <a href="https://agentos.sh/blog" target="_blank" rel="noopener" style={{ color: 'var(--rust)', fontWeight: 600 }}>blog</a>
+        </nav>
+      )}
 
       {simStatus && <StatusChip s={simStatus} />}
 
@@ -186,10 +196,12 @@ export function Footer({ cost, costBreakdown, simStatus }: FooterProps) {
         </span>
       )}
 
-      <span>
-        <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, letterSpacing: '.08em', fontSize: '10px' }}>PARA<span style={{ color: 'var(--amber)' }}>COSM</span></span>
-        {' '}&middot; Apache-2.0 &middot; <a href="https://manic.agency" target="_blank" rel="noopener" style={{ color: 'var(--text-3)' }}>Manic Agency</a> / <a href="https://frame.dev" target="_blank" rel="noopener" style={{ color: 'var(--text-3)' }}>Frame.dev</a>
-      </span>
+      {!isPhone && (
+        <span>
+          <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, letterSpacing: '.08em', fontSize: '10px' }}>PARA<span style={{ color: 'var(--amber)' }}>COSM</span></span>
+          {' '}&middot; Apache-2.0 &middot; <a href="https://manic.agency" target="_blank" rel="noopener" style={{ color: 'var(--text-3)' }}>Manic Agency</a> / <a href="https://frame.dev" target="_blank" rel="noopener" style={{ color: 'var(--text-3)' }}>Frame.dev</a>
+        </span>
+      )}
     </footer>
   );
 }

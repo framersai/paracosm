@@ -6,99 +6,101 @@
  * A floating card annotates each highlighted section.
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+
+export type TourTab = 'quickstart' | 'studio' | 'sim' | 'viz' | 'chat' | 'reports' | 'library' | 'settings';
 
 export interface TourStep {
   target: string;
-  tab: 'sim' | 'viz' | 'settings' | 'reports' | 'chat' | 'log';
+  tab: TourTab;
   title: string;
   description: string;
 }
 
 export const TOUR_STEPS: TourStep[] = [
   {
+    target: '[data-quickstart-seed]',
+    tab: 'quickstart',
+    title: 'Quickstart — author from a brief',
+    description: 'Paste a brief, drop a PDF, or supply a URL. Paracosm grounds the prompt with web research, generates three distinct actors with HEXACO personalities, and runs them against the same scenario in parallel. The Twin demo card below runs a single subject against a single intervention if that\'s your use case.',
+  },
+  {
+    target: '[role="tablist"][aria-label="Studio sub-navigation"]',
+    tab: 'studio',
+    title: 'Studio — author + branches',
+    description: 'Drop any saved Paracosm artifact or bundle here to inspect, fork, and re-run. The Branches sub-tab forks an actor at any turn N and re-runs from that checkpoint with a new HEXACO profile, so you can probe alternate histories from a shared starting state.',
+  },
+  {
     target: '.topbar',
     tab: 'sim',
     title: 'Top Bar',
-    description: 'Scenario name on the left, RUN + status + theme toggle on the right. The T / Y / S tokens in the center show turn, in-sim time, and deterministic seed — hover each for what they mean. A "⋯" menu reveals Save / Copy / Clear once a run has started.',
+    description: 'Scenario name on the left. RUN, status, theme toggle, and HOW IT WORKS (replay this tour) on the right. The T / Y / S tokens in the center show turn, in-sim time, and deterministic seed — hover each for what they mean. A "⋯" menu reveals Save / Copy / Clear once a run has started.',
   },
   {
     target: '.tab-bar',
     tab: 'sim',
     title: 'Navigation',
-    description: 'Switch between Sim, Viz, Settings, Reports, Character Chat, Event Log, and About. Labels collapse to icons below 900px so the row never wraps.',
+    description: 'Quickstart and Studio for authoring. Sim, Viz, Chat for the live run. Reports and Library for analysis. Settings holds config (Event Log lives there as a sub-tab). Labels collapse to icons below 900px so the row never wraps onto two lines.',
+  },
+  {
+    target: '[role="group"][aria-label="Sim layout"]',
+    tab: 'sim',
+    title: 'Sim layout',
+    description: 'Side-by-side for 2 actors, Constellation for 3+. Constellation auto-engages above 3 actors because two columns physically can\'t fit them. Click any node in the Constellation graph to drill into one actor\'s decisions, departments, and tools. The tour pins side-by-side so you can see leader cards and event streams as they\'d render for a 2-actor run.',
   },
   {
     target: '.leaders-row',
     tab: 'sim',
-    title: 'Leader Cards',
-    description: 'Two AI commanders with opposing HEXACO profiles run the same seed. Left column is Leader A (amber), right is Leader B (teal). Every downstream surface — glyph color, Conway tiles, chronicle pills — picks up these same two colors so you always know which side you are looking at.',
-  },
-  {
-    target: '[aria-label="Colony statistics"]',
-    tab: 'sim',
-    title: 'Stats Bar',
-    description: 'Per-leader metrics side by side. Tools + Reuse sit adjacent because together they tell the emergent-capability story: unique tools forged, and how many times those tools got reused without re-forging. Reuse is where cost savings come from.',
+    title: 'Leader cards',
+    description: 'Each actor renders with its name, archetype, HEXACO profile, and a population + morale sparkline. Left is amber, right is teal. Glyph color, Conway tiles, and chronicle pills downstream all pick up these same colors so you always know which side you\'re looking at.',
   },
   {
     target: '.sim-columns',
     tab: 'sim',
-    title: 'Event Streams',
-    description: 'Each turn, both leaders face events the Director generated for them based on accumulated state. Departments analyze in parallel and may forge new tools. Commanders decide. Tools tint by leader side. Every forged tool card gets a "↗ LOG" button that jumps to the Log tab filtered to that tool.',
+    title: 'Event streams',
+    description: 'Each turn, both leaders face events the Director generated based on accumulated state. Departments analyze in parallel and may forge new tools. Commanders decide. Tools tint by side. Every forged tool card gets a "↗ LOG" button that jumps to the Event Log filtered to that tool.',
   },
   {
     target: '[aria-label="Divergence rail"]',
     tab: 'sim',
-    title: 'Divergence Rail',
-    description: 'How far the two colonies have diverged at the current turn. Shows both decision texts and outcomes side by side, humanized. Same seed, different histories — because HEXACO shaped every LLM call the leaders made.',
+    title: 'Divergence rail',
+    description: 'How far the actors have diverged at the current turn. Shows decision texts and outcomes side by side in plain language. Same seed, different histories — because HEXACO shaped every LLM call.',
   },
   {
     target: '.viz-content',
     tab: 'viz',
-    title: 'Viz Tab — Living Canvas',
-    description: 'Two mirrored canvases, one per leader. Conway-style cellular tiles render underneath to encode mood (BLOCK = calm, GLIDER = agitated, etc.) while colonist glyphs sit on top as the primary signal. Hover a tile or a glyph for a tooltip; click either to drill into the colonist.',
+    title: 'Viz — living canvas',
+    description: 'Mirrored canvases, one per actor. Conway-style cellular tiles render underneath to encode mood (BLOCK = calm, GLIDER = agitated) while colonist glyphs sit on top as the primary signal. Hover a tile or a glyph for a tooltip; click either to drill into the colonist. Use the mode pills (LIVING / MOOD / FORGE / ECOLOGY / DIVERGENCE) and event filters above the canvas to reshape the read.',
   },
   {
-    target: '[aria-label="Grid viz mode"]',
-    tab: 'viz',
-    title: 'Mode Pills',
-    description: 'LIVING / MOOD / FORGE / ECOLOGY / DIVERGENCE each reshape the canvas. LIVING is the default stabilized view. MOOD recolors tiles by dominant emotional state. FORGE evolves the CA further and highlights forge activity. ECOLOGY hides glyphs so the metric strip drives. DIVERGENCE clusters by families to surface lineages that diverged between sides.',
-  },
-  {
-    target: '[aria-label="Event filter"]',
-    tab: 'viz',
-    title: 'Event Filters',
-    description: 'ALL / BIRTHS / DEATHS / FORGES / CRISES each overlay a distinct marker on the canvas. BIRTHS drops a green "+" at each native-born colonist; DEATHS drops a gray "×" tombstone at each deceased colonist. The Conway texture stays underneath so context is preserved.',
-  },
-  {
-    target: '.settings-content',
-    tab: 'settings',
-    title: 'Settings',
-    description: 'Configure leaders with HEXACO sliders, pick a scenario, set turns and population, and drop in your own OpenAI or Anthropic key to bypass the hosted-demo caps. Locked demo inputs unlock the moment you paste a key.',
+    target: '.chat-layout',
+    tab: 'chat',
+    title: 'Character chat',
+    description: 'Talk to any colonist from the run. Each carries their HEXACO profile, the memories they formed during the sim, and their relationships. The Viz drilldown popover has a direct Chat handoff that preselects the colonist here.',
   },
   {
     target: '.reports-content',
     tab: 'reports',
     title: 'Reports',
-    description: 'Turn-by-turn rollup: commander decisions, department analyses, forged toolbox across both sides, agent reactions, verdict comparison. Every forged tool has a "↗ LOG" button that scopes the Log tab to just that tool\'s history.',
+    description: 'Turn-by-turn rollup: commander decisions, department analyses, forged toolbox across both sides, agent reactions, verdict comparison. Every forged tool has a "↗ LOG" button that scopes the Event Log sub-tab to just that tool\'s history.',
   },
   {
-    target: '.chat-layout',
-    tab: 'chat',
-    title: 'Character Chat',
-    description: 'Talk to any colonist from the run. Each carries their HEXACO profile, the memories they formed during the sim, and their relationships. The drilldown popover in Viz has a direct Chat handoff button that preselects the colonist here.',
+    target: '[role="group"][aria-label="View mode"]',
+    tab: 'library',
+    title: 'Library — saved runs',
+    description: 'Every run you launch is saved here. Filter by scenario, leader configuration, or free-text search. Gallery view shows hero stats; Table view shows everything. Open any run to inspect, or promote it into Studio to fork a new branch.',
   },
   {
-    target: '[role="log"]',
-    tab: 'log',
-    title: 'Event Log',
-    description: 'Raw SSE event stream. Every status, turn_start, specialist_done, decision_made, outcome, reaction, forge_attempt event as it arrived. The "↗ LOG" buttons elsewhere narrow this feed via a hash filter — clear it from the toolbar above the list to return to the full stream.',
+    target: '[role="tablist"][aria-label="Settings sub-navigation"]',
+    tab: 'settings',
+    title: 'Settings + event log',
+    description: 'Configure actors with HEXACO sliders, pick a scenario, set turns and population, and drop in your own OpenAI or Anthropic key to bypass the hosted-demo caps. The Event Log sub-tab shows the raw SSE stream (status, turn_start, specialist_done, decision_made, outcome, reaction, forge_attempt) and is what the "↗ LOG" buttons elsewhere link into.',
   },
   {
     target: '.topbar',
     tab: 'sim',
-    title: 'Ready to Launch',
-    description: 'That was demo data. Hit RUN in the top bar to launch a live simulation against the host caps, or go to Settings and paste your own API key for full-scope runs. When the run finishes, a "Run Complete" banner lands at the top with the verdict and a jump to the Reports tab.',
+    title: 'Ready to launch',
+    description: 'That was demo data. Hit RUN in the top bar to launch a live simulation against the host caps, or paste your own API key in Settings for full-scope runs. When the run finishes, a "Run Complete" banner lands at the top with the verdict and a jump to the Reports tab.',
   },
 ];
 
@@ -140,18 +142,42 @@ const TOUR_STYLES = `
 `;
 
 interface GuidedTourProps {
-  onTabChange: (tab: 'sim' | 'viz' | 'settings' | 'reports' | 'chat' | 'log') => void;
+  /** The dashboard's currently-active tab. Threaded in so the tour can
+   *  defer its DOM lookup until React has actually committed the tab
+   *  change requested by onTabChange — without this, the lookup races
+   *  ahead of the new tab's mount on slow viewports and lands on either
+   *  the previous tab's elements or a stale empty container. */
+  activeTab: TourTab | string;
+  /** Whether the active scenario exposes Character Chat. When false the
+   *  TabBar hides the Chat tab entirely; the tour drops its Chat step
+   *  to match so it doesn't navigate to a tab the user can't reach
+   *  via any other path. */
+  chatEnabled?: boolean;
+  onTabChange: (tab: TourTab) => void;
   onClose: () => void;
   onRun?: () => void;
 }
 
-export function GuidedTour({ onTabChange, onClose, onRun }: GuidedTourProps) {
+export function GuidedTour({ activeTab, chatEnabled = true, onTabChange, onClose, onRun }: GuidedTourProps) {
+  // Drop the Chat step on scenarios where Character Chat is disabled.
+  // Without this filter the tour would fire onTabChange('chat') and the
+  // ChatPanel (always mounted but hidden) would surface a tab the user
+  // has no other way to reach.
+  const steps = useMemo(
+    () => (chatEnabled ? TOUR_STEPS : TOUR_STEPS.filter(s => s.tab !== 'chat')),
+    [chatEnabled],
+  );
   const [step, setStep] = useState(0);
   const [rect, setRect] = useState<Rect | null>(null);
+  // Re-render the card layout when the viewport crosses the mobile
+  // breakpoint (e.g. user rotates device). The measure() resize handler
+  // already re-positions the highlight; this state ensures the card's
+  // mobile/desktop branch also flips on the same boundary.
+  const [viewportW, setViewportW] = useState(() => (typeof window === 'undefined' ? 1024 : window.innerWidth));
   const prevElRef = useRef<Element | null>(null);
   const styleRef = useRef<HTMLStyleElement | null>(null);
   const rafRef = useRef(0);
-  const current = TOUR_STEPS[step];
+  const current = steps[step];
 
   // Inject tour styles on mount, remove on unmount
   useEffect(() => {
@@ -165,44 +191,133 @@ export function GuidedTour({ onTabChange, onClose, onRun }: GuidedTourProps) {
     };
   }, []);
 
-  // Highlight target element and measure its rect
+  // Drive the tab change as a separate effect so it fires the moment
+  // step changes, independent of any other dep. Earlier this was bundled
+  // into measure() and the lookup race, which left a window where the
+  // user could observe a step that hadn't yet pushed its onTabChange
+  // through to App.activeTab — making the URL bar lag behind the tour
+  // card's "VIZ" / "STUDIO" / etc. badge.
+  useEffect(() => {
+    const s = steps[step];
+    if (s) onTabChange(s.tab);
+  }, [step, onTabChange, steps]);
+
+  // Highlight target element and measure its rect.
+  //
+  // Tab content for Quickstart / Studio / Library / Settings + heavy
+  // single-tab views (SwarmViz) is mounted conditionally on activeTab.
+  // The Viz tab in particular runs ~200ms of canvas + Conway grid setup
+  // on first mount, well past a flat polling budget. We combine three
+  // strategies so the highlight lands the moment the target appears:
+  //
+  //   1) Synchronous initial check (zero-cost when tab is already
+  //      mounted, e.g. switching between sim sub-targets).
+  //   2) Retry polling at 100ms intervals (cheap, covers most cases).
+  //   3) MutationObserver on document.body that fires the moment the
+  //      target node appears in DOM, regardless of how long the parent
+  //      took to mount — needed for SwarmViz and similar.
+  //
+  // Both 2 and 3 race; whichever finds the element first wins. Both
+  // tear down once the target is found OR when measure() is called
+  // again for the next step (cleanup via attemptCancelRef).
+  const attemptCancelRef = useRef<(() => void) | null>(null);
   const measure = useCallback(() => {
-    const s = TOUR_STEPS[step];
+    const s = steps[step];
     if (!s) return;
-    onTabChange(s.tab as any);
+
+    // Cancel any in-flight target lookup from a previous step.
+    attemptCancelRef.current?.();
 
     cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(() => {
-      setTimeout(() => {
-        if (prevElRef.current) {
+      let cancelled = false;
+      let pollHandle: number | undefined;
+      let observer: MutationObserver | undefined;
+      const apply = (el: Element) => {
+        if (cancelled) return;
+        cancelled = true;
+        if (pollHandle !== undefined) clearTimeout(pollHandle);
+        observer?.disconnect();
+        if (prevElRef.current && prevElRef.current !== el) {
           prevElRef.current.classList.remove(HIGHLIGHT_CLASS);
         }
+        el.classList.add(HIGHLIGHT_CLASS);
+        prevElRef.current = el;
+        const r = el.getBoundingClientRect();
+        setRect({ top: r.top, left: r.left, width: r.width, height: r.height });
+        if (r.top < 0 || r.bottom > window.innerHeight) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      };
+      let attempt = 0;
+      const MAX_ATTEMPTS = 30;
+      const POLL_MS = 100;
+      const tryFind = () => {
+        if (cancelled) return;
         const el = document.querySelector(s.target);
         if (el) {
-          el.classList.add(HIGHLIGHT_CLASS);
-          prevElRef.current = el;
-          const r = el.getBoundingClientRect();
-          setRect({ top: r.top, left: r.left, width: r.width, height: r.height });
-          if (r.top < 0 || r.bottom > window.innerHeight) {
-            el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          apply(el);
+          return;
+        }
+        if (++attempt < MAX_ATTEMPTS) {
+          pollHandle = window.setTimeout(tryFind, POLL_MS);
+        } else if (!cancelled) {
+          cancelled = true;
+          observer?.disconnect();
+          if (prevElRef.current) {
+            prevElRef.current.classList.remove(HIGHLIGHT_CLASS);
+            prevElRef.current = null;
           }
-        } else {
-          prevElRef.current = null;
           setRect(null);
         }
-      }, 120);
+      };
+      observer = new MutationObserver(() => {
+        if (cancelled) return;
+        const el = document.querySelector(s.target);
+        if (el) apply(el);
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+      tryFind();
+      attemptCancelRef.current = () => {
+        cancelled = true;
+        if (pollHandle !== undefined) clearTimeout(pollHandle);
+        observer?.disconnect();
+      };
     });
   }, [step, onTabChange]);
 
+  // Re-run measure() whenever:
+  //   - the step changes (drives onTabChange + new target lookup)
+  //   - activeTab catches up to what the step expects (so the highlight
+  //     observer/poll race only starts AFTER the new tab actually mounts)
+  //
+  // Without the activeTab dep, measure ran in the same render pass that
+  // requested the tab change, querying DOM before React had committed
+  // the activeTab state update. The MutationObserver caught it eventually
+  // on heavy panels (SwarmViz / SettingsPanel) but the moment varied
+  // depending on how quickly the new tab's tree painted, so the user
+  // saw flicker. Gating on activeTab makes the lookup deterministic.
   useEffect(() => {
     measure();
-    const h = () => measure();
+    let resizeRaf = 0;
+    const h = () => {
+      // Coalesce bursts of resize events (mobile chrome show/hide,
+      // virtual keyboard, orientation animation) into a single
+      // measure() call per frame. Without this, every pixel-level
+      // resize fired a re-measure and the card visibly hopped around.
+      cancelAnimationFrame(resizeRaf);
+      resizeRaf = requestAnimationFrame(() => {
+        setViewportW(window.innerWidth);
+        measure();
+      });
+    };
     window.addEventListener('resize', h);
     return () => {
       window.removeEventListener('resize', h);
+      cancelAnimationFrame(resizeRaf);
       cancelAnimationFrame(rafRef.current);
     };
-  }, [measure]);
+  }, [measure, activeTab]);
 
   const handleClose = useCallback(() => {
     if (prevElRef.current) {
@@ -216,7 +331,7 @@ export function GuidedTour({ onTabChange, onClose, onRun }: GuidedTourProps) {
     const h = (e: KeyboardEvent) => {
       if (e.key === 'Escape') handleClose();
       else if (e.key === 'ArrowRight' || e.key === 'Enter') {
-        step < TOUR_STEPS.length - 1 ? setStep(s => s + 1) : handleClose();
+        step < steps.length - 1 ? setStep(s => s + 1) : handleClose();
       } else if (e.key === 'ArrowLeft' && step > 0) setStep(s => s - 1);
     };
     window.addEventListener('keydown', h);
@@ -225,19 +340,48 @@ export function GuidedTour({ onTabChange, onClose, onRun }: GuidedTourProps) {
 
   if (!current) return null;
 
-  const vw = window.innerWidth;
+  const vw = viewportW;
   const vh = window.innerHeight;
+  // Below this viewport width, drop the floating-positioned card entirely
+  // and pin a fixed bottom strip so the card doesn't grow past the screen
+  // on phone-sized viewports. Long descriptions scroll within the strip.
+  const isMobile = vw < 640;
 
-  const card: React.CSSProperties = {
-    position: 'fixed', zIndex: 100001,
-    background: 'var(--bg-panel)', border: '2px solid var(--amber)',
-    borderRadius: '10px', padding: '18px 22px',
-    maxWidth: `${CARD_W}px`, width: 'calc(100vw - 32px)',
-    boxShadow: '0 8px 32px rgba(0,0,0,.45)',
-    fontFamily: 'var(--sans)',
-  };
+  const card: React.CSSProperties = isMobile
+    ? {
+        position: 'fixed',
+        zIndex: 100001,
+        left: 8,
+        right: 8,
+        bottom: 8,
+        maxHeight: 'min(60vh, 480px)',
+        overflowY: 'auto',
+        background: 'var(--bg-panel)',
+        border: '2px solid var(--amber)',
+        borderRadius: '10px',
+        padding: '12px 14px',
+        boxShadow: '0 8px 32px rgba(0,0,0,.45)',
+        fontFamily: 'var(--sans)',
+      }
+    : {
+        position: 'fixed',
+        zIndex: 100001,
+        background: 'var(--bg-panel)',
+        border: '2px solid var(--amber)',
+        borderRadius: '10px',
+        padding: '18px 22px',
+        maxWidth: `${CARD_W}px`,
+        width: 'calc(100vw - 32px)',
+        boxShadow: '0 8px 32px rgba(0,0,0,.45)',
+        fontFamily: 'var(--sans)',
+        // Smooth the card's position update when the highlight target
+        // changes between steps. Without this, a step that targets the
+        // opposite side of the viewport (e.g. divergence rail → viz) made
+        // the card visibly teleport, which read as a "jump."
+        transition: 'top 0.25s ease, left 0.25s ease, bottom 0.25s ease, right 0.25s ease',
+      };
 
-  if (rect) {
+  if (!isMobile && rect) {
     const below = vh - (rect.top + rect.height + 10);
     const above = rect.top - 10;
     const right = vw - (rect.left + rect.width + 10);
@@ -255,7 +399,7 @@ export function GuidedTour({ onTabChange, onClose, onRun }: GuidedTourProps) {
       card.bottom = 24;
       card.right = 24;
     }
-  } else {
+  } else if (!isMobile) {
     card.bottom = 24;
     card.right = 24;
   }
@@ -292,62 +436,107 @@ export function GuidedTour({ onTabChange, onClose, onRun }: GuidedTourProps) {
 
       {/* Tour card */}
       <div data-tour-overlay style={card} onClick={e => e.stopPropagation()} role="dialog" aria-label="Guided tour">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', gap: 8 }}>
           <span style={{ fontSize: '10px', fontFamily: 'var(--mono)', color: 'var(--text-3)', letterSpacing: '1px' }}>
-            {step + 1} / {TOUR_STEPS.length}
+            {step + 1} / {steps.length}
+          </span>
+          <span
+            aria-label={`Active tab: ${current.tab}`}
+            style={{
+              fontSize: '9px',
+              fontFamily: 'var(--mono)',
+              fontWeight: 700,
+              color: 'var(--amber)',
+              background: 'var(--bg-card)',
+              border: '1px solid var(--amber)',
+              borderRadius: '3px',
+              padding: '2px 6px',
+              letterSpacing: '1px',
+              textTransform: 'uppercase',
+            }}
+          >
+            {current.tab}
           </span>
           <button
             onClick={handleClose}
-            style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: '18px', padding: '0 2px', lineHeight: 1 }}
+            style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: '18px', padding: '0 2px', lineHeight: 1, marginLeft: 'auto' }}
             aria-label="Close tour"
           >&times;</button>
         </div>
 
-        <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--amber)', margin: '0 0 6px', fontFamily: 'var(--mono)' }}>
+        <h3 style={{ fontSize: isMobile ? '13px' : '15px', fontWeight: 700, color: 'var(--amber)', margin: '0 0 6px', fontFamily: 'var(--mono)' }}>
           {current.title}
         </h3>
-        <p style={{ fontSize: '13px', color: 'var(--text-2)', lineHeight: 1.65, margin: '0 0 14px' }}>
+        <p style={{ fontSize: isMobile ? '12px' : '13px', color: 'var(--text-2)', lineHeight: 1.6, margin: '0 0 12px' }}>
           {current.description}
         </p>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <button onClick={handleClose} style={skipBtn}>Skip</button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+          <button onClick={handleClose} style={isMobile ? compactSkipBtn : skipBtn}>Skip</button>
           <div style={{ display: 'flex', gap: '6px' }}>
-            {step > 0 && <button onClick={() => setStep(s => s - 1)} style={navBtn}>Back</button>}
+            {step > 0 && (
+              <button onClick={() => setStep(s => s - 1)} style={isMobile ? compactNavBtn : navBtn}>
+                Back
+              </button>
+            )}
             <button
               onClick={() => {
-                if (step < TOUR_STEPS.length - 1) {
+                if (step < steps.length - 1) {
                   setStep(s => s + 1);
                 } else {
                   handleClose();
                   onRun?.();
                 }
               }}
-              style={step === TOUR_STEPS.length - 1 ? { ...primaryBtn, padding: '6px 22px', fontSize: '12px' } : primaryBtn}
+              style={isMobile
+                ? compactPrimaryBtn
+                : step === steps.length - 1 ? { ...primaryBtn, padding: '6px 22px', fontSize: '12px' } : primaryBtn}
             >
-              {step < TOUR_STEPS.length - 1 ? 'Next' : 'Start Your Simulation'}
+              {step < steps.length - 1 ? 'Next' : isMobile ? 'Start →' : 'Start Your Simulation'}
             </button>
           </div>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '5px', marginTop: '12px' }}>
-          {TOUR_STEPS.map((_, i) => (
-            <button
-              key={i} onClick={() => setStep(i)}
+        {/* Thin progress bar (mobile) or dot row (desktop). 14 dots wrap
+            awkwardly below ~440px wide; the bar scales cleanly. */}
+        {isMobile ? (
+          <div style={{ marginTop: '10px', height: 3, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
+            <div
               style={{
-                width: i === step ? 16 : 6, height: 6, borderRadius: 3,
-                border: 'none', padding: 0, cursor: 'pointer',
-                background: i === step ? 'var(--amber)' : i < step ? 'var(--text-3)' : 'var(--border)',
-                transition: 'all 0.25s ease',
+                width: `${((step + 1) / steps.length) * 100}%`,
+                height: '100%',
+                background: 'var(--amber)',
+                transition: 'width 0.25s ease',
               }}
-              aria-label={`Step ${i + 1}`}
+              role="progressbar"
+              aria-valuenow={step + 1}
+              aria-valuemin={1}
+              aria-valuemax={steps.length}
+              aria-label={`Step ${step + 1} of ${steps.length}`}
             />
-          ))}
-        </div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '5px', marginTop: '12px', flexWrap: 'wrap' }}>
+            {steps.map((_, i) => (
+              <button
+                key={i} onClick={() => setStep(i)}
+                style={{
+                  width: i === step ? 16 : 6, height: 6, borderRadius: 3,
+                  border: 'none', padding: 0, cursor: 'pointer',
+                  background: i === step ? 'var(--amber)' : i < step ? 'var(--text-3)' : 'var(--border)',
+                  transition: 'all 0.25s ease',
+                }}
+                aria-label={`Step ${i + 1}`}
+              />
+            ))}
+          </div>
+        )}
 
-        <div style={{ textAlign: 'center', marginTop: '6px', fontSize: '9px', color: 'var(--text-3)', fontFamily: 'var(--mono)', opacity: 0.7 }}>
-          Arrow keys / Esc
-        </div>
+        {!isMobile && (
+          <div style={{ textAlign: 'center', marginTop: '6px', fontSize: '9px', color: 'var(--text-3)', fontFamily: 'var(--mono)', opacity: 0.7 }}>
+            Arrow keys / Esc
+          </div>
+        )}
       </div>
     </>
   );
@@ -368,3 +557,9 @@ const primaryBtn: React.CSSProperties = {
   border: 'none', padding: '5px 18px', borderRadius: '5px', fontSize: '11px',
   cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 700,
 };
+// Compact button variants for the mobile card. Slightly smaller padding
+// and font keep the three-button row on a single line at viewports as
+// narrow as ~340px without forcing wrap.
+const compactSkipBtn: React.CSSProperties = { ...skipBtn, padding: '4px 10px', fontSize: '10px' };
+const compactNavBtn: React.CSSProperties = { ...navBtn, padding: '4px 10px', fontSize: '10px' };
+const compactPrimaryBtn: React.CSSProperties = { ...primaryBtn, padding: '4px 12px', fontSize: '10px' };

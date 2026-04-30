@@ -123,3 +123,65 @@
 
   &:hover { color: var(--text-1); }
 }
+
+/* Phone / narrow tablet portrait. The banner's five-column row layout
+   (winner label | divider | headline | view button | reports chip |
+   dismiss) cannot squeeze into ~360-600px viewports without truncating
+   `.winnerName` ("Turn 6/0" was clipping mid-character on iPhone 12)
+   and the action buttons overlapping each other. Stack the banner into
+   three rows: header (winner + dismiss), headline, action row. The
+   left-border accent on `.headlineColumn` flips to a top border so the
+   visual separator survives the column flip. */
+@media (max-width: 600px) {
+  .banner {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px 14px;
+    position: relative;
+    margin: 6px 8px 4px;
+  }
+
+  .winnerLabel {
+    padding-right: 28px; /* Reserves room for the absolutely-positioned dismiss × */
+  }
+
+  .winnerName {
+    font-size: 17px;
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  .headlineColumn {
+    border-left: none;
+    border-top: 1px solid var(--win-color-border, rgba(232, 180, 74, 0.33));
+    padding-left: 0;
+    padding-top: 8px;
+  }
+
+  .headlineButton {
+    font-size: 12px;
+  }
+
+  .viewButton {
+    width: 100%;
+    text-align: center;
+    padding: 9px 12px;
+    font-size: 10px;
+    margin-top: 2px;
+  }
+
+  .reportsChip {
+    width: 100%;
+    text-align: center;
+    padding: 9px 12px;
+    font-size: 10px;
+  }
+
+  .dismissButton {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    padding: 2px 6px;
+  }
+}

@@ -73,7 +73,14 @@ export function SeedInput({ onSeedReady, disabled = false }: SeedInputProps) {
       setSourceUrl(data.sourceUrl ?? validation.url.toString());
       setTab('paste');
     } catch (err) {
-      setError(String(err));
+      // Network-level failures (DNS, CORS, TLS) reach this branch.
+      // Server-supplied error messages went through the body.error
+      // path above, so anything here is a transport problem.
+      const raw = (err as Error)?.message ?? String(err);
+      const msg = /Failed to fetch|NetworkError|ERR_/i.test(raw)
+        ? "Couldn't reach the server. Check your connection and try again."
+        : `URL fetch failed: ${raw}`;
+      setError(msg);
     } finally {
       setFetching(false);
     }
@@ -97,12 +104,35 @@ export function SeedInput({ onSeedReady, disabled = false }: SeedInputProps) {
       setSourceUrl(undefined);
       setTab('paste');
     } catch (err) {
-      setError(`PDF extraction failed: ${String(err)}`);
+      // Map pdf.js exceptions to actionable copy. The raw stringified
+      // exception (e.g. 'InvalidPDFException: Invalid PDF structure'
+      // or 'Setting up fake worker failed') reads as failure-by-bug
+      // even when the cause is just "this is a scanned PDF" or "the
+      // file is corrupted". Surface the recovery action instead.
+      const code = (err as Error & { code?: string })?.code;
+      const raw = String((err as Error)?.message ?? err);
+      let msg: string;
+      if (code === 'PDF_NO_TEXT') {
+        msg = 'No text found in this PDF. It looks like a scanned image — try a text-based PDF, or paste the content into WRITE.';
+      } else if (/InvalidPDFException|invalid pdf|corrupt/i.test(raw)) {
+        msg = 'This PDF appears to be corrupted or password-protected. Try a different file or paste the text directly.';
+      } else if (/worker|GlobalWorkerOptions/i.test(raw)) {
+        msg = 'PDF parser failed to start. Hard-refresh the page (Cmd/Ctrl-Shift-R) and try again.';
+      } else {
+        msg = `Couldn't read this PDF (${raw}). Try paste-text or a different file.`;
+      }
+      setError(msg);
     } finally {
       setFetching(false);
     }
   }, []);
 
+  // Tab id stays 'paste' for backward compat with existing telemetry
+  // and tests; the visible label is "WRITE" so the textarea reads as
+  // an invitation to type, not just paste. Multiple users called this
+  // out as confusing — "Paste" implied the only valid input was
+  // pre-existing text from a clipboard.
+  const TAB_LABELS: Record<Tab, string> = { paste: 'WRITE', url: 'URL', pdf: 'PDF' };
   return (
     <div className={styles.seedInput}>
       <div className={styles.tabs} role="tablist">
@@ -116,15 +146,16 @@ export function SeedInput({ onSeedReady, disabled = false }: SeedInputProps) {
             disabled={disabled}
             type="button"
           >
-            {t.toUpperCase()}
+            {TAB_LABELS[t]}
           </button>
         ))}
       </div>
 
       {tab === 'paste' && (
         <textarea
+          data-quickstart-seed
           className={styles.textarea}
-          placeholder="Paste a brief, article, meeting notes, or any domain-specific source material (at least 200 characters)."
+          placeholder="Type or paste a brief, article, meeting notes, or any domain-specific source material (at least 200 characters)."
           value={seedText}
           onChange={e => setSeedText(e.target.value)}
           rows={12}

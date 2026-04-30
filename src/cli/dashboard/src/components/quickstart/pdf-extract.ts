@@ -7,6 +7,13 @@
  * @module paracosm/dashboard/quickstart/pdf-extract
  */
 
+// Static `?url` import: Vite bundles pdf.worker.min.mjs as its own
+// asset chunk and gives us back its public URL. Doing this with a
+// literal-string import (not a dynamic call) is what lets the static
+// analyzer hook the worker file into the build graph. The pdfjs lib
+// itself (~1MB) still loads lazily via the dynamic import below.
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+
 export interface PdfExtractResult {
   /** Extracted text content, joined across pages with blank-line breaks. */
   text: string;
@@ -37,9 +44,11 @@ export async function extractPdfText(
     throw new Error(`File is not a PDF: ${file.name}`);
   }
   const pdfjs = await import('pdfjs-dist');
-  // Disable worker to avoid needing a bundler-specific worker URL.
-  // Slightly slower but works without additional Vite config.
-  (pdfjs as unknown as { GlobalWorkerOptions: { workerSrc: string } }).GlobalWorkerOptions.workerSrc = '';
+  // Point pdf.js at the bundled worker. Earlier we set workerSrc=''
+  // hoping pdf.js v4 would fall back to main-thread execution; in
+  // practice it just throws 'No "GlobalWorkerOptions.workerSrc"
+  // specified.' on the first getDocument() call.
+  (pdfjs as unknown as { GlobalWorkerOptions: { workerSrc: string } }).GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
   const buffer = await file.arrayBuffer();
   const pdf = await pdfjs.getDocument({ data: buffer }).promise;
@@ -78,11 +87,18 @@ export async function extractPdfText(
       chunks.push(pageText);
       totalBytes += pageBytes;
     }
-    return {
-      text: chunks.join('\n\n'),
-      pages: pdf.numPages,
-      truncated,
-    };
+    const text = chunks.join('\n\n');
+    // Raise a recognisable error code when pdf.js parsed the document
+    // but every page returned empty text. This usually means the PDF is
+    // a scanned image with no embedded text layer; the caller can map
+    // the code to a friendlier user-facing message instead of showing
+    // "PDF extraction failed: ".
+    if (text.trim().length === 0) {
+      const e = new Error('PDF contains no extractable text. It may be a scanned image without OCR.');
+      (e as Error & { code?: string }).code = 'PDF_NO_TEXT';
+      throw e;
+    }
+    return { text, pages: pdf.numPages, truncated };
   } finally {
     // Release the native PDFDocumentProxy handle even when iteration
     // threw partway through.

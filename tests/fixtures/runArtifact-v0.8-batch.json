@@ -1,0 +1,18 @@
+{
+  "metadata": {
+    "runId": "run_studio_fixture_batch",
+    "scenario": { "id": "corp-q3", "name": "Corp Q3 forecast" },
+    "mode": "batch-trajectory",
+    "startedAt": "2026-04-26T00:00:00.000Z",
+    "completedAt": "2026-04-26T00:00:45.000Z"
+  },
+  "leader": { "name": "Marin Kade", "archetype": "Aggressive Sales Optimizer" },
+  "cost": { "totalUSD": 0.18 },
+  "trajectory": {
+    "timeUnit": { "singular": "quarter", "plural": "quarters" },
+    "timepoints": [
+      { "time": 1, "label": "Q1", "worldSnapshot": { "metrics": { "morale": 0.6, "revenue": 220 } } },
+      { "time": 2, "label": "Q2", "worldSnapshot": { "metrics": { "morale": 0.5, "revenue": 240 } } }
+    ]
+  }
+}

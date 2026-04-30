@@ -118,8 +118,8 @@ export function LoadPreviewModal({
 
           <div className={styles.metaLabel}>Actors</div>
           <div className={styles.metaValue}>
-            {metadata.actorNames.length > 0
-              ? metadata.actorNames.join(' · ')
+            {(metadata.actorNames ?? []).length > 0
+              ? (metadata.actorNames ?? []).join(' · ')
               : '—'}
           </div>
 

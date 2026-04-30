@@ -35,7 +35,8 @@ export function ToolboxSection({ registry, title = 'Forged Toolbox', collapsible
     } catch {
       /* silent */
     }
-    navigateTab('log');
+    // Log is a sub-tab of Settings after the merge.
+    navigateTab('settings');
   };
 
   const inner = (

@@ -1,0 +1,36 @@
+[
+  {
+    "metadata": {
+      "runId": "run_studio_fixture_bundle_a",
+      "scenario": { "id": "mars-genesis", "name": "Mars Genesis" },
+      "mode": "turn-loop",
+      "startedAt": "2026-04-26T00:00:00.000Z",
+      "completedAt": "2026-04-26T00:01:30.000Z"
+    },
+    "leader": { "name": "Aria Chen", "archetype": "The Visionary" },
+    "cost": { "totalUSD": 0.42 },
+    "trajectory": {
+      "timeUnit": { "singular": "month", "plural": "months" },
+      "timepoints": [
+        { "time": 1, "label": "M1", "worldSnapshot": { "metrics": { "morale": 0.85 } } }
+      ]
+    }
+  },
+  {
+    "metadata": {
+      "runId": "run_studio_fixture_bundle_b",
+      "scenario": { "id": "mars-genesis", "name": "Mars Genesis" },
+      "mode": "turn-loop",
+      "startedAt": "2026-04-26T00:00:00.000Z",
+      "completedAt": "2026-04-26T00:01:30.000Z"
+    },
+    "leader": { "name": "Dietrich Voss", "archetype": "The Engineer" },
+    "cost": { "totalUSD": 0.38 },
+    "trajectory": {
+      "timeUnit": { "singular": "month", "plural": "months" },
+      "timepoints": [
+        { "time": 1, "label": "M1", "worldSnapshot": { "metrics": { "morale": 0.65 } } }
+      ]
+    }
+  }
+]

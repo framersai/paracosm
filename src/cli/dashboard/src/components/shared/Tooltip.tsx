@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { useState, useRef, useCallback, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 

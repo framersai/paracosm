@@ -45,9 +45,16 @@ export class IpRateLimiter {
   private simStore = new Map<string, RateLimitEntry>();
   private compileStore = new Map<string, RateLimitEntry>();
   private chatStore = new Map<string, RateLimitEntry>();
+  /** Single-bucket global counter for /chat. Per-IP caps are
+   *  trivially evaded by IP rotation (VPNs, proxy pools, residential
+   *  proxies), so we additionally cap the hosted-key chat budget
+   *  across all IPs. When this budget is exhausted, every non-keyed
+   *  request gets 429'd until the hour rolls over. */
+  private chatGlobal: RateLimitEntry = { count: 0, resetAt: 0 };
   private maxPerDay: number;
   private maxCompilePerDay: number;
   private maxChatPerHour: number;
+  private maxChatGlobalPerHour: number;
   private cleanupTimer: ReturnType<typeof setInterval>;
   private persistencePath: string | null = null;
   private persistTimer: ReturnType<typeof setTimeout> | null = null;
@@ -55,12 +62,14 @@ export class IpRateLimiter {
   constructor(
     maxPerDay: number = 3,
     maxCompilePerDay: number = 5,
-    maxChatPerHour: number = 200,
+    maxChatPerHour: number = 30,
     persistencePath: string | null = null,
+    maxChatGlobalPerHour: number = 500,
   ) {
     this.maxPerDay = maxPerDay;
     this.maxCompilePerDay = maxCompilePerDay;
     this.maxChatPerHour = maxChatPerHour;
+    this.maxChatGlobalPerHour = maxChatGlobalPerHour;
     this.persistencePath = persistencePath;
     this.cleanupTimer = setInterval(() => this.cleanup(), 60 * 60 * 1000);
     this.load();
@@ -119,8 +128,28 @@ export class IpRateLimiter {
     }, 500);
   }
 
-  /** Extract client IP, respecting reverse proxy headers (nginx, Cloudflare, etc.) */
+  /** Extract client IP, respecting reverse proxy headers (Cloudflare,
+   *  nginx, etc).
+   *
+   *  Header priority is intentional. Behind Cloudflare,
+   *  `cf-connecting-ip` is set by CF on every request to the original
+   *  client IP and CANNOT be spoofed by the client (CF strips any
+   *  inbound copy). It's the only header that's reliable when the
+   *  origin is reachable through CF.
+   *
+   *  `x-forwarded-for` goes second because nginx configurations differ
+   *  on whether they preserve, append, or overwrite the chain — when
+   *  nginx replaces XFF with `$remote_addr` (the immediate-upstream
+   *  CF edge IP), the "first" in the chain becomes a rotating CF edge
+   *  IP and the rate limiter ends up keying every request to a fresh
+   *  IP. Production traffic was effectively unlimited under this bug
+   *  until cf-connecting-ip was promoted to the top of the chain. */
   static getIp(req: IncomingMessage): string {
+    const cfIp = req.headers['cf-connecting-ip'];
+    if (cfIp) {
+      const v = Array.isArray(cfIp) ? cfIp[0] : cfIp;
+      if (v) return v;
+    }
     const xff = req.headers['x-forwarded-for'];
     if (xff) {
       const first = (Array.isArray(xff) ? xff[0] : xff).split(',')[0].trim();
@@ -128,8 +157,6 @@ export class IpRateLimiter {
     }
     const realIp = req.headers['x-real-ip'];
     if (realIp) return Array.isArray(realIp) ? realIp[0] : realIp;
-    const cfIp = req.headers['cf-connecting-ip'];
-    if (cfIp) return Array.isArray(cfIp) ? cfIp[0] : cfIp;
     return req.socket.remoteAddress || 'unknown';
   }
 
@@ -188,9 +215,35 @@ export class IpRateLimiter {
     return this.bump(this.compileStore, ip, this.maxCompilePerDay, 'daily', true);
   }
 
-  /** Check AND consume a slot for /chat (hourly bucket). */
+  /** Check AND consume a slot for /chat (hourly bucket).
+   *  Returns the FIRST tripwire to fail: either the per-IP bucket
+   *  exhausted by this caller, or the global hourly cap exhausted
+   *  by aggregate traffic across all IPs. The global cap only
+   *  decrements when the per-IP slot was actually granted, so a
+   *  blocked-by-IP attempt doesn't burn the shared budget. */
   consumeChat(ip: string): RateLimitDecision {
-    return this.bump(this.chatStore, ip, this.maxChatPerHour, 'hourly', true);
+    const ipResult = this.bump(this.chatStore, ip, this.maxChatPerHour, 'hourly', true);
+    if (!ipResult.allowed) return ipResult;
+    // Per-IP slot granted; now charge the global bucket.
+    const now = Date.now();
+    if (this.chatGlobal.resetAt <= now) {
+      this.chatGlobal = { count: 0, resetAt: this.nextReset('hourly') };
+    }
+    if (this.chatGlobal.count >= this.maxChatGlobalPerHour) {
+      // Global cap hit. Refund the per-IP slot we just took so the
+      // caller can retry next hour without losing their per-IP budget
+      // to a shared-quota miss.
+      const ipEntry = this.chatStore.get(ip);
+      if (ipEntry && ipEntry.count > 0) ipEntry.count--;
+      return {
+        allowed: false,
+        remaining: 0,
+        resetAt: this.chatGlobal.resetAt,
+        limit: this.maxChatGlobalPerHour,
+      };
+    }
+    this.chatGlobal.count++;
+    return ipResult;
   }
 
   /** Get stats for monitoring endpoints. */

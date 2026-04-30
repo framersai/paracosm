@@ -70,6 +70,12 @@ const ATLAS_DOMAIN = 'Coastal mayor crisis leadership under hurricane time press
 
 console.log(`[e2e] launching ${HEADED ? 'headed' : 'headless'} chromium`);
 const browser = await chromium.launch({ headless: !HEADED });
+// Recording starts when ctx is created. Anchor seg.* timestamps here
+// so they land in the same time base ffmpeg trims use (absolute
+// source video time). Setting recStartMs after killTour offset every
+// seg value by ~3s, and segment A's aEnd ended before the typing
+// finished — the typing got buried in segment B at 12× speed.
+const ctxCreationMs = Date.now();
 const ctx = await browser.newContext({
   viewport: VIEW,
   recordVideo: { dir: OUT_DIR, size: VIEW },
@@ -81,21 +87,45 @@ page.on('console', (m) => {
 });
 
 // Pre-seed the tour-seen flag so the onboarding tour does not auto-
-// start. Without this, App.tsx fires `setActiveTab('sim')` 600ms
-// after mount on the quickstart tab, clobbering the form we want to
-// fill. The exact key is `paracosm:tourSeen=1` (App.tsx:309); the
-// other keys are belt-and-suspenders for older builds and
-// dev-only test harnesses.
+// start. Also wipe any prior paracosm:* localStorage so the verdict
+// banner from a previous run does not bleed into the new recording.
+// Earlier recordings showed a stale verdict notification at the top
+// of the dashboard because App.tsx rehydrated cached events from
+// localStorage on cold load.
 await page.addInitScript(() => {
   try {
+    // Clear every paracosm:* key so cached events / verdicts /
+    // history / cost from prior sessions can't leak in.
+    const toRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith('paracosm')) toRemove.push(k);
+    }
+    toRemove.forEach((k) => localStorage.removeItem(k));
+    sessionStorage.clear();
+    // Pre-seed the tour-seen flag so the onboarding tour does not
+    // auto-start (it sets activeTab='sim' 600ms after mount, which
+    // clobbers the Quickstart form we want to fill).
     localStorage.setItem('paracosm:tourSeen', '1');
     const legacy = ['paracosm.tour.seen', 'tour.seen', 'tour-completed', 'paracosm.onboarding.dismissed'];
-    legacy.forEach(k => localStorage.setItem(k, 'true'));
+    legacy.forEach((k) => localStorage.setItem(k, 'true'));
   } catch {}
 });
 
 console.log(`[e2e] -> ${HOST}/sim?tab=quickstart`);
 await page.goto(`${HOST}/sim?tab=quickstart`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+
+// Server-side state wipe: clear the SSE event buffer + the live
+// gameState so the verdict banner from the prior run doesn't appear.
+// /clear is unauthenticated; admin/data/wipe needs the token (we don't
+// have it here). Best-effort — a 404 or 403 is fine, the localStorage
+// clear above already kills the client-side rehydration path.
+try {
+  await page.evaluate(async () => {
+    try { await fetch('/clear', { method: 'POST' }); } catch {}
+  });
+} catch {}
+
 await page.waitForTimeout(2000);
 
 async function killTour() {
@@ -128,22 +158,29 @@ await killTour();
 // 1× during prompt entry + results + tab tour, ~3× during the
 // compile-and-run middle. Without this the loop would either be a wall
 // of unreadable fast-typing OR 4 minutes of dead-air "compiling…".
-const recStartMs = Date.now();
+// Anchor to ctxCreationMs (set above when video recording starts) so
+// since() returns absolute source time — same time base ffmpeg trims
+// use.
 const seg = { promptDoneMs: 0, submitClickedMs: 0, resultsAppearedMs: 0 };
-const since = () => Date.now() - recStartMs;
+const since = () => Date.now() - ctxCreationMs;
 
-console.log('[e2e] focus seed textarea + fill prompt');
-const seedTextarea = page.locator('textarea').first();
+console.log('[e2e] focus seed textarea + type prompt');
+// Target the SeedInput's textarea explicitly via data-quickstart-seed.
+// `textarea.first()` used to match this; that broke after the dt
+// card moved into the Quickstart panel. The data-attribute is
+// stable across both layouts.
+const seedTextarea = page.locator('textarea[data-quickstart-seed]').first();
 await seedTextarea.waitFor({ state: 'visible', timeout: 8000 });
 await seedTextarea.click();
-// `fill` paints the prompt in one frame instead of streaming
-// keystrokes through React state on every char. Slow `type` runs hit
-// a 30 s playwright timeout when the seedText length counter re-renders
-// the parent on every keystroke during the 5+ s of typing. Visually
-// the prompt now appears in one beat and stays on screen for the
-// 5 s read-hold below — more readable than a fast typed-out wall of
-// text and more reliable than the streaming variant.
-await seedTextarea.fill(ATLAS_PROMPT);
+// keyboard.type() with 25ms delay matches the dt recorder's typing
+// rhythm so the e2e top hero reads as real input being entered, not a
+// pre-loaded paste. Earlier we used .fill() to dodge a Playwright
+// timeout under .type — the timeout was caused by the recorder's
+// default 30s action timeout when the seedText length counter
+// triggered React re-renders on every char. We bump the action
+// timeout below to 60s to give the typing room.
+page.setDefaultTimeout(60_000);
+await page.keyboard.type(ATLAS_PROMPT, { delay: 25 });
 seg.promptDoneMs = since();
 // Hold the typed prompt for 5 s so a viewer can read it before the
 // form submits and the compile spinner takes over.
@@ -175,7 +212,7 @@ seg.submitClickedMs = since();
 // Total wait covers compile (~60s) + grounding + leader gen + 3 sims
 // of N turns; ~5-7 min on default 6-turn scenarios with gpt-5.4-mini.
 console.log('[e2e] waiting for Quickstart results region (full run done)');
-const RUN_TIMEOUT_MS = 600_000;            // 10 min hard cap
+const RUN_TIMEOUT_MS = 900_000;            // 15 min hard cap
 const compileStarted = Date.now();
 let runCompleted = false;
 try {
@@ -189,21 +226,50 @@ try {
 } catch {
   console.log('[e2e] run did not complete within timeout -- recording whatever is on screen');
 }
-// Hold the results card briefly so the verdict + leader fingerprint are
-// visible in the recording before we tab-tour onto extras.
-const RESULTS_HOLD_S = runCompleted ? 8 : 0;
-if (RESULTS_HOLD_S > 0) {
-  console.log(`[e2e] hold Quickstart results for ${RESULTS_HOLD_S}s`);
-  await page.waitForTimeout(RESULTS_HOLD_S * 1000);
+// Hold the Quickstart results region with a three-stage scroll so the
+// viewer sees: (1) verdict banner + first actor card at top, (2) the
+// middle actor card with its HEXACO bars + delta chips, (3) the third
+// actor card + Compare CTA at the bottom. Each step has a short dwell
+// so the eye lands naturally before the next scroll fires.
+const RESULTS_HOLD_TOP_S = 4;
+const RESULTS_HOLD_MID_S = 4;
+const RESULTS_HOLD_BOTTOM_S = 5;
+if (runCompleted) {
+  console.log(`[e2e] hold Quickstart results: ${RESULTS_HOLD_TOP_S}s top, scroll mid, ${RESULTS_HOLD_MID_S}s, scroll bottom, ${RESULTS_HOLD_BOTTOM_S}s`);
+  await page.waitForTimeout(RESULTS_HOLD_TOP_S * 1000);
+  // Stage 2: scroll to expose actor card 2 + the start of actor 3.
+  await page.evaluate(() => window.scrollTo({ top: 360, behavior: 'smooth' }));
+  await page.waitForTimeout(RESULTS_HOLD_MID_S * 1000);
+  // Stage 3: scroll to fully reveal the third actor card + Compare CTA
+  // + Library link. 720px lands the bottom of the page in frame on a
+  // 720p viewport with the current QuickstartResults grid.
+  await page.evaluate(() => window.scrollTo({ top: 720, behavior: 'smooth' }));
+  await page.waitForTimeout(RESULTS_HOLD_BOTTOM_S * 1000);
+  // Snap back to the top so subsequent tabs render from a known
+  // baseline (some tabs hold their own scroll position).
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+  await page.waitForTimeout(400);
 }
 
-// ── 3-4. VIZ / REPORTS / LIBRARY TAB TOUR ─────────────────────────────
-// With the Atlas-7 run installed in the runs database (the results
-// region appearing implies artifacts in `sse.results` and a backing
-// RunRecord), tab-switching now shows real Atlas-7 state instead of
-// whatever cached run was last on screen.
-const VIZ_HOLD_S = 10;
-const REPORTS_HOLD_S = 10;
+// ── 3a. SIM TAB + CONSTELLATION VIEW ──────────────────────────────────
+// Show the Sim tab in side-by-side layout briefly, then flip into the
+// Constellation layout (radial graph of all actors with edges colored
+// by HEXACO fingerprint similarity) so the demo highlights the new
+// multi-actor visualization. The Constellation toggle button carries
+// data-layout="constellation"; clicking it is a pure client-side state
+// flip, no URL change.
+const SIM_SIDE_HOLD_S = 5;
+const SIM_CONSTELLATION_HOLD_S = 7;
+// VIZ tour: cycle through 4 of the 5 grid modes (skipping ecology
+// since the lighter glyph treatment isn't as visually distinct on
+// short clips), holding ~3s on each so the difference between modes
+// reads. Pre-cycle hold lets the LIVING default settle first.
+const VIZ_INTRO_HOLD_S = 4;
+const VIZ_MODE_HOLD_S = 3;
+const VIZ_MODES = ['mood', 'forge', 'divergence', 'living']; // end back on LIVING for handoff
+const REPORTS_HOLD_TOP_S = 5;
+const REPORTS_HOLD_MID_S = 5;
+const REPORTS_HOLD_BOTTOM_S = 5;
 const LIBRARY_HOLD_S = 6;
 const DRAWER_HOLD_S = 8;
 
@@ -217,13 +283,72 @@ async function clickTab(id) {
   return ok;
 }
 
-console.log(`[e2e] -> VIZ tab (${VIZ_HOLD_S}s)`);
-await clickTab('viz');
-await page.waitForTimeout(VIZ_HOLD_S * 1000);
+console.log(`[e2e] -> SIM tab (${SIM_SIDE_HOLD_S}s side-by-side, ${SIM_CONSTELLATION_HOLD_S}s constellation)`);
+await clickTab('sim');
+await page.waitForTimeout(SIM_SIDE_HOLD_S * 1000);
+// Flip to Constellation layout. The toggle is rendered by SimLayoutToggle
+// and exposes data-layout="constellation". Auto-enables when actorCount
+// >= 3, but the user can toggle manually too. We click regardless so the
+// recording deterministically lands on the constellation regardless of
+// whether the auto-enable already fired for this run size.
+const switched = await page.evaluate(() => {
+  const btn = document.querySelector('button[data-layout="constellation"]');
+  if (btn instanceof HTMLElement) { btn.click(); return true; }
+  return false;
+});
+if (!switched) console.log('[e2e] constellation toggle not found (single actor or layout API moved)');
+await page.waitForTimeout(SIM_CONSTELLATION_HOLD_S * 1000);
 
-console.log(`[e2e] -> REPORTS tab (${REPORTS_HOLD_S}s)`);
+// ── 3b. VIZ TAB MODE TOUR ─────────────────────────────────────────────
+// VIZ has 5 grid modes (LIVING / MOOD / FORGE / ECOLOGY / DIVERGENCE)
+// each surfacing a different layer of simulation state. A static hold
+// only shows one mode and feels stale; here we cycle through 4 modes
+// with a brief dwell on each so the demo demonstrates that the panel
+// is interactive and reveals different facets of the same run.
+console.log(`[e2e] -> VIZ tab (${VIZ_INTRO_HOLD_S}s LIVING intro, then cycle ${VIZ_MODES.join(' -> ')} @ ${VIZ_MODE_HOLD_S}s each)`);
+await clickTab('viz');
+await page.waitForTimeout(VIZ_INTRO_HOLD_S * 1000);
+for (const mode of VIZ_MODES) {
+  // The mode pills carry data-grid-mode={key}; we click the first one
+  // (left actor's pills) since lifted state means clicking either one
+  // toggles both. Falls back silently if the panel layout has changed.
+  const ok = await page.evaluate((m) => {
+    const btn = document.querySelector(`button[data-grid-mode="${m}"]`);
+    if (btn instanceof HTMLElement) { btn.click(); return true; }
+    return false;
+  }, mode);
+  if (!ok) {
+    console.log(`[e2e] viz mode pill data-grid-mode="${mode}" not found`);
+    continue;
+  }
+  await page.waitForTimeout(VIZ_MODE_HOLD_S * 1000);
+}
+
+// ── 3c. REPORTS TAB SECTION TOUR ──────────────────────────────────────
+// Reports has multiple stacked sections (verdict, fingerprint diff,
+// decision-tree diff, per-turn rationale). Three-stage scroll sweeps
+// through them so the viewer sees the depth of the breakdown, not
+// just the verdict header.
+console.log(`[e2e] -> REPORTS tab (${REPORTS_HOLD_TOP_S}s top, scroll mid, ${REPORTS_HOLD_MID_S}s, scroll bottom, ${REPORTS_HOLD_BOTTOM_S}s)`);
 await clickTab('reports');
-await page.waitForTimeout(REPORTS_HOLD_S * 1000);
+await page.waitForTimeout(REPORTS_HOLD_TOP_S * 1000);
+const scrollReports = (top) =>
+  page.evaluate((t) => {
+    const content = document.querySelector('.reports-content, [class*="reports-content"]');
+    if (content instanceof HTMLElement) content.scrollTo({ top: t, behavior: 'smooth' });
+    else window.scrollTo({ top: t, behavior: 'smooth' });
+  }, top);
+await scrollReports(500);
+await page.waitForTimeout(REPORTS_HOLD_MID_S * 1000);
+await scrollReports(1100);
+await page.waitForTimeout(REPORTS_HOLD_BOTTOM_S * 1000);
+// Snap back so library/compare see a known scroll baseline.
+await page.evaluate(() => {
+  const content = document.querySelector('.reports-content, [class*="reports-content"]');
+  if (content instanceof HTMLElement) content.scrollTo({ top: 0, behavior: 'instant' });
+  else window.scrollTo({ top: 0, behavior: 'instant' });
+});
+await page.waitForTimeout(300);
 
 console.log(`[e2e] -> LIBRARY tab (${LIBRARY_HOLD_S}s)`);
 await clickTab('library');
@@ -298,6 +423,11 @@ execFileSync('ffmpeg', [
   '-preset', 'medium',
   '-crf', '22',
   '-pix_fmt', 'yuv420p',
+  // +faststart relocates the moov atom to the front of the file so
+  // browsers can scrub through the timeline without first downloading
+  // the whole mp4. Without it the landing-page <video controls> bar
+  // shows the scrubber but seeking is disabled until full buffer.
+  '-movflags', '+faststart',
   '-an',
   mp4Out,
 ], { stdio: ['ignore', 'inherit', 'inherit'] });
@@ -308,46 +438,96 @@ execFileSync('ffmpeg', [
 //   A: 0 .. (submitClicked + 1.0 s)           1× speed, no caption
 //      (prompt typing + 2.5 s read pause + the click landing)
 //   B: (submitClicked + 1.0 s) .. (results - 0.5 s)
-//                                             ~3× speed, "sped up" caption
+//                                             10× speed, "sped up" caption
 //      (compile + ground + leader gen + 3 sims to Turn 6)
 //   C: (results - 0.5 s) .. end of recording  1× speed, no caption
 //      (results region + VIZ + REPORTS + LIBRARY + drawer)
 //
-// Falls back to a uniform 3× speed-up if `runCompleted` is false (the
+// Falls back to a uniform 10× speed-up if `runCompleted` is false (the
 // run hit the 10-min cap and we never got a results timestamp).
+//
+// SPEED_B was 3 originally; users said the compile window dragged on
+// the landing page, so the middle segment now collapses ~5 minutes of
+// real-time work into ~30 seconds. Captions stay legible at 10× for
+// dashboard text the size we render.
 const heroOut = path.resolve(ASSETS_DIR, `${OUT_NAME}-hero.mp4`);
+// Skip the first 0.5s of the recording. Playwright's video capture
+// records from context creation, but Chromium's first paint happens a
+// few hundred ms after navigation lands — those leading frames are a
+// white default-body-color flash that reads as a glitch on the landing
+// page. 0.5s is empirically clean across multiple recordings and never
+// crosses into the prompt-typing phase (which starts ~2s in).
+const A_START_S = 0.5;
 const aEnd = ((seg.submitClickedMs || 8000) + 1000) / 1000;
 const bEnd = runCompleted
   ? Math.max(aEnd + 5, (seg.resultsAppearedMs - 500) / 1000)
   : null;
+const SPEED_B = 12.0;
 console.log(`[e2e] ffmpeg -> hero mp4: ${heroOut}`);
-console.log(`  segments: A 0..${aEnd.toFixed(1)}s 1×, B ${aEnd.toFixed(1)}..${bEnd?.toFixed(1) ?? '∞'}s 3×, C ${bEnd?.toFixed(1) ?? '?'}s..end 1×`);
-const SPEED_B = 3.0;
+console.log(`  segments: A ${A_START_S.toFixed(1)}..${aEnd.toFixed(1)}s 1×, B ${aEnd.toFixed(1)}..${bEnd?.toFixed(1) ?? '∞'}s ${SPEED_B}×, C ${bEnd?.toFixed(1) ?? '?'}s..end 1×`);
 // drawtext caption stays inside the B trim window so it does not bleed
-// into A or C frames after the concat. Box + opaque background so it
-// reads cleanly over both light + dark UI states the dashboard cycles
-// through during the compile spinner.
+// into A or C frames after the concat. Amber-on-black to match the
+// digital-twin demo's caption styling — both heroes now read as a
+// matched pair on the landing page instead of one white / one yellow.
 const caption = `Compile + 3 parallel sims · ${SPEED_B}× speed`;
 const drawtext = (
   `drawtext=` +
   `text='${caption}'` +
-  `:fontcolor=white` +
-  `:fontsize=22` +
-  `:font='Helvetica'` +
+  `:fontcolor=#ffd970` +
+  `:fontsize=20` +
+  `:font='Helvetica-Bold'` +
+  `:shadowcolor=black:shadowx=0:shadowy=2` +
   `:x=(w-tw)/2` +
   `:y=h-72` +
-  `:box=1:boxcolor=black@0.65:boxborderw=14`
+  `:box=1:boxcolor=black@0.95:boxborderw=22`
 );
-const filterGraph = bEnd
+// Segment C: results + tab tour. Played at 2.5× so 200+ seconds of
+// recorded scrolls and tab clicks compress to ~35s. Captioned as plain
+// "Results · Sim · Viz · Reports · Library" — the earlier "· 2.5× speed"
+// suffix advertised acceleration that doesn't add value (the content
+// is just tab navigation, not LLM activity worth signposting).
+//
+// Hard-cap the segment at 86s of source content so the final hero
+// caps near 1:34 wall time and fades out, instead of running on for
+// another minute of dead-air after the Library card hover.
+const SPEED_C = 2.5;
+const C_MAX_SOURCE_SECONDS = 86;
+const captionC = 'Results · Sim · Viz · Reports · Library';
+const drawtextC = (
+  `drawtext=` +
+  `text='${captionC}'` +
+  `:fontcolor=#ffd970` +
+  `:fontsize=20` +
+  `:font='Helvetica-Bold'` +
+  `:shadowcolor=black:shadowx=0:shadowy=2` +
+  `:x=(w-tw)/2` +
+  `:y=h-72` +
+  `:box=1:boxcolor=black@0.95:boxborderw=22`
+);
+// Hero duration heuristic for the fade-out: A at 1×, B at SPEED_B,
+// C at SPEED_C capped at C_MAX_SOURCE_SECONDS. Subtract 1s so the
+// fade actually lands inside the trimmed clip instead of past its end.
+const heroDurationS = bEnd
+  ? (aEnd - A_START_S) + (bEnd - aEnd) / SPEED_B + C_MAX_SOURCE_SECONDS / SPEED_C
+  : (aEnd - A_START_S) + 30; // fallback: just a soft tail
+const fadeStart = Math.max(0, heroDurationS - 1).toFixed(3);
+const cEndSrc = bEnd ? (bEnd + C_MAX_SOURCE_SECONDS).toFixed(3) : null;
+const filterGraph = bEnd && cEndSrc
   ? (
-    `[0:v]trim=start=0:end=${aEnd.toFixed(3)},setpts=PTS-STARTPTS[a];` +
+    `[0:v]trim=start=${A_START_S.toFixed(3)}:end=${aEnd.toFixed(3)},setpts=PTS-STARTPTS[a];` +
     `[0:v]trim=start=${aEnd.toFixed(3)}:end=${bEnd.toFixed(3)},setpts=(PTS-STARTPTS)/${SPEED_B},${drawtext}[b];` +
-    `[0:v]trim=start=${bEnd.toFixed(3)},setpts=PTS-STARTPTS[c];` +
-    `[a][b][c]concat=n=3:v=1[out]`
+    `[0:v]trim=start=${bEnd.toFixed(3)}:end=${cEndSrc},setpts=(PTS-STARTPTS)/${SPEED_C},${drawtextC}[c];` +
+    `[a][b][c]concat=n=3:v=1[concat];[concat]fade=t=out:st=${fadeStart}:d=1[out]`
   )
   : (
-    // Fallback: no run completed; whole thing 3× sped-up with caption.
-    `[0:v]setpts=(PTS-STARTPTS)/${SPEED_B},${drawtext}[out]`
+    // Fallback (run did not finish in time). Preserve segment A at 1×
+    // so the typing + click are still readable; speed up everything
+    // after click at SPEED_B with the segment-B caption. The earlier
+    // "uniform 12× over the whole thing" version buried the typing
+    // phase too — viewers lost the input moment.
+    `[0:v]trim=start=${A_START_S.toFixed(3)}:end=${aEnd.toFixed(3)},setpts=PTS-STARTPTS[a];` +
+    `[0:v]trim=start=${aEnd.toFixed(3)},setpts=(PTS-STARTPTS)/${SPEED_B},${drawtext}[b];` +
+    `[a][b]concat=n=2:v=1[out]`
   );
 execFileSync('ffmpeg', [
   '-y',
@@ -358,6 +538,11 @@ execFileSync('ffmpeg', [
   '-preset', 'medium',
   '-crf', '22',
   '-pix_fmt', 'yuv420p',
+  // +faststart relocates the moov atom to the front of the file so
+  // browsers can scrub through the timeline without first downloading
+  // the whole mp4. Without it the landing-page <video controls> bar
+  // shows the scrubber but seeking is disabled until full buffer.
+  '-movflags', '+faststart',
   '-an',
   heroOut,
 ], { stdio: ['ignore', 'inherit', 'inherit'] });

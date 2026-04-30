@@ -1,0 +1,165 @@
+.tab {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.5rem;
+  height: 100%;
+  overflow: auto;
+}
+
+.dropZone {
+  border: 2px dashed var(--border, #444);
+  border-radius: 8px;
+  padding: 3rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+  background: var(--surface-2, rgba(255, 255, 255, 0.02));
+}
+
+.dropZoneActive {
+  border-color: var(--accent, #4fb1ff);
+  background: var(--surface-3, rgba(79, 177, 255, 0.08));
+}
+
+.dropZoneError {
+  border-color: var(--danger, #e57373);
+  background: rgba(229, 115, 115, 0.06);
+}
+
+.dropZoneHint {
+  color: var(--text-dim, #888);
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+}
+
+.fileInput {
+  display: none;
+}
+
+.errorBanner {
+  background: rgba(229, 115, 115, 0.1);
+  border: 1px solid var(--danger, #e57373);
+  border-radius: 4px;
+  padding: 0.75rem;
+  color: var(--danger, #e57373);
+}
+
+.errorHint {
+  font-size: 0.875rem;
+  color: var(--text-dim, #888);
+  margin-top: 0.25rem;
+}
+
+.loadedBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  background: var(--surface-2);
+  font-size: 0.875rem;
+}
+
+.artifactView {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.artifactHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.artifactScenario {
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.artifactActor {
+  font-size: 0.875rem;
+  color: var(--text-dim, #888);
+}
+
+.artifactActions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.promoteBtn,
+.compareBtn {
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  cursor: pointer;
+}
+
+.promoteBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.artifactBody {
+  flex: 1;
+  min-height: 0;
+}
+
+.bundleGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.bundleCard {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1rem;
+  cursor: pointer;
+  background: var(--surface-2);
+  text-align: left;
+}
+
+.bundleCard:hover {
+  border-color: var(--accent, #4fb1ff);
+}
+
+.bundleCardTitle {
+  font-weight: 600;
+}
+
+.bundleCardMeta {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  margin-top: 0.25rem;
+}
+
+.bundleIdChip {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-3);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 3px 8px;
+  margin-bottom: 0.75rem;
+  letter-spacing: 0.04em;
+}
+
+.bundleActions {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.bundleDrillBack {
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  margin-bottom: 1rem;
+}

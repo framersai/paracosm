@@ -7,8 +7,13 @@
  */
 import type { SimEvent } from './useSSE';
 
-/** Single localStorage key shared across scenarios. */
-export const HISTORY_STORAGE_KEY = 'paracosm-local-history-v1';
+/** Single localStorage key shared across scenarios. v2 bump (0.8.0)
+ * orphans entries written under the v0.7 schema where the summary
+ * field was named `leaderNames`; reading those under the new
+ * `actorNames` shape crashed RunMenu's `summary.actorNames.join(...)`
+ * render path. New entries are written under the v2 key; old data
+ * remains in localStorage harmlessly under v1 and is never read. */
+export const HISTORY_STORAGE_KEY = 'paracosm-local-history-v2';
 
 /** Default cap on the ring. Older entries are evicted on push. */
 export const DEFAULT_HISTORY_CAP = 5;

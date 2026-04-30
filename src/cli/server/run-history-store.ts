@@ -38,6 +38,12 @@ export interface RunHistoryStore {
   countRuns?(filters?: Pick<ListRunsFilters, 'mode' | 'sourceMode' | 'scenarioId' | 'actorConfigHash' | 'q'>): Promise<number>;
   aggregateStats?(filters?: Pick<ListRunsFilters, 'mode' | 'sourceMode' | 'scenarioId' | 'actorConfigHash'>): Promise<RunsAggregate>;
   recordReplayResult?(runId: string, matches: boolean): Promise<void>;
+  /**
+   * Destructive: delete every row in the runs table. Used by the
+   * `/admin/data/wipe` endpoint and CLI `paracosm wipe-data` for
+   * one-shot cleanups. Returns the count of deleted rows.
+   */
+  wipeAll?(): Promise<number>;
 }
 
 export function createNoopRunHistoryStore(): RunHistoryStore {
@@ -51,5 +57,6 @@ export function createNoopRunHistoryStore(): RunHistoryStore {
       return { totalRuns: 0, totalCostUSD: 0, totalDurationMs: 0, replaysAttempted: 0, replaysMatched: 0 };
     },
     async recordReplayResult() {},
+    async wipeAll() { return 0; },
   };
 }

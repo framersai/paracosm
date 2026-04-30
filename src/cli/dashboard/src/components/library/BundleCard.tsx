@@ -37,15 +37,28 @@ export function BundleCard({ entry, onOpen }: BundleCardProps): JSX.Element {
       </header>
       <h3 className={styles.scenario}>{entry.scenarioId}</h3>
       <ul className={styles.actors} aria-label="Bundle members">
-        {entry.members.slice(0, 5).map((m) => (
-          <li key={m.runId} className={styles.actor}>
-            {m.actorName ?? 'Unknown'}
-            {m.actorArchetype ? <span className={styles.archetype}> · {m.actorArchetype}</span> : null}
-          </li>
-        ))}
-        {entry.members.length > 5 && (
-          <li className={styles.more}>+ {entry.members.length - 5} more</li>
-        )}
+        {entry.members
+          .filter((m) => m.actorName)
+          .slice(0, 5)
+          .map((m) => (
+            <li key={m.runId} className={styles.actor}>
+              {m.actorName}
+              {m.actorArchetype ? <span className={styles.archetype}> · {m.actorArchetype}</span> : null}
+            </li>
+          ))}
+        {(() => {
+          const named = entry.members.filter((m) => m.actorName);
+          const unnamed = entry.members.length - named.length;
+          if (named.length > 5) {
+            return <li className={styles.more}>+ {named.length - 5} more</li>;
+          }
+          if (named.length === 0 && unnamed > 0) {
+            // Older runs predate the actor-name field. Show one
+            // honest line instead of N rows of "Unknown".
+            return <li className={styles.more}>{unnamed} actor{unnamed === 1 ? '' : 's'} · names not recorded</li>;
+          }
+          return null;
+        })()}
       </ul>
       <div className={styles.actions}>
         <button onClick={(e) => { e.stopPropagation(); onOpen(); }} className={styles.actionBtn}>Compare</button>

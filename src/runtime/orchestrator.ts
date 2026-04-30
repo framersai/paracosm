@@ -1055,7 +1055,22 @@ Respond with valid JSON ONLY (no markdown, no prose outside the JSON):
     const getMilestone = sc.hooks.getMilestoneEvent;
     const milestone = getMilestone?.(turn, maxTurns);
     if (milestone) {
-      turnEvents = [{ ...milestone, description: (milestone as any).description || (milestone as any).crisis || '' } as DirectorEvent];
+      // Milestone events are LLM-generated at compile time with freeform
+      // category strings (e.g. "founding", "legacy", "Strategy & Launch")
+      // that almost never match the scenario's effects map keys. The
+      // EffectRegistry then falls through to its morale-only default and
+      // the run's declared metrics never move under the milestone turn.
+      // Force the category to a scenario-effects-map key so milestones
+      // actually exercise the scenario's declared effects: turn 1 uses
+      // the first effects key (typical "founding" feel — set the stage),
+      // final turn uses the last (typical "legacy" feel — close the
+      // arc). Falls through to the LLM-generated category when the
+      // scenario declares no categoryMapping (legacy scenarios).
+      const effectKeys = Object.keys(sc.knowledge?.categoryMapping ?? {});
+      const forcedCategory = effectKeys.length > 0
+        ? (turn === 1 ? effectKeys[0] : effectKeys[effectKeys.length - 1])
+        : milestone.category;
+      turnEvents = [{ ...milestone, category: forcedCategory, description: (milestone as any).description || (milestone as any).crisis || '' } as DirectorEvent];
     } else {
       const preState = kernel.getState();
       const alive = preState.agents.filter(c => c.health.alive);

@@ -26,19 +26,25 @@ export function getResearchFromBundle(
     const topic = bundle.topics[topicId];
     if (!topic) continue;
 
-    for (const f of topic.canonicalFacts) {
+    // Defensive defaults: topics from compileFromSeed-generated bundles
+    // sometimes omit canonicalFacts / counterpoints / departmentNotes
+    // entirely. Iterating a missing field used to throw "X is not
+    // iterable" mid-run, which propagated up through orchestrator.ts
+    // and surfaced as an HTTP 502 in the dashboard. Treat missing
+    // fields as empty so the lookup degrades gracefully instead.
+    for (const f of topic.canonicalFacts ?? []) {
       if (!seen.has(f.claim)) {
         seen.add(f.claim);
         facts.push(f);
       }
     }
-    for (const c of topic.counterpoints) {
+    for (const c of topic.counterpoints ?? []) {
       if (!seen.has(c.claim)) {
         seen.add(c.claim);
         counters.push(c);
       }
     }
-    for (const [dept, note] of Object.entries(topic.departmentNotes)) {
+    for (const [dept, note] of Object.entries(topic.departmentNotes ?? {})) {
       if (note && !notes[dept as keyof typeof notes]) {
         (notes as any)[dept] = note;
       }
@@ -49,7 +55,7 @@ export function getResearchFromBundle(
   if (facts.length === 0 && keywords.length > 0) {
     const kwLower = keywords.map(k => k.toLowerCase());
     for (const [, topic] of Object.entries(bundle.topics)) {
-      for (const f of topic.canonicalFacts) {
+      for (const f of topic.canonicalFacts ?? []) {
         if (seen.has(f.claim)) continue;
         if (kwLower.some(kw => f.claim.toLowerCase().includes(kw) || f.source.toLowerCase().includes(kw))) {
           seen.add(f.claim);

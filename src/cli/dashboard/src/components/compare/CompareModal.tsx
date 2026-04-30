@@ -25,16 +25,28 @@ import { AggregateStrip } from './AggregateStrip.js';
 import { SmallMultiplesGrid } from './SmallMultiplesGrid.js';
 import { PinnedDiffPanel } from './PinnedDiffPanel.js';
 import { RunDetailDrawer } from '../library/RunDetailDrawer.js';
+import type { RunArtifact } from '../../../../../engine/schema/index.js';
 
 export interface CompareModalProps {
-  bundleId: string;
+  /**
+   * Library bundle to compare. Set to null when comparing only
+   * Studio-uploaded artifacts (no Library bundle context yet — v1.1
+   * will add a bundle picker inside the modal for that case).
+   */
+  bundleId: string | null;
+  /**
+   * Studio-uploaded artifacts rendered alongside the bundle's runs.
+   * Marked with an "(uploaded)" badge so users can tell which came
+   * from a JSON drop vs the Library.
+   */
+  extraArtifacts?: RunArtifact[];
   open: boolean;
   onClose: () => void;
 }
 
-export function CompareModal({ bundleId, open, onClose }: CompareModalProps): JSX.Element | null {
-  const { bundle, loading, error } = useBundle(open ? bundleId : null);
-  const { aggregate } = useBundleAggregate(open ? bundleId : null);
+export function CompareModal({ bundleId, extraArtifacts, open, onClose }: CompareModalProps): JSX.Element | null {
+  const { bundle, loading, error } = useBundle(open && bundleId ? bundleId : null);
+  const { aggregate } = useBundleAggregate(open && bundleId ? bundleId : null);
   const pinning = usePinnedRuns();
   const [openRunId, setOpenRunId] = React.useState<string | null>(null);
 
@@ -115,6 +127,22 @@ export function CompareModal({ bundleId, open, onClose }: CompareModalProps): JS
           )}
           {bundle && (
             <PinnedDiffPanel pinnedIds={pinning.pinned} members={bundle.members} />
+          )}
+          {extraArtifacts && extraArtifacts.length > 0 && (
+            <section className={styles.extras} aria-label="Uploaded artifacts">
+              <h3>Uploaded ({extraArtifacts.length})</h3>
+              <ul>
+                {extraArtifacts.map((a) => {
+                  const actor = (a as { leader?: { name?: string } }).leader?.name ?? '<unnamed>';
+                  return (
+                    <li key={a.metadata.runId}>
+                      {actor}{' '}
+                      <span className={styles.extrasBadge}>(uploaded)</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
           )}
         </section>
       </div>

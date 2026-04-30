@@ -1,14 +1,28 @@
 /**
- * Four-stage progress indicator for the Quickstart run.
+ * Four-stage progress panel for the Quickstart run.
+ *
+ * Each stage is rendered as an expandable card (QuickstartStageCard)
+ * with its own scrollable log body. The compile / research / actors
+ * stages emit synthesized lines anchored to phase transitions; the
+ * running stage streams real SSE events from the orchestrator with
+ * type-color coding so the viewer can watch the simulation tick.
  *
  * Stages:
  * 1. Compile scenario (LLM call for the draft)
- * 2. Ground with research citations (seed-ingestion stage)
- * 3. Generate 3 actors (LLM call)
- * 4. Run 3 simulations in parallel (SSE-driven; per-actor turn counters)
+ * 2. Ground with research citations (folded into compile server-side)
+ * 3. Generate N actors (LLM call)
+ * 4. Run N simulations in parallel (SSE-driven; per-actor turn counters)
  *
  * @module paracosm/dashboard/quickstart/QuickstartProgress
  */
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { SimEvent } from '../../hooks/useSSE';
+import { QuickstartStageCard } from './QuickstartStageCard';
+import {
+  buildLogForStage,
+  formatStageDuration,
+  type BuildLogContext,
+} from './QuickstartStageLog.helpers';
 import styles from './QuickstartProgress.module.scss';
 
 export type Stage = 'compile' | 'research' | 'actors' | 'running' | 'done';
@@ -25,61 +39,118 @@ export interface ActorProgress {
 export interface QuickstartProgressProps {
   stage: Stage;
   actors?: ActorProgress[];
+  events?: SimEvent[];
+  /** Number of actors the run was configured for. Used to label the
+   *  Generate stage and the synthesized log lines (e.g. "Generate 4
+   *  actors"). Defaults to 3 to match the legacy copy. */
+  actorCount?: number;
+  /** Result of the ground-scenario pass. Surfaced as citation log
+   *  lines on the Research stage card. Null/undefined falls back to
+   *  the legacy placeholder copy. */
+  groundingSummary?: import('./QuickstartStageLog.helpers').GroundingSummaryForLog | null;
   onCancel?: () => void;
 }
 
-const STAGES: Array<{ id: Stage; label: string }> = [
-  { id: 'compile', label: 'Compile scenario' },
-  { id: 'research', label: 'Ground with citations' },
-  { id: 'actors', label: 'Generate 3 actors' },
-  { id: 'running', label: 'Run 3 simulations' },
-];
+const STAGE_ORDER: Stage[] = ['compile', 'research', 'actors', 'running', 'done'];
 
 function statusFor(current: Stage, stage: Stage): StageStatus {
-  const order: Stage[] = ['compile', 'research', 'actors', 'running', 'done'];
-  const currentIdx = order.indexOf(current);
-  const stageIdx = order.indexOf(stage);
+  const currentIdx = STAGE_ORDER.indexOf(current);
+  const stageIdx = STAGE_ORDER.indexOf(stage);
   if (currentIdx > stageIdx) return 'done';
   if (currentIdx === stageIdx) return 'active';
   return 'pending';
 }
 
-export function QuickstartProgress({ stage, actors, onCancel }: QuickstartProgressProps) {
+export function QuickstartProgress({
+  stage,
+  actors,
+  events,
+  actorCount,
+  groundingSummary,
+  onCancel,
+}: QuickstartProgressProps): JSX.Element {
+  // First render captures wall-clock t=0 for the whole run; phase
+  // transitions are stamped each time `stage` flips. The transitions
+  // record powers both the per-stage duration badges and the timestamp
+  // column on synthesized log lines.
+  const startMsRef = useRef<number>(Date.now());
+  const [phaseTransitionMs, setPhaseTransitionMs] = useState<Partial<Record<Stage, number>>>(
+    () => ({ compile: Date.now() }),
+  );
+  const lastStageRef = useRef<Stage>(stage);
+
+  useEffect(() => {
+    if (lastStageRef.current === stage) return;
+    lastStageRef.current = stage;
+    setPhaseTransitionMs((prev) => {
+      if (prev[stage]) return prev;
+      return { ...prev, [stage]: Date.now() };
+    });
+  }, [stage]);
+
+  // Tick once per second so duration badges on the active card stay
+  // live. We don't need to re-render for the SSE feed itself — the
+  // running-stage log re-renders when `events.length` changes.
+  const [, forceTick] = useState(0);
+  useEffect(() => {
+    if (stage === 'done') return;
+    const id = setInterval(() => forceTick((t) => (t + 1) % 1_000_000), 1_000);
+    return () => clearInterval(id);
+  }, [stage]);
+
+  const resolvedActorCount = actorCount ?? actors?.length ?? 3;
+
+  const ctx: BuildLogContext = useMemo(
+    () => ({
+      stage,
+      startMs: startMsRef.current,
+      phaseTransitionMs,
+      actorCount: resolvedActorCount,
+      events: events ?? [],
+      groundingSummary: groundingSummary ?? null,
+    }),
+    [stage, phaseTransitionMs, resolvedActorCount, events, groundingSummary],
+  );
+
+  const stages: Array<{ id: Stage; label: string }> = [
+    { id: 'compile', label: 'Compile scenario' },
+    { id: 'research', label: 'Ground with citations' },
+    { id: 'actors', label: `Generate ${resolvedActorCount} actor${resolvedActorCount === 1 ? '' : 's'}` },
+    { id: 'running', label: `Run ${resolvedActorCount} simulation${resolvedActorCount === 1 ? '' : 's'}` },
+  ];
+
   return (
-    <div className={styles.progress} role="region" aria-label="Quickstart progress">
+    <section className={styles.progress} role="region" aria-label="Quickstart progress">
+      <header className={styles.heading}>
+        <span className={styles.title}>Quickstart run</span>
+        <span className={styles.subtitle}>
+          Live trace of every step from seed text to ready-to-explore artifacts.
+        </span>
+      </header>
+
       <ol className={styles.stageList}>
-        {STAGES.map(s => {
+        {stages.map((s) => {
           const status = statusFor(stage, s.id);
           return (
-            <li key={s.id} className={`${styles.stage} ${styles[`status_${status}`]}`}>
-              <span className={styles.marker} aria-hidden>
-                {status === 'done' ? '✓' : status === 'active' ? '●' : '○'}
-              </span>
-              <span className={styles.label}>{s.label}</span>
+            <li key={s.id} className={styles.stageItem}>
+              <QuickstartStageCard
+                stageId={s.id}
+                label={s.label}
+                status={status}
+                logLines={buildLogForStage(s.id, ctx)}
+                duration={formatStageDuration(s.id, ctx)}
+                actors={s.id === 'running' ? actors : undefined}
+              />
             </li>
           );
         })}
       </ol>
-
-      {stage === 'running' && actors && (
-        <div className={styles.actors}>
-          {actors.map((a, i) => (
-            <div key={i} className={styles.actor}>
-              <span className={styles.actorName}>{a.name}</span>
-              <span className={styles.actorArchetype}>{a.archetype}</span>
-              <span className={`${styles.actorStatus} ${styles[`actor_${a.status}`]}`}>
-                {a.status === 'running' ? `Turn ${a.currentTurn} / ${a.maxTurns}` : a.status.toUpperCase()}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
 
       {onCancel && stage !== 'done' && (
         <button type="button" className={styles.cancel} onClick={onCancel}>
           Cancel run
         </button>
       )}
-    </div>
+    </section>
   );
 }

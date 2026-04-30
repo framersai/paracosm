@@ -55,7 +55,15 @@ export function resolveActors(options: { explicitPath?: string } = {}): Resolved
 
   for (const { path, isExample } of candidates) {
     if (!existsSync(path)) continue;
-    const raw = JSON.parse(readFileSync(path, 'utf-8')) as { actors?: ActorConfig[] };
+    let raw: { actors?: ActorConfig[] };
+    try {
+      raw = JSON.parse(readFileSync(path, 'utf-8')) as { actors?: ActorConfig[] };
+    } catch (err) {
+      // Surface the offending file path so users don't have to hunt
+      // through the candidate list to figure out which JSON broke.
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(`paracosm: failed to parse actors JSON at ${path}: ${message}`);
+    }
     const actors = Array.isArray(raw.actors) ? raw.actors : [];
     return { actors, sourcePath: path, isExample };
   }

@@ -59,6 +59,15 @@ export function GridModePills({
         background: 'var(--bg-panel)',
         border: '1px solid var(--border)',
         borderRadius: 6,
+        // Five labels (LIVING/MOOD/FORGE/ECOLOGY/DIVERGENCE) at
+        // whitespace-nowrap don't shrink below their text width, so
+        // they overflow on phone viewports and visually slide under
+        // the ⋯ + ? Help buttons next to this row. overflow-x:auto
+        // clips at the container bound; touch-swipe (or mouse scroll)
+        // brings hidden pills into view without them stomping the
+        // toolbar buttons.
+        overflowX: 'auto',
+        scrollbarWidth: 'thin',
       }}
     >
       {MODES.map((m, i) => {
@@ -71,10 +80,16 @@ export function GridModePills({
             type="button"
             role="tab"
             aria-selected={active}
+            data-grid-mode={m.key}
             onClick={() => onChange(m.key)}
             title={resolvedHint}
             style={{
-              flex: 1,
+              // 1 0 auto: grow to fill the row on desktop, but never
+              // shrink below the natural label width. With nowrap text
+              // this means pills always render legibly; the container's
+              // overflow-x:auto absorbs the leftover width on phone
+              // viewports rather than squishing pills into letter-stacks.
+              flex: '1 0 auto',
               padding: '5px 8px',
               fontSize: 9,
               fontFamily: 'var(--mono)',

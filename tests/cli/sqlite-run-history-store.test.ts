@@ -1,5 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import Database from 'better-sqlite3';
 import { createSqliteRunHistoryStore } from '../../src/cli/server/sqlite-run-history-store.js';
 import type { RunRecord } from '../../src/cli/server/run-record.js';
 
@@ -232,3 +236,46 @@ test('recordReplayResult increments replay_attempts always and replay_matches co
   assert.equal(agg.replaysAttempted, 3);
   assert.equal(agg.replaysMatched, 2);
 });
+
+test('migrates a v0.7 schema (leader_config_hash) to v0.8 (actor_config_hash) on boot', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'paracosm-sqlite-migrate-'));
+  const dbPath = join(dir, 'runs.db');
+  // Build a legacy-shaped table the way v0.7 wrote it.
+  const seed = new Database(dbPath);
+  seed.exec(`
+    CREATE TABLE runs (
+      run_id              TEXT PRIMARY KEY NOT NULL,
+      created_at          TEXT NOT NULL,
+      scenario_id         TEXT NOT NULL,
+      scenario_version    TEXT NOT NULL,
+      leader_config_hash  TEXT NOT NULL,
+      economics_profile   TEXT NOT NULL,
+      source_mode         TEXT NOT NULL,
+      created_by          TEXT NOT NULL
+    );
+    CREATE INDEX idx_runs_leader_created ON runs (leader_config_hash, created_at DESC);
+  `);
+  seed.prepare(`
+    INSERT INTO runs
+      (run_id, created_at, scenario_id, scenario_version, leader_config_hash, economics_profile, source_mode, created_by)
+    VALUES
+      ('legacy-1', '2026-04-20T00:00:00Z', 'mars-genesis', '0.4.88', 'leaders:legacy-hash', 'balanced', 'local_demo', 'anonymous')
+  `).run();
+  seed.close();
+
+  // Boot the store against the legacy DB. Without the migration, this
+  // throws on db.prepare() because the prepared INSERT references
+  // actor_config_hash, which doesn't exist in the legacy schema.
+  const store = createSqliteRunHistoryStore({ dbPath });
+  const loaded = await store.getRun('legacy-1');
+  assert.ok(loaded, 'legacy row preserved through column rename');
+  assert.equal(loaded!.actorConfigHash, 'leaders:legacy-hash');
+
+  // Subsequent inserts work on the migrated schema.
+  await store.insertRun(makeRun({ runId: 'modern-1' }));
+  const fresh = await store.getRun('modern-1');
+  assert.ok(fresh);
+
+  rmSync(dir, { recursive: true, force: true });
+});
+

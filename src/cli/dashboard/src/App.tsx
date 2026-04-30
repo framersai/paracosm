@@ -18,11 +18,12 @@ import { useLaunchState } from './hooks/useLaunchState';
 import { VerdictBanner } from './components/layout/VerdictBanner';
 import { VerdictModal } from './components/layout/VerdictModal';
 import { ReplayBanner, ReplayNotFoundBanner } from './components/layout/ReplayBanner';
-import { EventLogPanel } from './components/log/EventLogPanel';
+// EventLogPanel + BranchesTab are now rendered inside SettingsPanel +
+// StudioTab as sub-tabs; App.tsx no longer needs them at top level.
 import { BranchesProvider } from './components/branches/BranchesContext';
 import { BranchesSyncer } from './components/branches/BranchesSyncer';
-import { BranchesTab } from './components/branches/BranchesTab';
 import { LibraryTab } from './components/library/index.js';
+import { StudioTab } from './components/studio/StudioTab.js';
 import { QuickstartView } from './components/quickstart/QuickstartView';
 import { useCitationRegistry, CitationRegistryContext } from './hooks/useCitationRegistry';
 import { useToolRegistry, ToolRegistryContext } from './hooks/useToolRegistry';
@@ -31,6 +32,7 @@ import { TabBar } from './components/layout/TabBar';
 import { ProviderErrorBanner } from './components/layout/ProviderErrorBanner';
 // Toolbar merged into TopBar
 import { SimView } from './components/sim/SimView';
+import type { RunArtifact } from '../../../engine/schema/index.js';
 import { SettingsPanel } from './components/settings/SettingsPanel';
 import { ReportView } from './components/reports/ReportView';
 import { ChatPanel } from './components/chat/ChatPanel';
@@ -44,6 +46,7 @@ import { GuidedTour } from './components/tour/GuidedTour';
 import { DEMO_EVENTS } from './components/tour/demoData';
 import {
   createDashboardTabHref,
+  getDashboardTabAndSubFromHref,
   getDashboardTabFromHref,
   type DashboardTab,
 } from './tab-routing';
@@ -145,15 +148,32 @@ function AppContent() {
     return () => window.removeEventListener('keydown', onKey);
   }, [verdictModalOpen]);
 
-  // Dynamic page title
+  // Dynamic page title. The scenario fallback shipped with the dashboard
+  // happens to be the Mars Genesis demo, but using its name as the title
+  // outside of an actually-loaded Mars run leaks scenario-specific
+  // branding onto every fresh visit. Show a universal Paracosm title
+  // until the user has actually loaded a named scenario from a Quickstart
+  // run, a Library bundle, or the Studio drop zone.
   useEffect(() => {
-    document.title = `${scenario.labels.name} \u2014 Paracosm`;
-  }, [scenario.labels.name]);
+    const isFallbackName = scenario.id === 'mars-genesis' && scenario.labels.name === 'Mars Genesis';
+    document.title = isFallbackName
+      ? 'Paracosm \u2014 Structured World Model for AI Agents'
+      : `${scenario.labels.name} \u2014 Paracosm`;
+  }, [scenario.id, scenario.labels.name]);
 
   // When tour is active, use demo events; otherwise use live SSE events.
   // Event Log pin-to-bottom scroll logic lives inside EventLogPanel.
-  const effectiveEvents = tourActive ? DEMO_EVENTS : sse.events;
-  const effectiveComplete = tourActive ? true : sse.isComplete;
+  // Tour data swap. The tour ships with DEMO_EVENTS so first-time
+  // visitors with no run loaded see realistic content while the
+  // highlight walks through tabs. BUT — if the user already has real
+  // events in flight (their own Quickstart run, a loaded Library
+  // bundle, an in-progress sim), swapping to demo data on tour start
+  // would visibly trash everything they had on screen. Keep their
+  // data instead; the tour copy describes UI structure either way,
+  // and the structure is the same regardless of whose data fills it.
+  const useDemoData = tourActive && sse.events.length === 0;
+  const effectiveEvents = useDemoData ? DEMO_EVENTS : sse.events;
+  const effectiveComplete = useDemoData ? true : sse.isComplete;
   const gameState = useGameState(effectiveEvents, effectiveComplete);
 
   // Forge-attempt toast pipeline (sessionStorage + watermark + toasted-key
@@ -174,7 +194,17 @@ function AppContent() {
     shortName: scenario.labels.shortName,
   });
   const history = useLocalHistory({ scenarioShortName: scenario.labels.shortName });
-  const [activeTab, setActiveTabState] = useState<DashboardTab>(() => getDashboardTabFromHref(window.location.href));
+  // Initial tab + sub-tab from URL. Legacy ?tab=branches and ?tab=log
+  // resolve to studio/settings with the matching sub-tab pre-selected
+  // so old deep links keep working.
+  const initialRoute = getDashboardTabAndSubFromHref(window.location.href);
+  const [activeTab, setActiveTabState] = useState<DashboardTab>(initialRoute.tab);
+  const [studioInitialSubTab] = useState<'author' | 'branches'>(
+    initialRoute.tab === 'studio' && initialRoute.sub === 'branches' ? 'branches' : 'author',
+  );
+  const [settingsInitialSubTab] = useState<'config' | 'log'>(
+    initialRoute.tab === 'settings' && initialRoute.sub === 'log' ? 'log' : 'config',
+  );
   const setActiveTab = useCallback((tab: DashboardTab) => {
     if (tab === 'about') {
       window.location.href = '/';
@@ -226,11 +256,76 @@ function AppContent() {
     },
   });
 
-  const handleClear = useCallback(() => {
-    if (!confirm('Clear all simulation data? This cannot be undone.')) return;
+  const handleClear = useCallback(async () => {
+    if (!confirm(
+      'Clear ALL data? This wipes:\n' +
+      '  • Current simulation buffer (this browser)\n' +
+      '  • Library runs (server)\n' +
+      '  • Saved sessions / replays (server)\n' +
+      '  • On-disk artifact JSON files\n\n' +
+      'Cannot be undone.',
+    )) return;
     persistence.clearCache();
     sse.reset();
-    toast('info', 'Cleared', 'Simulation data cleared.');
+    setUserTriggeredRun(false);
+
+    // Server-side wipe. /admin/data/wipe requires X-Admin-Token (per-
+    // request auth gate added in the security pass). Token is stored
+    // in localStorage; if it's missing we prompt for it once. The token
+    // lives in /opt/paracosm/.env on the operator's server.
+    let adminToken = '';
+    try {
+      adminToken = localStorage.getItem('paracosm:adminToken') ?? '';
+    } catch {
+      /* localStorage may be disabled (SSR / private window); treat as missing. */
+    }
+    if (!adminToken) {
+      const entered = window.prompt(
+        'Server wipe needs the admin token (set on the server as ADMIN_TOKEN in .env).\n' +
+        'Paste it once and the dashboard will remember it for this browser:',
+      );
+      if (entered === null) {
+        toast('info', 'Cleared', 'Local buffer cleared. Server wipe canceled (no admin token).');
+        setActiveTab('settings');
+        return;
+      }
+      adminToken = entered.trim();
+      try {
+        if (adminToken) localStorage.setItem('paracosm:adminToken', adminToken);
+      } catch {
+        /* silent — fall through; the request below carries the token in-memory either way. */
+      }
+    }
+
+    try {
+      const res = await fetch('/admin/data/wipe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Token': adminToken },
+        body: JSON.stringify({ wipeRuns: true, wipeSessions: true, wipeOutput: true }),
+      });
+      if (res.ok) {
+        const body = await res.json() as { wiped: { runs: number; sessions: number; outputFiles: number } };
+        toast(
+          'info',
+          'Cleared',
+          `Local buffer + ${body.wiped.runs} runs + ${body.wiped.sessions} sessions + ${body.wiped.outputFiles} files wiped.`,
+        );
+      } else if (res.status === 401) {
+        // Wrong / expired token. Drop the saved value so the next click
+        // re-prompts cleanly.
+        try { localStorage.removeItem('paracosm:adminToken'); } catch { /* silent */ }
+        toast('error', 'Partial clear', 'Local cleared; server rejected the admin token. Click Wipe All again to re-enter.');
+      } else if (res.status === 403) {
+        toast('info', 'Cleared', 'Local buffer cleared. Server wipe disabled (ADMIN_WRITE off).');
+      } else if (res.status === 503) {
+        toast('error', 'Partial clear', 'Local cleared; server has ADMIN_WRITE on but no ADMIN_TOKEN configured. Set ADMIN_TOKEN in /opt/paracosm/.env.');
+      } else {
+        const err = await res.json().catch(() => ({} as { error?: string }));
+        toast('error', 'Partial clear', `Local cleared; server wipe failed: ${err.error ?? `HTTP ${res.status}`}`);
+      }
+    } catch (err) {
+      toast('error', 'Partial clear', `Local cleared; server wipe failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
     setActiveTab('settings');
   }, [persistence, sse, toast]);
 
@@ -284,10 +379,19 @@ function AppContent() {
   // launch-stalled, rate-limited, and simulation errors. The server's
   // `replay_done` SSE marker stays in place for future transient UX.
 
+  // Where the user was looking before the tour took over. Captured at
+  // tour-start time and restored at tour-end time so manually clicking
+  // HOW IT WORKS from (e.g.) Reports doesn't dump the user back on Sim
+  // when the tour finishes.
+  const preTourTabRef = useRef<DashboardTab | null>(null);
   const handleTourStart = useCallback(() => {
+    preTourTabRef.current = activeTab;
     setTourActive(true);
-    setActiveTab('sim');
-  }, [setActiveTab]);
+    // The tour's first step calls onTabChange('quickstart') itself, so
+    // there's no need to force-route through 'sim' here. Skipping that
+    // intermediate hop removes a wasted re-render of SimView (which is
+    // expensive when real run data is loaded).
+  }, [activeTab]);
 
   // Auto-start the GuidedTour on the user's FIRST visit to the sim
   // page so new viewers get oriented without having to find the
@@ -328,8 +432,10 @@ function AppContent() {
       if (currentTab !== 'quickstart') {
         return;
       }
+      preTourTabRef.current = currentTab;
       setTourActive(true);
-      setActiveTab('sim');
+      // The tour's first step is already 'quickstart' — no need to
+      // force-route through 'sim' before the tour takes over.
     }, 600);
     return () => clearTimeout(timer);
     // Run exactly once on mount.
@@ -347,7 +453,15 @@ function AppContent() {
 
   const handleTourEnd = useCallback(() => {
     setTourActive(false);
-    setActiveTab('sim');
+    // Restore the tab the user was on before the tour started, so
+    // someone who clicked HOW IT WORKS from Reports / Library / etc.
+    // returns there instead of being dumped on Sim. Falls back to
+    // whatever the tour was last on if we never captured a pre-tour
+    // tab (e.g., auto-start path).
+    if (preTourTabRef.current) {
+      setActiveTab(preTourTabRef.current);
+      preTourTabRef.current = null;
+    }
     // Mark the tour as seen so the auto-start useEffect above
     // stops re-firing on every mount. Fires on both finish-flow
     // and skip — either path means the user has been exposed to
@@ -411,6 +525,24 @@ function AppContent() {
   // think nothing happened and click Run again.
   const [launching, setLaunching] = useState(false);
 
+  // Digital-twin artifact returned by /api/quickstart/simulate-intervention.
+  // When set, SIM tab renders DigitalTwinPanel instead of the parallel-actor
+  // layout. Single-actor intervention runs are structurally different from
+  // multi-actor side-by-side runs, so the SIM UI swaps wholesale rather
+  // than trying to merge both shapes into one view. Cleared by the panel's
+  // dismiss button or by triggering a fresh /setup run.
+  const [interventionArtifact, setInterventionArtifact] = useState<RunArtifact | null>(null);
+  // While set, SIM renders DigitalTwinProgress (live-streaming events
+  // from the in-flight simulate-intervention run) instead of the
+  // parallel-actor layout or the static panel. Carries the prefilled
+  // subject + intervention so the progress view can echo them on
+  // screen before any artifact comes back. Cleared when the artifact
+  // arrives (panel takes over) or when the user dismisses.
+  const [interventionRunning, setInterventionRunning] = useState<{
+    subject: { id: string; name: string; profile?: Record<string, unknown> };
+    intervention: { id: string; name: string; description: string; duration?: { value: number; unit: string } };
+  } | null>(null);
+
   // Accumulator for /chat turn cost + tokens. Folded into the Footer's
   // `cost` prop so users see the real run-plus-chat total spend. Prior
   // behaviour: footer only counted simulation cost, chat turns billed
@@ -453,6 +585,44 @@ function AppContent() {
     eventsCount: sse.events.length,
   });
 
+  // Gate the run-finish + cache-saved toasts on whether the user
+  // actually clicked Run during this session. Cold loads that hydrate
+  // straight into a terminal state (server event-buffer replay or
+  // localStorage cache) shouldn't announce results the user didn't
+  // ask to start.
+  const [userTriggeredRun, setUserTriggeredRun] = useState(false);
+
+  // Handlers for the digital-twin intervention path: declared here so
+  // setUserTriggeredRun is in scope.
+  //
+  // Start: fires the moment the user clicks "Run intervention demo".
+  // We reset prior SSE state, switch to SIM immediately (so streaming
+  // events from the server show up live), and park the prefilled
+  // subject + intervention so DigitalTwinProgress can echo them.
+  //
+  // Result: artifact landed, swap progress -> panel (single render
+  // pass; the artifact carries subject + intervention so the panel
+  // does not need the running payload).
+  const handleInterventionStart = useCallback((payload: {
+    subject: { id: string; name: string; profile?: Record<string, unknown> };
+    intervention: { id: string; name: string; description: string; duration?: { value: number; unit: string } };
+  }) => {
+    sse.reset();
+    setInterventionArtifact(null);
+    setInterventionRunning(payload);
+    setUserTriggeredRun(true);
+    setActiveTab('sim');
+  }, [sse, setActiveTab]);
+  const handleInterventionResult = useCallback((artifact: RunArtifact) => {
+    setInterventionRunning(null);
+    setInterventionArtifact(artifact);
+    setUserTriggeredRun(true);
+    setActiveTab('sim');
+  }, [setActiveTab]);
+  const handleInterventionDismiss = useCallback(() => {
+    setInterventionRunning(null);
+    setInterventionArtifact(null);
+  }, []);
   useTerminalToast({
     isComplete: sse.isComplete,
     isAborted: sse.isAborted,
@@ -461,6 +631,7 @@ function AppContent() {
     hasVerdict: Boolean(sse.verdict),
     replayDone: sse.replayDone,
     tourActive,
+    userTriggeredRun,
   });
 
   // Local cache fallback: write completed runs to localStorage keyed
@@ -499,7 +670,7 @@ function AppContent() {
     tourActive,
   ]);
 
-  useSimSavedToast({ events: sse.events, tourActive });
+  useSimSavedToast({ events: sse.events, tourActive, userTriggeredRun });
 
   const handleRun = useCallback(async () => {
     // Guard against double-fire. The RUN button is also hidden
@@ -521,6 +692,9 @@ function AppContent() {
     ];
     try {
       setLaunching(true);
+      // Mark the run as user-triggered so the run-finish + cache-saved
+      // toasts unlock for this session. Cleared by handleClear / Wipe.
+      setUserTriggeredRun(true);
       // Clear prior-run state on the client before launching a new sim.
       // handleClear does this via sse.reset() but Run previously did not,
       // so a user who loaded a completed run from cache and then hit Run
@@ -601,33 +775,78 @@ function AppContent() {
             launching={launching}
             history={history.entries}
             onRestoreHistory={(entry) => history.restore(entry, sse.loadEvents)}
-            onClearHistory={history.clear}
+            onClearHistory={() => {
+              // Clear all browser-side state — the local LOAD-menu
+              // ring, the localStorage event-cache, the in-memory SSE
+              // state (which feeds Sim/Constellation/EventLog), and
+              // the userTriggeredRun toast gate. Doesn't touch server
+              // data; that's what Wipe All is for.
+              history.clear();
+              persistence.clearCache();
+              sse.reset();
+              setUserTriggeredRun(false);
+            }}
           />
           <TabBar active={activeTab} onTabChange={setActiveTab} scenario={scenario} />
-          <VerdictBanner
-            verdict={sse.verdict}
-            currentTurn={gameState.turn}
-            maxTurns={gameState.maxTurns}
-            dismissedKey={verdictDismissedKey}
-            onOpenModal={() => setVerdictModalOpen(true)}
-            onDismiss={setVerdictDismissedKey}
-            onNavigateTab={setActiveTab}
-          />
+          {/* Cold-load gate: suppress the verdict banner unless the
+              user actually started a run this session. Without this
+              guard, a fresh visitor lands on the page with the SSE
+              event buffer rehydrating someone else's stale verdict
+              ("The Engineer wins · Turn 6/6") which pollutes the
+              Quickstart view + every demo recording. Same gate the
+              terminal/sim-saved toasts already use. */}
+          {userTriggeredRun && (
+            <VerdictBanner
+              verdict={sse.verdict}
+              currentTurn={gameState.turn}
+              maxTurns={gameState.maxTurns}
+              dismissedKey={verdictDismissedKey}
+              onOpenModal={() => setVerdictModalOpen(true)}
+              onDismiss={setVerdictDismissedKey}
+              onNavigateTab={setActiveTab}
+            />
+          )}
 
           <main id="main-content" className={`flex-1 overflow-hidden ${styles.main}`} role="main" aria-label={`${activeTab} view`}>
-            {activeTab === 'quickstart' && <QuickstartView sse={sse} sessionId={replaySessionId ?? undefined} />}
+            {activeTab === 'quickstart' && (
+              <QuickstartView
+                sse={sse}
+                sessionId={replaySessionId ?? undefined}
+                onRunStarted={() => setUserTriggeredRun(true)}
+                onInterventionStart={handleInterventionStart}
+                onInterventionResult={handleInterventionResult}
+              />
+            )}
 
-            {activeTab === 'sim' && <SimView state={gameState} sseStatus={sse.status} onRun={handleRun} onTour={handleTourStart} verdict={sse.verdict} launching={launching} />}
+            {activeTab === 'sim' && (
+              <SimView
+                state={gameState}
+                sseStatus={sse.status}
+                onRun={handleRun}
+                onTour={handleTourStart}
+                verdict={sse.verdict}
+                launching={launching}
+                interventionArtifact={interventionArtifact}
+                interventionRunning={interventionRunning}
+                onInterventionDismiss={handleInterventionDismiss}
+                forceLayout={tourActive ? 'side-by-side' : undefined}
+              />
+            )}
 
             {activeTab === 'viz' && <SwarmViz state={gameState} onNavigateToChat={navigateToChat} />}
 
-            {activeTab === 'settings' && <SettingsPanel />}
+            {activeTab === 'settings' && (
+              <SettingsPanel
+                events={effectiveEvents}
+                initialSubTab={settingsInitialSubTab}
+              />
+            )}
 
             {activeTab === 'reports' && <ReportView state={gameState} verdict={sse.verdict} reportSections={scenario.ui.reportSections} />}
 
-            {activeTab === 'branches' && <BranchesTab />}
-
             {activeTab === 'library' && <LibraryTab />}
+
+            {activeTab === 'studio' && <StudioTab initialSubTab={studioInitialSubTab} />}
 
             {/* ChatPanel stays mounted across tab switches so per-agent
                 message threads survive when the user jumps to Sim / Reports
@@ -640,7 +859,8 @@ function AppContent() {
               <ChatPanel state={gameState} onChatUsage={handleChatUsage} />
             </div>
 
-            {activeTab === 'log' && <EventLogPanel events={effectiveEvents} />}
+            {/* LOG moved into SETTINGS as a sub-tab; EventLogPanel is now
+                rendered inside SettingsPanel when its sub-tab is 'log'. */}
 
             {/* About tab redirects to the landing page */}
           </main>
@@ -683,7 +903,9 @@ function AppContent() {
           <DropZoneOverlay active={dropZone.isDragging} />
           {tourActive && (
             <GuidedTour
-              onTabChange={(tab) => setActiveTab(tab)}
+              activeTab={activeTab}
+              chatEnabled={scenario.policies.characterChat}
+              onTabChange={setActiveTab}
               onClose={handleTourEnd}
               onRun={handleRun}
             />

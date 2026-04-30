@@ -1,13 +1,15 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
-import { readFileSync, writeFileSync, existsSync, readdirSync, statSync, unlinkSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, readdirSync, statSync, unlinkSync, createReadStream } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { normalizeSimulationConfig, applyDemoCaps, type NormalizedSimulationConfig } from './sim-config.js';
 import { runPairSimulations, runForkSimulation, runBatchSimulations, type BroadcastFn } from './pair-runner.js';
 import {
-  handleFetchSeed, handleCompileFromSeed, handleGenerateActors,
+  handleFetchSeed, handleCompileFromSeed, handleGenerateActors, handleGroundScenario,
+  handleSimulateIntervention,
   type QuickstartDeps,
 } from './quickstart-routes.js';
+import { WorldModel } from '../runtime/world-model/index.js';
 import { handleSimulate, type SimulateDeps } from './simulate-route.js';
 import { compileScenario as compileScenarioReal } from '../engine/compiler/index.js';
 import { marsScenario } from '../engine/mars/index.js';
@@ -324,6 +326,36 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
   // env var or maxSimsPerDay option when hosting on your own infra.
   const maxSims = options.maxSimsPerDay ?? parseInt(env.RATE_LIMIT || '1', 10);
   const adminWrite = (env.ADMIN_WRITE || 'false').toLowerCase() === 'true';
+  // Per-request token gate for /admin/* routes. When ADMIN_WRITE=true,
+  // ADMIN_TOKEN must be set to a non-empty secret (paracosm fails the
+  // request closed otherwise). The dashboard's Wipe All path sends
+  // the token via the `X-Admin-Token` header (read from localStorage,
+  // matches the existing key-overrides pattern). Operators set
+  // ADMIN_TOKEN once in /opt/paracosm/.env; the dashboard pastes it
+  // once into Settings. Drive-by visitors get 401.
+  const adminToken = (env.ADMIN_TOKEN || '').trim();
+  const requireAdminToken = (req: IncomingMessage, res: ServerResponse): boolean => {
+    if (!adminWrite) {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'ADMIN_WRITE not enabled on this server' }));
+      return false;
+    }
+    if (!adminToken) {
+      res.writeHead(503, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        error: 'ADMIN_TOKEN must be set in the server env when ADMIN_WRITE=true. ' +
+               'Without it /admin/* routes are unreachable on purpose — open admin endpoints with no per-request auth would let any visitor wipe data.',
+      }));
+      return false;
+    }
+    const headerToken = String(req.headers['x-admin-token'] ?? '').trim();
+    if (!headerToken || headerToken !== adminToken) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Invalid or missing X-Admin-Token header' }));
+      return false;
+    }
+    return true;
+  };
   const parsedMaxRequestBodyBytes = Number.parseInt(env.MAX_REQUEST_BODY_BYTES || '', 10);
   const defaultMaxRequestBodyBytes = Number.isFinite(parsedMaxRequestBodyBytes)
     ? parsedMaxRequestBodyBytes
@@ -336,9 +368,28 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
   // (/opt/paracosm); dev runs default to `.` so the cache file lands
   // next to the project root.
   const rateLimitStatePath = resolve(env.APP_DIR || '.', '.rate-limit.json');
+  // Per-IP /chat cap (hourly). Each chat fires a 1k-2k token LLM call
+  // against the host key — 30 messages/hr is enough for a real user
+  // exploring colonist conversations, well under host-budget noise.
+  // Override with CHAT_RATE_LIMIT env var if a local fork wants more.
+  const chatPerHour = parseInt(env.CHAT_RATE_LIMIT || '30', 10);
+  // Global /chat cap (hourly, across all IPs). Defends against IP
+  // rotation: even if an attacker burns a fresh per-IP quota every
+  // request via a proxy pool, they can't exceed the aggregate budget
+  // for the host's chat traffic. 500/hr ≈ $1-2 worst-case host spend
+  // per hour. Override via CHAT_RATE_LIMIT_GLOBAL.
+  const chatGlobalPerHour = parseInt(env.CHAT_RATE_LIMIT_GLOBAL || '500', 10);
   const rateLimiter = maxSims > 0
-    ? new IpRateLimiter(maxSims, 5, 200, rateLimitStatePath)
+    ? new IpRateLimiter(maxSims, 5, chatPerHour, rateLimitStatePath, chatGlobalPerHour)
     : null;
+
+  // Concurrent-/chat limiter: hard cap on in-flight LLM calls. Stops
+  // a burst of N parallel POSTs from spawning N parallel LLM calls
+  // before any per-IP / global counter has had a chance to throw.
+  // Excess requests get a 429 (clients can retry); we don't queue
+  // because long queues hide the back-pressure from clients.
+  const chatConcurrencyCap = parseInt(env.CHAT_CONCURRENCY || '4', 10);
+  let chatInflight = 0;
 
   // Output retention: sweep simulation output JSON older than
   // OUTPUT_RETENTION_DAYS on boot. /opt/paracosm/output/ otherwise
@@ -385,6 +436,74 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
   const customScenarioCatalog = loadDiskCustomScenarios(scenarioDir);
   customScenarioCatalog.set(marsScenario.id, { scenario: marsScenario, source: 'builtin' });
   customScenarioCatalog.set(lunarScenario.id, { scenario: lunarScenario, source: 'builtin' });
+
+  // Side-channel for ground-scenario citations keyed by scenario id.
+  // ScenarioPackage has no free-form metadata slot today; this Map
+  // lives for the lifetime of the server process so a restart drops
+  // citations along with the scenario itself. Future actor-generation
+  // and narration prompts can read via a sibling helper if we want to
+  // ground prompts on the cited sources directly.
+  const groundingCitationsByScenarioId = new Map<string, unknown>();
+
+  // Lazily compiled WorldModel for the Digital Twin tab. Backed by
+  // scenarios/t2d-glp1-protocol.json — a clinical digital-twin scenario
+  // where the subject is a person (Maria Chen, T2D + obesity) and the
+  // intervention is a 12-week semaglutide + lifestyle protocol. Metrics
+  // are subject-shaped: HbA1c, fasting glucose, weight, BMI, exercise
+  // adherence, sleep hours, quality of life, 10-year mortality risk,
+  // cardio fitness, side-effect burden.
+  //
+  // Why patient-twin over org-twin: the canonical "digital twin" most
+  // viewers think of is a person under intervention with concrete,
+  // measurable outcomes. Patient-twin is the use case the landing page
+  // already names (digital-twin medicine), and the metrics — A1c
+  // dropping, weight coming off — are unambiguously person-shaped, so
+  // the result panel reads as a real digital twin rather than a
+  // generic org sim with labels stapled on.
+  //
+  // The first /api/quickstart/simulate-intervention call compiles and
+  // caches; later calls reuse the same WorldModel so a series of
+  // digital-twin runs costs one compile.
+  let digitalTwinWorld: WorldModel | null = null;
+  let digitalTwinCompilePromise: Promise<WorldModel | null> | null = null;
+  const getDigitalTwinWorld = (): Promise<WorldModel | null> => {
+    if (digitalTwinWorld) return Promise.resolve(digitalTwinWorld);
+    if (digitalTwinCompilePromise) return digitalTwinCompilePromise;
+    digitalTwinCompilePromise = (async () => {
+      const scenarioPath = resolve(scenarioDir, 't2d-glp1-protocol.json');
+      if (!existsSync(scenarioPath)) {
+        console.log(`  [digital-twin] Scenario file missing: ${scenarioPath}`);
+        digitalTwinCompilePromise = null;
+        return null;
+      }
+      try {
+        const raw = JSON.parse(readFileSync(scenarioPath, 'utf-8')) as Record<string, unknown>;
+        const compiled = await compileScenarioReal(raw, {
+          provider: 'openai',
+          model: 'gpt-5.4-mini',
+          cache: true,
+        });
+        digitalTwinWorld = WorldModel.fromScenario(compiled);
+        console.log(`  [digital-twin] Compiled + cached ${compiled.id} (${compiled.labels?.name ?? 'unnamed'})`);
+        return digitalTwinWorld;
+      } catch (err) {
+        console.error('  [digital-twin] Compile failed:', err);
+        digitalTwinCompilePromise = null;
+        return null;
+      }
+    })();
+    return digitalTwinCompilePromise;
+  };
+  // Pre-warm the digital-twin world on server boot so the first user
+  // request does not pay the ~30-60s compile inside its response. Cloudflare
+  // proxies paracosm.agentos.sh with a 100s gateway timeout, so a cold
+  // compile + 2-turn simulation reliably tripped 524 errors. Pre-warming
+  // moves the compile off the user's critical path; the cookbook's
+  // disk cache means restarts after the first one are nearly free.
+  // Fire-and-forget — failure is logged from inside getDigitalTwinWorld
+  // and the route handler still surfaces a 503 if the user beats the
+  // pre-warm to the request.
+  void getDigitalTwinWorld();
   const clients: Set<ServerResponse> = new Set();
 
   // Event buffer: stores all broadcast events so new clients can catch up.
@@ -438,9 +557,14 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
   const sessionsDbPath = resolve(env.APP_DIR || '.', 'data', 'sessions.db');
   if (!sessionStore) try {
     sessionStore = openSessionStore(sessionsDbPath);
-    console.log(`  [sessions] Opened session store at ${sessionsDbPath} (${sessionStore.count()} stored)`);
+    // The store opens its underlying adapter lazily — fire-and-forget
+    // an initial count() so we surface the stored-rows hint at boot
+    // without forcing createMarsServer itself to be async.
+    sessionStore.count()
+      .then((n) => console.log(`  [sessions] Opened session store at ${sessionsDbPath} (${n} stored)`))
+      .catch((err) => console.log(`  [sessions] Initial count failed: ${err}`));
   } catch (err) {
-    // Don't crash the server if SQLite init fails (missing native binary,
+    // Don't crash the server if SQL backend init fails (missing native binary,
     // disk full, etc) — sims still run, the /sessions and /admin/sessions
     // routes just return 503.
     console.log(`  [sessions] Failed to open session store: ${err}`);
@@ -592,7 +716,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
    * but never propagate: a cache write failure must not fail the
    * client-facing broadcast.
    */
-  const autoSaveOnComplete = () => {
+  const autoSaveOnComplete = async () => {
     // Every branch logs a single [sessions] line so production can see
     // in server stderr/stdout WHY a run did or did not make it into the
     // ring. Without these, a save silently failing on a writable-but-
@@ -649,15 +773,23 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       return;
     }
 
+    // Claim the save BEFORE the first await so a synchronous double
+    // `complete` broadcast doesn't race past the `currentRunSaved`
+    // guard above. The sync better-sqlite3 implementation got this for
+    // free because saveSession returned before the next event landed;
+    // the async sql-storage-adapter version has to flip the flag up
+    // front so re-entrant calls early-return. Stays true on failure
+    // (matches sync behavior — throws bubble out of saveSession either
+    // way and a doubled `complete` shouldn't trigger a retry).
+    currentRunSaved = true;
     try {
       const now = Date.now();
       const events: TimestampedEvent[] = eventBuffer.map((sse, i) => ({
         ts: eventTimestamps[i] || now,
         sse,
       }));
-      const result = sessionStore.saveSession(events);
-      currentRunSaved = true;
-      const storeCount = sessionStore.count();
+      const result = await sessionStore.saveSession(events);
+      const storeCount = await sessionStore.count();
       console.log(`[sessions] auto-saved run ${result.id}: ${events.length} events, ${turnDoneCount} turns (store count: ${storeCount})`);
       emitSaveStatus('saved', {
         id: result.id,
@@ -674,10 +806,10 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       // without a round-trip to /sessions.
       const titleProvider = simConfig?.provider === 'anthropic' ? 'anthropic' : 'openai';
       const store = sessionStore; // non-null inside this closure
-      void generateSessionTitle(events, titleProvider, runGenerateText).then((title) => {
+      void generateSessionTitle(events, titleProvider, runGenerateText).then(async (title) => {
         if (!title) return;
         try {
-          store.updateTitle(result.id, title);
+          await store.updateTitle(result.id, title);
           console.log(`[sessions] titled run ${result.id}: "${title}"`);
           try {
             broadcast('sim_saved', {
@@ -720,7 +852,9 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
     // picture.
     if (event === 'complete') {
       captureRetrySnapshot();
-      autoSaveOnComplete();
+      autoSaveOnComplete().catch((err) => {
+        console.error('[sessions] auto-save failed:', err);
+      });
     }
   };
 
@@ -826,18 +960,33 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       runHistoryEnvFlag === 'true' ? true :
       runHistoryEnvFlag === 'false' ? false :
       runHistoryRoutesDefault;
-    if (await handlePlatformApiRoute(req, res, {
-      runHistoryStore,
-      corsHeaders,
-      paracosmRoutesEnabled,
-      scenarioLookup: (id) => customScenarioCatalog.get(id)?.scenario,
-    })) {
+
+    // Bundle + Library-import handlers run BEFORE handlePlatformApiRoute
+    // because that handler's "unknown_platform_route" 404 fires for any
+    // /api/v1/* path it doesn't recognize — including these. Without
+    // this ordering the Compare modal showed
+    // 'Failed to load bundle: HTTP 404 unknown_platform_route' on every
+    // bundle fetch, even though a perfectly good bundle handler lived
+    // 30 lines further down.
+    if (paracosmRoutesEnabled && req.url === '/api/v1/library/import' && req.method === 'POST') {
+      if (!runHistoryStore) {
+        res.writeHead(503, { 'Content-Type': 'application/json', ...corsHeaders });
+        res.end(JSON.stringify({ error: 'Run-history store disabled' }));
+        return;
+      }
+      try {
+        const body = JSON.parse(await readBody(req, maxRequestBodyBytes));
+        const { handleLibraryImport } = await import('./server/library-import-route.js');
+        await handleLibraryImport(req, res, body, { runHistoryStore, sourceMode: serverMode });
+      } catch (err) {
+        writeJsonError(res, err);
+      }
       return;
     }
 
     // Compare-runs UI: bundle endpoints. /api/v1/bundles/:id and
     // /api/v1/bundles/:id/aggregate are read-only views over the
-    // RunHistoryStore. Same gating as platform-api routes above.
+    // RunHistoryStore. Same gating as platform-api routes below.
     if (paracosmRoutesEnabled && req.url?.startsWith('/api/v1/bundles/') && req.method === 'GET') {
       const match = req.url.match(/^\/api\/v1\/bundles\/([^/?]+)(\/aggregate)?(\?.*)?$/);
       if (!match) {
@@ -854,6 +1003,15 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       } catch (err) {
         writeJsonError(res, err);
       }
+      return;
+    }
+
+    if (await handlePlatformApiRoute(req, res, {
+      runHistoryStore,
+      corsHeaders,
+      paracosmRoutesEnabled,
+      scenarioLookup: (id) => customScenarioCatalog.get(id)?.scenario,
+    })) {
       return;
     }
 
@@ -1070,6 +1228,17 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
           // intent when only one of OPENAI/ANTHROPIC is in env.
           defaultProvider: 'openai',
           defaultModel: 'gpt-5.4-mini',
+          recordGroundingCitations: (scenarioId, citations) => {
+            groundingCitationsByScenarioId.set(scenarioId, citations);
+          },
+          getDigitalTwinWorld,
+          // Pipe simulate-intervention's per-event stream into the same
+          // SSE bus /setup uses. The dashboard's useSSE is already
+          // listening; flipping this on lights up live SIM progress for
+          // digital-twin runs without any client reset on the SSE
+          // connection itself.
+          broadcast,
+          resetEventBuffer: clearEventBuffer,
         };
         if (req.url === '/api/quickstart/fetch-seed') {
           await handleFetchSeed(req, res, body, quickstartDeps);
@@ -1081,6 +1250,14 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         }
         if (req.url === '/api/quickstart/generate-actors') {
           await handleGenerateActors(req, res, body, quickstartDeps);
+          return;
+        }
+        if (req.url === '/api/quickstart/ground-scenario') {
+          await handleGroundScenario(req, res, body, quickstartDeps);
+          return;
+        }
+        if (req.url === '/api/quickstart/simulate-intervention') {
+          await handleSimulateIntervention(req, res, body, quickstartDeps);
           return;
         }
         res.writeHead(404, { 'Content-Type': 'application/json' });
@@ -1308,12 +1485,46 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
     // Rate limit status endpoint
     // Post-simulation colonist chat
     if (req.url === '/chat' && req.method === 'POST') {
+      let inflightSlot = false;
       try {
-        const { agentId, message, apiKey, anthropicKey } = JSON.parse(await readBody(req, maxRequestBodyBytes));
+        const parsed = JSON.parse(await readBody(req, maxRequestBodyBytes));
+        const { agentId, message, history, apiKey, anthropicKey } = parsed;
         if (!agentId || !message) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'agentId and message required' }));
           return;
+        }
+        // Hard caps on attacker-controlled inputs. Each /chat fires a
+        // multi-thousand-token LLM call against the host's API key, so
+        // unchecked message + history bytes are a direct cost-drain
+        // vector (one POST with 100KB of crafted history is a 25k+
+        // token call). Buckets are conservative — real human chats are
+        // a few hundred bytes; a 4KB cap on the live message and 32KB
+        // on cumulative history covers any real conversation.
+        const MAX_MESSAGE_BYTES = 4_096;
+        const MAX_HISTORY_BYTES = 32_768;
+        const MAX_HISTORY_TURNS = 32;
+        const messageBytes = Buffer.byteLength(String(message), 'utf-8');
+        if (messageBytes > MAX_MESSAGE_BYTES) {
+          res.writeHead(413, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: `message exceeds ${MAX_MESSAGE_BYTES} bytes (got ${messageBytes})` }));
+          return;
+        }
+        if (Array.isArray(history)) {
+          if (history.length > MAX_HISTORY_TURNS) {
+            res.writeHead(413, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: `history exceeds ${MAX_HISTORY_TURNS} turns (got ${history.length})` }));
+            return;
+          }
+          let total = 0;
+          for (const h of history) {
+            total += Buffer.byteLength(String(h?.content ?? ''), 'utf-8');
+            if (total > MAX_HISTORY_BYTES) {
+              res.writeHead(413, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: `history exceeds ${MAX_HISTORY_BYTES} bytes (cumulative content)` }));
+              return;
+            }
+          }
         }
 
         const chatCredentials = {
@@ -1328,6 +1539,19 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         // (same contract as /setup and /compile). 200/hour leaves
         // plenty of headroom for real host-billed users exploring
         // colonist conversations.
+        // Concurrency cap: rejects bursts before they can spawn N
+        // parallel LLM calls in flight. Applies even to user-keyed
+        // requests because a single laptop spamming requests with a
+        // valid key still hammers the server's outbound connection
+        // pool and the LLM provider's rate limit.
+        if (chatInflight >= chatConcurrencyCap) {
+          res.writeHead(429, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            error: 'Too many concurrent chat requests. Try again in a moment.',
+          }));
+          return;
+        }
+
         if (rateLimiter && !chatUserKey) {
           const ip = IpRateLimiter.getIp(req);
           const { allowed, remaining, resetAt, limit } = rateLimiter.consumeChat(ip);
@@ -1346,12 +1570,12 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
             }));
             return;
           }
-          if (remaining < 20) {
-            // Warn in logs when a user is nearing the cap; helps diagnose
-            // legit-user complaints from actual abuse.
+          if (remaining < 5) {
             console.log(`  [rate-limit] /chat ${ip}: ${remaining} remaining of ${limit}`);
           }
         }
+        chatInflight++;
+        inflightSlot = true;
 
         // The chat route builds agents from the event buffer. If the
         // buffer was lost (fresh boot with no persisted snapshot on disk,
@@ -1439,6 +1663,12 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         }));
       } catch (err) {
         writeJsonError(res, err, 500);
+      } finally {
+        // Only release if THIS request actually claimed a slot.
+        // Early-return paths (validation failures, rate-limit 429s)
+        // exit before chatInflight++, so we'd otherwise decrement
+        // somebody else's slot.
+        if (inflightSlot) chatInflight--;
       }
       return;
     }
@@ -1508,11 +1738,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
     // the original pacing (or accelerated via ?speed=N).
 
     if (req.url === '/admin/sessions/save' && req.method === 'POST') {
-      if (!adminWrite) {
-        res.writeHead(403, { 'Content-Type': 'application/json', ...corsHeaders });
-        res.end(JSON.stringify({ error: 'ADMIN_WRITE not enabled on this server' }));
-        return;
-      }
+      if (!requireAdminToken(req, res)) return;
       if (!sessionStore) {
         res.writeHead(503, { 'Content-Type': 'application/json', ...corsHeaders });
         res.end(JSON.stringify({ error: 'session store unavailable' }));
@@ -1533,13 +1759,76 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
           ts: eventTimestamps[i] || now,
           sse,
         }));
-        const result = sessionStore.saveSession(events);
+        const result = await sessionStore.saveSession(events);
+        const totalStored = await sessionStore.count();
         res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders });
         res.end(JSON.stringify({
           ...result,
           eventCount: events.length,
-          totalStored: sessionStore.count(),
+          totalStored,
         }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json', ...corsHeaders });
+        res.end(JSON.stringify({ error: String(err) }));
+      }
+      return;
+    }
+
+    // Admin destructive wipe: clears the runs + sessions tables and
+    // optionally the on-disk artifact JSONs under <APP_DIR>/output/.
+    // Same admin gate as /admin/sessions/save above. Returns the
+    // counts of deleted rows + files.
+    if (req.url === '/admin/data/wipe' && req.method === 'POST') {
+      if (!requireAdminToken(req, res)) return;
+      let body: { wipeRuns?: boolean; wipeSessions?: boolean; wipeOutput?: boolean; wipeEventBuffer?: boolean } = {};
+      try {
+        const raw = await readBody(req, maxRequestBodyBytes);
+        if (raw) body = JSON.parse(raw);
+      } catch (err) {
+        void err; // Empty body is fine — defaults below.
+      }
+      const wipeRuns = body.wipeRuns !== false;
+      const wipeSessions = body.wipeSessions !== false;
+      const wipeOutput = body.wipeOutput === true;
+      // Default-on: the event buffer is the SSE replay source. Leaving
+      // it intact while wiping every other store means a page reload
+      // re-renders the just-wiped run from the buffer, which surprised
+      // users and looked like Wipe All wasn't actually working.
+      const wipeEventBuffer = body.wipeEventBuffer !== false;
+
+      const result: { runs: number; sessions: number; outputFiles: number; eventBuffer: boolean } = { runs: 0, sessions: 0, outputFiles: 0, eventBuffer: false };
+      try {
+        if (wipeRuns && runHistoryStore?.wipeAll) {
+          result.runs = await runHistoryStore.wipeAll();
+        }
+        if (wipeSessions && sessionStore) {
+          result.sessions = await sessionStore.wipeAll();
+        }
+        if (wipeEventBuffer) {
+          // Same path the in-process /clear endpoint uses: clear the
+          // in-memory buffer + cancel any pending persist + remove the
+          // .event-buffer.json snapshot from disk.
+          clearEventBuffer();
+          simConfig = null;
+          result.eventBuffer = true;
+        }
+        if (wipeOutput) {
+          const outputDir = resolve(env.APP_DIR || '.', 'output');
+          if (existsSync(outputDir)) {
+            for (const file of readdirSync(outputDir)) {
+              if (file.startsWith('v3-') && file.endsWith('.json')) {
+                try {
+                  unlinkSync(resolve(outputDir, file));
+                  result.outputFiles += 1;
+                } catch (err) {
+                  void err; // Best-effort; one failure shouldn't abort the rest.
+                }
+              }
+            }
+          }
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders });
+        res.end(JSON.stringify({ wiped: result }));
       } catch (err) {
         res.writeHead(500, { 'Content-Type': 'application/json', ...corsHeaders });
         res.end(JSON.stringify({ error: String(err) }));
@@ -1554,8 +1843,9 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         return;
       }
       try {
+        const sessions = await sessionStore.listSessions();
         res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders });
-        res.end(JSON.stringify({ sessions: sessionStore.listSessions() }));
+        res.end(JSON.stringify({ sessions }));
       } catch (err) {
         res.writeHead(500, { 'Content-Type': 'application/json', ...corsHeaders });
         res.end(JSON.stringify({ error: String(err) }));
@@ -1580,7 +1870,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         res.end(JSON.stringify({ error: 'invalid session id' }));
         return;
       }
-      const session = sessionStore.getSession(id);
+      const session = await sessionStore.getSession(id);
       if (!session) {
         res.writeHead(404, { 'Content-Type': 'application/json', ...corsHeaders });
         res.end(JSON.stringify({ error: 'session not found', id }));
@@ -1601,7 +1891,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       const id = url.pathname.replace(/^\/sessions\//, '').replace(/\/replay$/, '');
       const speedRaw = url.searchParams.get('speed');
       const speed = Math.max(0.25, Math.min(50, speedRaw ? parseFloat(speedRaw) || 1 : 1));
-      const session = sessionStore.getSession(id);
+      const session = await sessionStore.getSession(id);
       if (!session) {
         res.writeHead(404, { 'Content-Type': 'application/json', ...corsHeaders });
         res.end(JSON.stringify({ error: 'session not found', id }));
@@ -1881,16 +2171,86 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       }
     }
 
-    // Serve demo videos (Remotion-rendered loops shown on the landing page).
-    // Long cache: rendered output is content-addressable enough that the
-    // landing's <video src> changes when content changes.
+    // Serve demo videos (Remotion-rendered loops shown on the landing
+    // page). Long cache: rendered output is content-addressable enough
+    // that the landing's <video src> changes when content changes.
+    //
+    // Honors HTTP Range requests so the landing-page <video controls>
+    // scrubber can seek without buffering the whole file. Without this,
+    // the prior implementation sent HTTP 200 + the full body even when
+    // a Range header was present — Cloudflare cached that as a
+    // non-rangeable response, which disabled the timeline scrubber for
+    // every visitor. The mp4 itself has +faststart (moov atom at the
+    // front) so the browser only needs the byte range it asked for to
+    // render any timestamp.
     if (req.url?.split('?')[0].startsWith('/demo/')) {
       const demoPath = resolve(__dirname, '..', '..', 'assets', 'demo', req.url.split('?')[0].replace('/demo/', ''));
       if (existsSync(demoPath)) {
         const ext = demoPath.split('.').pop() || '';
-        const types: Record<string,string> = { mp4:'video/mp4', webm:'video/webm', png:'image/png', jpg:'image/jpeg' };
-        res.writeHead(200, { 'Content-Type': types[ext] || 'application/octet-stream', 'Cache-Control': 'public, max-age=86400' });
-        res.end(readFileSync(demoPath));
+        const types: Record<string, string> = { mp4: 'video/mp4', webm: 'video/webm', png: 'image/png', jpg: 'image/jpeg' };
+        const contentType = types[ext] || 'application/octet-stream';
+        const stat = statSync(demoPath);
+        const fileSize = stat.size;
+        const rangeHeader = req.headers.range;
+
+        if (rangeHeader) {
+          // Parse `bytes=<start>-<end?>`. Accepts open-ended end so
+          // browsers can ask for "everything from offset N onward" and
+          // suffix-byte ranges (`bytes=-N`) for the last N bytes of the
+          // file. Malformed headers fall through to a 416.
+          const match = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader.trim());
+          if (!match) {
+            res.writeHead(416, {
+              'Content-Range': `bytes */${fileSize}`,
+              'Content-Type': 'text/plain',
+            });
+            res.end('Malformed Range header');
+            return;
+          }
+          let start: number;
+          let end: number;
+          if (match[1] === '' && match[2] !== '') {
+            // Suffix range: "bytes=-N" → last N bytes.
+            const suffix = parseInt(match[2], 10);
+            start = Math.max(fileSize - suffix, 0);
+            end = fileSize - 1;
+          } else {
+            start = match[1] === '' ? 0 : parseInt(match[1], 10);
+            end = match[2] === '' ? fileSize - 1 : parseInt(match[2], 10);
+          }
+          if (Number.isNaN(start) || Number.isNaN(end) || start > end || start >= fileSize) {
+            res.writeHead(416, {
+              'Content-Range': `bytes */${fileSize}`,
+              'Content-Type': 'text/plain',
+            });
+            res.end('Requested range not satisfiable');
+            return;
+          }
+          end = Math.min(end, fileSize - 1);
+          const chunkSize = end - start + 1;
+          res.writeHead(206, {
+            'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+            'Accept-Ranges': 'bytes',
+            'Content-Length': String(chunkSize),
+            'Content-Type': contentType,
+            'Cache-Control': 'public, max-age=86400',
+          });
+          // Stream the requested chunk so we don't buffer the whole
+          // file into memory per request.
+          createReadStream(demoPath, { start, end }).pipe(res);
+          return;
+        }
+
+        // No Range header: full-file response, but still advertise
+        // Accept-Ranges so browsers know they can seek on subsequent
+        // requests.
+        res.writeHead(200, {
+          'Content-Type': contentType,
+          'Content-Length': String(fileSize),
+          'Accept-Ranges': 'bytes',
+          'Cache-Control': 'public, max-age=86400',
+        });
+        createReadStream(demoPath).pipe(res);
         return;
       }
     }
@@ -2010,6 +2370,13 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
   .col-sidebar{display:none!important}
   .pdh-hamburger{display:flex}
   .pdh-right a,.pdh-right .pdh-search{display:none!important}
+}
+/* Below 600px the AGENTOS tag, separator, and "API Reference vX" text
+ * all squeeze between the brand and the theme/hamburger buttons,
+ * forcing the version label to wrap onto 3 lines. The user is already
+ * on /docs at that point so the breadcrumb is redundant — drop it. */
+@media(max-width:600px){
+  .pdh-tag,.pdh-sep,.pdh-current{display:none!important}
 }
 </style></head>`
             );

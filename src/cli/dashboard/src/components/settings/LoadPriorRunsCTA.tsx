@@ -1,7 +1,5 @@
 import { useMemo, useRef } from 'react';
 import { useSessions } from '../../hooks/useSessions';
-import { buildReplayHref } from '../layout/LoadMenu.helpers';
-import { resolveSetupRedirectHref } from '../../tab-routing';
 
 interface LoadPriorRunsCTAProps {
   /** Hide entirely when the session store is unavailable (server flag
@@ -37,8 +35,16 @@ export function LoadPriorRunsCTA({ hideWhenUnavailable = true }: LoadPriorRunsCT
   if (status === 'unavailable' && hideWhenUnavailable) return null;
 
   const handleOpen = (id: string) => {
-    const href = buildReplayHref(window.location.href, id);
-    window.location.assign(resolveSetupRedirectHref(href, 'sim'));
+    // Build a URL that BOTH carries ?replay=<id> AND lands on tab=sim.
+    // Earlier we routed through resolveSetupRedirectHref(href, 'sim'),
+    // but that helper is for server /setup redirects — it rebuilds the
+    // URL from the redirect path and drops the ?replay query, leaving
+    // the user on /sim?tab=sim with no replay session attached.
+    const url = new URL(window.location.href);
+    url.searchParams.set('replay', id);
+    url.searchParams.set('tab', 'sim');
+    url.hash = '';
+    window.location.assign(url.toString());
   };
 
   const formatCreatedAt = (ts: number) => {

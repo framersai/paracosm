@@ -260,18 +260,23 @@ export function RunMenu({
                 <div className={historyStyles.historyList}>
                   {history.map((entry) => {
                     const ts = Date.parse(entry.createdAt) || entry.id;
-                    const leaders =
-                      entry.summary.actorNames.join(' vs ') ||
+                    // Defensive: legacy entries (pre-0.8.0 storage key
+                    // bump) carry `leaderNames` instead of `actorNames`.
+                    // The HISTORY_STORAGE_KEY bump orphans those, but
+                    // belt-and-suspenders with `?? []` so a future
+                    // schema drift can't crash the run-menu render.
+                    const actors =
+                      (entry.summary.actorNames ?? []).join(' vs ') ||
                       entry.scenarioShortName;
                     const turns = entry.summary.turnCount
                       ? `${entry.summary.turnCount} turn${entry.summary.turnCount === 1 ? '' : 's'}`
                       : '';
                     // Dedup: when actorNames is empty we already fell
-                    // back to scenarioShortName for `leaders`; don't
+                    // back to scenarioShortName for `actors`; don't
                     // repeat it in line2.
                     const line2 = [
-                      leaders,
-                      leaders !== entry.scenarioShortName ? entry.scenarioShortName : '',
+                      actors,
+                      actors !== entry.scenarioShortName ? entry.scenarioShortName : '',
                       turns,
                     ]
                       .filter(Boolean)
@@ -299,7 +304,7 @@ export function RunMenu({
                           }}
                         >
                           <div className={historyStyles.historyCardTitle}>
-                            {leaders}
+                            {actors}
                           </div>
                           <div className={historyStyles.historyCardLine2}>
                             {line2}
@@ -315,17 +320,22 @@ export function RunMenu({
                     <button
                       type="button"
                       className={historyStyles.historyClearAll}
+                      title="Wipe everything in this browser: saved-runs ring, event cache, current sim state. Server data untouched — use Wipe All in the ⋯ menu for that."
                       onClick={() => {
                         if (
                           window.confirm(
-                            'Clear all local history? This cannot be undone.',
+                            'Clear all local browser state?\n\n' +
+                            '  • Saved-runs ring (this dropdown)\n' +
+                            '  • Event cache (Sim / Constellation / Log)\n' +
+                            '  • Current SSE state\n\n' +
+                            'Server-stored runs are NOT affected (use Wipe All in the ⋯ menu for that).\n\nCannot be undone.',
                           )
                         ) {
                           onClearHistory();
                         }
                       }}
                     >
-                      Clear local history
+                      Clear local data
                     </button>
                   )}
                 </div>

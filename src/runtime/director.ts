@@ -171,10 +171,17 @@ function buildDirectorPrompt(ctx: DirectorContext, maxEvents: number = 3): strin
     );
   }
   if (ctx.knowledgeCategories?.length) {
+    // "prefer" was too soft — the LLM kept picking generic narrative
+    // categories ("founding", "legacy") even when the scenario's
+    // categoryMapping listed domain-specific keys. The scenario's
+    // effects map only fires for matching categories, so off-list
+    // picks silently bypass every metric update. "MUST" with the
+    // exact list closes the loophole. We allow at most 24 categories
+    // before truncation so domain-rich scenarios don't lose options.
     knowledgeBlock.push(
       '',
-      'KNOWLEDGE BUNDLE CATEGORIES (prefer one of these for the event category field):',
-      `  ${ctx.knowledgeCategories.slice(0, 12).join(', ')}`,
+      `EVENT CATEGORY (MUST be exactly one of these — the scenario's effects map keys to these and any other value bypasses metric updates):`,
+      `  ${ctx.knowledgeCategories.slice(0, 24).join(', ')}`,
     );
   }
 

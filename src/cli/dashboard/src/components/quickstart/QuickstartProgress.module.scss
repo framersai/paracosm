@@ -1,14 +1,41 @@
+/* Quickstart progress panel: header strip + ordered list of expandable
+   stage cards + cancel CTA. The cards themselves carry their own
+   styling (QuickstartStageCard.module.scss); this file just lays them
+   out and styles the wrapper chrome. */
+
 .progress {
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  padding: 24px;
-  max-width: 640px;
+  gap: 16px;
+  padding: 22px clamp(14px, 3vw, 28px);
+  max-width: 760px;
   margin: 0 auto;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   font-family: var(--sans);
+}
+
+.heading {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 4px;
+}
+
+.title {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+
+.subtitle {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-2);
 }
 
 .stageList {
@@ -17,92 +44,14 @@
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+  /* The whole list is the dashboard's central console — let it hold a
+     little internal padding-left so the per-card status markers align
+     into a clean column. */
 }
 
-.stage {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 12px;
-  border-radius: var(--radius-sm);
-  background: var(--bg-input);
-  border: 1px solid var(--border-subtle);
-  font-family: var(--mono);
-  font-size: 13px;
-
-  &.status_pending {
-    color: var(--text-3);
-  }
-  &.status_active {
-    color: var(--amber);
-    border-color: var(--amber-dim);
-    background: var(--amber-glow);
-  }
-  &.status_done {
-    color: var(--green);
-  }
-}
-
-.marker {
-  display: inline-flex;
-  width: 20px;
-  justify-content: center;
-  font-family: var(--mono);
-  font-weight: 700;
-}
-
-.label {
-  flex: 1;
-}
-
-.leaders {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-}
-
-.leader {
-  display: grid;
-  grid-template-columns: 1fr 1fr auto;
-  gap: 8px;
-  padding: 6px 10px;
-  background: var(--bg-input);
-  border-radius: var(--radius-sm);
-  font-family: var(--mono);
-  font-size: 12px;
-  align-items: center;
-}
-
-.actorName {
-  color: var(--text-1);
-  font-weight: 600;
-}
-
-.actorArchetype {
-  color: var(--text-3);
-}
-
-.leaderStatus {
-  text-align: right;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-
-  &.leader_running {
-    color: var(--amber);
-  }
-  &.leader_complete {
-    color: var(--green);
-  }
-  &.leader_error {
-    color: var(--rust);
-  }
-  &.leader_aborted {
-    color: var(--text-3);
-  }
+.stageItem {
+  display: block;
 }
 
 .cancel {
@@ -117,14 +66,15 @@
   cursor: pointer;
   text-transform: uppercase;
   letter-spacing: 0.4px;
+  transition: color 0.15s, border-color 0.15s;
+}
 
-  &:hover {
-    color: var(--rust);
-    border-color: var(--rust-dim);
-  }
+.cancel:hover {
+  color: var(--rust);
+  border-color: rgba(176, 90, 50, 0.5);
+}
 
-  &:focus-visible {
-    outline: 2px solid var(--amber);
-    outline-offset: 2px;
-  }
+.cancel:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
 }

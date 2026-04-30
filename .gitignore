@@ -6,6 +6,24 @@ output/
 .env
 docs/plans/
 docs/specs/
+# Local-only working notes: spec drafts, plan drafts, session handoffs,
+# audit reports, code-review summaries. None of this belongs in the
+# public repo. Handoff files have leaked SSH creds and API keys when
+# operators paste them in mid-debug, and even the safe ones are
+# transient session state.
+docs/superpowers/
+docs/audit-*.md
+docs/AUDIT-*.md
+docs/HANDOFF*.md
+docs/NEXT_SESSION*.md
+docs/NEXT-SESSION*.md
+# Auto-generated scenario cache. The compile pipeline writes per-version
+# cache directories with director.ts / progression.ts / fingerprint.ts /
+# milestones.ts / reactions.ts placeholders + seed-bundle JSON. They're
+# regenerable from any prompt, mostly contain runtime-evaluated function
+# bodies that aren't valid TS modules on their own, and pollute every
+# `git status` after a Quickstart run.
+.paracosm/
 AUDIT-*.md
 NEXT-SESSION*.md
 SESSION-HANDOFF.md

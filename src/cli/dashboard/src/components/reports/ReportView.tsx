@@ -156,7 +156,8 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
           });
           return;
         }
-        navigate('branches');
+        // Branches is a sub-tab of Studio after the merge.
+        navigate('studio');
       } catch (err) {
         branchesDispatch({
           type: 'BRANCH_ERROR',

@@ -1,0 +1,250 @@
+.card {
+  max-width: 720px;
+  margin: 16px auto 0;
+  width: 100%;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-family: var(--sans);
+}
+
+.heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.title {
+  color: var(--amber);
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.eyebrow {
+  color: var(--text-3);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.copy {
+  color: var(--text-2);
+  font-size: 12.5px;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.caseInput {
+  width: 100%;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  color: var(--text-1);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.55;
+  resize: vertical;
+  min-height: 96px;
+  outline: none;
+  transition: border-color 0.15s ease;
+
+  &::placeholder {
+    color: var(--text-3);
+    opacity: 0.85;
+  }
+
+  &:focus {
+    border-color: var(--amber);
+  }
+}
+
+.parsedHint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-3);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin: 4px 0 -2px;
+}
+
+.parsedHintArrow {
+  color: var(--amber);
+  font-size: 13px;
+  line-height: 1;
+}
+
+.preview {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.previewCell {
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 220px;
+}
+
+.previewHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-bottom: 1px solid var(--border-soft);
+  padding-bottom: 6px;
+  margin-bottom: 2px;
+}
+
+.previewLabel {
+  color: var(--text-3);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.previewId {
+  color: var(--text-3);
+  font-family: var(--mono);
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+// Legacy classes kept so older callers / e2e snapshots don't break.
+.previewName {
+  color: var(--amber);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.previewMeta {
+  color: var(--text-3);
+  font-family: var(--mono);
+  font-size: 10.5px;
+}
+
+.fieldList {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.field {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  gap: 10px;
+  align-items: baseline;
+  font-family: var(--mono);
+  font-size: 11px;
+  transition: opacity 0.18s ease-out;
+  min-height: 18px;
+}
+
+.fieldLabel {
+  color: var(--text-3);
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  text-align: right;
+}
+
+.fieldValue {
+  color: var(--amber);
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.cursor {
+  display: inline-block;
+  color: var(--amber);
+  margin-left: 1px;
+  animation: idc-cursor 0.9s steps(2, end) infinite;
+}
+
+@keyframes idc-cursor {
+  0%, 49%   { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.button {
+  background: var(--amber);
+  color: #1a1a1a;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 10px 18px;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background: #ffe89c;
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+.helper {
+  color: var(--text-3);
+  font-family: var(--mono);
+  font-size: 10.5px;
+}
+
+.spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 217, 112, 0.3);
+  border-top-color: var(--amber);
+  border-radius: 50%;
+  animation: idc-spin 0.8s linear infinite;
+  display: inline-block;
+  vertical-align: -2px;
+  margin-right: 8px;
+}
+
+.timer {
+  color: var(--amber);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+@keyframes idc-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

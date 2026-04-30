@@ -550,11 +550,42 @@
     .stats-bar { overflow-x: auto !important; justify-content: flex-start !important; -webkit-overflow-scrolling: touch; }
 
     /* TabBar stays a single row at every width now that labels switch
-       to icons below 900px in TabBar.tsx. Icons are narrow enough that
-       7 tabs fit even on phone-width screens without wrapping, so we
-       keep flex-nowrap and lean on min-width for tap target size. */
-    .tab-bar { flex-wrap: nowrap !important; }
-    .tab-bar button { flex-shrink: 1 !important; min-width: 40px !important; }
+       to icons below 900px in TabBar.tsx. The bar horizontal-scrolls
+       past ~340px viewports (10 tabs × 34px min-width) so each tap
+       target stays readable rather than crushing into 24px slivers,
+       and `-webkit-overflow-scrolling: touch` keeps momentum on iOS. */
+    .tab-bar {
+      flex-wrap: nowrap !important;
+      overflow-x: auto !important;
+      -webkit-overflow-scrolling: touch;
+    }
+    .tab-bar button { flex-shrink: 0 !important; min-width: 44px !important; }
+  }
+
+  /* Narrow tablet portrait / phone landscape. The mid-row of T / Y / S
+     meta tokens + the GITHUB chip + the status pill all fight the
+     PARACOSM logo for horizontal space below ~640px and used to render
+     overlapping. Drop the meta tokens (still visible on the StatsBar
+     pills below the topbar) and collapse GITHUB to icon-only here so
+     the brand never collides with the action cluster. */
+  @media (max-width: 640px) {
+    .topbar-meta { display: none !important; }
+    .topbar-github-label { display: none !important; }
+    .topbar-github { padding-left: 7px !important; padding-right: 7px !important; }
+    /* Hide the "Live"/"Complete" status text; the colored dot still
+       conveys state, freeing room for the overflow menu + theme toggle. */
+    .topbar-status-text { display: none !important; }
+
+    /* Footer wraps onto multiple rows below ~640px because the nav
+       links + status chip + cost span + brand attribution can't fit a
+       single row. Justify-content: flex-start so wrapped rows hug the
+       left edge instead of leaving uneven gaps from space-between, and
+       tighten padding for phone density. */
+    footer[role="contentinfo"] {
+      justify-content: flex-start !important;
+      padding: 6px 12px !important;
+      row-gap: 6px !important;
+    }
   }
 
   /* Phone */
@@ -570,12 +601,6 @@
     .leaders-row { flex-direction: column !important; }
     .leaders-row > div { width: 100% !important; }
 
-    /* TopBar minimal */
-    .topbar-meta { display: none !important; }
-    /* GitHub CTA collapses to icon-only on phone to save horizontal space */
-    .topbar-github-label { display: none !important; }
-    .topbar-github { padding-left: 7px !important; padding-right: 7px !important; }
-
     /* Stats bar: collapse full-word pill labels to single-char icons so
        POP / MORALE / POWER / DEATHS / TOOLS / CITES / REUSE fit a single
        phone-width row instead of forcing horizontal scroll. The data
@@ -583,6 +608,11 @@
        .pill-label-short shows at <480px. */
     .pill-label-full { display: none !important; }
     .pill-label-short { display: inline !important; }
+
+    /* TabBar tightening so 10 tabs fit in a single non-scrolling row
+       at common iPhone widths (375-430px); the scroll fallback in the
+       768px block still kicks in below ~340px. */
+    .tab-bar button { min-width: 36px !important; padding: 6px 0 !important; }
   }
 
   /* The short-label span stays hidden above phone breakpoint. */

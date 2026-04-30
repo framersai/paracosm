@@ -1,10 +1,15 @@
 /**
  * @fileoverview Persistent storage for completed simulation runs.
  *
- * Captures the SSE event stream of a finished sim into SQLite so visitors
- * to the hosted demo can replay a saved session at original pacing
- * instead of triggering a fresh LLM-powered run. Bounded ring of N most
- * recent saves (oldest evicted) keeps the file size predictable.
+ * Captures the SSE event stream of a finished sim into the active
+ * SQL backend (default: SQLite via better-sqlite3) so visitors to the
+ * hosted demo can replay a saved session at original pacing instead of
+ * triggering a fresh LLM-powered run. Bounded ring of N most recent
+ * saves (oldest evicted) keeps the file size predictable.
+ *
+ * Backed by `@framers/sql-storage-adapter` so the same code runs against
+ * SQLite, Postgres, sql.js, or IndexedDB without changing call sites.
+ * Override the resolver via `STORAGE_ADAPTER=postgres` + `DATABASE_URL`.
  *
  * Single-table schema with the event array stored as a JSON blob — for
  * a ring of 10 saved runs the row count is trivial and full-row reads
@@ -13,7 +18,7 @@
  *
  * @module paracosm/cli/session-store
  */
-import Database from 'better-sqlite3';
+import { createDatabase, type StorageAdapter, type DatabaseOptions } from '@framers/sql-storage-adapter';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -78,9 +83,10 @@ export interface SessionMetaOverride {
 
 /**
  * Lightweight session-store handle returned by {@link openSessionStore}.
- * Methods are synchronous because better-sqlite3 is synchronous and
- * paracosm's server is single-threaded — async coloring would buy
- * nothing and add boilerplate at every call site.
+ * All methods are async because the underlying storage adapter is async
+ * (the adapter abstracts SQLite, Postgres, sql.js, IndexedDB behind one
+ * interface). Existing call sites already live inside async HTTP handlers;
+ * adding `await` is a 1-character change per call.
  */
 export interface SessionStore {
   /**
@@ -91,45 +97,48 @@ export interface SessionStore {
    * Returns the new session's id and (when applicable) the id of the
    * row evicted to make room. Caller can log or surface the eviction.
    */
-  saveSession(events: TimestampedEvent[], override?: SessionMetaOverride): {
+  saveSession(events: TimestampedEvent[], override?: SessionMetaOverride): Promise<{
     id: string;
     evictedId?: string;
-  };
+  }>;
   /** Returns metadata for every stored session, newest first. */
-  listSessions(): SessionMeta[];
+  listSessions(): Promise<SessionMeta[]>;
   /** Loads one session in full. Returns `null` when the id is unknown. */
-  getSession(id: string): StoredSession | null;
+  getSession(id: string): Promise<StoredSession | null>;
   /** Number of currently stored sessions. Useful for tests + smoke checks. */
-  count(): number;
+  count(): Promise<number>;
   /**
    * Overwrite the title for a stored session. No-op when the id does
    * not exist. Surfaced separately so the title pipeline can run
-   * asynchronously after the sync `saveSession` returns — a failed or
-   * slow title LLM call must not block the save itself.
+   * asynchronously after `saveSession` returns — a failed or slow title
+   * LLM call must not block the save itself.
    */
-  updateTitle(id: string, title: string): void;
-  /** Releases the database handle. */
-  close(): void;
+  updateTitle(id: string, title: string): Promise<void>;
+  /**
+   * Destructive: delete every saved session. Used by the
+   * `/admin/data/wipe` endpoint for one-shot cleanups. Returns the
+   * count of deleted rows.
+   */
+  wipeAll(): Promise<number>;
+  /** Releases the underlying connection. */
+  close(): Promise<void>;
 }
 
-/**
- * Open or create the session-store database at `dbPath`.
- *
- * Creates the parent directory when missing so the first call after
- * a fresh deploy doesn't crash on a missing `data/` folder. The
- * single-table schema is created idempotently via CREATE TABLE IF NOT
- * EXISTS, so subsequent reopens are no-ops.
- *
- * @param dbPath Filesystem path to the SQLite database file. Use
- *   `':memory:'` in tests for an isolated in-process DB.
- * @param maxSessions Maximum rows to retain. Defaults to 10. Older
- *   sessions are evicted on save.
- */
-export function openSessionStore(dbPath: string, maxSessions: number = DEFAULT_MAX_SESSIONS): SessionStore {
-  if (dbPath !== ':memory:') mkdirSync(dirname(dbPath), { recursive: true });
-  const db = new Database(dbPath);
-  db.pragma('journal_mode = WAL');
-  db.exec(`
+export interface OpenSessionStoreOptions {
+  /**
+   * Optional override forwarded to `createDatabase`. Tests use this to
+   * pin `type: 'memory'` for hermetic isolation; production code leaves
+   * it undefined and lets the env-driven resolver pick.
+   */
+  databaseOptions?: DatabaseOptions;
+}
+
+function isSqliteAdapter(adapter: StorageAdapter): boolean {
+  return adapter.kind === 'better-sqlite3' || adapter.kind === 'sqljs';
+}
+
+async function bootstrapSchema(adapter: StorageAdapter): Promise<void> {
+  await adapter.exec(`
     CREATE TABLE IF NOT EXISTS sessions (
       id TEXT PRIMARY KEY,
       createdAt INTEGER NOT NULL,
@@ -141,43 +150,74 @@ export function openSessionStore(dbPath: string, maxSessions: number = DEFAULT_M
       eventCount INTEGER NOT NULL,
       durationMs INTEGER,
       totalCostUSD REAL,
-      events TEXT NOT NULL
+      events TEXT NOT NULL,
+      title TEXT
     );
-    CREATE INDEX IF NOT EXISTS idx_sessions_createdAt ON sessions(createdAt);
   `);
+  await adapter.exec(`CREATE INDEX IF NOT EXISTS idx_sessions_createdAt ON sessions(createdAt);`);
 
   // Idempotent schema migration: add `title` on existing DBs without
-  // dropping them. SQLite errors if the column is already present; the
-  // `PRAGMA table_info` check makes this a no-op on newer DBs while
-  // keeping one-file databases migrating cleanly in-place on reopen.
-  const columns = db
-    .prepare<unknown[], { name: string }>('PRAGMA table_info(sessions)')
-    .all()
-    .map((r) => r.name);
-  if (!columns.includes('title')) {
-    db.exec('ALTER TABLE sessions ADD COLUMN title TEXT');
+  // dropping them. Only matters for SQLite (Postgres tenants spin up
+  // with the v0.8 schema directly).
+  if (isSqliteAdapter(adapter)) {
+    const columns = await adapter.all<{ name: string }>('PRAGMA table_info(sessions)');
+    if (!columns.some((c) => c.name === 'title')) {
+      try {
+        await adapter.exec('ALTER TABLE sessions ADD COLUMN title TEXT');
+      } catch (err) {
+        const msg = String((err as Error).message ?? err);
+        if (!msg.includes('duplicate column name')) throw err;
+      }
+    }
+  }
+}
+
+/**
+ * Open or create the session-store database at `dbPath`.
+ *
+ * Creates the parent directory when missing so the first call after
+ * a fresh deploy doesn't crash on a missing `data/` folder. The
+ * single-table schema is created idempotently via CREATE TABLE IF NOT
+ * EXISTS, so subsequent reopens are no-ops.
+ *
+ * The underlying adapter is opened lazily on first method call so this
+ * factory plugs into the existing sync `createMarsServer` boot path
+ * without forcing every caller to become async.
+ *
+ * @param dbPath Filesystem path to the SQLite database file. Use
+ *   `':memory:'` in tests for an isolated in-process DB.
+ * @param maxSessions Maximum rows to retain. Defaults to 10. Older
+ *   sessions are evicted on save.
+ * @param options Optional overrides (e.g. `databaseOptions: { type: 'memory' }`).
+ */
+export function openSessionStore(
+  dbPath: string,
+  maxSessions: number = DEFAULT_MAX_SESSIONS,
+  options: OpenSessionStoreOptions = {},
+): SessionStore {
+  if (dbPath !== ':memory:' && !options.databaseOptions?.type && dbPath) {
+    try {
+      mkdirSync(dirname(dbPath), { recursive: true });
+    } catch (err) {
+      void err;
+    }
   }
 
-  const insertStmt = db.prepare(`
-    INSERT INTO sessions
-      (id, createdAt, scenarioId, scenarioName, leaderA, leaderB, turnCount, eventCount, durationMs, totalCostUSD, events)
-    VALUES
-      (@id, @createdAt, @scenarioId, @scenarioName, @leaderA, @leaderB, @turnCount, @eventCount, @durationMs, @totalCostUSD, @events)
-  `);
-  const oldestStmt = db.prepare<unknown[], { id: string }>(
-    'SELECT id FROM sessions ORDER BY createdAt ASC LIMIT 1',
-  );
-  const deleteStmt = db.prepare('DELETE FROM sessions WHERE id = ?');
-  const countStmt = db.prepare<unknown[], { c: number }>('SELECT COUNT(*) AS c FROM sessions');
-  const listStmt = db.prepare<unknown[], SessionMetaRow>(
-    `SELECT id, createdAt, scenarioId, scenarioName, leaderA, leaderB, turnCount, eventCount, durationMs, totalCostUSD, title
-     FROM sessions ORDER BY createdAt DESC`,
-  );
-  const getStmt = db.prepare<[string], SessionRow>('SELECT * FROM sessions WHERE id = ?');
-  const updateTitleStmt = db.prepare('UPDATE sessions SET title = ? WHERE id = ?');
+  let adapterPromise: Promise<StorageAdapter> | null = null;
+  function getAdapter(): Promise<StorageAdapter> {
+    if (!adapterPromise) {
+      adapterPromise = (async () => {
+        const adapter = await createDatabase(options.databaseOptions ?? { file: dbPath });
+        await bootstrapSchema(adapter);
+        return adapter;
+      })();
+    }
+    return adapterPromise;
+  }
 
   return {
-    saveSession(events, override) {
+    async saveSession(events, override) {
+      const adapter = await getAdapter();
       const id = randomUUID();
       const createdAt = Date.now();
       const derived = deriveMetadata(events);
@@ -186,26 +226,35 @@ export function openSessionStore(dbPath: string, maxSessions: number = DEFAULT_M
         ? events[events.length - 1].ts - events[0].ts
         : 0;
 
-      insertStmt.run({
-        id,
-        createdAt,
-        scenarioId: override?.scenarioId ?? derived.scenarioId ?? null,
-        scenarioName: override?.scenarioName ?? derived.scenarioName ?? null,
-        leaderA: override?.leaderA ?? derived.leaderA ?? null,
-        leaderB: override?.leaderB ?? derived.leaderB ?? null,
-        turnCount: override?.turnCount ?? derived.turnCount ?? null,
-        eventCount,
-        durationMs,
-        totalCostUSD: override?.totalCostUSD ?? derived.totalCostUSD ?? null,
-        events: JSON.stringify(events),
-      });
+      await adapter.run(
+        `INSERT INTO sessions
+           (id, createdAt, scenarioId, scenarioName, leaderA, leaderB, turnCount, eventCount, durationMs, totalCostUSD, events)
+         VALUES
+           (@id, @createdAt, @scenarioId, @scenarioName, @leaderA, @leaderB, @turnCount, @eventCount, @durationMs, @totalCostUSD, @events)`,
+        {
+          id,
+          createdAt,
+          scenarioId: override?.scenarioId ?? derived.scenarioId ?? null,
+          scenarioName: override?.scenarioName ?? derived.scenarioName ?? null,
+          leaderA: override?.leaderA ?? derived.leaderA ?? null,
+          leaderB: override?.leaderB ?? derived.leaderB ?? null,
+          turnCount: override?.turnCount ?? derived.turnCount ?? null,
+          eventCount,
+          durationMs,
+          totalCostUSD: override?.totalCostUSD ?? derived.totalCostUSD ?? null,
+          events: JSON.stringify(events),
+        },
+      );
 
       let evictedId: string | undefined;
-      const totalRows = countStmt.get()?.c ?? 0;
+      const totalRowsRow = await adapter.get<{ c: number }>('SELECT COUNT(*) AS c FROM sessions');
+      const totalRows = totalRowsRow?.c ?? 0;
       if (totalRows > maxSessions) {
-        const oldest = oldestStmt.get();
+        const oldest = await adapter.get<{ id: string }>(
+          'SELECT id FROM sessions ORDER BY createdAt ASC LIMIT 1',
+        );
         if (oldest) {
-          deleteStmt.run(oldest.id);
+          await adapter.run('DELETE FROM sessions WHERE id = ?', [oldest.id]);
           evictedId = oldest.id;
         }
       }
@@ -213,33 +262,52 @@ export function openSessionStore(dbPath: string, maxSessions: number = DEFAULT_M
       return evictedId === undefined ? { id } : { id, evictedId };
     },
 
-    listSessions() {
-      return listStmt.all().map(rowToMeta);
+    async listSessions() {
+      const adapter = await getAdapter();
+      const rows = await adapter.all<SessionMetaRow>(
+        `SELECT id, createdAt, scenarioId, scenarioName, leaderA, leaderB, turnCount, eventCount, durationMs, totalCostUSD, title
+         FROM sessions ORDER BY createdAt DESC`,
+      );
+      return rows.map(rowToMeta);
     },
 
-    getSession(id) {
-      const row = getStmt.get(id);
+    async getSession(id) {
+      const adapter = await getAdapter();
+      const row = await adapter.get<SessionRow>('SELECT * FROM sessions WHERE id = ?', [id]);
       if (!row) return null;
       const events = JSON.parse(row.events) as TimestampedEvent[];
       return { meta: rowToMeta(row), events };
     },
 
-    count() {
-      return countStmt.get()?.c ?? 0;
+    async count() {
+      const adapter = await getAdapter();
+      const row = await adapter.get<{ c: number }>('SELECT COUNT(*) AS c FROM sessions');
+      return row?.c ?? 0;
     },
 
-    updateTitle(id, title) {
+    async updateTitle(id, title) {
       // Trim + cap so a runaway LLM response can't bloat the metadata
       // row. 120 chars is generous for "Aria's Cautious Mars Descent"
       // style titles while still guarding against JSON hallucinations
       // that pack reasoning into the title field.
       const clean = title.trim().slice(0, 120);
       if (!clean) return;
-      updateTitleStmt.run(clean, id);
+      const adapter = await getAdapter();
+      await adapter.run('UPDATE sessions SET title = ? WHERE id = ?', [clean, id]);
     },
 
-    close() {
-      db.close();
+    async wipeAll() {
+      const adapter = await getAdapter();
+      const before = await adapter.get<{ n: number }>('SELECT COUNT(*) AS n FROM sessions');
+      await adapter.run('DELETE FROM sessions');
+      return before?.n ?? 0;
+    },
+
+    async close() {
+      if (!adapterPromise) return;
+      const adapter = await adapterPromise;
+      await adapter.close();
+      adapterPromise = null;
     },
   };
 }
@@ -285,7 +353,7 @@ function rowToMeta(row: SessionMetaRow): SessionMeta {
  *
  * The orchestrator emits `active_scenario` near the start of every run
  * with `{ name, id, ... }`, and `complete` at the end with
- * `{ totalCostUSD, ... }` on its cost payload. Leader names appear in
+ * `{ totalCostUSD, ... }` on its cost payload. Actor names appear in
  * the `setup` event. We extract these by scanning the SSE blobs once
  * so the metadata in the listing endpoint is rich enough to pick a
  * session without having to load it.
@@ -316,13 +384,13 @@ function deriveMetadata(events: TimestampedEvent[]): SessionMetaOverride {
       if (typeof data.id === 'string') out.scenarioId = data.id;
       if (typeof data.name === 'string') out.scenarioName = data.name;
     }
-    // Two paths to the leader roster:
+    // Two paths to the actor roster:
     //   1. Legacy SSE `event: setup` frames (kept so callers that
     //      pre-wrap-style feed events — including the test suite — keep
     //      working).
     //   2. Live prod path: pair-runner emits `event: status` with
-    //      `phase: 'parallel'` at launch carrying the leaders array.
-    //      The engine never actually fires an SSE `setup` event.
+    //      `phase: 'parallel'` at launch carrying the actors array
+    //      (renamed from `leaders` in 0.8.0).
     if (eventType === 'setup') {
       const leaderA = (data as { leaderA?: { name?: string } }).leaderA?.name;
       const leaderB = (data as { leaderB?: { name?: string } }).leaderB?.name;
@@ -330,8 +398,8 @@ function deriveMetadata(events: TimestampedEvent[]): SessionMetaOverride {
       if (typeof leaderB === 'string') out.leaderB = leaderB;
     }
     if (eventType === 'status' && data.phase === 'parallel') {
-      const actors = Array.isArray((data as { leaders?: unknown[] }).leaders)
-        ? (data as { leaders: Array<{ name?: string }> }).leaders
+      const actors = Array.isArray((data as { actors?: unknown[] }).actors)
+        ? (data as { actors: Array<{ name?: string }> }).actors
         : [];
       if (typeof actors[0]?.name === 'string') out.leaderA = actors[0].name;
       if (typeof actors[1]?.name === 'string') out.leaderB = actors[1].name;

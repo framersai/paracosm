@@ -42,7 +42,11 @@ export function QuickstartResults({ actors, artifacts, sessionId, onSwap }: Quic
 
   const handleFork = (i: number) => {
     dispatch({ type: 'SET_PARENT', artifact: artifacts[i] });
-    navigate('branches');
+    // Branches is a sub-tab inside Studio after the merge. Land on
+    // Studio; the user clicks Branches in Studio's sub-nav. Future
+    // polish: thread the sub-tab through so this lands directly on
+    // Branches without the manual click.
+    navigate('studio');
   };
 
   const handleShare = async (i: number) => {
@@ -63,8 +67,62 @@ export function QuickstartResults({ actors, artifacts, sessionId, onSwap }: Quic
     downloadArtifactJson(artifact, `paracosm-quickstart-${slug}.json`);
   };
 
+  // Run-wide aggregate stats surfaced as a small summary strip above
+  // the side-by-side actor cards. Makes the result region show the
+  // simulation's depth — tools forged in the AgentOS sandbox, citations
+  // pulled by the deep-research grounding pass, total turns, total LLM
+  // spend — at a glance, instead of forcing the viewer to dig into each
+  // actor's detail to count.
+  const summary = useMemo(() => {
+    const totalTools = artifacts.reduce(
+      (n, a) => n + (a?.forgedTools?.length ?? 0),
+      0,
+    );
+    const totalCitations = artifacts.reduce(
+      (n, a) => n + (a?.citations?.length ?? 0),
+      0,
+    );
+    const totalDecisions = artifacts.reduce(
+      (n, a) => n + (a?.decisions?.length ?? 0),
+      0,
+    );
+    const totalTurns = artifacts.reduce(
+      (n, a) => n + (a?.trajectory?.timepoints?.length ?? 0),
+      0,
+    );
+    const totalCostUSD = artifacts.reduce(
+      (n, a) => n + (a?.cost?.totalUSD ?? 0),
+      0,
+    );
+    return { totalTools, totalCitations, totalDecisions, totalTurns, totalCostUSD };
+  }, [artifacts]);
+
   return (
     <div className={styles.results} role="region" aria-label="Quickstart results">
+      <div className={styles.runSummary} role="region" aria-label="Run summary">
+        <div className={styles.summaryStat} title="Web sources Paracosm pulled via Serper + Tavily and attached to the scenario before generating actors. Grounds the sim in real-world knowledge instead of pure LLM imagination.">
+          <span className={styles.summaryNum}>{summary.totalCitations}</span>
+          <span className={styles.summaryLabel}>citations · web research</span>
+        </div>
+        <div className={styles.summaryStat} title="AgentOS tool forging: when a department needed a calculation the codebase didn't provide, it wrote one in a sandboxed node:vm at runtime. The judge reviewed each for safety + correctness before letting it enter the decision pipeline.">
+          <span className={styles.summaryNum}>{summary.totalTools}</span>
+          <span className={styles.summaryLabel}>tools forged · AgentOS sandbox</span>
+        </div>
+        <div className={styles.summaryStat} title="Commander decisions across all 3 actors. Each one went through the full propose / judge / execute cycle.">
+          <span className={styles.summaryNum}>{summary.totalDecisions}</span>
+          <span className={styles.summaryLabel}>commander decisions</span>
+        </div>
+        <div className={styles.summaryStat} title="Total simulation turns across all 3 parallel actors. Each turn = one decision cycle: department analysis, commander decision, kernel advance, agent reactions.">
+          <span className={styles.summaryNum}>{summary.totalTurns}</span>
+          <span className={styles.summaryLabel}>turns simulated</span>
+        </div>
+        {summary.totalCostUSD > 0 && (
+          <div className={styles.summaryStat} title="Total LLM spend across all 3 actors. Provider: gpt-5.4-mini for sims, gpt-4o for verdict.">
+            <span className={styles.summaryNum}>${summary.totalCostUSD.toFixed(2)}</span>
+            <span className={styles.summaryLabel}>LLM cost</span>
+          </div>
+        )}
+      </div>
       <div className={styles.grid}>
         {actors.map((actor, i) => {
           const artifact = artifacts[i];

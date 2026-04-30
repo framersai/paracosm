@@ -1,0 +1,362 @@
+/* Each Quickstart stage is rendered as an expandable card with three
+   regions: header (status marker + label + duration + chevron), an
+   optional actor-chip strip (running stage only), and a scrollable log
+   body. The card adopts amber accent treatment when active, green when
+   done, and dim when pending. */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-input, var(--bg-card));
+  border: 1px solid var(--border-subtle, var(--border));
+  border-radius: var(--radius-md, 6px);
+  overflow: hidden;
+  font-family: var(--mono);
+  transition: border-color 0.18s, box-shadow 0.18s;
+}
+
+.statusPending {
+  opacity: 0.78;
+}
+
+.statusActive {
+  border-color: var(--amber-dim, var(--amber));
+  box-shadow:
+    0 0 0 1px rgba(232, 180, 74, 0.18),
+    0 6px 20px rgba(232, 180, 74, 0.06);
+}
+
+.statusDone {
+  border-color: rgba(106, 173, 72, 0.35);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  color: var(--text-1);
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+}
+
+.header:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.header:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: -2px;
+}
+
+.marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.statusPending .marker {
+  color: var(--text-3);
+}
+
+.statusActive .marker {
+  color: var(--amber);
+  /* Subtle pulse on the active marker so the eye lands on the
+     currently-live stage when the panel is dense. */
+  animation: pulseDot 1.6s ease-in-out infinite;
+}
+
+.statusDone .marker {
+  color: var(--green);
+}
+
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+.label {
+  flex: 1;
+  letter-spacing: 0.005em;
+}
+
+/* Duration badge: small mono pill with the elapsed seconds, only shown
+   once the stage has fired. Sits to the right of the label. */
+.duration {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-3);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle, var(--border));
+  border-radius: 3px;
+  padding: 2px 6px;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.statusActive .duration {
+  color: var(--amber);
+  border-color: rgba(232, 180, 74, 0.25);
+  background: rgba(232, 180, 74, 0.06);
+}
+
+/* Event-count badge. Reads as "12 events queued" but rendered short
+   so the header doesn't get crowded. */
+.count {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-2);
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 999px;
+  padding: 2px 7px;
+  min-width: 22px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+/* CSS-border chevron — same pattern as the mobile nav so we don't
+   depend on a unicode glyph that renders differently across browsers. */
+.chevron {
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--text-3);
+  border-bottom: 2px solid var(--text-3);
+  transform: rotate(45deg) translate(-2px, -2px);
+  transition: transform 0.22s ease, border-color 0.15s;
+  flex-shrink: 0;
+  margin-left: 2px;
+}
+
+.chevronOpen {
+  transform: rotate(-135deg) translate(-2px, -2px);
+}
+
+.statusActive .chevron {
+  border-color: var(--amber);
+}
+
+.statusDone .chevron {
+  border-color: var(--green);
+}
+
+/* Per-actor chip strip, rendered between the header and the body for
+   the running stage only. Shows each actor's name + current turn or
+   final status as a colored pill so the collapsed view still conveys
+   live progress. */
+.actorChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 12px 10px;
+  border-bottom: 1px dashed var(--border-subtle, var(--border));
+}
+
+.actorChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle, var(--border));
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.actorChipName {
+  color: var(--text-1);
+}
+
+.actorChipState {
+  color: var(--text-3);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+
+.actor_running {
+  border-color: rgba(232, 180, 74, 0.45);
+  background: rgba(232, 180, 74, 0.06);
+}
+
+.actor_running .actorChipState {
+  color: var(--amber);
+}
+
+.actor_complete {
+  border-color: rgba(106, 173, 72, 0.45);
+  background: rgba(106, 173, 72, 0.06);
+}
+
+.actor_complete .actorChipState {
+  color: var(--green);
+}
+
+.actor_error {
+  border-color: rgba(176, 90, 50, 0.5);
+  background: rgba(176, 90, 50, 0.08);
+}
+
+.actor_error .actorChipState {
+  color: var(--rust);
+}
+
+.actor_aborted {
+  opacity: 0.7;
+}
+
+.actor_aborted .actorChipState {
+  color: var(--text-3);
+}
+
+/* Scrollable log body. Caps at ~220px (≈9 rows at 24px each) so a long
+   running-stage feed scrolls inside the card rather than pushing the
+   rest of the dashboard off-screen. */
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 6px 0;
+  background: rgba(0, 0, 0, 0.18);
+  border-top: 1px solid var(--border-subtle, var(--border));
+  -webkit-overflow-scrolling: touch;
+}
+
+.body::-webkit-scrollbar { width: 8px; }
+.body::-webkit-scrollbar-track { background: transparent; }
+.body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+}
+
+.line {
+  display: grid;
+  grid-template-columns: 56px 14px auto auto 1fr;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 12px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  line-height: 1.5;
+  letter-spacing: 0.005em;
+  color: var(--text-2);
+}
+
+.line:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.lineTs {
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+}
+
+.lineGlyph {
+  font-weight: 800;
+  text-align: center;
+  color: var(--text-3);
+}
+
+.lineTag {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  padding: 1px 6px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-2);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.lineActor {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+}
+
+.lineBody {
+  color: var(--text-2);
+  word-break: break-word;
+}
+
+/* Tone treatment. Each tone tints the row's text + glyph + tag so the
+   stream is scannable at a glance. Mirrors the EventLogPanel palette
+   to keep the visual language consistent. */
+.tonePending {
+  color: var(--text-3);
+}
+
+.toneInfo .lineGlyph,
+.toneInfo .lineTag {
+  color: var(--teal);
+}
+.toneInfo .lineTag {
+  background: rgba(74, 198, 184, 0.1);
+}
+
+.toneActive .lineGlyph,
+.toneActive .lineTag {
+  color: var(--amber);
+}
+.toneActive .lineTag {
+  background: rgba(232, 180, 74, 0.12);
+}
+.toneActive .lineBody {
+  color: var(--text-1);
+}
+
+.toneDone .lineGlyph,
+.toneDone .lineTag {
+  color: var(--green);
+}
+.toneDone .lineTag {
+  background: rgba(106, 173, 72, 0.12);
+}
+
+.toneWarn .lineGlyph,
+.toneWarn .lineTag {
+  color: var(--rust);
+}
+.toneWarn .lineTag {
+  background: rgba(176, 90, 50, 0.12);
+}
+.toneWarn .lineBody {
+  color: var(--text-1);
+}
+
+.toneError {
+  color: var(--rust);
+}
+.toneError .lineGlyph,
+.toneError .lineTag {
+  color: var(--rust);
+}
+.toneError .lineTag {
+  background: rgba(176, 90, 50, 0.18);
+  color: #f5f0e4;
+}

@@ -16,7 +16,11 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { z } from 'zod';
 import { compileFromSeed } from '../engine/compiler/compile-from-seed.js';
 import { generateQuickstartActors } from '../runtime/world-model/index.js';
-import type { ScenarioPackage } from '../engine/types.js';
+import { WorldModel } from '../runtime/world-model/index.js';
+import type { ScenarioPackage, ActorConfig } from '../engine/types.js';
+import type { SubjectConfig, InterventionConfig, RunArtifact } from '../engine/schema/index.js';
+import { groundScenario, type GroundingResult } from './server/deep-research.js';
+import type { BroadcastFn } from './pair-runner.js';
 
 const FetchSeedSchema = z.object({
   url: z.string().url().max(2048),
@@ -39,6 +43,87 @@ const GenerateActorsSchema = z.object({
   count: z.number().int().min(2).max(50).default(3),
 });
 
+const GroundScenarioSchema = z.object({
+  scenarioId: z.string().min(3).max(64),
+});
+
+const SubjectSignalSchema = z.object({
+  label: z.string().min(1).max(80),
+  value: z.union([z.number(), z.string()]),
+  unit: z.string().max(40).optional(),
+  recordedAt: z.string().max(64).optional(),
+});
+
+const SubjectMarkerSchema = z.object({
+  id: z.string().min(1).max(64),
+  category: z.string().max(40).optional(),
+  value: z.union([z.string(), z.number(), z.boolean()]),
+});
+
+const SubjectSchema = z.object({
+  id: z.string().min(1).max(80),
+  name: z.string().min(1).max(120),
+  profile: z.record(z.string(), z.unknown()).optional(),
+  signals: z.array(SubjectSignalSchema).max(40).optional(),
+  markers: z.array(SubjectMarkerSchema).max(40).optional(),
+});
+
+const InterventionSchema = z.object({
+  id: z.string().min(1).max(80),
+  name: z.string().min(1).max(120),
+  description: z.string().min(1).max(600),
+  duration: z.object({
+    value: z.number(),
+    unit: z.string().min(1).max(40),
+  }).optional(),
+  adherenceProfile: z.object({
+    expected: z.number().min(0).max(1),
+    risks: z.array(z.string()).optional(),
+  }).optional(),
+});
+
+const LeaderSchema = z.object({
+  name: z.string().min(1).max(80),
+  archetype: z.string().min(1).max(60),
+  unit: z.string().min(1).max(80).optional(),
+  hexaco: z.object({
+    openness: z.number().min(0).max(1),
+    conscientiousness: z.number().min(0).max(1),
+    extraversion: z.number().min(0).max(1),
+    agreeableness: z.number().min(0).max(1),
+    emotionality: z.number().min(0).max(1),
+    honestyHumility: z.number().min(0).max(1),
+  }),
+  instructions: z.string().default(''),
+});
+
+const SimulateInterventionSchema = z.object({
+  subject: SubjectSchema,
+  intervention: InterventionSchema,
+  leader: LeaderSchema.optional(),
+  scenarioId: z.string().min(3).max(80).optional(),
+  options: z.object({
+    maxTurns: z.number().int().min(1).max(6).optional(),
+    seed: z.number().int().optional(),
+    costPreset: z.enum(['quality', 'economy']).optional(),
+  }).optional(),
+});
+
+const DEFAULT_DIGITAL_TWIN_LEADER: ActorConfig = {
+  name: 'Cautious Methodical Evaluator',
+  archetype: 'The Methodical Evaluator',
+  unit: 'Lab leadership',
+  hexaco: {
+    openness: 0.55,
+    conscientiousness: 0.92,
+    extraversion: 0.4,
+    agreeableness: 0.65,
+    emotionality: 0.55,
+    honestyHumility: 0.88,
+  },
+  instructions: '',
+};
+
 export interface QuickstartDeps {
   /** Installs a compiled scenario as the active scenario. */
   setActiveScenario: (scenario: ScenarioPackage) => void;
@@ -49,6 +134,40 @@ export interface QuickstartDeps {
   /** Default provider + model for the LLM calls. */
   defaultProvider: string;
   defaultModel: string;
+  /** Stash deep-research citations keyed by scenario id. Optional so
+   *  legacy callers (older test fixtures) don't have to construct the
+   *  full record. The grounding route is the only writer; future
+   *  actor-generation prompts can read via a sibling helper. */
+  recordGroundingCitations?: (
+    scenarioId: string,
+    citations: Array<{ query: string; sources: Array<{ title: string; link: string; domain: string }> }>,
+  ) => void;
+  /**
+   * Lazily compile + cache the corporate-quarterly scenario and return a
+   * WorldModel ready for `simulateIntervention`. Used by the
+   * /simulate-intervention route so the digital-twin tab does not need
+   * the user to compile a scenario first.
+   *
+   * Returns undefined when the underlying scenario file is missing or
+   * compile fails (caller writes a 502 in that case).
+   */
+  getDigitalTwinWorld?: () => Promise<WorldModel | null>;
+  /**
+   * SSE broadcast function (same one /setup uses). When wired, the
+   * simulate-intervention handler streams every per-turn event the
+   * underlying runSimulation emits to the dashboard's /events channel
+   * so the SIM tab renders live progress while the synchronous fetch
+   * is still in flight. Without it, the run still works but the user
+   * sees nothing until the artifact returns.
+   */
+  broadcast?: BroadcastFn;
+  /**
+   * Reset the in-memory event buffer + per-run state before a new
+   * digital-twin run starts. Mirrors what /setup does on a fresh sim:
+   * without it, prior events from another run bleed into the
+   * dashboard's gameState while the new intervention is streaming.
+   */
+  resetEventBuffer?: () => void;
 }
 
 export async function handleFetchSeed(
@@ -147,4 +266,182 @@ export async function handleGenerateActors(
     res.writeHead(500, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: `Actor generation failed: ${String(err)}` }));
   }
+}
+
+/**
+ * POST /api/quickstart/ground-scenario
+ *
+ * Runs the deep-research grounding pass over a previously-compiled
+ * scenario. Returns citations + the ScenarioPackage gets the same
+ * citations attached to its `metadata.groundingCitations` slot so the
+ * subsequent actor-generation + run prompts can reference them.
+ *
+ * Returns `{ skipped: true, reason }` rather than 4xx when SERPER_API_KEY
+ * isn't configured — the Quickstart flow continues without grounding
+ * rather than failing the whole run.
+ */
+export async function handleGroundScenario(
+  _req: IncomingMessage,
+  res: ServerResponse,
+  body: unknown,
+  deps: QuickstartDeps,
+): Promise<void> {
+  const parsed = GroundScenarioSchema.safeParse(body);
+  if (!parsed.success) {
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Invalid payload', issues: parsed.error.issues.slice(0, 3).map(i => i.message) }));
+    return;
+  }
+  const scenario = deps.getScenarioById(parsed.data.scenarioId);
+  if (!scenario) {
+    res.writeHead(404, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: `Scenario '${parsed.data.scenarioId}' not found. Compile it via /api/quickstart/compile-from-seed first.` }));
+    return;
+  }
+  try {
+    const result: GroundingResult | null = await groundScenario(scenario);
+    if (!result) {
+      // SERPER_API_KEY missing — skip gracefully so the Quickstart UI
+      // can show a single "skipped: no API key" line instead of breaking
+      // the run.
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ skipped: true, reason: 'SERPER_API_KEY not configured' }));
+      return;
+    }
+    // Stash citations under the scenario id so future actor-generation
+    // and narration prompts can read them. ScenarioPackage doesn't have
+    // a free-form metadata slot today; this in-memory side-channel is
+    // intentionally scoped to the server process so a restart drops
+    // citations along with the scenario itself.
+    deps.recordGroundingCitations?.(scenario.id, result.citations);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      citations: result.citations,
+      totalSources: result.totalSources,
+      durationMs: result.durationMs,
+      emptyQueries: result.emptyQueries,
+      providersUsed: result.providersUsed,
+      providersFailed: result.providersFailed,
+    }));
+  } catch (err) {
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: `Grounding failed: ${String(err)}` }));
+  }
+}
+
+/**
+ * POST /api/quickstart/simulate-intervention
+ *
+ * Synchronous digital-twin run: applies a SubjectConfig + InterventionConfig
+ * to a leader against the corporate-quarterly scenario and returns the
+ * full RunArtifact JSON. Drives the dashboard's Digital Twin tab.
+ *
+ * Behaviour:
+ * - If `scenarioId` is provided, resolves it via deps.getScenarioById.
+ * - Otherwise calls deps.getDigitalTwinWorld() which lazily compiles
+ *   corporate-quarterly.json and caches the WorldModel.
+ * - Leader defaults to a Cautious Methodical Evaluator HEXACO profile
+ *   if the body does not supply one.
+ * - Options default to maxTurns=2, seed=11, costPreset='economy' so a
+ *   single intervention run completes in ~30-90s on prod.
+ *
+ * Response shape: `{ artifact, durationMs }` on success.
+ */
+export async function handleSimulateIntervention(
+  _req: IncomingMessage,
+  res: ServerResponse,
+  body: unknown,
+  deps: QuickstartDeps,
+): Promise<void> {
+  const parsed = SimulateInterventionSchema.safeParse(body);
+  if (!parsed.success) {
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      error: 'Invalid simulate-intervention payload',
+      issues: parsed.error.issues.slice(0, 5).map(i => `${i.path.join('.')}: ${i.message}`),
+    }));
+    return;
+  }
+
+  const { subject, intervention, leader, scenarioId, options = {} } = parsed.data;
+
+  let world: WorldModel | null = null;
+  if (scenarioId) {
+    const sc = deps.getScenarioById(scenarioId);
+    if (!sc) {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: `Scenario '${scenarioId}' not found.` }));
+      return;
+    }
+    world = WorldModel.fromScenario(sc);
+  } else {
+    if (!deps.getDigitalTwinWorld) {
+      res.writeHead(503, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Digital-twin scenario provider not configured on server.' }));
+      return;
+    }
+    try {
+      world = await deps.getDigitalTwinWorld();
+    } catch (err) {
+      console.error('[simulate-intervention] getDigitalTwinWorld failed:', err);
+      res.writeHead(502, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Failed to prepare digital-twin scenario.' }));
+      return;
+    }
+    if (!world) {
+      res.writeHead(503, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Digital-twin scenario unavailable. Provide scenarioId or check server config.' }));
+      return;
+    }
+  }
+
+  const effectiveLeader: ActorConfig = leader
+    ? { ...leader, unit: leader.unit ?? 'Lab leadership', instructions: leader.instructions ?? '' }
+    : DEFAULT_DIGITAL_TWIN_LEADER;
+
+  // Reset the SSE event buffer before broadcasting this run's events so
+  // the dashboard's gameState does not interleave them with whatever
+  // run came before. /setup does the same thing at its top.
+  deps.resetEventBuffer?.();
+
+  // Build an onEvent shim that forwards each typed SimEvent emitted by
+  // runSimulation to the SSE broadcast bus. Without it, the dashboard
+  // sees nothing until the artifact returns at the bottom of this
+  // handler. With it, the SIM tab renders specialist_done /
+  // turn_done / decision events as they arrive — the same live feel
+  // /setup-driven runs already have. The handler still returns the full
+  // artifact synchronously at the end so existing clients
+  // (InterventionDemoCard) keep working unchanged.
+  const broadcast = deps.broadcast;
+  const onEvent = broadcast
+    ? (event: { type: string }) => {
+        try { broadcast(event.type, event); } catch { /* one bad event must not fail the run */ }
+      }
+    : undefined;
+
+  const startedAt = Date.now();
+  let artifact: RunArtifact;
+  try {
+    artifact = await world.simulateIntervention(
+      subject as SubjectConfig,
+      intervention as InterventionConfig,
+      effectiveLeader,
+      {
+        maxTurns: options.maxTurns ?? 2,
+        seed: options.seed ?? 11,
+        costPreset: options.costPreset ?? 'economy',
+        captureSnapshots: false,
+        onEvent,
+      },
+    );
+  } catch (err) {
+    console.error('[simulate-intervention] simulateIntervention failed:', err);
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: `Intervention run failed: ${err instanceof Error ? err.message : String(err)}` }));
+    return;
+  }
+  const durationMs = Date.now() - startedAt;
+
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ artifact, durationMs }));
 }

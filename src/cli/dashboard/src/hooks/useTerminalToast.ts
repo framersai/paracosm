@@ -4,9 +4,11 @@
  * abort. Dedup'd across remounts via sessionStorage fingerprint so a
  * page reload after a completed run doesn't re-toast.
  *
- * Gated on `replayDone` so terminal states observed during buffer
- * replay (user loading a completed run, not watching it finish) don't
- * fire toasts — mirrors the forge-toast replay gate.
+ * Cold-load gate: requires `userTriggeredRun` (the user clicked Run
+ * during this session). A page that loads with the run already
+ * complete via server event-buffer replay or local persistence cache
+ * does NOT toast — the user wasn't watching it finish, so announcing
+ * it is noise.
  *
  * Extracted from App.tsx.
  */
@@ -24,6 +26,8 @@ export interface UseTerminalToastOptions {
   hasVerdict: boolean;
   replayDone: boolean;
   tourActive: boolean;
+  /** True only after the user clicked Run during this session. */
+  userTriggeredRun: boolean;
 }
 
 export function useTerminalToast({
@@ -34,10 +38,12 @@ export function useTerminalToast({
   hasVerdict,
   replayDone,
   tourActive,
+  userTriggeredRun,
 }: UseTerminalToastOptions): void {
   const { toast } = useToast();
   useEffect(() => {
     if (tourActive) return;
+    if (!userTriggeredRun) return;
     if (!isComplete && !isAborted) return;
     if (!replayDone) return;
     const fingerprint = isAborted
@@ -54,5 +60,5 @@ export function useTerminalToast({
     } else {
       toast('success', 'Simulation complete', 'Open the Reports tab for the verdict + full breakdown.');
     }
-  }, [isComplete, isAborted, abortReason, resultsCount, hasVerdict, replayDone, tourActive, toast]);
+  }, [isComplete, isAborted, abortReason, resultsCount, hasVerdict, replayDone, tourActive, userTriggeredRun, toast]);
 }
