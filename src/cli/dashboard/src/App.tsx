@@ -904,6 +904,7 @@ function AppContent() {
           {tourActive && (
             <GuidedTour
               activeTab={activeTab}
+              chatEnabled={scenario.policies.characterChat}
               onTabChange={setActiveTab}
               onClose={handleTourEnd}
               onRun={handleRun}

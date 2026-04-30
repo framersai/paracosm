@@ -6,7 +6,7 @@
  * A floating card annotates each highlighted section.
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 
 export type TourTab = 'quickstart' | 'studio' | 'sim' | 'viz' | 'chat' | 'reports' | 'library' | 'settings';
 
@@ -148,12 +148,25 @@ interface GuidedTourProps {
    *  ahead of the new tab's mount on slow viewports and lands on either
    *  the previous tab's elements or a stale empty container. */
   activeTab: TourTab | string;
+  /** Whether the active scenario exposes Character Chat. When false the
+   *  TabBar hides the Chat tab entirely; the tour drops its Chat step
+   *  to match so it doesn't navigate to a tab the user can't reach
+   *  via any other path. */
+  chatEnabled?: boolean;
   onTabChange: (tab: TourTab) => void;
   onClose: () => void;
   onRun?: () => void;
 }
 
-export function GuidedTour({ activeTab, onTabChange, onClose, onRun }: GuidedTourProps) {
+export function GuidedTour({ activeTab, chatEnabled = true, onTabChange, onClose, onRun }: GuidedTourProps) {
+  // Drop the Chat step on scenarios where Character Chat is disabled.
+  // Without this filter the tour would fire onTabChange('chat') and the
+  // ChatPanel (always mounted but hidden) would surface a tab the user
+  // has no other way to reach.
+  const steps = useMemo(
+    () => (chatEnabled ? TOUR_STEPS : TOUR_STEPS.filter(s => s.tab !== 'chat')),
+    [chatEnabled],
+  );
   const [step, setStep] = useState(0);
   const [rect, setRect] = useState<Rect | null>(null);
   // Re-render the card layout when the viewport crosses the mobile
@@ -164,7 +177,7 @@ export function GuidedTour({ activeTab, onTabChange, onClose, onRun }: GuidedTou
   const prevElRef = useRef<Element | null>(null);
   const styleRef = useRef<HTMLStyleElement | null>(null);
   const rafRef = useRef(0);
-  const current = TOUR_STEPS[step];
+  const current = steps[step];
 
   // Inject tour styles on mount, remove on unmount
   useEffect(() => {
@@ -185,9 +198,9 @@ export function GuidedTour({ activeTab, onTabChange, onClose, onRun }: GuidedTou
   // through to App.activeTab — making the URL bar lag behind the tour
   // card's "VIZ" / "STUDIO" / etc. badge.
   useEffect(() => {
-    const s = TOUR_STEPS[step];
+    const s = steps[step];
     if (s) onTabChange(s.tab);
-  }, [step, onTabChange]);
+  }, [step, onTabChange, steps]);
 
   // Highlight target element and measure its rect.
   //
@@ -209,7 +222,7 @@ export function GuidedTour({ activeTab, onTabChange, onClose, onRun }: GuidedTou
   // again for the next step (cleanup via attemptCancelRef).
   const attemptCancelRef = useRef<(() => void) | null>(null);
   const measure = useCallback(() => {
-    const s = TOUR_STEPS[step];
+    const s = steps[step];
     if (!s) return;
 
     // Cancel any in-flight target lookup from a previous step.
@@ -318,7 +331,7 @@ export function GuidedTour({ activeTab, onTabChange, onClose, onRun }: GuidedTou
     const h = (e: KeyboardEvent) => {
       if (e.key === 'Escape') handleClose();
       else if (e.key === 'ArrowRight' || e.key === 'Enter') {
-        step < TOUR_STEPS.length - 1 ? setStep(s => s + 1) : handleClose();
+        step < steps.length - 1 ? setStep(s => s + 1) : handleClose();
       } else if (e.key === 'ArrowLeft' && step > 0) setStep(s => s - 1);
     };
     window.addEventListener('keydown', h);
@@ -425,7 +438,7 @@ export function GuidedTour({ activeTab, onTabChange, onClose, onRun }: GuidedTou
       <div data-tour-overlay style={card} onClick={e => e.stopPropagation()} role="dialog" aria-label="Guided tour">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', gap: 8 }}>
           <span style={{ fontSize: '10px', fontFamily: 'var(--mono)', color: 'var(--text-3)', letterSpacing: '1px' }}>
-            {step + 1} / {TOUR_STEPS.length}
+            {step + 1} / {steps.length}
           </span>
           <span
             aria-label={`Active tab: ${current.tab}`}
@@ -468,7 +481,7 @@ export function GuidedTour({ activeTab, onTabChange, onClose, onRun }: GuidedTou
             )}
             <button
               onClick={() => {
-                if (step < TOUR_STEPS.length - 1) {
+                if (step < steps.length - 1) {
                   setStep(s => s + 1);
                 } else {
                   handleClose();
@@ -477,9 +490,9 @@ export function GuidedTour({ activeTab, onTabChange, onClose, onRun }: GuidedTou
               }}
               style={isMobile
                 ? compactPrimaryBtn
-                : step === TOUR_STEPS.length - 1 ? { ...primaryBtn, padding: '6px 22px', fontSize: '12px' } : primaryBtn}
+                : step === steps.length - 1 ? { ...primaryBtn, padding: '6px 22px', fontSize: '12px' } : primaryBtn}
             >
-              {step < TOUR_STEPS.length - 1 ? 'Next' : isMobile ? 'Start →' : 'Start Your Simulation'}
+              {step < steps.length - 1 ? 'Next' : isMobile ? 'Start →' : 'Start Your Simulation'}
             </button>
           </div>
         </div>
@@ -490,7 +503,7 @@ export function GuidedTour({ activeTab, onTabChange, onClose, onRun }: GuidedTou
           <div style={{ marginTop: '10px', height: 3, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
             <div
               style={{
-                width: `${((step + 1) / TOUR_STEPS.length) * 100}%`,
+                width: `${((step + 1) / steps.length) * 100}%`,
                 height: '100%',
                 background: 'var(--amber)',
                 transition: 'width 0.25s ease',
@@ -498,13 +511,13 @@ export function GuidedTour({ activeTab, onTabChange, onClose, onRun }: GuidedTou
               role="progressbar"
               aria-valuenow={step + 1}
               aria-valuemin={1}
-              aria-valuemax={TOUR_STEPS.length}
-              aria-label={`Step ${step + 1} of ${TOUR_STEPS.length}`}
+              aria-valuemax={steps.length}
+              aria-label={`Step ${step + 1} of ${steps.length}`}
             />
           </div>
         ) : (
           <div style={{ display: 'flex', justifyContent: 'center', gap: '5px', marginTop: '12px', flexWrap: 'wrap' }}>
-            {TOUR_STEPS.map((_, i) => (
+            {steps.map((_, i) => (
               <button
                 key={i} onClick={() => setStep(i)}
                 style={{
