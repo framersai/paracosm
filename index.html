@@ -249,6 +249,7 @@
 </code><button type="button">Copy</button></pre>
 
 <p>The body accepts either a pre-compiled <code>ScenarioPackage</code> or a raw scenario draft (auto-compiled server-side with optional <code>options.seedText</code> / <code>options.seedUrl</code> grounding). The response is <code>{ artifact, scenario, durationMs }</code>. Rate limiting and the 5 MiB body cap match <code>/setup</code>.</p>
+<p>The dashboard server also exposes nine read-and-replay routes under <code>/api/v1/*</code> (list runs, fetch artifacts, re-execute, import). Wire-level reference: <a href="media/HTTP_API.md"><code>docs/HTTP_API.md</code></a>.</p>
 <hr>
 <h2 id="storage" class="tsd-anchor-link">Storage<a href="#storage" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
 <p>Run history (Library tab) and replayable session blobs (Load menu) persist through <a href="https://github.com/framersai/sql-storage-adapter"><code>@framers/sql-storage-adapter</code></a>. The same code paths run unchanged against SQLite, Postgres, sql.js, and IndexedDB; switching backends is one env var.</p>
