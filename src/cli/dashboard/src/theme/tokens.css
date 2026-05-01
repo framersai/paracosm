@@ -161,6 +161,34 @@
     --radius-lg: 6px;
     --radius-xl: 8px;
 
+    /* === Z-INDEX LAYERS ===
+       Five named layers covering every overlay surface in the dashboard.
+       Use the variable, not a literal. Higher = nearer to the user.
+
+       --z-popover            popovers anchored to a control (RunMenu,
+                              LoadMenu, AddFilterPopover). Above content,
+                              below dialogs.
+       --z-modal              context modals (CompareModal). Sits below
+                              the detail drawer because the drawer is
+                              opened FROM the modal and must layer above.
+       --z-drawer             slide-in detail drawer (RunDetailDrawer).
+                              Sits above context modals so it stays
+                              reachable when nested.
+       --z-modal-top          top-level dialogs that are the focus of
+                              attention (ForkModal, ActorPresetPicker).
+       --z-modal-critical     critical full-viewport dialogs that should
+                              cover everything (VerdictModal,
+                              LoadPreviewModal).
+       --z-overlay            drag-drop / system overlay above all
+                              dialogs (DropZoneOverlay).
+    */
+    --z-popover:         100;
+    --z-modal:           200;
+    --z-drawer:          300;
+    --z-modal-top:       1000;
+    --z-modal-critical:  100000;
+    --z-overlay:         100001;
+
     /* Select caret. Data URLs cannot read CSS variables, so each theme
        gets its own encoded chevron matching the theme's text-2 tone. */
     --select-caret-url: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' stroke='%23d8ccb0' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");

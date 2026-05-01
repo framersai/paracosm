@@ -6,7 +6,7 @@
   background: rgba(0, 0, 0, .55);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  z-index: 99;
+  z-index: var(--z-modal);
 }
 
 .modal {
@@ -15,7 +15,11 @@
   background: var(--bg-deep);
   border: 1px solid var(--glass-border);
   border-radius: 14px;
-  z-index: 100;
+  // Backdrop and modal share the same layer; source order in
+  // CompareModal.tsx (backdrop first, modal second) keeps the modal on
+  // top within the layer. Drawer (--z-drawer) sits above this when
+  // RunDetailDrawer is opened from inside the modal.
+  z-index: var(--z-modal);
   display: flex;
   flex-direction: column;
   box-shadow: 0 24px 64px rgba(0, 0, 0, .6);

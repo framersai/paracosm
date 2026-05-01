@@ -7,7 +7,9 @@
 .overlay {
   position: fixed;
   inset: 0;
-  z-index: 100001; // one above modal backdrops so it covers even open dialogs
+  // Sits one layer above every dialog so a file drag is reachable even
+  // when a critical modal (Verdict, LoadPreview) is open.
+  z-index: var(--z-overlay);
   background: rgba(10, 8, 6, 0.55);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);

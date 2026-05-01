@@ -30,7 +30,7 @@
   border-radius: 8px;
   padding: 0.75rem;
   box-shadow: var(--raised-shadow);
-  z-index: 10;
+  z-index: var(--z-popover);
   min-width: 220px;
   display: flex;
   flex-direction: column;

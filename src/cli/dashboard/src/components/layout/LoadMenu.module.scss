@@ -33,7 +33,7 @@
   border-radius: 6px;
   box-shadow: var(--card-shadow, 0 8px 24px rgba(0, 0, 0, 0.35));
   padding: 8px;
-  z-index: 50;
+  z-index: var(--z-popover);
 }
 
 .row {
