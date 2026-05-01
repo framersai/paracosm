@@ -22,14 +22,19 @@
   flex-wrap: wrap;
 }
 
+// "Run a digital twin" — sentence case.
 .title {
   @include typo.card-title;
   color: var(--amber);
   margin: 0;
+  text-transform: none;
+  letter-spacing: 0.4px;
 }
 
+// "any subject · any intervention" — sentence-case prose, not a single
+// uppercase eyebrow token; switch to caption to drop the shout.
 .eyebrow {
-  @include typo.section-label;
+  @include typo.caption;
   color: var(--text-3);
 }
 

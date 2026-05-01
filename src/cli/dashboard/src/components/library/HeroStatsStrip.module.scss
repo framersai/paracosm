@@ -26,6 +26,9 @@
 .statValue {
   @include typo.metric-value;
   font-size: var(--font-3xl); // 24px hero variant
+  // Intentionally lighter than metric-value's 700; the 24px hero size
+  // already carries the visual weight, and 600 keeps the strip from
+  // reading as too dense across five tiles.
   font-weight: 600;
   color: var(--text-1);
 }

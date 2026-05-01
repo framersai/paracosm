@@ -17,6 +17,7 @@
   flex-wrap: wrap;
 }
 
+// "Digital Twin · Running" / similar Title Case status.
 .title {
   @include typo.panel-title;
   display: flex;
@@ -24,6 +25,8 @@
   gap: 10px;
   color: var(--amber);
   margin: 0;
+  text-transform: none;
+  letter-spacing: 0.4px;
 }
 
 .spinner {

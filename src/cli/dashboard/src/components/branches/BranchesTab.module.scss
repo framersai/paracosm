@@ -184,18 +184,16 @@
     border: 1px solid var(--border-subtle);
   }
   dt {
-    font-size: var(--font-3xs);
+    @include typo.micro;
     color: var(--text-3);
-    text-transform: uppercase;
-    letter-spacing: 0.6px;
-    font-family: var(--mono);
+    letter-spacing: 0.6px; // tighter than micro's 1.5 for the small metric pill
   }
   dd {
-    font-size: var(--font-lg);
+    @include typo.metric-value;
+    font-size: var(--font-lg); // 14px md variant for the per-branch metric grid
+    font-weight: 600; // intentional; 700 is too heavy at this size in the dense grid
     color: var(--text-1);
     margin: 4px 0 0;
-    font-family: var(--mono);
-    font-weight: 600;
   }
 }
 

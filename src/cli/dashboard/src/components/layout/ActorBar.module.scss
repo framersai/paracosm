@@ -118,9 +118,13 @@
   flex-shrink: 0;
 }
 
-// Tooltip inner chrome
+// Tooltip inner chrome. The surrounding tooltip rows below
+// (.tooltipTraitBlock, .tooltipTraitLabel) are mono, so keep mono here
+// to avoid a sans-on-mono discontinuity. body-strong would have flipped.
 .tooltipHeading {
-  @include typo.body-strong;
+  font-family: var(--mono);
+  font-size: var(--font-md);
+  font-weight: 700;
   color: var(--actor-color);
   display: block;
   margin-bottom: 6px;

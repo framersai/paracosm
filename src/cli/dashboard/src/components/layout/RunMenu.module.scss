@@ -329,8 +329,13 @@
   }
 }
 
+// Sits inside the mono .historyCard container; keep mono to avoid a
+// family discontinuity within the row. body-strong would have flipped
+// to sans here.
 .historyCardTitle {
-  @include typo.body-strong;
+  font-family: var(--mono);
+  font-size: var(--font-md);
+  font-weight: 600;
   color: var(--text-1);
   margin-bottom: 2px;
 }

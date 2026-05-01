@@ -41,7 +41,9 @@
   font-size: var(--font-sm);
 }
 
-// Renders "Compare all {N} actors →"; preserve sentence case.
+// Renders "Compare all {N} actors →" — primary hero CTA, sentence case.
+// Uses card-title (13px mono 700) instead of button-label (11px mono 600)
+// so the weight + size read as a primary action, not a secondary chip.
 .compareCta {
   @include typo.card-title;
   background: linear-gradient(135deg, var(--amber) 0%, #b87425 100%);

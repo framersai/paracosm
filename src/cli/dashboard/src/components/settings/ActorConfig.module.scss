@@ -14,10 +14,13 @@
   box-shadow: var(--card-shadow);
 }
 
+// Renders {label} like "Commander A" / "Commander B" — Title Case label.
 .heading {
   @include typo.panel-title;
   margin-bottom: 12px;
   color: var(--side-color);
+  text-transform: none;
+  letter-spacing: 0.4px;
 }
 
 .fieldRow {

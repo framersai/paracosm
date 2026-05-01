@@ -17,10 +17,13 @@
   flex-wrap: wrap;
 }
 
+// "Digital Twin · Intervention Result" — Title Case prose.
 .title {
   @include typo.panel-title;
   color: var(--amber);
   margin: 0;
+  text-transform: none;
+  letter-spacing: 0.4px;
 }
 
 .subTitle {
@@ -192,10 +195,9 @@
 }
 
 .metricValue {
+  @include typo.metric-value;
+  font-size: var(--font-lg); // 14px md variant
   color: var(--amber);
-  font-family: var(--mono);
-  font-size: var(--font-lg);
-  font-weight: 700;
 }
 
 .metricDelta {
@@ -265,18 +267,14 @@
 }
 
 .summaryLabel {
+  @include typo.field-label;
   color: var(--text-3);
-  font-family: var(--mono);
-  font-size: var(--font-2xs);
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
 }
 
 .summaryValue {
+  @include typo.metric-value;
+  font-size: var(--font-md); // 13px sm variant
   color: var(--amber);
-  font-family: var(--mono);
-  font-size: var(--font-md);
-  font-weight: 700;
 }
 
 .fingerprintList {

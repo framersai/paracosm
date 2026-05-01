@@ -53,8 +53,9 @@
   }
 }
 
+// "Reset filters" — sentence case CTA.
 .resetButton {
-  @include typo.section-label;
+  @include typo.button-label;
   padding: 5px 10px;
   background: transparent;
   border: 1px solid var(--border);
