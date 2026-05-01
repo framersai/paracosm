@@ -1091,6 +1091,61 @@ curl -X POST http://localhost:3456/simulate \
   </div>
 </section>
 
+<!-- WHITEPAPER COMING SOON -->
+<section class="sec sec-alt whitepaper-sec" id="whitepaper" aria-label="Paracosm whitepaper coming soon">
+  <div class="sec-inner whitepaper-inner">
+    <div class="whitepaper-card rv">
+      <span class="whitepaper-pill" aria-label="Whitepaper status">
+        <svg class="whitepaper-pill-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M14 2v6h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        WHITEPAPER &middot; COMING SOON
+      </span>
+      <h2 class="whitepaper-title">The Paracosm Technical Whitepaper</h2>
+      <p class="whitepaper-dek">
+        The full architecture and methodology, written for engineers and researchers
+        who want a citable PDF instead of scrolling docs. Deterministic kernel design,
+        HEXACO leader differentiation, LLM-as-a-judge event grounding, runtime tool
+        forging with sandboxed safety, reproducible counterfactual surfaces (fork /
+        replay / simulateIntervention), and the `RunArtifact` schema with Zod
+        validation for byte-equal reproducibility at fixed seeds.
+      </p>
+      <div class="whitepaper-grid">
+        <div class="whitepaper-grid-item">
+          <div class="whitepaper-grid-label">Architecture</div>
+          <div class="whitepaper-grid-body">
+            ScenarioPackage compilation, deterministic kernel, HEXACO leader engine, LLM event director, judge layer, snapshot capture for fork &amp; replay.
+          </div>
+        </div>
+        <div class="whitepaper-grid-item">
+          <div class="whitepaper-grid-label">Methodology</div>
+          <div class="whitepaper-grid-body">
+            Counterfactual surfaces (fork at turn N, replay byte-equal, simulateIntervention as digital twin), divergence metrics, KPI rollups, judge verdict semantics.
+          </div>
+        </div>
+        <div class="whitepaper-grid-item">
+          <div class="whitepaper-grid-label">Reproducibility</div>
+          <div class="whitepaper-grid-body">
+            Single-CLI run, seed-pinned kernel, Zod-validated artifacts, sandboxed tool forging with explicit safety bounds, end-to-end COOKBOOK with real input + output JSON.
+          </div>
+        </div>
+      </div>
+      <div class="whitepaper-cta-row">
+        <button type="button" class="whitepaper-cta-disabled" disabled aria-disabled="true" title="Whitepaper PDF coming later this year">
+          PDF &middot; Coming soon
+        </button>
+        <a href="mailto:team@frame.dev?subject=Paracosm%20Whitepaper%20Notify" class="whitepaper-cta-notify">
+          Notify me when it drops
+        </a>
+        <a href="https://github.com/framersai/paracosm/blob/master/docs/COOKBOOK.md" target="_blank" rel="noopener" class="whitepaper-cta-secondary">
+          Read the cookbook while you wait
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- CTA BANNER -->
 <section class="banner">
   <h2 class="rv">Same seed. Different leader. Different world.</h2>
