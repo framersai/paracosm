@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useTheme } from '../../theme/ThemeProvider';
 import type { ScenarioClientPayload } from '../../hooks/useScenario';
 import type { GameState, ActorSideState } from '../../hooks/useGameState';
@@ -7,6 +7,7 @@ import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { Tooltip } from '../shared/Tooltip';
 import { RunMenu } from './RunMenu';
 import type { LocalHistoryEntry } from '../../hooks/useLocalHistory.helpers';
+import styles from './TopBar.module.scss';
 
 /**
  * Mirror the full useSSE return shape so TopBar can read providerError,
@@ -44,29 +45,18 @@ function ParacosmLogo({ size = 20 }: { size?: number }) {
   const { resolved } = useTheme();
   const light = resolved === 'light';
   const src = light ? '/brand/icons/paracosm-icon-64-light.svg' : '/brand/icons/paracosm-icon-64.svg';
+  const glowColor = light ? 'rgba(122,82,0,.12)' : 'rgba(232,180,74,.15)';
 
   return (
-    <span style={{ display: 'block', width: size, height: size, position: 'relative' }}>
-      <img src={src} width={size} height={size} alt="Paracosm" style={{ display: 'block' }} />
-      <span className="pc-logo-glow" style={{
-        position: 'absolute', inset: '-30%', borderRadius: '50%', pointerEvents: 'none',
-        background: `radial-gradient(circle, ${light ? 'rgba(122,82,0,.12)' : 'rgba(232,180,74,.15)'} 0%, transparent 70%)`,
-      }} />
+    <span
+      className={styles.logoSpan}
+      style={{ '--logo-size': `${size}px`, '--logo-glow': glowColor } as CSSProperties}
+    >
+      <img src={src} width={size} height={size} alt="Paracosm" className={styles.logoImg} />
+      <span className={`pc-logo-glow ${styles.logoGlow}`} />
     </span>
   );
 }
-
-const toolBtnStyle: React.CSSProperties = {
-  background: 'var(--bg-card)',
-  color: 'var(--text-2)',
-  border: '1px solid var(--border)',
-  padding: '2px 10px',
-  borderRadius: '3px',
-  fontSize: 'var(--font-2xs)',
-  cursor: 'pointer',
-  fontWeight: 600,
-  fontFamily: 'var(--mono)',
-};
 
 export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRun, onTour, onCopy, launching = false, history, onRestoreHistory, onClearHistory }: TopBarProps) {
   const { resolved, setTheme } = useTheme();
@@ -164,33 +154,34 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
     ? 'Reconnecting to the simulation server.'
     : 'Connecting to the simulation server.';
 
+  const progressPct = `${Math.round((gameState.turn / gameState.maxTurns) * 100)}%`;
+
   return (
     <header
-      className="topbar flex items-center justify-between px-4 gap-3 shrink-0"
+      className={`topbar flex items-center justify-between px-4 gap-3 shrink-0 ${styles.bar}`}
       role="banner"
-      style={{ background: 'var(--bg-panel)', borderBottom: '1px solid var(--border)', height: '44px' }}
     >
       {/* Left: Logo + name + scenario */}
       <div className="flex items-center gap-2 shrink-0">
-        <a href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }} aria-label="Paracosm home">
+        <a href="/" className={styles.logoLink} aria-label="Paracosm home">
           <ParacosmLogo size={20} />
         </a>
-        <a href="/" style={{ fontFamily: 'var(--mono)', fontSize: 'var(--font-md)', fontWeight: 700, color: 'var(--text-1)', textDecoration: 'none', letterSpacing: '.08em' }}>
-          PARA<span style={{ color: 'var(--amber)' }}>COSM</span>
+        <a href="/" className={styles.brand}>
+          PARA<span className={styles.brandAccent}>COSM</span>
         </a>
-        <a href="https://agentos.sh/en" target="_blank" rel="noopener" className="topbar-agentos" style={{ fontSize: 'var(--font-3xs)', fontWeight: 700, letterSpacing: '1px', color: 'var(--rust)', fontFamily: 'var(--mono)', textDecoration: 'none' }} title="AgentOS Runtime">
+        <a href="https://agentos.sh/en" target="_blank" rel="noopener" className={`topbar-agentos ${styles.agentosTag}`} title="AgentOS Runtime">
           AGENTOS
         </a>
-        <span className="topbar-agentos" style={{ color: 'var(--border)', fontSize: 'var(--font-sm)' }} aria-hidden="true">|</span>
-        <span className="topbar-scenario" style={{ fontSize: 'var(--font-sm)', fontWeight: 700, color: 'var(--amber)', fontFamily: 'var(--mono)' }}>
+        <span className={`topbar-agentos ${styles.divider}`} aria-hidden="true">|</span>
+        <span className={`topbar-scenario ${styles.scenarioName}`}>
           {scenario.labels.name}
         </span>
       </div>
 
       {/* Center: Turn info + progress */}
-      <div className="flex items-center gap-3 flex-1 justify-center" style={{ minWidth: 0 }}>
+      <div className={`flex items-center gap-3 flex-1 justify-center ${styles.center}`}>
         {gameState.turn > 0 && (
-          <div className="topbar-meta flex items-center gap-2 shrink-0" style={{ fontSize: 'var(--font-xs)', fontFamily: 'var(--mono)', color: 'var(--text-2)', minWidth: 0 }}>
+          <div className={`topbar-meta flex items-center gap-2 shrink-0 ${styles.meta}`}>
             {/* Compact T / Y / S tokens wrapped in Tooltip portal so
                 viewers can hover for the full meaning. The token stays
                 short so the whole topbar meta row fits at mid-laptop
@@ -199,7 +190,7 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
             <Tooltip
               content={
                 <div>
-                  <div style={{ fontSize: 'var(--font-md)', fontWeight: 800, color: 'var(--amber)', marginBottom: 6 }}>
+                  <div className={styles.tooltipTitle}>
                     Turn {gameState.turn} / {gameState.maxTurns}
                   </div>
                   <div>
@@ -212,16 +203,16 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
                 </div>
               }
             >
-              <span style={{ display: 'inline-flex', alignItems: 'baseline' }}>
-                <span style={{ color: 'var(--text-3)' }}>T</span>
-                <strong style={{ color: 'var(--text-1)' }}>{gameState.turn}</strong>
-                <span style={{ color: 'var(--text-3)' }}>/{gameState.maxTurns}</span>
+              <span className={styles.tokenInline}>
+                <span className={styles.tokenLabel}>T</span>
+                <strong className={styles.tokenValue}>{gameState.turn}</strong>
+                <span className={styles.tokenLabel}>/{gameState.maxTurns}</span>
               </span>
             </Tooltip>
             <Tooltip
               content={
                 <div>
-                  <div style={{ fontSize: 'var(--font-md)', fontWeight: 800, color: 'var(--amber)', marginBottom: 6 }}>
+                  <div className={styles.tooltipTitle}>
                     In-sim time {gameState.time}
                   </div>
                   <div>
@@ -234,15 +225,15 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
                 </div>
               }
             >
-              <span style={{ display: 'inline-flex', alignItems: 'baseline' }}>
-                <span style={{ color: 'var(--text-3)' }}>Y</span>
-                <strong style={{ color: 'var(--text-1)' }}>{gameState.time}</strong>
+              <span className={styles.tokenInline}>
+                <span className={styles.tokenLabel}>Y</span>
+                <strong className={styles.tokenValue}>{gameState.time}</strong>
               </span>
             </Tooltip>
             <Tooltip
               content={
                 <div>
-                  <div style={{ fontSize: 'var(--font-md)', fontWeight: 800, color: 'var(--amber)', marginBottom: 6 }}>
+                  <div className={styles.tooltipTitle}>
                     Random seed {gameState.seed}
                   </div>
                   <div>
@@ -256,13 +247,23 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
                 </div>
               }
             >
-              <span style={{ display: 'inline-flex', alignItems: 'baseline' }}>
-                <span style={{ color: 'var(--text-3)' }}>S</span>
-                <strong style={{ color: 'var(--text-1)' }}>{gameState.seed}</strong>
+              <span className={styles.tokenInline}>
+                <span className={styles.tokenLabel}>S</span>
+                <strong className={styles.tokenValue}>{gameState.seed}</strong>
               </span>
             </Tooltip>
-            <div className="topbar-progress w-20 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--border)' }} role="progressbar" aria-valuenow={gameState.turn} aria-valuemin={0} aria-valuemax={gameState.maxTurns} aria-label={`Simulation progress, turn ${gameState.turn} of ${gameState.maxTurns}`}>
-              <div className="h-full rounded-full transition-all" style={{ width: `${Math.round((gameState.turn / gameState.maxTurns) * 100)}%`, background: 'linear-gradient(90deg, var(--side-a), var(--side-b))' }} />
+            <div
+              className={`topbar-progress w-20 h-1.5 rounded-full overflow-hidden ${styles.progressTrack}`}
+              role="progressbar"
+              aria-valuenow={gameState.turn}
+              aria-valuemin={0}
+              aria-valuemax={gameState.maxTurns}
+              aria-label={`Simulation progress, turn ${gameState.turn} of ${gameState.maxTurns}`}
+            >
+              <div
+                className={`h-full rounded-full transition-all ${styles.progressFill}`}
+                style={{ '--progress-pct': progressPct } as CSSProperties}
+              />
             </div>
             {sse.validationFallbacks.length > 0 && (() => {
               const total = sse.validationFallbacks.reduce((sum, b) => sum + b.count, 0);
@@ -270,7 +271,7 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
                 <Tooltip
                   content={
                     <div>
-                      <div style={{ fontSize: 'var(--font-md)', fontWeight: 800, color: 'var(--amber)', marginBottom: 6 }}>
+                      <div className={styles.tooltipTitle}>
                         ⚠ {total} validation fallback{total === 1 ? '' : 's'}
                       </div>
                       <div style={{ marginBottom: 8 }}>
@@ -280,15 +281,11 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
                         sim wouldn't abort mid-turn. Numbers here let you
                         spot which schema is misbehaving.
                       </div>
-                      <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px solid var(--border)' }}>
+                      <div className={styles.fallbackBlock}>
                         {sse.validationFallbacks.map(b => (
-                          <div key={b.schemaName} style={{
-                            fontFamily: 'var(--mono)', fontSize: 'var(--font-xs)',
-                            color: 'var(--text-2)',
-                            display: 'flex', justifyContent: 'space-between', gap: 12,
-                          }}>
+                          <div key={b.schemaName} className={styles.fallbackRow}>
                             <span>{b.schemaName}</span>
-                            <span style={{ color: 'var(--text-3)' }}>
+                            <span className={styles.fallbackRowMeta}>
                               {b.count}× {b.lastSite ? `(last: ${b.lastSite})` : ''}
                             </span>
                           </div>
@@ -299,14 +296,7 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
                 >
                   <span
                     aria-label={`${total} validation fallback${total === 1 ? '' : 's'}`}
-                    style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 4,
-                      padding: '1px 6px', borderRadius: 3,
-                      background: 'rgba(232, 180, 74, 0.14)',
-                      border: '1px solid var(--amber, #e8b44a)',
-                      color: 'var(--amber, #e8b44a)',
-                      fontFamily: 'var(--mono)', fontSize: 'var(--font-2xs)', fontWeight: 700,
-                    }}
+                    className={styles.fallbackPill}
                   >
                     <span aria-hidden="true">⚠</span>
                     {total}
@@ -316,44 +306,25 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
             })()}
           </div>
         )}
-        <div className="topbar-center hidden md:block truncate" style={{ color: 'var(--text-3)', fontFamily: 'var(--mono)', fontSize: 'var(--font-2xs)' }}>
+        <div className={`topbar-center hidden md:block truncate ${styles.tagline}`}>
           {gameState.turn === 0 ? 'Same input. Different decisions. Emergent divergence.' : ''}
         </div>
       </div>
 
       {/* Right: Actions + status + theme */}
       <div className="flex items-center gap-2 shrink-0">
-        {/* GitHub CTA — subtle teal-bordered link with mark + label.
-            Hides label on narrow viewports, keeps icon for tap target. */}
+        {/* GitHub CTA — :hover inverts to amber. The mouse-event handler
+            mutating inline styles was a workaround pre-CSS-module; the
+            module's :hover rule does the same job without React state. */}
         <a
           href="https://github.com/framersai/paracosm"
           target="_blank"
           rel="noopener noreferrer"
-          className="topbar-github"
+          className={`topbar-github ${styles.github}`}
           title="Star Paracosm on GitHub"
           aria-label="Open Paracosm on GitHub"
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            padding: '2px 10px 2px 8px', borderRadius: 3,
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border)',
-            color: 'var(--text-2)',
-            fontFamily: 'var(--mono)', fontSize: 'var(--font-2xs)', fontWeight: 700,
-            letterSpacing: '0.5px', textDecoration: 'none',
-            transition: 'border-color 0.15s, color 0.15s, background 0.15s',
-          }}
-          onMouseEnter={e => {
-            e.currentTarget.style.borderColor = 'var(--amber)';
-            e.currentTarget.style.color = 'var(--amber)';
-            e.currentTarget.style.background = 'rgba(232,180,74,0.06)';
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.borderColor = 'var(--border)';
-            e.currentTarget.style.color = 'var(--text-2)';
-            e.currentTarget.style.background = 'var(--bg-card)';
-          }}
         >
-          <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" style={{ flexShrink: 0 }}>
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" className={styles.githubIcon}>
             <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/>
           </svg>
           <span className="topbar-github-label">GITHUB</span>
@@ -363,19 +334,12 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
         {onTour && (
           <button
             onClick={onTour}
-            className="topbar-tour"
-            style={{
-              background: 'var(--bg-card)', color: 'var(--amber)',
-              border: '1px solid var(--amber-dim, var(--border))',
-              padding: '2px 10px', borderRadius: '3px',
-              fontSize: 'var(--font-2xs)', cursor: 'pointer', fontWeight: 600,
-              fontFamily: 'var(--mono)', letterSpacing: '0.3px',
-            }}
+            className={`topbar-tour ${styles.tourBtn}`}
             title="Interactive guided tour with sample data"
             aria-label="Start guided tour"
           >
             <span className="topbar-tour-label">HOW IT WORKS</span>
-            <span className="topbar-tour-icon" aria-hidden="true" style={{ display: 'none' }}>{'\u003F'}</span>
+            <span className="topbar-tour-icon" aria-hidden="true" style={{ display: 'none' }}>{'?'}</span>
           </button>
         )}
         {/* Run button. Hidden while isRunning OR launching so users
@@ -395,14 +359,7 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
         )}
         {launching && !gameState.isRunning && (
           <span
-            style={{
-              padding: '3px 14px', borderRadius: '4px',
-              background: 'var(--bg-card)', color: 'var(--text-3)',
-              border: '1px solid var(--border)',
-              fontSize: 'var(--font-xs)', fontWeight: 700, fontFamily: 'var(--mono)',
-              letterSpacing: '0.5px',
-              cursor: 'wait',
-            }}
+            className={styles.launchingChip}
             role="status"
             aria-live="polite"
           >
@@ -419,7 +376,7 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
             local buffer. Save/Copy still require an active run; their
             individual buttons inside the menu are gated separately. */}
         {((hasEvents && (onSave || onCopy)) || onClear) && (
-          <div ref={overflowRootRef} style={{ position: 'relative' }}>
+          <div ref={overflowRootRef} className={styles.overflowAnchor}>
             <button
               type="button"
               onClick={() => setOverflowOpen(o => !o)}
@@ -427,57 +384,23 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
               aria-expanded={overflowOpen}
               aria-label={overflowOpen ? 'Close run actions' : 'Open run actions menu'}
               title="Save · Copy · Wipe"
-              style={{
-                ...toolBtnStyle,
-                width: 28,
-                padding: '2px 0',
-                lineHeight: 1,
-                fontSize: 'var(--font-lg)',
-                fontWeight: 800,
-                letterSpacing: '0.08em',
-              }}
+              className={`${styles.toolBtn} ${styles.overflowTrigger}`}
             >
-              {'\u22ef'}
+              ⋯
             </button>
             {overflowOpen && (
               <div
                 ref={overflowMenuRef}
                 role="menu"
                 tabIndex={-1}
-                style={{
-                  position: 'absolute',
-                  top: 'calc(100% + 6px)',
-                  right: 0,
-                  minWidth: 160,
-                  padding: 4,
-                  background: 'var(--bg-panel)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 4,
-                  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)',
-                  zIndex: 60,
-                  outline: 'none',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 2,
-                }}
+                className={styles.overflowMenu}
               >
                 {hasEvents && onSave && (
                   <button
                     role="menuitem"
                     type="button"
                     onClick={() => { setOverflowOpen(false); onSave(); }}
-                    style={{
-                      textAlign: 'left',
-                      padding: '6px 10px',
-                      background: 'transparent',
-                      color: 'var(--text-2)',
-                      border: 'none',
-                      cursor: 'pointer',
-                      fontFamily: 'var(--mono)',
-                      fontSize: 'var(--font-xs)',
-                      fontWeight: 600,
-                      borderRadius: 3,
-                    }}
+                    className={styles.overflowItem}
                     title="Export simulation data as .json"
                   >
                     Save
@@ -488,18 +411,7 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
                     role="menuitem"
                     type="button"
                     onClick={() => { setOverflowOpen(false); onCopy(); }}
-                    style={{
-                      textAlign: 'left',
-                      padding: '6px 10px',
-                      background: 'transparent',
-                      color: 'var(--text-2)',
-                      border: 'none',
-                      cursor: 'pointer',
-                      fontFamily: 'var(--mono)',
-                      fontSize: 'var(--font-xs)',
-                      fontWeight: 600,
-                      borderRadius: 3,
-                    }}
+                    className={styles.overflowItem}
                     title="Copy simulation summary to clipboard"
                   >
                     Copy
@@ -510,18 +422,7 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
                     role="menuitem"
                     type="button"
                     onClick={() => { setOverflowOpen(false); onClear(); }}
-                    style={{
-                      textAlign: 'left',
-                      padding: '6px 10px',
-                      background: 'transparent',
-                      color: 'var(--rust)',
-                      border: 'none',
-                      cursor: 'pointer',
-                      fontFamily: 'var(--mono)',
-                      fontSize: 'var(--font-xs)',
-                      fontWeight: 600,
-                      borderRadius: 3,
-                    }}
+                    className={styles.overflowItemDanger}
                     title="Wipe local buffer + server-stored runs/sessions + output JSONs. Cannot be undone."
                   >
                     Wipe All
@@ -532,7 +433,7 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
           </div>
         )}
 
-        <span style={{ color: 'var(--border)', fontSize: 'var(--font-sm)' }} aria-hidden="true">|</span>
+        <span className={styles.divider} aria-hidden="true">|</span>
 
         {/* Status. The text label hides under .topbar-status-text at
             narrow viewports (<640px) so the colored dot alone signals
@@ -540,25 +441,25 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
             carries the full explanation for hover, and the aria-label
             keeps screen-reader semantics intact. */}
         <span
-          style={{ fontSize: 'var(--font-2xs)', fontFamily: 'var(--mono)', color: statusColor, fontWeight: 700, cursor: 'help', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+          className={styles.statusPill}
+          style={{ '--status-color': statusColor } as CSSProperties}
           role="status"
           aria-live="polite"
           aria-label={`${statusText}. ${statusTitle}`}
           title={statusTitle}
         >
-          <span aria-hidden="true">{sse.status === 'connected' && !sse.isComplete ? '\u25CF' : '\u25CB'}</span>
-          <span className="topbar-status-text" style={{ marginLeft: 4 }}>{statusText}</span>
+          <span aria-hidden="true">{sse.status === 'connected' && !sse.isComplete ? '●' : '○'}</span>
+          <span className={`topbar-status-text ${styles.statusText}`}>{statusText}</span>
         </span>
 
         {/* Theme toggle */}
         <button
           onClick={() => setTheme(resolved === 'dark' ? 'light' : 'dark')}
-          className="px-2 py-0.5 rounded cursor-pointer transition-colors"
-          style={{ background: 'var(--bg-card)', color: 'var(--text-3)', border: '1px solid var(--border)', fontSize: 'var(--font-xs)' }}
+          className={`px-2 py-0.5 rounded cursor-pointer transition-colors ${styles.themeBtn}`}
           title={`Switch to ${resolved === 'dark' ? 'light' : 'dark'} mode`}
           aria-label={`Switch to ${resolved === 'dark' ? 'light' : 'dark'} mode`}
         >
-          {resolved === 'dark' ? '\u2600' : '\u263D'}
+          {resolved === 'dark' ? '☀' : '☽'}
         </button>
       </div>
     </header>

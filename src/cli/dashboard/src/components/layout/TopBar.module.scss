@@ -1,0 +1,280 @@
+// Migrated from inline `style={{}}` per the no-inline-styles convention.
+// Tooltip-internal styles + provider-status colors flow in via the
+// --status-color / --progress-pct CSS custom properties.
+
+.bar {
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  height: 44px;
+}
+
+.logoLink {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.logoSpan {
+  display: block;
+  position: relative;
+  // --logo-size set inline (default 20).
+  width: var(--logo-size, 20px);
+  height: var(--logo-size, 20px);
+}
+
+.logoImg { display: block; }
+
+.logoGlow {
+  position: absolute;
+  inset: -30%;
+  border-radius: 50%;
+  pointer-events: none;
+  // --logo-glow set inline based on theme.
+  background: radial-gradient(circle, var(--logo-glow, rgba(232, 180, 74, 0.15)) 0%, transparent 70%);
+}
+
+.brand {
+  font-family: var(--mono);
+  font-size: var(--font-md);
+  font-weight: 700;
+  color: var(--text-1);
+  text-decoration: none;
+  letter-spacing: 0.08em;
+}
+
+.brandAccent { color: var(--amber); }
+
+.agentosTag {
+  font-size: var(--font-3xs);
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--rust);
+  font-family: var(--mono);
+  text-decoration: none;
+}
+
+.divider {
+  color: var(--border);
+  font-size: var(--font-sm);
+}
+
+.scenarioName {
+  font-size: var(--font-sm);
+  font-weight: 700;
+  color: var(--amber);
+  font-family: var(--mono);
+}
+
+.center {
+  min-width: 0;
+}
+
+.meta {
+  font-size: var(--font-xs);
+  font-family: var(--mono);
+  color: var(--text-2);
+  min-width: 0;
+}
+
+.tokenInline {
+  display: inline-flex;
+  align-items: baseline;
+}
+
+.tokenLabel { color: var(--text-3); }
+.tokenValue { color: var(--text-1); }
+
+.progressTrack {
+  background: var(--border);
+}
+
+.progressFill {
+  // --progress-pct set inline as percentage string.
+  width: var(--progress-pct, 0%);
+  background: linear-gradient(90deg, var(--side-a), var(--side-b));
+}
+
+.tooltipTitle {
+  font-size: var(--font-md);
+  font-weight: 800;
+  color: var(--amber);
+  margin-bottom: 6px;
+}
+
+.fallbackBlock {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
+.fallbackRow {
+  font-family: var(--mono);
+  font-size: var(--font-xs);
+  color: var(--text-2);
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.fallbackRowMeta { color: var(--text-3); }
+
+.fallbackPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: rgba(232, 180, 74, 0.14);
+  border: 1px solid var(--amber);
+  color: var(--amber);
+  font-family: var(--mono);
+  font-size: var(--font-2xs);
+  font-weight: 700;
+}
+
+.tagline {
+  color: var(--text-3);
+  font-family: var(--mono);
+  font-size: var(--font-2xs);
+}
+
+// GitHub button uses :hover instead of mouse-event handlers that
+// mutated inline styles. Same visual; cleaner separation.
+.github {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px 2px 8px;
+  border-radius: 3px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  font-family: var(--mono);
+  font-size: var(--font-2xs);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-decoration: none;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.github:hover {
+  border-color: var(--amber);
+  color: var(--amber);
+  background: rgba(232, 180, 74, 0.06);
+}
+
+.githubIcon { flex-shrink: 0; }
+
+.tourBtn {
+  background: var(--bg-card);
+  color: var(--amber);
+  border: 1px solid var(--amber-dim, var(--border));
+  padding: 2px 10px;
+  border-radius: 3px;
+  font-size: var(--font-2xs);
+  cursor: pointer;
+  font-weight: 600;
+  font-family: var(--mono);
+  letter-spacing: 0.3px;
+}
+
+.launchingChip {
+  padding: 3px 14px;
+  border-radius: 4px;
+  background: var(--bg-card);
+  color: var(--text-3);
+  border: 1px solid var(--border);
+  font-size: var(--font-xs);
+  font-weight: 700;
+  font-family: var(--mono);
+  letter-spacing: 0.5px;
+  cursor: wait;
+}
+
+.toolBtn {
+  background: var(--bg-card);
+  color: var(--text-2);
+  border: 1px solid var(--border);
+  padding: 2px 10px;
+  border-radius: 3px;
+  font-size: var(--font-2xs);
+  cursor: pointer;
+  font-weight: 600;
+  font-family: var(--mono);
+}
+
+.overflowAnchor { position: relative; }
+
+.overflowTrigger {
+  width: 28px;
+  padding: 2px 0;
+  line-height: 1;
+  font-size: var(--font-lg);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.overflowMenu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 160px;
+  padding: 4px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  // Same layer as RunMenu (--z-popover): a topbar overflow popover.
+  z-index: var(--z-popover);
+  outline: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.overflowItem {
+  text-align: left;
+  padding: 6px 10px;
+  background: transparent;
+  color: var(--text-2);
+  border: none;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: var(--font-xs);
+  font-weight: 600;
+  border-radius: 3px;
+}
+
+.overflowItemDanger {
+  text-align: left;
+  padding: 6px 10px;
+  background: transparent;
+  color: var(--rust);
+  border: none;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: var(--font-xs);
+  font-weight: 600;
+  border-radius: 3px;
+}
+
+.statusPill {
+  font-size: var(--font-2xs);
+  font-family: var(--mono);
+  font-weight: 700;
+  cursor: help;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  // --status-color set inline based on isAborted/isComplete/status.
+  color: var(--status-color, var(--text-3));
+}
+
+.statusText { margin-left: 4px; }
+
+.themeBtn {
+  background: var(--bg-card);
+  color: var(--text-3);
+  border: 1px solid var(--border);
+  font-size: var(--font-xs);
+}
