@@ -100,3 +100,14 @@
   color: var(--text-dim);
   margin-left: 0.5rem;
 }
+
+@media (max-width: 600px) {
+  // Phone: take the full viewport. The 24px inset wastes ~10% of width
+  // and rounded corners aren't worth the cropping cost on small screens.
+  .modal { inset: 0; border-radius: 0; }
+  .head { padding: 0.75rem 1rem; }
+  .body { padding: 1rem; gap: 1rem; }
+  // Title can wrap onto two lines so the close button stays visible
+  // and clickable.
+  .title { font-size: var(--font-lg); line-height: 1.25; }
+}
