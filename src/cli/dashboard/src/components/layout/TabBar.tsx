@@ -87,7 +87,6 @@ export function TabBar({ active, onTabChange, scenario }: TabBarProps) {
           onClick={() => onTabChange(tab.id)}
           role="tab"
           aria-selected={active === tab.id}
-          aria-controls={`panel-${tab.id}`}
           aria-label={tab.label}
           id={`tab-${tab.id}`}
           className="cursor-pointer transition-colors"

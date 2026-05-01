@@ -10,13 +10,13 @@
     <meta name="keywords" content="paracosm, agentos, world model, structured world model, LLM world model, LLM-readable world model, prompt to world model, counterfactual simulation, CWSM, digital twin, decision simulation, multi-agent simulation, LLM agents, HEXACO personality, runtime tool forging, LLM-as-judge, deterministic kernel, scenario-driven simulation, open source, npm paracosm, TypeScript" />
     <meta name="author" content="Manic Agency / Frame.dev" />
     <meta name="robots" content="index, follow" />
-    <link rel="canonical" href="https://github.com/framersai/paracosm" />
+    <link rel="canonical" href="https://paracosm.agentos.sh/sim" />
 
     <!-- Open Graph -->
     <meta property="og:title" content="Paracosm Dashboard | Structured World Model for AI Agents" />
     <meta property="og:description" content="Live dashboard for a structured world model. Prompt/document/URL-grounded ScenarioPackages, deterministic kernel, LLM-driven events, HEXACO leaders, runtime tool forging, and reproducible counterfactual simulations." />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://github.com/framersai/paracosm" />
+    <meta property="og:url" content="https://paracosm.agentos.sh/sim" />
     <meta property="og:site_name" content="Paracosm" />
     <meta property="og:locale" content="en_US" />
 
@@ -70,6 +70,26 @@
   </head>
   <body>
     <a href="#main-content" class="skip-to-content">Skip to main content</a>
+    <!--
+      Server-rendered semantic shell for crawlers + screen readers. The
+      React app mounts into #root and replaces these placeholders, but
+      until hydration the page has a real H1, H2, and a noscript fallback
+      explaining what Paracosm is and pointing at the marketing site.
+    -->
+    <div id="seo-shell" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0">
+      <h1>Paracosm Dashboard — Structured World Model for AI Agents</h1>
+      <h2>Live counterfactual simulation runtime</h2>
+      <p>Configure scenarios, run deterministic kernels, generate HEXACO-personality leaders, fork and replay runs, and forge tools at runtime. Open-source TypeScript, built on AgentOS.</p>
+    </div>
+    <noscript>
+      <main id="main-content" style="max-width:720px;margin:4rem auto;padding:0 1.5rem;font-family:system-ui,sans-serif;line-height:1.6">
+        <h1>Paracosm Dashboard</h1>
+        <p>The Paracosm dashboard is an interactive React app and requires JavaScript. Visit the
+          <a href="https://paracosm.agentos.sh">project landing page</a> for an overview, or read the
+          <a href="https://github.com/framersai/paracosm/blob/master/docs/COOKBOOK.md">cookbook</a>
+          for code examples that don't require the dashboard.</p>
+      </main>
+    </noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

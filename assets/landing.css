@@ -785,7 +785,7 @@ a:hover { text-decoration: underline; }
 .flow-ring.active svg { opacity: 1; }
 
 .flow-num { font-family: var(--mono); font-size: var(--font-2xs); font-weight: 700; color: var(--t4); letter-spacing: 1px; margin-bottom: 4px; }
-.flow-node h4 { font-family: var(--mono); font-size: var(--font-md); font-weight: 700; color: var(--t1); margin-bottom: 4px; }
+.flow-node h3 { font-family: var(--mono); font-size: var(--font-md); font-weight: 700; color: var(--t1); margin-bottom: 4px; }
 .flow-node p { font-size: var(--font-xs); color: var(--t3); line-height: 1.5; max-width: 180px; }
 
 /* ── Divergence Visualization ─────────────────────────────────────────────── */
@@ -793,7 +793,7 @@ a:hover { text-decoration: underline; }
 .diverge { display: flex; gap: 20px; margin-top: 48px; }
 .diverge-side { flex: 1; border-radius: 8px; padding: 24px; border: 1px solid var(--border); background: var(--bg3); transition: all .3s; }
 .diverge-side:hover { border-color: var(--border-hl); }
-.diverge-side h4 { font-family: var(--mono); font-size: var(--font-lg); font-weight: 700; margin-bottom: 8px; }
+.diverge-side h3 { font-family: var(--mono); font-size: var(--font-lg); font-weight: 700; margin-bottom: 8px; }
 .diverge-bar { height: 6px; border-radius: 3px; margin: 6px 0; overflow: hidden; background: var(--border); }
 .diverge-fill { height: 100%; border-radius: 3px; transition: width 1s ease; }
 
@@ -892,7 +892,8 @@ a:hover { text-decoration: underline; }
 .code-copy:hover { border-color: var(--amber); color: var(--t1); }
 .code-copy.copied { color: var(--green); border-color: var(--green); }
 .code-body { padding: 14px 16px; font-family: var(--mono); font-size: var(--font-md); line-height: 1.7; color: var(--t1); overflow-x: auto; white-space: pre; text-align: left; }
-.code-body .cm { color: #6b6356; font-style: italic; }
+/* Bumped from #6b6356 (~4:1) to --t3 (~6.5:1) so code comments pass WCAG AA against the dark code-body background. */
+.code-body .cm { color: var(--t3); font-style: italic; }
 .code-body .kw { color: #4ca8a8; }
 .code-body .str { color: #e8b44a; }
 .code-body .fn { color: #e06530; }
@@ -901,7 +902,7 @@ a:hover { text-decoration: underline; }
 .light .code-block { background: #1c1915; border-color: #302a22; box-shadow: 0 4px 20px rgba(0, 0, 0, .2); }
 .light .code-header { background: #242018; border-bottom-color: #302a22; color: #a89878; }
 .light .code-body { color: #f5f0e4; }
-.light .code-body .cm { color: #6b6356; }
+.light .code-body .cm { color: #c4b894; } /* lighter than dark mode for the inverted (dark-on-cream) code block */
 .light .code-body .kw { color: #4ca8a8; }
 .light .code-body .str { color: #e8b44a; }
 .light .code-body .fn { color: #e06530; }
@@ -931,7 +932,12 @@ a:hover { text-decoration: underline; }
 .contact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 40px; }
 .contact-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 24px; transition: all .3s; }
 .contact-card:hover { border-color: var(--amber-d); }
-.contact-card h4 { font-family: var(--mono); font-size: var(--font-lg); font-weight: 700; color: var(--t1); margin-bottom: 6px; }
+.contact-card h3 { font-family: var(--mono); font-size: var(--font-lg); font-weight: 700; color: var(--t1); margin-bottom: 6px; }
+
+/* Underline links inside the #world-models prose so they read as
+   actionable when CSS color alone fails (a11y rule
+   `link-in-text-block`). Other inline-icon links keep their treatment. */
+#world-models p a { text-decoration: underline; text-underline-offset: 2px; }
 .contact-card p { font-size: var(--font-md); color: var(--t2); margin-bottom: 12px; line-height: 1.6; }
 .contact-card a { font-weight: 600; }
 
@@ -949,7 +955,8 @@ footer { padding: 28px 24px; border-top: 1px solid var(--border); background: va
 .ft-links { display: flex; gap: 20px; font-size: var(--font-sm); flex-wrap: wrap; }
 .ft-links a { color: var(--t3); text-decoration: none; transition: color .2s; }
 .ft-links a:hover { color: var(--amber); }
-.ft-copy { font-size: var(--font-xs); color: var(--t4); }
+/* Bumped from --t4 (~3.2:1) to --t3 so the copyright passes WCAG AA against the footer background. */
+.ft-copy { font-size: var(--font-xs); color: var(--t3); }
 
 /* ── Reveal Animation ─────────────────────────────────────────────────────── */
 

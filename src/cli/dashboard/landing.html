@@ -191,6 +191,8 @@
   <a href="/sim" class="cta">Launch Sim <svg width="16" height="16"><use href="#i-arrow"/></svg></a>
 </div>
 
+<main id="main-content">
+
 <!-- HERO -->
 <section class="hero" id="top">
   <svg id="hero-icon" class="hero-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="96" height="96" style="display:block" role="img" aria-label="Paracosm"><defs><radialGradient id="hg"><stop offset="0%" stop-color="var(--amber)" stop-opacity=".3"/><stop offset="100%" stop-color="var(--amber)" stop-opacity="0"/></radialGradient></defs><g class="pc-orbit"><line x1="256" y1="256" x2="301.06" y2="87.85" stroke="var(--pc-line)" stroke-width="12.8" opacity=".5"/><line x1="256" y1="256" x2="424.15" y2="210.94" stroke="var(--pc-line)" stroke-width="12.8" opacity=".5"/><line x1="256" y1="256" x2="379.09" y2="379.09" stroke="var(--pc-line)" stroke-width="12.8" opacity=".5"/><line x1="256" y1="256" x2="210.94" y2="424.15" stroke="var(--pc-line)" stroke-width="12.8" opacity=".5"/><line x1="256" y1="256" x2="87.85" y2="301.06" stroke="var(--pc-line)" stroke-width="12.8" opacity=".5"/><line x1="256" y1="256" x2="132.91" y2="132.91" stroke="var(--pc-line)" stroke-width="12.8" opacity=".5"/></g><g class="pc-cross"><line x1="301.06" y1="87.85" x2="379.09" y2="379.09" stroke="var(--pc-line)" stroke-width="9" opacity=".18"/><line x1="424.15" y1="210.94" x2="210.94" y2="424.15" stroke="var(--pc-line)" stroke-width="9" opacity=".18"/><line x1="379.09" y1="379.09" x2="87.85" y2="301.06" stroke="var(--pc-line)" stroke-width="9" opacity=".18"/><line x1="210.94" y1="424.15" x2="132.91" y2="132.91" stroke="var(--pc-line)" stroke-width="9" opacity=".18"/><line x1="87.85" y1="301.06" x2="301.06" y2="87.85" stroke="var(--pc-line)" stroke-width="9" opacity=".18"/><line x1="132.91" y1="132.91" x2="424.15" y2="210.94" stroke="var(--pc-line)" stroke-width="9" opacity=".18"/></g><circle class="pc-hub-glow" cx="256" cy="256" r="73.7" fill="url(#hg)"/><circle class="pc-hub" cx="256" cy="256" r="40.96" fill="var(--amber)"/><g class="pc-orbit"><circle cx="301.06" cy="87.85" r="28.16" fill="var(--rust)"/><circle cx="424.15" cy="210.94" r="28.16" fill="var(--amber)"/><circle cx="379.09" cy="379.09" r="28.16" fill="var(--teal)"/><circle cx="210.94" cy="424.15" r="28.16" fill="var(--rust)"/><circle cx="87.85" cy="301.06" r="28.16" fill="var(--teal)"/><circle cx="132.91" cy="132.91" r="28.16" fill="var(--amber)"/></g></svg>
@@ -742,25 +744,25 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
         <div class="flow-node">
           <div class="flow-ring" style="border-color:var(--rust)"><svg style="color:var(--rust)"><use href="#i-eye"/></svg></div>
           <div class="flow-num" style="color:var(--rust)">01</div>
-          <h4>Event Director</h4>
+          <h3>Event Director</h3>
           <p>Reads world state, prior decisions, and tool intelligence. Generates events that target actual weaknesses and exploit prior choices.</p>
         </div>
         <div class="flow-node">
           <div class="flow-ring" style="border-color:var(--amber)"><svg style="color:var(--amber)"><use href="#i-layers"/></svg></div>
           <div class="flow-num" style="color:var(--amber)">02</div>
-          <h4>Department Analysis</h4>
+          <h3>Department Analysis</h3>
           <p>Five department agents analyze the crisis in parallel. Each cites research and can forge new computational tools.</p>
         </div>
         <div class="flow-node">
           <div class="flow-ring" style="border-color:var(--teal)"><svg style="color:var(--teal)"><use href="#i-brain"/></svg></div>
           <div class="flow-num" style="color:var(--teal)">03</div>
-          <h4>Commander Decision</h4>
+          <h3>Commander Decision</h3>
           <p>The AI commander weighs department input through the lens of their HEXACO personality profile.</p>
         </div>
         <div class="flow-node">
           <div class="flow-ring" style="border-color:var(--green)"><svg style="color:var(--green)"><use href="#i-cpu"/></svg></div>
           <div class="flow-num" style="color:var(--green)">04</div>
-          <h4>Kernel Resolution</h4>
+          <h3>Kernel Resolution</h3>
           <p>Deterministic state machine applies effects. Agents react, form opinions, update relationships. HEXACO traits drift.</p>
         </div>
       </div>
@@ -773,7 +775,7 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
 
     <div class="diverge rv">
       <div class="diverge-side" style="border-left:3px solid var(--amber)">
-        <h4 style="color:var(--amber)">Leader A: high-openness profile</h4>
+        <h3 style="color:var(--amber)">Leader A: high-openness profile</h3>
         <p style="font-size: var(--font-md);color:var(--t2)">HEXACO openness 0.95, conscientiousness 0.35. The director picks unconventional candidates at promotion and weights risk-tolerant department reports more heavily. Decisions push experimental options; outcomes have higher variance.</p>
         <div style="font-size: var(--font-xs);color:var(--t3);font-family:var(--mono);margin-top:12px">
           <div>Higher variance on metrics under this profile</div>
@@ -783,7 +785,7 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
         </div>
       </div>
       <div class="diverge-side" style="border-left:3px solid var(--teal)">
-        <h4 style="color:var(--teal)">Leader B: high-conscientiousness profile</h4>
+        <h3 style="color:var(--teal)">Leader B: high-conscientiousness profile</h3>
         <p style="font-size: var(--font-md);color:var(--t2)">HEXACO openness 0.25, conscientiousness 0.97. The director picks by-the-book candidates and weights margin-of-safety reports. Decisions favor conservative options; outcomes have lower variance and longer time-to-resolution.</p>
         <div style="font-size: var(--font-xs);color:var(--t3);font-family:var(--mono);margin-top:12px">
           <div>Lower variance on metrics under this profile</div>
@@ -1076,12 +1078,12 @@ curl -X POST http://localhost:3456/simulate \
 
     <div class="contact-grid" style="margin-top:24px">
       <div class="contact-card rv rv-d1">
-        <h4>Enterprise &amp; partnerships</h4>
+        <h3>Enterprise &amp; partnerships</h3>
         <p>Private deployment, custom scenarios, government and defense engagements, investment inquiries.</p>
         <a href="mailto:team@frame.dev?subject=Paracosm Enterprise" style="color:var(--amber);font-weight:700;font-family:var(--mono);font-size: var(--font-lg)">team@frame.dev</a>
       </div>
       <div class="contact-card rv rv-d2">
-        <h4>Community &amp; open source</h4>
+        <h3>Community &amp; open source</h3>
         <p>Bug reports, feature requests, scenario contributions, general discussion.</p>
         <a href="https://github.com/framersai/paracosm" target="_blank" rel="noopener" style="color:var(--rust)">GitHub</a> &middot; <a href="https://wilds.ai/discord" target="_blank" rel="noopener" style="color:var(--rust)">Discord</a>
       </div>
@@ -1099,6 +1101,8 @@ curl -X POST http://localhost:3456/simulate \
     <a href="https://github.com/framersai/paracosm" class="btn-ghost" target="_blank" rel="noopener">View Source</a>
   </div>
 </section>
+
+</main>
 
 <!-- FOOTER -->
 <footer role="contentinfo">
