@@ -1,3 +1,5 @@
+@use '../../theme/typography' as typo;
+
 .backdrop {
   position: fixed;
   inset: 0;
@@ -98,26 +100,23 @@
   margin-bottom: 1rem;
 
   h2 {
-    font-size: var(--font-2xl);
+    @include typo.page-title;
     margin: 0;
     color: var(--text-1);
   }
 
   p {
+    @include typo.body;
     margin: 0;
     color: var(--text-2);
-    font-size: var(--font-lg);
   }
 }
 
 .modeBadge {
+  @include typo.micro;
   display: inline-block;
   padding: 0.15rem 0.5rem;
   border-radius: 999px;
-  font-family: var(--mono);
-  font-size: var(--font-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
   width: fit-content;
 
   &[data-mode="turn-loop"]        { background: rgba(76, 168, 168, 0.15); color: var(--teal); }

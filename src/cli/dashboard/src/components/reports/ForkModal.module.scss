@@ -1,13 +1,12 @@
+@use '../../theme/typography' as typo;
+
 .forkButton {
+  @include typo.field-label;
   background: transparent;
   color: var(--teal);
   border: 1px solid var(--teal-dim);
   border-radius: var(--radius-sm);
   padding: 4px 10px;
-  font-family: var(--mono);
-  font-size: var(--font-xs);
-  font-weight: 600;
-  letter-spacing: 0.3px;
   cursor: pointer;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
 
@@ -63,11 +62,9 @@
   align-items: center;
 
   h3 {
+    @include typo.panel-title;
     margin: 0;
     color: var(--amber);
-    font-family: var(--mono);
-    font-size: var(--font-lg);
-    letter-spacing: 0.3px;
   }
 }
 
@@ -95,12 +92,8 @@
   gap: 6px;
 
   label {
-    font-size: var(--font-2xs);
+    @include typo.field-label;
     color: var(--text-3);
-    text-transform: uppercase;
-    letter-spacing: 0.6px;
-    font-family: var(--mono);
-    font-weight: 600;
   }
   select,
   input[type='number'] {

@@ -1,3 +1,5 @@
+@use '../../theme/typography' as typo;
+
 .seedInput {
   display: flex;
   flex-direction: column;
@@ -19,15 +21,12 @@
 }
 
 .tab {
+  @include typo.field-label;
   background: transparent;
   color: var(--text-3);
   border: 1px solid transparent;
   border-bottom: 2px solid transparent;
   padding: 6px 14px;
-  font-family: var(--mono);
-  font-size: var(--font-sm);
-  font-weight: 600;
-  letter-spacing: 0.5px;
   cursor: pointer;
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
 
@@ -75,17 +74,13 @@
 
 .fetchButton,
 .runButton {
+  @include typo.field-label;
   background: var(--amber);
   color: var(--bg-deep);
   border: 1px solid var(--amber);
   border-radius: var(--radius-sm);
   padding: 8px 16px;
-  font-family: var(--mono);
-  font-size: var(--font-sm);
-  font-weight: 600;
-  letter-spacing: 0.3px;
   cursor: pointer;
-  text-transform: uppercase;
 
   &:hover:not(:disabled) {
     background: var(--accent-hover);

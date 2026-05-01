@@ -1,3 +1,5 @@
+@use '../../theme/typography' as typo;
+
 .card {
   background: var(--bg-card);
   border: 1px solid var(--glass-border);
@@ -40,12 +42,9 @@
 }
 
 .modeBadge {
+  @include typo.micro;
   padding: 0.15rem 0.5rem;
   border-radius: 999px;
-  font-family: var(--mono);
-  font-size: var(--font-2xs);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
   white-space: nowrap;
 
   &[data-mode="turn-loop"]        { background: rgba(76, 168, 168, 0.15); color: var(--teal); }
@@ -65,15 +64,14 @@
 }
 
 .scenario {
-  font-size: var(--font-lg);
-  font-weight: 600;
+  @include typo.body-strong;
   color: var(--text-1);
   margin: 0;
   word-break: break-word;
 }
 
 .leader {
-  font-size: var(--font-sm);
+  @include typo.caption;
   color: var(--text-2);
   margin: 0;
 }

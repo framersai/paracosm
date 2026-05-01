@@ -1,3 +1,5 @@
+@use '../../theme/typography' as typo;
+
 .tab {
   padding: 16px 20px;
   display: flex;
@@ -15,17 +17,14 @@
   font-family: var(--sans);
 
   h2 {
+    @include typo.panel-title;
     color: var(--text-2);
-    font-family: var(--mono);
-    font-size: var(--font-lg);
     margin-bottom: 12px;
-    letter-spacing: 0.5px;
   }
   p {
+    @include typo.body;
     max-width: 520px;
     margin: 0 auto;
-    font-size: var(--font-md);
-    line-height: 1.6;
 
     strong {
       color: var(--text-2);
@@ -94,12 +93,9 @@
 }
 
 .parentTitle, .branchTitle {
+  @include typo.card-title;
   margin: 0;
   color: var(--text-1);
-  font-family: var(--mono);
-  font-size: var(--font-md);
-  font-weight: 600;
-  letter-spacing: 0.3px;
 }
 
 .archetype {

@@ -2,6 +2,8 @@
 // Dynamic per-side color flows in via `--side-color` CSS custom property
 // set on the root.
 
+@use '../../theme/typography' as typo;
+
 .root {
   background: var(--bg-panel);
   border: 1px solid var(--border);
@@ -13,8 +15,7 @@
 }
 
 .heading {
-  font-size: var(--font-xl);
-  font-family: var(--mono);
+  @include typo.panel-title;
   margin-bottom: 12px;
   color: var(--side-color);
 }
@@ -30,12 +31,9 @@
 }
 
 .label {
+  @include typo.field-label;
   display: block;
-  font-size: var(--font-sm);
   color: var(--text-3);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-weight: 700;
   margin-bottom: 4px;
 }
 

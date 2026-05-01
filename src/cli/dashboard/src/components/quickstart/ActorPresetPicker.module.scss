@@ -1,3 +1,5 @@
+@use '../../theme/typography' as typo;
+
 .backdrop {
   position: fixed;
   inset: 0;
@@ -26,10 +28,9 @@
   align-items: center;
 
   h3 {
+    @include typo.panel-title;
     margin: 0;
     color: var(--amber);
-    font-family: var(--mono);
-    font-size: var(--font-lg);
   }
 
   button {

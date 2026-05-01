@@ -1,9 +1,10 @@
 // ReplayBanner styles (both replay-active and replay-not-found variants).
 
+@use '../../theme/typography' as typo;
+
 .banner {
+  @include typo.field-label;
   padding: 8px 16px;
-  font-family: var(--mono);
-  font-size: var(--font-xs);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -27,25 +28,22 @@
 }
 
 .exitButton {
+  @include typo.field-label;
   padding: 4px 10px;
   background: transparent;
   border: 1px solid var(--bg-deep);
   color: var(--bg-deep);
   border-radius: 4px;
   cursor: pointer;
-  font-family: var(--mono);
-  font-size: var(--font-xs);
-  font-weight: 600;
 }
 
 .returnButton {
+  @include typo.section-label;
   background: var(--bg-card);
   color: var(--text-1);
   border: 1px solid var(--border);
   padding: 6px 14px;
-  font-family: var(--mono);
-  font-size: var(--font-xs);
-  font-weight: 800;
+  font-weight: 800; // intentionally heavier than section-label's 700 for stronger CTA presence
   cursor: pointer;
   border-radius: 4px;
   white-space: nowrap;

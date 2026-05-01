@@ -3,6 +3,8 @@
 // CSS custom properties on the root so per-pill color references stay
 // in CSS rather than inline JS.
 
+@use '../../theme/typography' as typo;
+
 .bar {
   display: flex;
   align-items: center;
@@ -44,10 +46,9 @@
 }
 
 .label {
-  font-size: var(--font-3xs);
+  @include typo.micro;
   color: var(--text-1);
-  letter-spacing: 0.6px;
-  font-weight: 800;
+  font-weight: 800; // intentionally heavier than micro's 700 for stats-pill legibility at 9px
   margin-right: 1px;
   opacity: 0.7;
 }

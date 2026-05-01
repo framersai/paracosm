@@ -1,3 +1,5 @@
+@use '../../theme/typography' as typo;
+
 .batchTrajectory {
   display: flex;
   flex-direction: column;
@@ -24,11 +26,9 @@
 }
 
 .header {
+  @include typo.card-title;
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  font-size: var(--font-md);
   color: var(--paracosm-text-muted, #888);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
 }

@@ -1,3 +1,5 @@
+@use '../../theme/typography' as typo;
+
 .empty {
   background: var(--bg-card);
   border: 1px dashed var(--glass-border);
@@ -17,9 +19,9 @@
 }
 
 .empty h2 {
+  @include typo.panel-title;
   color: var(--text-1);
   margin: 0;
-  font-size: var(--font-xl);
 }
 
 .empty p {

@@ -1,3 +1,5 @@
+@use '../../theme/typography' as typo;
+
 .view {
   display: flex;
   flex-direction: column;
@@ -15,18 +17,15 @@
   font-family: var(--sans);
 
   h2 {
+    @include typo.page-title;
     color: var(--amber);
-    font-family: var(--mono);
     margin: 0 0 8px;
-    font-size: var(--font-2xl);
-    letter-spacing: 0.5px;
   }
 
   p {
+    @include typo.body;
     color: var(--text-3);
     margin: 0;
-    font-size: var(--font-md);
-    line-height: 1.6;
   }
 }
 
@@ -43,19 +42,15 @@
 }
 
 .compareCta {
+  @include typo.card-title;
   background: linear-gradient(135deg, var(--amber) 0%, #b87425 100%);
   color: var(--bg-deep);
   border: none;
   border-radius: 8px;
   padding: 12px 20px;
-  font-family: var(--mono);
-  font-weight: 700;
-  font-size: var(--font-md);
-  letter-spacing: 0.04em;
   cursor: pointer;
   transition: transform 200ms ease, box-shadow 200ms ease;
   align-self: center;
-  text-transform: uppercase;
 
   &:hover {
     transform: translateY(-1px);

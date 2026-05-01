@@ -1,3 +1,5 @@
+@use '../../theme/typography' as typo;
+
 .card {
   background: var(--bg-card);
   border: 1px solid var(--glass-border);
@@ -35,14 +37,12 @@
 }
 
 .bundleBadge {
-  font-weight: 700;
-  letter-spacing: 0.05em;
+  @include typo.micro;
   color: var(--amber);
   background: rgba(232, 180, 74, 0.12);
   border: 1px solid rgba(232, 180, 74, 0.35);
   border-radius: 4px;
   padding: 0.15rem 0.5rem;
-  font-size: var(--font-2xs);
 }
 
 .count { font-weight: 600; color: var(--text-2); }
@@ -50,9 +50,8 @@
 .time { color: var(--text-3); }
 
 .scenario {
+  @include typo.body-strong;
   margin: 0;
-  font-size: var(--font-lg);
-  font-weight: 600;
   color: var(--text-1);
   word-break: break-word;
 }
@@ -88,17 +87,13 @@
 }
 
 .actionBtn {
+  @include typo.field-label;
   background: transparent;
   border: 1px solid var(--amber);
   border-radius: 4px;
   padding: 0.3rem 0.7rem;
   cursor: pointer;
   color: var(--amber);
-  font-size: var(--font-sm);
-  font-family: var(--mono);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
 
   &:hover {
     background: rgba(232, 180, 74, 0.1);

@@ -1,3 +1,5 @@
+@use '../../theme/typography' as typo;
+
 .list {
   display: flex;
   flex-direction: column;
@@ -19,11 +21,8 @@
 }
 
 .turnHead {
-  font-family: var(--mono);
-  font-size: var(--font-sm);
+  @include typo.section-label;
   color: var(--text-3);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
   margin-bottom: 0.4rem;
 }
 
