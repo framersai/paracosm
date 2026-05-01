@@ -1,5 +1,7 @@
+import type { CSSProperties } from 'react';
 import { useScenarioContext } from '../../App';
 import { describeAvailability, type ProductAvailability } from './aboutStatus';
+import styles from './AboutPage.module.scss';
 
 interface FaqItem {
   q: string;
@@ -208,6 +210,14 @@ const AVAILABILITY_TONE_STYLES: Record<ReturnType<typeof describeAvailability>['
   rust: { color: 'var(--rust)', background: 'rgba(224,101,48,.10)', border: 'rgba(224,101,48,.35)' },
 };
 
+function pillStyleVars(tone: { color: string; background: string; border: string }): CSSProperties {
+  return {
+    '--pill-color': tone.color,
+    '--pill-bg': tone.background,
+    '--pill-border': tone.border,
+  } as CSSProperties;
+}
+
 export function AboutPage() {
   const scenario = useScenarioContext();
   const surfaces = PRODUCT_SURFACES.map(surface => ({ ...surface, status: describeAvailability(surface.availability) }));
@@ -215,59 +225,45 @@ export function AboutPage() {
   const roadmapSurfaces = surfaces.filter(surface => surface.status.group === 'roadmap');
 
   return (
-    <div className="about-content" style={{ flex: 1, overflowY: 'auto', padding: '32px 48px', background: 'var(--bg-deep)', width: '100%' }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+    <div className={`about-content ${styles.page}`}>
+      <div className={styles.container}>
         {/* Header */}
-        <header style={{ marginBottom: '24px' }}>
-          <h1 style={{ fontSize: 'var(--font-2xl)', color: 'var(--text-1)', fontFamily: 'var(--mono)', marginBottom: '8px', letterSpacing: '.12em', fontWeight: 700 }}>
-            PARA<span style={{ color: 'var(--amber)' }}>COSM</span>
+        <header className={styles.header}>
+          <h1 className={styles.h1}>
+            PARA<span className={styles.h1Accent}>COSM</span>
           </h1>
-          <p style={{ color: 'var(--text-2)', lineHeight: 1.8, fontSize: 'var(--font-lg)' }}>
+          <p className={styles.lead}>
             Structured world model for AI agents. Start from a prompt, brief, URL, or scenario JSON draft,
             compile or ground it into a typed world contract, then assign AI leaders with distinct personalities.
             Watch their decisions compound into divergent outcomes from identical starting
             conditions. Leaders can be commanders, CEOs, generals, councils, AI systems, or any top-down
             decision maker. The engine handles event generation, department analysis, tool forging, personality
-            drift, and state transitions. Currently running: <strong style={{ color: 'var(--amber)' }}>{scenario.labels.name}</strong>.
+            drift, and state transitions. Currently running: <strong className={styles.leadStrong}>{scenario.labels.name}</strong>.
           </p>
-          <p style={{ color: 'var(--text-3)', lineHeight: 1.8, fontSize: 'var(--font-sm)', marginTop: '10px' }}>
+          <p className={styles.leadSecondary}>
             Availability note: the open-source engine is available now. Hosted Pro, Enterprise, and Platform offerings shown below are roadmap tiers and early-access packaging, not generally available SaaS products yet.
           </p>
         </header>
 
-        <section style={{ marginBottom: '24px' }} aria-labelledby="surface-heading">
-          <h2 id="surface-heading" style={{ fontSize: 'var(--font-2xl)', color: 'var(--amber)', fontFamily: 'var(--mono)', paddingBottom: '8px', borderBottom: '1px solid var(--border)', marginBottom: '14px' }}>
-            Product Surface
-          </h2>
-          <div className="responsive-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+        <section className={styles.section} aria-labelledby="surface-heading">
+          <h2 id="surface-heading" className={styles.h2}>Product Surface</h2>
+          <div className={`responsive-grid-2 ${styles.grid2WithBottom}`}>
             {[{ title: 'Use Today', items: availableSurfaces }, { title: 'Roadmap', items: roadmapSurfaces }].map(group => (
-              <div key={group.title} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '6px', padding: '14px 16px', boxShadow: 'var(--card-shadow)' }}>
-                <div style={{ fontSize: 'var(--font-xs)', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--amber)', fontFamily: 'var(--mono)', marginBottom: '10px' }}>
-                  {group.title}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div key={group.title} className={styles.surfaceGroup}>
+                <div className={styles.surfaceGroupLabel}>{group.title}</div>
+                <div className={styles.surfaceList}>
                   {group.items.map(item => {
                     const tone = AVAILABILITY_TONE_STYLES[item.status.tone];
                     return (
-                      <article key={item.title} style={{ padding: '10px 12px', borderRadius: '6px', background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
-                          <h3 style={{ fontSize: 'var(--font-md)', fontWeight: 700, color: 'var(--text-1)' }}>{item.title}</h3>
-                          <span style={{
-                            fontSize: 'var(--font-3xs)',
-                            fontWeight: 800,
-                            letterSpacing: '1px',
-                            textTransform: 'uppercase',
-                            padding: '2px 8px',
-                            borderRadius: '12px',
-                            color: tone.color,
-                            background: tone.background,
-                            border: `1px solid ${tone.border}`,
-                          }}>
+                      <article key={item.title} className={styles.surfaceItem}>
+                        <div className={styles.surfaceItemHead}>
+                          <h3 className={styles.surfaceItemTitle}>{item.title}</h3>
+                          <span className={styles.statusPill} style={pillStyleVars(tone)}>
                             {item.status.label}
                           </span>
                         </div>
-                        <p style={{ fontSize: 'var(--font-sm)', color: 'var(--text-2)', lineHeight: 1.6, marginBottom: '4px' }}>{item.description}</p>
-                        <p style={{ fontSize: 'var(--font-xs)', color: 'var(--text-3)', lineHeight: 1.6 }}>{item.status.detail}</p>
+                        <p className={styles.surfaceItemDescription}>{item.description}</p>
+                        <p className={styles.surfaceItemDetail}>{item.status.detail}</p>
                       </article>
                     );
                   })}
@@ -278,11 +274,9 @@ export function AboutPage() {
         </section>
 
         {/* How it works */}
-        <section style={{ marginBottom: '24px' }} aria-labelledby="how-heading">
-          <h2 id="how-heading" style={{ fontSize: 'var(--font-2xl)', color: 'var(--amber)', fontFamily: 'var(--mono)', paddingBottom: '8px', borderBottom: '1px solid var(--border)', marginBottom: '14px' }}>
-            How It Works
-          </h2>
-          <div className="responsive-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+        <section className={styles.section} aria-labelledby="how-heading">
+          <h2 id="how-heading" className={styles.h2}>How It Works</h2>
+          <div className={`responsive-grid-2 ${styles.grid2}`}>
             {[
               { title: 'Event Director', desc: 'AI generates unique events per timeline based on world state, decision history, and tool intelligence. No two runs play the same way.' },
               { title: 'Abstract Leaders', desc: 'Leaders are top-down decision makers with HEXACO personality profiles. They can be people, organizations, policies, or autonomous systems. The engine models how personality shapes decisions.' },
@@ -291,73 +285,37 @@ export function AboutPage() {
               { title: 'Deterministic Kernel', desc: 'Seeded PRNG ensures reproducibility. Same seed, same roster. Only AI decisions create divergence. Fork at any turn to explore alternate timelines.' },
               { title: 'Any Domain', desc: 'Space colonies, corporate strategy, military wargaming, policy simulation, game worlds. Define departments, metrics, and events in JSON. The engine handles the rest.' },
             ].map(item => (
-              <div key={item.title} className="hover-glow" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '6px', padding: '12px 16px', boxShadow: 'var(--card-shadow)' }}>
-                <h3 style={{ fontSize: 'var(--font-lg)', fontWeight: 700, color: 'var(--text-1)', fontFamily: 'var(--mono)', marginBottom: '4px' }}>{item.title}</h3>
-                <p style={{ fontSize: 'var(--font-md)', color: 'var(--text-2)', lineHeight: 1.6 }}>{item.desc}</p>
+              <div key={item.title} className={`hover-glow ${styles.howCard}`}>
+                <h3 className={styles.howCardTitle}>{item.title}</h3>
+                <p className={styles.howCardDesc}>{item.desc}</p>
               </div>
             ))}
           </div>
         </section>
 
         {/* Enterprise / scalability banner */}
-        <section style={{ marginBottom: '24px' }} aria-labelledby="hosted-heading">
-          <div style={{
-            background: 'linear-gradient(135deg, var(--bg-card), var(--bg-elevated))',
-            border: '1px solid var(--border-hl)',
-            borderRadius: '8px', padding: '20px 24px',
-            boxShadow: 'var(--raised-shadow), 0 0 30px var(--amber-glow)',
-          }}>
-            <div style={{ fontSize: 'var(--font-2xs)', fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '8px', color: 'var(--amber)', fontFamily: 'var(--mono)' }}>
-              Open Core + Hosted Roadmap
-            </div>
-            <h3 id="hosted-heading" style={{ fontSize: 'var(--font-2xl)', fontWeight: 700, marginBottom: '10px', color: 'var(--text-1)', fontFamily: 'var(--mono)' }}>
-              Planned Hosted Packaging
-            </h3>
-            <p style={{ color: 'var(--text-2)', lineHeight: 1.8, fontSize: 'var(--font-lg)', marginBottom: '12px' }}>
+        <section className={styles.section} aria-labelledby="hosted-heading">
+          <div className={styles.hostedBanner}>
+            <div className={styles.hostedLabel}>Open Core + Hosted Roadmap</div>
+            <h3 id="hosted-heading" className={styles.hostedTitle}>Planned Hosted Packaging</h3>
+            <p className={styles.hostedPara}>
               The open-source engine supports unlimited leaders and simulations via the API today. The dashboard demo runs two leaders
               side-by-side. The planned hosted product targets organizations that need to run dozens or hundreds of simulations in parallel.
             </p>
-            <p style={{ color: 'var(--text-2)', lineHeight: 1.8, fontSize: 'var(--font-lg)', marginBottom: '12px' }}>
+            <p className={styles.hostedPara}>
               Defense agencies stress-testing doctrine across leadership profiles. Corporations modeling executive decision-making
               under different market scenarios. Game studios generating divergent NPC civilizations at scale. Government agencies
               simulating policy outcomes before implementation.
             </p>
-            <p style={{ color: 'var(--text-2)', lineHeight: 1.8, fontSize: 'var(--font-lg)', marginBottom: '16px' }}>
+            <p className={styles.hostedParaLast}>
               Fleet orchestration, distributed parallelization, team workspaces, persistent agent memory, private deployment,
               and enterprise auth are on the roadmap. The open-source engine and Apache-2.0 license are the permanent foundation.
             </p>
-            <div className="responsive-stack" style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-              <a
-                href="mailto:team@frame.dev?subject=Paracosm Enterprise Inquiry"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '10px 20px',
-                  borderRadius: '6px',
-                  fontSize: 'var(--font-md)',
-                  fontWeight: 700,
-                  background: 'var(--amber)',
-                  color: 'var(--bg-deep)',
-                }}
-              >
+            <div className={`responsive-stack ${styles.hostedActions}`}>
+              <a href="mailto:team@frame.dev?subject=Paracosm Enterprise Inquiry" className={styles.ctaPrimary}>
                 Contact team@frame.dev for roadmap access
               </a>
-              <a
-                href="mailto:team@frame.dev?subject=Paracosm Partnership / Investment"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '10px 20px',
-                  borderRadius: '6px',
-                  fontSize: 'var(--font-md)',
-                  fontWeight: 700,
-                  background: 'var(--bg-elevated)',
-                  color: 'var(--amber)',
-                  border: '1px solid var(--border-hl)',
-                }}
-              >
+              <a href="mailto:team@frame.dev?subject=Paracosm Partnership / Investment" className={styles.ctaSecondary}>
                 Partnership and investment inquiries
               </a>
             </div>
@@ -365,73 +323,49 @@ export function AboutPage() {
         </section>
 
         {/* Pricing */}
-        <section style={{ marginBottom: '24px' }} aria-labelledby="pricing-heading">
-          <h2 id="pricing-heading" style={{ fontSize: 'var(--font-2xl)', color: 'var(--amber)', fontFamily: 'var(--mono)', paddingBottom: '8px', borderBottom: '1px solid var(--border)', marginBottom: '10px' }}>Pricing</h2>
-          <p style={{ fontSize: 'var(--font-md)', color: 'var(--text-3)', marginBottom: '14px' }}>
+        <section className={styles.section} aria-labelledby="pricing-heading">
+          <h2 id="pricing-heading" className={styles.h2Tight}>Pricing</h2>
+          <p className={styles.pricingNote}>
             Open-core model: the simulation engine is free and open source (Apache-2.0) forever. The paid tiers below are planned hosted
             packaging for infrastructure, persistence, governance, and zero-code workflows. No vendor lock-in.
           </p>
-          <div className="responsive-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+          <div className={`responsive-grid-2 ${styles.grid2}`}>
             {PRICING.map(tier => {
               const status = describeAvailability(tier.availability);
               const tone = AVAILABILITY_TONE_STYLES[status.tone];
+              const cardClass = [styles.pricingCard, 'hover-lift', tier.highlight ? styles.highlight : '']
+                .filter(Boolean)
+                .join(' ');
               return (
-                <article
-                  key={tier.name}
-                  className="hover-lift"
-                  style={{
-                    borderRadius: '6px',
-                    padding: '16px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    background: 'var(--bg-card)',
-                    border: tier.highlight ? '2px solid var(--amber)' : '1px solid var(--border)',
-                    boxShadow: tier.highlight ? '0 0 20px var(--amber-glow)' : 'var(--card-shadow)',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
-                    <h3 style={{ fontSize: 'var(--font-lg)', fontWeight: 700, color: 'var(--text-1)' }}>{tier.name}</h3>
-                    <span style={{
-                      fontSize: 'var(--font-3xs)', fontWeight: 800, letterSpacing: '1px', textTransform: 'uppercase',
-                      padding: '2px 8px', borderRadius: '12px',
-                      color: tone.color, background: tone.background, border: `1px solid ${tone.border}`,
-                    }}>
+                <article key={tier.name} className={cardClass}>
+                  <div className={styles.pricingCardHead}>
+                    <h3 className={styles.pricingTitle}>{tier.name}</h3>
+                    <span className={styles.statusPill} style={pillStyleVars(tone)}>
                       {status.label}
                     </span>
                   </div>
-                <div style={{ marginBottom: '8px' }}>
-                  <span style={{ fontSize: 'var(--font-2xl)', fontWeight: 800, color: 'var(--text-1)' }}>{tier.price}</span>
-                  <span style={{ fontSize: 'var(--font-sm)', marginLeft: '4px', color: 'var(--text-3)' }}>{tier.period}</span>
-                </div>
-                <p style={{ fontSize: 'var(--font-sm)', marginBottom: '12px', color: 'var(--text-2)' }}>{tier.description}</p>
-                <p style={{ fontSize: 'var(--font-xs)', marginBottom: '12px', color: 'var(--text-3)', lineHeight: 1.6 }}>{status.detail}</p>
-                <ul style={{ fontSize: 'var(--font-sm)', listStyle: 'none', padding: 0, marginBottom: '16px', flex: 1, color: 'var(--text-3)' }}>
-                  {tier.features.map(f => (
-                    <li key={f} style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', marginBottom: '6px' }}>
-                      <span style={{ color: 'var(--green)', flexShrink: 0 }}>&#10003;</span>
-                      <span>{f}</span>
-                    </li>
-                  ))}
-                </ul>
-                <a
-                  href={tier.cta.href}
-                  target={tier.cta.href.startsWith('mailto:') ? undefined : '_blank'}
-                  rel="noopener"
-                  style={{
-                    textAlign: 'center',
-                    padding: '8px 16px',
-                    borderRadius: '4px',
-                    fontSize: 'var(--font-sm)',
-                    fontWeight: 700,
-                    display: 'block',
-                    textDecoration: 'none',
-                    background: tier.highlight ? 'var(--amber)' : 'var(--bg-elevated)',
-                    color: tier.highlight ? 'var(--bg-deep)' : 'var(--amber)',
-                    border: tier.highlight ? 'none' : '1px solid var(--border-hl)',
-                  }}
-                >
-                  {tier.cta.label}
-                </a>
+                  <div className={styles.pricingPriceRow}>
+                    <span className={styles.pricingPrice}>{tier.price}</span>
+                    <span className={styles.pricingPeriod}>{tier.period}</span>
+                  </div>
+                  <p className={styles.pricingDesc}>{tier.description}</p>
+                  <p className={styles.pricingDetail}>{status.detail}</p>
+                  <ul className={styles.pricingFeatures}>
+                    {tier.features.map(f => (
+                      <li key={f} className={styles.pricingFeatureItem}>
+                        <span className={styles.checkmark}>&#10003;</span>
+                        <span>{f}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <a
+                    href={tier.cta.href}
+                    target={tier.cta.href.startsWith('mailto:') ? undefined : '_blank'}
+                    rel="noopener"
+                    className={styles.pricingCta}
+                  >
+                    {tier.cta.label}
+                  </a>
                 </article>
               );
             })}
@@ -439,26 +373,22 @@ export function AboutPage() {
         </section>
 
         {/* FAQ */}
-        <section style={{ marginBottom: '24px' }} aria-labelledby="faq-heading">
-          <h2 id="faq-heading" style={{ fontSize: 'var(--font-2xl)', color: 'var(--amber)', fontFamily: 'var(--mono)', paddingBottom: '8px', borderBottom: '1px solid var(--border)', marginBottom: '14px' }}>Frequently Asked Questions</h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        <section className={styles.section} aria-labelledby="faq-heading">
+          <h2 id="faq-heading" className={styles.h2}>Frequently Asked Questions</h2>
+          <div className={styles.faqList}>
             {FAQ.map((item, i) => (
-              <details key={i} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '6px' }}>
-                <summary style={{ padding: '12px 16px', fontSize: 'var(--font-lg)', fontWeight: 600, cursor: 'pointer', color: 'var(--text-1)' }}>
-                  {item.q}
-                </summary>
-                <div style={{ padding: '0 16px 12px', fontSize: 'var(--font-sm)', lineHeight: 1.7, color: 'var(--text-2)' }}>
-                  {item.a}
-                </div>
+              <details key={i} className={styles.faqItem}>
+                <summary className={styles.faqSummary}>{item.q}</summary>
+                <div className={styles.faqAnswer}>{item.a}</div>
               </details>
             ))}
           </div>
         </section>
 
         {/* Tech stack */}
-        <section style={{ marginBottom: '24px' }} aria-labelledby="tech-heading">
-          <h2 id="tech-heading" style={{ fontSize: 'var(--font-2xl)', color: 'var(--amber)', fontFamily: 'var(--mono)', paddingBottom: '8px', borderBottom: '1px solid var(--border)', marginBottom: '14px' }}>Technology</h2>
-          <div className="responsive-grid-3" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', fontSize: 'var(--font-sm)' }}>
+        <section className={styles.section} aria-labelledby="tech-heading">
+          <h2 id="tech-heading" className={styles.h2}>Technology</h2>
+          <div className={`responsive-grid-3 ${styles.grid3}`}>
             {[
               { label: 'Runtime', value: 'AgentOS (TypeScript)' },
               { label: 'Package', value: 'npm: paracosm' },
@@ -473,27 +403,27 @@ export function AboutPage() {
               { label: 'Scalability', value: 'Stateless, horizontally scalable' },
               { label: 'Batch Runner', value: 'Multi-scenario experiments' },
             ].map(item => (
-              <div key={item.label} style={{ padding: '8px 12px', borderRadius: '4px', background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}>
-                <div style={{ fontWeight: 700, color: 'var(--text-3)', fontSize: 'var(--font-2xs)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{item.label}</div>
-                <div style={{ color: 'var(--text-1)', marginTop: '2px' }}>{item.value}</div>
+              <div key={item.label} className={styles.techItem}>
+                <div className={styles.techLabel}>{item.label}</div>
+                <div className={styles.techValue}>{item.value}</div>
               </div>
             ))}
           </div>
         </section>
 
         {/* Links */}
-        <section style={{ marginBottom: '16px' }} aria-labelledby="links-heading">
-          <h2 id="links-heading" style={{ fontSize: 'var(--font-2xl)', color: 'var(--amber)', fontFamily: 'var(--mono)', paddingBottom: '8px', borderBottom: '1px solid var(--border)', marginBottom: '14px' }}>Links</h2>
-          <nav aria-label="External links" style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-            <a href="https://agentos.sh/en" target="_blank" rel="noopener" style={{ color: 'var(--amber)' }}>agentos.sh</a>
-            <a href="https://docs.agentos.sh" target="_blank" rel="noopener" style={{ color: 'var(--amber)' }}>Documentation</a>
-            <a href="https://github.com/framersai/paracosm" target="_blank" rel="noopener" style={{ color: 'var(--amber)' }}>GitHub</a>
-            <a href="https://github.com/framersai/agentos" target="_blank" rel="noopener" style={{ color: 'var(--amber)' }}>AgentOS GitHub</a>
-            <a href="https://www.npmjs.com/package/paracosm" target="_blank" rel="noopener" style={{ color: 'var(--amber)' }}>npm</a>
-            <a href="https://frame.dev" target="_blank" rel="noopener" style={{ color: 'var(--amber)' }}>Frame.dev</a>
-            <a href="https://manic.agency" target="_blank" rel="noopener" style={{ color: 'var(--amber)' }}>Manic Agency</a>
-            <a href="https://wilds.ai/discord" target="_blank" rel="noopener" style={{ color: 'var(--amber)' }}>Discord</a>
-            <a href="mailto:team@frame.dev" style={{ color: 'var(--amber)' }}>team@frame.dev</a>
+        <section className={styles.sectionTight} aria-labelledby="links-heading">
+          <h2 id="links-heading" className={styles.h2}>Links</h2>
+          <nav aria-label="External links" className={styles.linksNav}>
+            <a href="https://agentos.sh/en" target="_blank" rel="noopener" className={styles.linkItem}>agentos.sh</a>
+            <a href="https://docs.agentos.sh" target="_blank" rel="noopener" className={styles.linkItem}>Documentation</a>
+            <a href="https://github.com/framersai/paracosm" target="_blank" rel="noopener" className={styles.linkItem}>GitHub</a>
+            <a href="https://github.com/framersai/agentos" target="_blank" rel="noopener" className={styles.linkItem}>AgentOS GitHub</a>
+            <a href="https://www.npmjs.com/package/paracosm" target="_blank" rel="noopener" className={styles.linkItem}>npm</a>
+            <a href="https://frame.dev" target="_blank" rel="noopener" className={styles.linkItem}>Frame.dev</a>
+            <a href="https://manic.agency" target="_blank" rel="noopener" className={styles.linkItem}>Manic Agency</a>
+            <a href="https://wilds.ai/discord" target="_blank" rel="noopener" className={styles.linkItem}>Discord</a>
+            <a href="mailto:team@frame.dev" className={styles.linkItem}>team@frame.dev</a>
           </nav>
         </section>
       </div>
