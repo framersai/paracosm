@@ -82,7 +82,7 @@
       <p>Configure scenarios, run deterministic kernels, generate HEXACO-personality leaders, fork and replay runs, and forge tools at runtime. Open-source TypeScript, built on AgentOS.</p>
     </div>
     <noscript>
-      <main id="main-content" style="max-width:720px;margin:4rem auto;padding:0 1.5rem;font-family:system-ui,sans-serif;line-height:1.6">
+      <main style="max-width:720px;margin:4rem auto;padding:0 1.5rem;font-family:system-ui,sans-serif;line-height:1.6">
         <h1>Paracosm Dashboard</h1>
         <p>The Paracosm dashboard is an interactive React app and requires JavaScript. Visit the
           <a href="https://paracosm.agentos.sh">project landing page</a> for an overview, or read the
@@ -90,7 +90,13 @@
           for code examples that don't require the dashboard.</p>
       </main>
     </noscript>
-    <div id="root"></div>
+    <!-- Skip-link target: wraps #root so the keyboard/screen-reader
+         "Skip to main content" anchor at the top of the page lands here
+         regardless of whether JS is enabled. React mounts inside #root
+         and never touches this wrapper. -->
+    <main id="main-content">
+      <div id="root"></div>
+    </main>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
