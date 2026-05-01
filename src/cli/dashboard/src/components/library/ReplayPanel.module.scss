@@ -1,3 +1,5 @@
+@use '../../theme/typography' as typo;
+
 .panel {
   display: flex;
   align-items: center;
@@ -6,14 +8,13 @@
 }
 
 .replayBtn {
+  @include typo.body;
   background: var(--bg-card);
   border: 1px solid var(--glass-border);
   border-radius: 6px;
   padding: 0.4rem 0.85rem;
   color: var(--text-1);
   cursor: pointer;
-  font-family: var(--sans);
-  font-size: var(--font-md);
 
   &:disabled { opacity: 0.5; cursor: not-allowed; }
   &:hover:not(:disabled) {
@@ -23,10 +24,9 @@
 }
 
 .result {
-  font-size: var(--font-sm);
+  @include typo.caption;
   padding: 0.25rem 0.6rem;
   border-radius: 4px;
-  font-family: var(--mono);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

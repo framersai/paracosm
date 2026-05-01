@@ -4,6 +4,8 @@
    body. The card adopts amber accent treatment when active, green when
    done, and dim when pending. */
 
+@use '../../theme/typography' as typo;
+
 .card {
   display: flex;
   flex-direction: column;
@@ -31,6 +33,8 @@
 }
 
 .header {
+  @include typo.body-strong;
+  font-family: var(--mono); // override body-strong's sans for this card-header role
   display: flex;
   align-items: center;
   gap: 10px;
@@ -39,9 +43,6 @@
   background: transparent;
   border: none;
   color: var(--text-1);
-  font-family: var(--mono);
-  font-size: var(--font-md);
-  font-weight: 600;
   text-align: left;
   cursor: pointer;
   user-select: none;
@@ -95,15 +96,12 @@
 /* Duration badge: small mono pill with the elapsed seconds, only shown
    once the stage has fired. Sits to the right of the label. */
 .duration {
-  font-family: var(--mono);
-  font-size: var(--font-2xs);
-  font-weight: 700;
+  @include typo.caption;
   color: var(--text-3);
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border-subtle, var(--border));
   border-radius: 3px;
   padding: 2px 6px;
-  letter-spacing: 0.04em;
   flex-shrink: 0;
 }
 
@@ -116,9 +114,7 @@
 /* Event-count badge. Reads as "12 events queued" but rendered short
    so the header doesn't get crowded. */
 .count {
-  font-family: var(--mono);
-  font-size: var(--font-2xs);
-  font-weight: 700;
+  @include typo.caption;
   color: var(--text-2);
   background: rgba(255, 255, 255, 0.05);
   border-radius: 999px;
@@ -166,6 +162,7 @@
 }
 
 .actorChip {
+  @include typo.field-label;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -173,11 +170,8 @@
   border-radius: 999px;
   background: var(--bg-card);
   border: 1px solid var(--border-subtle, var(--border));
-  font-family: var(--mono);
-  font-size: var(--font-xs);
-  font-weight: 600;
-  letter-spacing: 0.02em;
   white-space: nowrap;
+  text-transform: none; // chip body shows actor name; preserve casing
 }
 
 .actorChipName {
@@ -185,9 +179,8 @@
 }
 
 .actorChipState {
+  @include typo.section-label;
   color: var(--text-3);
-  font-size: var(--font-2xs);
-  letter-spacing: 0.06em;
 }
 
 .actor_running {
@@ -278,25 +271,22 @@
 }
 
 .lineTag {
-  font-size: var(--font-2xs);
-  font-weight: 800;
-  letter-spacing: 0.1em;
+  @include typo.micro;
   padding: 1px 6px;
   border-radius: 2px;
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-2);
-  text-transform: uppercase;
   white-space: nowrap;
 }
 
 .lineActor {
-  font-size: var(--font-xs);
-  font-weight: 600;
+  @include typo.field-label;
   color: var(--text-1);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 140px;
+  text-transform: none; // actor name; preserve casing
 }
 
 .lineBody {

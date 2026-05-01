@@ -1,3 +1,5 @@
+@use '../../../theme/typography' as typo;
+
 .list {
   display: flex;
   flex-direction: column;
@@ -5,15 +7,15 @@
 }
 
 .empty {
-  font-size: var(--font-md);
+  @include typo.body;
   color: var(--paracosm-text-muted, #888);
   font-style: italic;
 }
 
 .flag {
+  @include typo.body;
   padding: 0.35rem 0.6rem;
   border-radius: 4px;
-  font-size: var(--font-md);
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -25,8 +27,8 @@
 }
 
 .detail {
+  @include typo.caption;
   margin-top: 0.25rem;
   margin-left: 1.25rem;
-  font-size: var(--font-sm);
   color: var(--paracosm-text-muted, #888);
 }

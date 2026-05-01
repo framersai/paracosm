@@ -1,3 +1,5 @@
+@use '../../theme/typography' as typo;
+
 .searchBar {
   display: flex;
   align-items: center;
@@ -19,12 +21,11 @@
 }
 
 .input {
+  @include typo.body;
   background: transparent;
   border: 0;
   flex: 1;
   color: var(--text-1);
-  font-size: var(--font-lg);
-  font-family: var(--sans);
   outline: none;
   padding: 0;
 
@@ -32,8 +33,7 @@
 }
 
 .kbd {
-  font-family: var(--mono);
-  font-size: var(--font-sm);
+  @include typo.caption;
   color: var(--text-3);
   background: var(--bg-card);
   padding: 0.15rem 0.4rem;

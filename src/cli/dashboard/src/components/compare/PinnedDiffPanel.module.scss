@@ -1,3 +1,5 @@
+@use '../../theme/typography' as typo;
+
 .panel {
   display: flex;
   flex-direction: column;
@@ -7,11 +9,10 @@
 }
 
 .empty {
+  @include typo.caption;
   padding: 1.5rem;
   text-align: center;
   color: var(--text-3);
-  font-family: var(--mono);
-  font-size: var(--font-sm);
   border: 1px dashed var(--glass-border);
   border-radius: 8px;
 }
@@ -28,24 +29,22 @@
 }
 
 .column h4 {
+  @include typo.card-title;
   margin: 0;
-  font-family: var(--mono);
-  font-size: var(--font-md);
   color: var(--text-1);
+  text-transform: none; // proper-noun column header; preserve original casing
 }
 
 .archetype {
-  font-size: var(--font-2xs);
+  @include typo.section-label;
   color: var(--text-3);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 .statusRow {
+  @include typo.caption;
   display: flex;
   gap: 0.5rem;
   align-items: center;
-  font-size: var(--font-xs);
 }
 
 .loading {

@@ -1,3 +1,5 @@
+@use '../../theme/typography' as typo;
+
 .row {
   display: flex;
   flex-wrap: wrap;
@@ -6,6 +8,7 @@
 }
 
 .chip {
+  @include typo.caption;
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
@@ -14,8 +17,6 @@
   border: 1px solid var(--glass-border);
   border-radius: 999px;
   padding: 0.25rem 0.6rem;
-  font-size: var(--font-sm);
-  font-family: var(--mono);
 }
 
 .chipRemove {
