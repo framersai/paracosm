@@ -77,6 +77,9 @@ function TrajectoryOverlay({ members }: { members: RunRecord[] }): JSX.Element {
           );
         })}
       </svg>
+      <div className={styles.overlayCaption}>
+        Representative metric (population &rarr; morale &rarr; first available), normalized across the bundle. X = turn.
+      </div>
     </div>
   );
 }

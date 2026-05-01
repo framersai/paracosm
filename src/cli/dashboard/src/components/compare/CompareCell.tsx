@@ -7,14 +7,19 @@ export interface CompareCellProps {
   pinned: boolean;
   onTogglePin: () => void;
   onOpen: () => void;
+  /** 1-based bundle position used as a positional fallback when the run
+   *  predates the actor-name field. Keeps cells distinguishable instead
+   *  of every cell rendering a bare "Unknown". */
+  displayIndex: number;
 }
 
-export function CompareCell({ record, pinned, onTogglePin, onOpen }: CompareCellProps): JSX.Element {
+export function CompareCell({ record, pinned, onTogglePin, onOpen, displayIndex }: CompareCellProps): JSX.Element {
+  const displayName = record.actorName ?? `Actor ${displayIndex}`;
   return (
     <article className={[styles.cell, pinned ? styles.pinned : ''].filter(Boolean).join(' ')}>
       <header className={styles.head}>
         <div className={styles.titles}>
-          <h4 className={styles.name}>{record.actorName ?? 'Unknown'}</h4>
+          <h4 className={styles.name}>{displayName}</h4>
           {record.actorArchetype && <p className={styles.archetype}>{record.actorArchetype}</p>}
         </div>
         <label className={styles.pinLabel} title={pinned ? 'Unpin' : 'Pin to compare side-by-side'}>
@@ -22,7 +27,7 @@ export function CompareCell({ record, pinned, onTogglePin, onOpen }: CompareCell
             type="checkbox"
             checked={pinned}
             onChange={onTogglePin}
-            aria-label={pinned ? `Unpin ${record.actorName ?? 'actor'}` : `Pin ${record.actorName ?? 'actor'} to compare`}
+            aria-label={pinned ? `Unpin ${displayName}` : `Pin ${displayName} to compare`}
           />
           <span aria-hidden="true">{pinned ? '★' : '☆'}</span>
         </label>
@@ -31,7 +36,7 @@ export function CompareCell({ record, pinned, onTogglePin, onOpen }: CompareCell
       <footer className={styles.foot}>
         <span className={styles.cost}>{record.costUSD ? `$${record.costUSD.toFixed(2)}` : '—'}</span>
         <span className={styles.duration}>{record.durationMs ? `${Math.round(record.durationMs / 1000)}s` : '—'}</span>
-        <button onClick={onOpen} className={styles.openBtn} aria-label={`Open ${record.actorName ?? 'run'} details`}>Open</button>
+        <button onClick={onOpen} className={styles.openBtn} aria-label={`Open ${displayName} details`}>Open</button>
       </footer>
     </article>
   );

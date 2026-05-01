@@ -18,10 +18,11 @@ export function SmallMultiplesGrid({
 }: SmallMultiplesGridProps): JSX.Element {
   return (
     <section className={styles.grid} aria-label="Bundle members grid">
-      {members.map((m) => (
+      {members.map((m, i) => (
         <CompareCell
           key={m.runId}
           record={m}
+          displayIndex={i + 1}
           pinned={pinnedIds.includes(m.runId)}
           onTogglePin={() => onTogglePin(m.runId)}
           onOpen={() => onOpenRun(m.runId)}

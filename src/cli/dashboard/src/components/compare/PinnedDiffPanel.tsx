@@ -24,6 +24,9 @@ export function PinnedDiffPanel({ pinnedIds, members }: PinnedDiffPanelProps): J
   }
 
   const recordsById: Record<string, RunRecord> = Object.fromEntries(members.map((m) => [m.runId, m]));
+  // Bundle positions are stable (1-based) and shared with the grid above
+  // so an unnamed cell labeled "Actor 3" stays "Actor 3" when pinned.
+  const indexByRunId = new Map(members.map((m, i) => [m.runId, i + 1]));
   const pinnedRecords = pinnedIds.map((id) => recordsById[id]).filter(Boolean);
   const pinnedArtifacts = pinnedIds
     .map((id) => artifacts[id])
@@ -36,7 +39,7 @@ export function PinnedDiffPanel({ pinnedIds, members }: PinnedDiffPanelProps): J
       <header className={styles.head} style={headStyle}>
         {pinnedRecords.map((r) => (
           <div key={r.runId} className={styles.column}>
-            <h4>{r.actorName ?? 'Unknown'}</h4>
+            <h4>{r.actorName ?? `Actor ${indexByRunId.get(r.runId) ?? '?'}`}</h4>
             {r.actorArchetype && <span className={styles.archetype}>{r.actorArchetype}</span>}
             <div className={styles.statusRow}>
               {loading[r.runId] && <span className={styles.loading}>loading…</span>}

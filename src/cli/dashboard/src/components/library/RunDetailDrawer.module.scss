@@ -4,7 +4,10 @@
   position: fixed;
   inset: 0;
   background: rgba(10, 8, 6, 0.6);
-  z-index: 50;
+  // Sits above CompareModal (z-index 99/100) so the drawer is reachable
+  // when opened from inside Compare. Stand-alone use over LibraryTab is
+  // unaffected — there are no other layered surfaces to clash with.
+  z-index: 200;
   animation: fade 200ms ease-out;
 }
 
@@ -25,7 +28,7 @@
   box-shadow: var(--raised-shadow);
   transform: translateX(100%);
   transition: transform 200ms ease-out;
-  z-index: 51;
+  z-index: 201;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
