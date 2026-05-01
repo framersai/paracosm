@@ -1,0 +1,83 @@
+// Typography roles — the canonical mapping of visual role to size + weight
+// + family + transform. Components apply these via @include rather than
+// re-deriving the size/weight/case combo for every .title and .label class.
+//
+// Roles (largest to smallest):
+//   page-title     · 20px mono uppercase 700  · top-of-tab page heading
+//   panel-title    · 16px mono uppercase 700  · modal / sidebar / panel head
+//   card-title     · 13px mono uppercase 700  · card / row group title
+//   section-label  · 11px mono uppercase 700  · inline section eyebrow
+//   field-label    · 11px mono uppercase 600  · form-field label
+//   body           · 13px sans normal 400     · default reading surface
+//   body-strong    · 13px sans 600            · emphasized inline body
+//   caption        · 10px mono normal 500     · metadata / footnote
+//   micro          ·  9px mono uppercase 700  · badge / tag
+
+@mixin page-title {
+  font-family: var(--mono);
+  font-size: var(--font-2xl);
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+@mixin panel-title {
+  font-family: var(--mono);
+  font-size: var(--font-xl);
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+@mixin card-title {
+  font-family: var(--mono);
+  font-size: var(--font-md);
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+}
+
+@mixin section-label {
+  font-family: var(--mono);
+  font-size: var(--font-xs);
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+@mixin field-label {
+  font-family: var(--mono);
+  font-size: var(--font-xs);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+@mixin body {
+  font-family: var(--sans);
+  font-size: var(--font-md);
+  font-weight: 400;
+  line-height: 1.55;
+}
+
+@mixin body-strong {
+  font-family: var(--sans);
+  font-size: var(--font-md);
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+@mixin caption {
+  font-family: var(--mono);
+  font-size: var(--font-2xs);
+  font-weight: 500;
+  letter-spacing: 0.4px;
+}
+
+@mixin micro {
+  font-family: var(--mono);
+  font-size: var(--font-3xs);
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}

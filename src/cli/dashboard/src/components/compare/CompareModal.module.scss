@@ -1,3 +1,5 @@
+@use '../../theme/typography' as typo;
+
 .backdrop {
   position: fixed;
   inset: 0;
@@ -30,12 +32,9 @@
 }
 
 .title {
+  @include typo.panel-title;
   margin: 0;
-  font-size: var(--font-xl);
-  font-weight: 700;
   color: var(--text-1);
-  font-family: var(--mono);
-  letter-spacing: 0.04em;
 }
 
 .titleAccent {

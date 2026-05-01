@@ -1,5 +1,4 @@
-// Type scale: 11 (micro/labels) · 12 (legend) · 13 (title, copy, inputs).
-// Mono-uppercase for chrome (labels, legends, badges). Sans for content.
+@use '../../theme/typography' as typo;
 
 .card {
   max-width: 920px;
@@ -24,21 +23,14 @@
 }
 
 .title {
+  @include typo.card-title;
   color: var(--amber);
-  font-family: var(--mono);
-  font-size: var(--font-md);
-  font-weight: 700;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
   margin: 0;
 }
 
 .eyebrow {
+  @include typo.section-label;
   color: var(--text-3);
-  font-family: var(--mono);
-  font-size: var(--font-xs);
-  letter-spacing: 1px;
-  text-transform: uppercase;
 }
 
 .copy {
@@ -60,11 +52,8 @@
 }
 
 .presetLabel {
+  @include typo.section-label;
   color: var(--text-3);
-  font-family: var(--mono);
-  font-size: var(--font-xs);
-  letter-spacing: 1px;
-  text-transform: uppercase;
   margin-right: 4px;
 }
 
@@ -156,12 +145,8 @@
 }
 
 .formLegend {
+  @include typo.card-title;
   color: var(--text-3);
-  font-family: var(--mono);
-  font-size: var(--font-sm);
-  font-weight: 700;
-  letter-spacing: 1.2px;
-  text-transform: uppercase;
   padding: 0 8px;
   margin-left: -8px;
 }
@@ -184,11 +169,8 @@
 }
 
 .fieldLabel {
+  @include typo.field-label;
   color: var(--text-3);
-  font-family: var(--mono);
-  font-size: var(--font-xs);
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
 }
 
 .input {

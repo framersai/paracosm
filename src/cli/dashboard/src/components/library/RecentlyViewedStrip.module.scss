@@ -1,3 +1,5 @@
+@use '../../theme/typography' as typo;
+
 .strip {
   background: var(--bg-card);
   border: 1px solid var(--glass-border);
@@ -12,12 +14,11 @@
   margin-bottom: 0.5rem;
 }
 
+// .title here is a strip eyebrow (sits above a list of cards), so it's
+// rendered at section-label scale rather than panel-title scale.
 .title {
-  font-size: var(--font-xs);
+  @include typo.section-label;
   color: var(--text-3);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-family: var(--mono);
 }
 
 .toggle {

@@ -2,6 +2,8 @@
 // Dynamic per-leader colors flow in via the `--actor-color` CSS
 // custom property set on the relevant element.
 
+@use '../../theme/typography' as typo;
+
 .root {
   display: flex;
   flex-direction: column;
@@ -187,17 +189,13 @@
 }
 
 .centerStateHeading {
-  font-family: var(--mono);
-  font-size: var(--font-lg);
-  font-weight: 700;
+  @include typo.card-title;
   color: var(--text-1);
   margin-bottom: 8px;
 }
 
 .centerStateHeadingLarger {
-  font-family: var(--mono);
-  font-size: var(--font-xl);
-  font-weight: 700;
+  @include typo.panel-title;
   color: var(--text-1);
   margin-bottom: 12px;
 }

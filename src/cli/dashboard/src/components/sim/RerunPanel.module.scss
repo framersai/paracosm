@@ -2,6 +2,8 @@
 // SimView when a sim has completed, offering a one-click rerun with
 // seed+1.
 
+@use '../../theme/typography' as typo;
+
 .panel {
   display: flex;
   align-items: center;
@@ -14,10 +16,8 @@
 }
 
 .label {
+  @include typo.field-label;
   color: var(--text-3);
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
 }
 
 .copy {

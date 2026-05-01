@@ -1,3 +1,5 @@
+@use '../../theme/typography' as typo;
+
 .tab {
   display: flex;
   flex-direction: column;
@@ -181,9 +183,8 @@
 }
 
 .guideTitle {
+  @include typo.panel-title;
   margin: 0;
-  font-size: var(--font-xl);
-  font-weight: 600;
 }
 
 .guideSub {
