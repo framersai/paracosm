@@ -1,6 +1,8 @@
 import playwright from '/Users/johnn/Documents/git/voice-chat-assistant/node_modules/.pnpm/playwright@1.59.1/node_modules/playwright/index.js';
 const browser = await playwright.chromium.launch({ headless: true });
-const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+const w = parseInt(process.env.PROBE_W ?? '1440', 10);
+const h = parseInt(process.env.PROBE_H ?? '900', 10);
+const ctx = await browser.newContext({ viewport: { width: w, height: h } });
 const page = await ctx.newPage();
 const wantLight = process.env.PROBE_LIGHT === '1';
 await ctx.addInitScript((light) => {

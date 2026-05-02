@@ -360,17 +360,20 @@ export function EventCard({ event, actorIndex }: EventCardProps) {
                       ? `PASS ${(typeof t.confidence === 'number' ? t.confidence : 0.85).toFixed(2)}`
                       : 'FAIL'}
                   </span>
-                  {/* Open the same ToolDetailModal that forge_attempt cards
-                      use, so specialist_done summary tools are clickable too. */}
-                  <button
-                    type="button"
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInspectingTool(t.name || ''); }}
-                    aria-label={`Inspect tool ${t.name || ''}`}
-                    className={styles.toolInspectBtn}
-                  >
-                    INSPECT
-                  </button>
                 </summary>
+                {/* INSPECT lives OUTSIDE summary so axe doesn't flag it as
+                    nested-interactive (summary is itself an interactive
+                    toggle). Position is absolute so it visually overlays
+                    the summary row; pointer-events stay independent of
+                    the summary's toggle click. */}
+                <button
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInspectingTool(t.name || ''); }}
+                  aria-label={`Inspect tool ${t.name || ''}`}
+                  className={styles.toolInspectBtn}
+                >
+                  INSPECT
+                </button>
                 <div className={styles.toolBody}>
                   {t.crisis && (
                     <div className={styles.toolMetaRow}>

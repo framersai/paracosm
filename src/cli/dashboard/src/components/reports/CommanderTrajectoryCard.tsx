@@ -147,12 +147,18 @@ export function CommanderTrajectoryCard({
   const xFor = (turn: number) => padX + (W - padX * 2) * ((turn - minTurn) / xRange);
 
   return (
-    <div className={styles.card} aria-label={`HEXACO trajectory for ${actorName}`}>
+    <div className={styles.card}>
       <div className={styles.headerRow}>
         <span className={styles.title}>PERSONALITY ARC</span>
         <span className={styles.range}>turn {minTurn} → {maxTurn}</span>
       </div>
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} role="img">
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        width="100%"
+        height={H}
+        role="img"
+        aria-label={`HEXACO trajectory for ${actorName}`}
+      >
         <line x1={padX} y1={yFor(0.5)} x2={W - padX} y2={yFor(0.5)} stroke="var(--border)" strokeWidth="0.5" strokeDasharray="2,3" />
         {TRAIT_KEYS.map(trait => {
           const points = series.map(s => `${xFor(s.turn)},${yFor(s.hexaco[trait])}`).join(' ');

@@ -321,6 +321,7 @@
 // Tool detail row inside specialist_done
 
 .toolDetail {
+  position: relative;
   margin: 0 8px 4px;
   border-radius: 4px;
   font-size: var(--font-sm);
@@ -337,7 +338,9 @@
 .toolDetail.reused { animation: forgeSlide 0.3s ease both; }
 
 .toolSummary {
-  padding: 8px 12px;
+  // Reserve space at the right edge for the absolutely-positioned
+  // INSPECT button (which lives OUTSIDE summary for a11y compliance).
+  padding: 8px 80px 8px 12px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -441,6 +444,13 @@
 }
 
 .toolInspectBtn {
+  // Lives OUTSIDE the <summary> in DOM (a11y: summary is interactive
+  // and can't contain other interactive controls). Absolute-positioned
+  // here so it visually sits on the summary row's right edge.
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  z-index: 1;
   font-size: var(--font-3xs);
   font-family: var(--mono);
   font-weight: 700;
@@ -452,8 +462,8 @@
   cursor: pointer;
   letter-spacing: 0.05em;
   white-space: nowrap;
-  flex-shrink: 0;
 }
+
 
 .toolBody {
   padding: 0 12px 8px;
