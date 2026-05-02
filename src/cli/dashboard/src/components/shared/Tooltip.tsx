@@ -104,7 +104,13 @@ export function Tooltip({ content, children, dot, block }: TooltipProps) {
         minWidth: block ? 0 : undefined,
         cursor: 'pointer',
       }}
-      role="button"
+      // Tooltip is a hover/focus disclosure, not a button. With
+      // role="button" axe flagged nested-interactive whenever children
+      // were also interactive (most callers wrap a <button>).
+      // Keeping tabIndex=0 lets keyboard users still focus + surface
+      // the tooltip when children are NON-interactive (a plain <span>
+      // metric, etc); when children ARE interactive their own tabstop
+      // bubbles focus up via onFocus, so the surface still triggers.
       tabIndex={0}
       aria-describedby={visible ? 'paracosm-tooltip' : undefined}
       onFocus={show as unknown as React.FocusEventHandler}

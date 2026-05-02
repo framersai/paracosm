@@ -21,11 +21,11 @@ const result = await page.evaluate(async (rules) => {
   });
 }, rules);
 for (const v of result.violations) {
-  console.log(`\n=== ${v.id} (${v.impact}) — ${v.help} ===`);
-  for (const node of v.nodes.slice(0, 3)) {
-    console.log('  HTML:', node.html.slice(0, 300));
-    console.log('  failure:', node.failureSummary?.slice(0, 250));
+  console.log(`\n=== ${v.id} (${v.impact}) — ${v.help} | ${v.nodes.length} nodes ===`);
+  for (const node of v.nodes.slice(0, 5)) {
+    console.log('  HTML:', node.html.slice(0, 250));
     console.log('  target:', node.target.join(' '));
+    console.log('');
   }
 }
 await browser.close();

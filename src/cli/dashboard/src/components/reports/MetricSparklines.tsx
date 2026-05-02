@@ -55,12 +55,18 @@ function SparkCard({ metric, sideAColor, sideBColor }: CardProps) {
   const bLast = metric.b[metric.b.length - 1]?.value;
 
   return (
-    <div aria-label={`${metric.label} sparkline`} className={styles.card}>
+    <div className={styles.card}>
       <div className={styles.cardHeader}>
         <span className={styles.cardLabel}>{metric.label}</span>
         <span className={styles.cardRange}>T{minTurn} → T{maxTurn}</span>
       </div>
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} role="img">
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        width="100%"
+        height={H}
+        role="img"
+        aria-label={`${metric.label} sparkline`}
+      >
         <line x1={padX} y1={H / 2} x2={W - padX} y2={H / 2} stroke="var(--border)" strokeWidth="0.5" strokeDasharray="2,3" />
         {aPoints && (
           <polyline points={aPoints} fill="none" stroke={sideAColor} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" opacity={0.9} />
