@@ -1,6 +1,7 @@
 import type { ToolRegistry, ToolEntry } from '../../hooks/useToolRegistry';
 import { useDashboardNavigation } from '../../App';
 import { Tooltip } from './Tooltip';
+import styles from './ToolboxSection.module.scss';
 
 interface ToolboxSectionProps {
   registry: ToolRegistry;
@@ -40,13 +41,7 @@ export function ToolboxSection({ registry, title = 'Forged Toolbox', collapsible
   };
 
   const inner = (
-    <ol style={{
-      margin: 0, padding: 0, listStyle: 'none',
-      // Two-column grid matches the side-by-side leader columns above.
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
-      gap: 8,
-    }}>
+    <ol className={styles.list}>
       {registry.list.map(entry => {
         const depts = [...entry.departments].join(', ');
         const sidesLabel = [...entry.actorNames].join(' · ');
@@ -56,43 +51,20 @@ export function ToolboxSection({ registry, title = 'Forged Toolbox', collapsible
           <li
             key={entry.n}
             id={`tool-${entry.n}`}
-            style={{
-              display: 'grid', gridTemplateColumns: '32px 1fr', gap: 8,
-              fontSize: 'var(--font-sm)', lineHeight: 1.55,
-              padding: '8px 10px', borderRadius: 4,
-              background: 'var(--bg-card)', border: '1px solid var(--border)',
-              borderLeft: `3px solid ${entry.approved ? 'var(--green)' : 'var(--rust)'}`,
-            }}
+            className={[styles.item, entry.approved ? '' : styles.rejected].filter(Boolean).join(' ')}
           >
-            <span style={{
-              fontFamily: 'var(--mono)', fontWeight: 800, color: 'var(--amber)',
-              textAlign: 'right',
-            }}>
-              [{entry.n}]
-            </span>
+            <span className={styles.itemNumber}>[{entry.n}]</span>
             <span>
-              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                <span style={{ fontWeight: 700, color: 'var(--text-1)', fontFamily: 'var(--mono)' }}>
-                  {entry.name}
-                </span>
-                <span style={{
-                  fontSize: 'var(--font-3xs)', fontFamily: 'var(--mono)', padding: '1px 5px', borderRadius: 2,
-                  color: entry.approved ? 'var(--green)' : 'var(--rust)',
-                  background: entry.approved ? 'rgba(106,173,72,.10)' : 'rgba(224,101,48,.08)',
-                  border: `1px solid ${entry.approved ? 'rgba(106,173,72,.3)' : 'rgba(224,101,48,.2)'}`,
-                  fontWeight: 800,
-                }}>
+              <div className={styles.itemHead}>
+                <span className={styles.itemName}>{entry.name}</span>
+                <span className={entry.approved ? styles.passPill : styles.failPill}>
                   {entry.approved ? `PASS ${entry.confidence.toFixed(2)}` : 'FAIL'}
                 </span>
-                <span style={{ fontSize: 'var(--font-2xs)', fontFamily: 'var(--mono)', color: 'var(--text-3)' }}>
-                  {entry.mode}
-                </span>
+                <span className={styles.itemMode}>{entry.mode}</span>
                 <Tooltip
                   content={
                     <div>
-                      <div style={{ fontSize: 'var(--font-md)', fontWeight: 800, color: 'var(--amber)', marginBottom: 6 }}>
-                        Open in sim log
-                      </div>
+                      <div className={styles.tooltipTitle}>Open in sim log</div>
                       <div>
                         Jumps to the Log tab and filters the event stream
                         to <code>{entry.name}</code> — showing every
@@ -108,17 +80,7 @@ export function ToolboxSection({ registry, title = 'Forged Toolbox', collapsible
                     type="button"
                     onClick={() => jumpToLog(entry.name)}
                     aria-label={`Open ${entry.name} in simulation log`}
-                    style={{
-                      marginLeft: 'auto', display: 'inline-flex',
-                      alignItems: 'center', gap: 4,
-                      padding: '2px 8px', borderRadius: 3,
-                      background: 'var(--bg-panel)',
-                      color: 'var(--amber)',
-                      border: '1px solid var(--amber-dim, var(--border))',
-                      cursor: 'pointer',
-                      fontFamily: 'var(--mono)', fontSize: 'var(--font-3xs)', fontWeight: 800,
-                      letterSpacing: '0.06em', textTransform: 'uppercase',
-                    }}
+                    className={styles.logBtn}
                   >
                     <span aria-hidden="true">↗</span>
                     log
@@ -126,42 +88,32 @@ export function ToolboxSection({ registry, title = 'Forged Toolbox', collapsible
                 </Tooltip>
               </div>
               {entry.description && entry.description !== entry.name && (
-                <div style={{ color: 'var(--text-2)', marginBottom: 4 }}>
-                  {entry.description}
-                </div>
+                <div className={styles.itemDescription}>{entry.description}</div>
               )}
-              <div style={{ fontSize: 'var(--font-2xs)', color: 'var(--text-3)', fontFamily: 'var(--mono)', display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+              <div className={styles.metaRow}>
                 <span>first forged T{entry.firstForgedTurn} · {entry.firstForgedDepartment}</span>
-                {entry.reuseCount > 0 && <span style={{ color: 'var(--green)' }}>reused {entry.reuseCount}×</span>}
+                {entry.reuseCount > 0 && <span className={styles.metaReuse}>reused {entry.reuseCount}×</span>}
                 {entry.reforgeCount > 0 && (
-                  <span style={{ color: 'var(--amber)' }}>
+                  <span className={styles.metaReforge}>
                     {entry.reforgeCount} re-forge{entry.reforgeCount === 1 ? '' : 's'}
                     {entry.rejectedReforges > 0 && (
-                      <span style={{ color: 'var(--rust)' }}> ({entry.rejectedReforges} rejected)</span>
+                      <span className={styles.metaRejected}> ({entry.rejectedReforges} rejected)</span>
                     )}
                   </span>
                 )}
                 {depts && <span>used by {depts}</span>}
                 <span>leader {sidesLabel}</span>
-                {inputCount > 0 && <span style={{ color: 'var(--teal)' }}>{inputCount} input field{inputCount === 1 ? '' : 's'}</span>}
-                {outputCount > 0 && <span style={{ color: 'var(--green)' }}>{outputCount} output field{outputCount === 1 ? '' : 's'}</span>}
+                {inputCount > 0 && <span className={styles.metaInput}>{inputCount} input field{inputCount === 1 ? '' : 's'}</span>}
+                {outputCount > 0 && <span className={styles.metaOutput}>{outputCount} output field{outputCount === 1 ? '' : 's'}</span>}
               </div>
               {/* Expandable judge-verdict explanation. Replaces the old
                   hover-popover with inline details that stays open as
                   long as the user wants and is accessible on touch. */}
-              <details style={{ marginTop: 6 }}>
-                <summary style={{
-                  fontSize: 'var(--font-2xs)', fontFamily: 'var(--mono)',
-                  color: entry.approved ? 'var(--green)' : 'var(--rust)',
-                  cursor: 'pointer', fontWeight: 700, letterSpacing: '0.05em',
-                }}>
+              <details className={styles.detailsBlock}>
+                <summary className={[styles.detailsSummary, entry.approved ? styles.pass : styles.fail].join(' ')}>
                   {entry.approved ? 'WHY IT PASSED' : 'WHY IT FAILED'}
                 </summary>
-                <div style={{
-                  marginTop: 6, padding: '8px 10px', borderRadius: 4,
-                  background: 'var(--bg-deep)', border: '1px solid var(--border)',
-                  fontSize: 'var(--font-xs)', lineHeight: 1.55, color: 'var(--text-2)',
-                }}>
+                <div className={styles.verdictBody}>
                   <ForgeVerdictBody entry={entry} />
                 </div>
               </details>
@@ -169,56 +121,40 @@ export function ToolboxSection({ registry, title = 'Forged Toolbox', collapsible
                   was used on, so users can verify the tool paid off
                   across multiple turns instead of getting abandoned. */}
               {entry.history.length > 0 && (
-                <details style={{ marginTop: 4 }}>
-                  <summary style={{ fontSize: 'var(--font-2xs)', fontFamily: 'var(--mono)', color: 'var(--teal)', cursor: 'pointer', fontWeight: 700, letterSpacing: '0.05em' }}>
+                <details className={styles.detailsBlockTight}>
+                  <summary className={[styles.detailsSummary, styles.history].join(' ')}>
                     USE HISTORY · {entry.history.length}
                   </summary>
-                  <ol style={{
-                    margin: '6px 0 0', padding: '0 0 0 20px', fontSize: 'var(--font-2xs)', lineHeight: 1.5,
-                    fontFamily: 'var(--mono)', color: 'var(--text-2)',
-                  }}>
-                    {entry.history.map((h, i) => (
-                      <li key={i} style={{
-                        color: h.rejected ? 'var(--rust)' : (h.isReforge ? 'var(--amber)' : 'var(--text-2)'),
-                      }}>
-                        T{h.turn} · {h.department} · <span style={{ color: 'var(--teal)' }}>{h.actorName}</span>
-                        {' · '}
-                        {i === 0 ? 'first forge' : h.isReforge ? (h.rejected ? 're-forge rejected' : 're-forge accepted') : 'reuse'}
-                        {typeof h.confidence === 'number' && ` · conf ${h.confidence.toFixed(2)}`}
-                        {h.eventTitle && <span style={{ color: 'var(--text-3)' }}> · "{h.eventTitle}"</span>}
-                      </li>
-                    ))}
+                  <ol className={styles.historyList}>
+                    {entry.history.map((h, i) => {
+                      const itemCls = h.rejected
+                        ? styles.rejected
+                        : h.isReforge ? styles.reforge : '';
+                      return (
+                        <li key={i} className={[styles.historyItem, itemCls].filter(Boolean).join(' ')}>
+                          T{h.turn} · {h.department} · <span className={styles.historyActor}>{h.actorName}</span>
+                          {' · '}
+                          {i === 0 ? 'first forge' : h.isReforge ? (h.rejected ? 're-forge rejected' : 're-forge accepted') : 'reuse'}
+                          {typeof h.confidence === 'number' && ` · conf ${h.confidence.toFixed(2)}`}
+                          {h.eventTitle && <span className={styles.historyEventTitle}> · "{h.eventTitle}"</span>}
+                        </li>
+                      );
+                    })}
                   </ol>
                 </details>
               )}
               {Boolean(entry.inputSchema || entry.outputSchema) && (
-                <details style={{ marginTop: 4 }}>
-                  <summary style={{ fontSize: 'var(--font-2xs)', fontFamily: 'var(--mono)', color: 'var(--amber)', cursor: 'pointer', fontWeight: 700, letterSpacing: '0.05em' }}>
-                    SCHEMA
-                  </summary>
-                  <pre style={{
-                    margin: '4px 0 0', padding: 8, fontSize: 'var(--font-2xs)', lineHeight: 1.45,
-                    fontFamily: 'var(--mono)', color: 'var(--text-2)',
-                    background: 'var(--bg-deep)', border: '1px solid var(--border)', borderRadius: 4,
-                    whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 240, overflow: 'auto',
-                  }}>
+                <details className={styles.detailsBlockTight}>
+                  <summary className={[styles.detailsSummary, styles.amber].join(' ')}>SCHEMA</summary>
+                  <pre className={styles.codeBlock}>
                     {JSON.stringify({ input: entry.inputSchema ?? null, output: entry.outputSchema ?? null }, null, 2)}
                   </pre>
                 </details>
               )}
               {entry.sampleOutput && (
-                <details style={{ marginTop: 4 }}>
-                  <summary style={{ fontSize: 'var(--font-2xs)', fontFamily: 'var(--mono)', color: 'var(--green)', cursor: 'pointer', fontWeight: 700, letterSpacing: '0.05em' }}>
-                    LATEST OUTPUT
-                  </summary>
-                  <pre style={{
-                    margin: '4px 0 0', padding: 8, fontSize: 'var(--font-2xs)', lineHeight: 1.45,
-                    fontFamily: 'var(--mono)', color: 'var(--text-2)',
-                    background: 'var(--bg-deep)', border: '1px solid var(--border)', borderRadius: 4,
-                    whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 200, overflow: 'auto',
-                  }}>
-                    {entry.sampleOutput}
-                  </pre>
+                <details className={styles.detailsBlockTight}>
+                  <summary className={[styles.detailsSummary, styles.pass].join(' ')}>LATEST OUTPUT</summary>
+                  <pre className={styles.codeBlockShort}>{entry.sampleOutput}</pre>
                 </details>
               )}
             </span>
@@ -233,13 +169,9 @@ export function ToolboxSection({ registry, title = 'Forged Toolbox', collapsible
       <details
         open={defaultOpen}
         onToggle={onToggle ? (e) => onToggle((e.currentTarget as HTMLDetailsElement).open) : undefined}
-        style={{ padding: '12px 16px', borderTop: '1px solid var(--border)', background: 'var(--bg-deep)' }}
+        className={styles.collapsibleWrap}
       >
-        <summary style={{
-          fontSize: 'var(--font-md)', fontFamily: 'var(--mono)', fontWeight: 800,
-          color: 'var(--amber)', letterSpacing: '0.06em',
-          cursor: 'pointer', textTransform: 'uppercase', marginBottom: 8,
-        }}>
+        <summary className={styles.collapsibleSummary}>
           {title} · {registry.list.length}
         </summary>
         {inner}
@@ -248,14 +180,8 @@ export function ToolboxSection({ registry, title = 'Forged Toolbox', collapsible
   }
 
   return (
-    <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)', background: 'var(--bg-deep)' }}>
-      <h3 style={{
-        fontSize: 'var(--font-md)', fontFamily: 'var(--mono)', fontWeight: 800,
-        color: 'var(--amber)', letterSpacing: '0.06em',
-        margin: '0 0 8px', textTransform: 'uppercase',
-      }}>
-        {title} · {registry.list.length}
-      </h3>
+    <div className={styles.collapsibleWrap}>
+      <h3 className={styles.title}>{title} · {registry.list.length}</h3>
       {inner}
     </div>
   );
@@ -267,8 +193,8 @@ export function ToolboxList({ registry }: { registry: ToolRegistry }) {
 }
 
 function countSchemaFields(schema: unknown, fallback: string[]): number {
-  if (schema && typeof schema === 'object' && (schema as any).properties) {
-    return Object.keys((schema as any).properties).length;
+  if (schema && typeof schema === 'object' && (schema as { properties?: unknown }).properties) {
+    return Object.keys((schema as { properties: Record<string, unknown> }).properties).length;
   }
   return fallback.length;
 }
@@ -290,16 +216,16 @@ function countSchemaFields(schema: unknown, fallback: string[]): number {
 export function ForgeVerdictBody({ entry }: { entry: ToolEntry }) {
   if (entry.approved) {
     return (
-      <div style={{ fontFamily: 'var(--sans)' }}>
-        <div style={{ fontFamily: 'var(--mono)', fontSize: 'var(--font-xs)', color: 'var(--green)', fontWeight: 800, marginBottom: 6 }}>
+      <div className={styles.verdictWrap}>
+        <div className={styles.verdictPassHeader}>
           ✓ judge confidence {entry.confidence.toFixed(2)}
         </div>
         <div>
           The LLM judge reviewed this tool's source code, test outputs, and sandbox allowlist,
           and approved it across safety, correctness, determinism, and bounded execution.
         </div>
-        <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
-          <b style={{ color: 'var(--green)' }}>What this adds to the run:</b>{' '}
+        <div className={styles.verdictAdds}>
+          <b className={styles.verdictAddsLabel}>What this adds to the run:</b>{' '}
           +0.04 outcome bonus for this event · the dept's report cites the tool's computed result ·
           the tool is now reusable by any dept at near-zero cost (+0.02 per reuse).
         </div>
@@ -307,27 +233,17 @@ export function ForgeVerdictBody({ entry }: { entry: ToolEntry }) {
     );
   }
   return (
-    <div style={{ fontFamily: 'var(--sans)' }}>
-      <div style={{ fontFamily: 'var(--mono)', fontSize: 'var(--font-xs)', color: 'var(--rust)', fontWeight: 800, marginBottom: 6 }}>
-        ✗ judge rejected
-      </div>
+    <div className={styles.verdictWrap}>
+      <div className={styles.verdictFailHeader}>✗ judge rejected</div>
       {entry.errorReason ? (
-        <div style={{
-          fontFamily: 'var(--mono)', fontSize: 'var(--font-xs)', color: 'var(--text-1)',
-          padding: 8, background: 'rgba(224,101,48,.08)', borderRadius: 4,
-          border: '1px solid rgba(224,101,48,.2)',
-          whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.5,
-          marginBottom: 8,
-        }}>
-          {entry.errorReason}
-        </div>
+        <div className={styles.verdictRejection}>{entry.errorReason}</div>
       ) : (
-        <div style={{ fontStyle: 'italic', color: 'var(--text-3)', marginBottom: 8 }}>
+        <div className={styles.verdictMissing}>
           (No rejection reason captured. The judge blocked the tool before it could execute.)
         </div>
       )}
-      <div style={{ paddingTop: 8, borderTop: '1px solid var(--border)' }}>
-        <b style={{ color: 'var(--rust)' }}>Cost of a failed forge:</b>{' '}
+      <div className={styles.verdictCost}>
+        <b className={styles.verdictCostLabel}>Cost of a failed forge:</b>{' '}
         −0.06 outcome bonus on this event · −0.015 morale per failure (crew confidence eroded) ·
         −1.2&nbsp;kW power (sandbox compute consumed) · no quantitative grounding in the dept's report ·
         the dept retries or moves on without the insight this tool would have provided.
