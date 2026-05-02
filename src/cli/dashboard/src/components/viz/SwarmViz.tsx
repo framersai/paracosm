@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { GameState, LeaderInfo } from '../../hooks/useGameState.js';
+import styles from './SwarmViz.module.scss';
 import { useScenarioContext, useDashboardNavigation } from '../../App';
 import { useToast } from '../shared/Toast';
 import { useVizSnapshots } from './useVizSnapshots.js';
@@ -28,21 +29,9 @@ import { useScenarioLabels } from '../../hooks/useScenarioLabels.js';
  *  it's only used in the viz tab footer. */
 function Kbd({ k, v }: { k: string; v: string }) {
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-      <kbd
-        style={{
-          padding: '1px 5px',
-          background: 'var(--bg-card)',
-          border: '1px solid var(--border)',
-          borderRadius: 2,
-          fontFamily: 'var(--mono)',
-          fontSize: 'var(--font-3xs)',
-          color: 'var(--text-3)',
-        }}
-      >
-        {k}
-      </kbd>
-      <span style={{ color: 'var(--text-4)' }}>{v}</span>
+    <span className={styles.kbd}>
+      <kbd className={styles.kbdKey}>{k}</kbd>
+      <span className={styles.kbdLabel}>{v}</span>
     </span>
   );
 }
@@ -839,10 +828,7 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
 
   if (maxTurn === 0) {
     return (
-      <div className="viz-content" style={{
-        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: 'var(--text-3)', fontSize: 'var(--font-md)',
-      }}>
+      <div className={`viz-content ${styles.empty}`}>
         Run a simulation to see the {scenarioLabels.place} visualization.
       </div>
     );
@@ -872,22 +858,12 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
   return (
       <div
         ref={vizRootRef}
-        className="viz-content"
-        style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', position: 'relative' }}
+        className={`viz-content ${styles.root}`}
       >
         <TurnBanner state={state} currentTurn={currentTurn} />
-        <div
-          style={{
-            padding: '6px 10px 4px',
-            background: 'var(--bg-deep)',
-            borderBottom: '1px solid var(--border)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 4,
-          }}
-        >
-          <div style={{ display: 'flex', gap: 8, alignItems: 'stretch', flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
+        <div className={styles.toolbarStrip}>
+          <div className={styles.toolbarTopRow}>
+            <div className={styles.modePillsWrap}>
               <GridModePills
                 mode={gridMode}
                 onChange={setGridMode}
@@ -908,19 +884,7 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
               aria-label={overflowOpen ? 'Hide advanced tools' : 'Show advanced tools (palette, stats, export, settings)'}
               aria-expanded={overflowOpen}
               title={overflowOpen ? 'Hide tools' : 'Palette · Stats · Export · Settings'}
-              style={{
-                padding: '0 12px',
-                background: overflowOpen ? 'var(--amber)' : 'var(--bg-card)',
-                color: overflowOpen ? 'var(--bg-deep)' : 'var(--text-3)',
-                border: '1px solid var(--border)',
-                borderRadius: 3,
-                cursor: 'pointer',
-                fontFamily: 'var(--mono)',
-                fontSize: 'var(--font-lg)',
-                fontWeight: 800,
-                letterSpacing: '0.08em',
-                lineHeight: 1,
-              }}
+              className={[styles.overflowToggle, overflowOpen ? styles.overflowToggleOpen : ''].filter(Boolean).join(' ')}
             >
               {'\u22ef'}
             </button>
@@ -929,21 +893,7 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
               onClick={() => setHelpOpen(true)}
               aria-label="Open help overlay (shortcut: ?)"
               title="What do these colors / symbols / modes mean? (press ?)"
-              style={{
-                padding: '4px 12px',
-                background: 'var(--bg-card)',
-                color: 'var(--amber)',
-                border: '1px solid var(--amber)',
-                borderRadius: 4,
-                cursor: 'pointer',
-                fontFamily: 'var(--mono)',
-                fontSize: 'var(--font-sm)',
-                fontWeight: 800,
-                letterSpacing: '0.04em',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 4,
-              }}
+              className={styles.helpBtn}
             >
               ? Help
             </button>
@@ -951,38 +901,22 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
               <div
                 role="toolbar"
                 aria-label="Viz tools"
-                style={{
-                  display: 'flex',
-                  gap: 6,
-                  alignItems: 'stretch',
-                  width: '100%',
-                  flexWrap: 'wrap',
-                  paddingTop: 4,
-                }}
+                className={styles.toolsRow}
               >
                 <button
                   type="button"
                   onClick={cyclePalette}
                   aria-label={`Palette: ${palette}. Click to cycle.`}
                   title={`Palette: ${palette.toUpperCase()} (click to cycle)`}
+                  className={styles.paletteBtn}
                   style={{
-                    padding: '0 10px',
-                    background:
+                    '--palette-bg':
                       palette === 'amber'
                         ? 'linear-gradient(135deg, #e8b44a 0 40%, #c44a1e 100%)'
                         : palette === 'cool'
                         ? 'linear-gradient(135deg, #4ecdc4 0 40%, #9b6bd8 100%)'
                         : 'linear-gradient(135deg, #f5f0e4 0 40%, #6b5f50 100%)',
-                    color: 'var(--text-contrast)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 3,
-                    cursor: 'pointer',
-                    fontFamily: 'var(--mono)',
-                    fontSize: 'var(--font-2xs)',
-                    fontWeight: 800,
-                    letterSpacing: '0.08em',
-                    textTransform: 'uppercase',
-                  }}
+                  } as CSSProperties}
                 >
                   {palette}
                 </button>
@@ -991,18 +925,7 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
                   onClick={() => setSummaryOpen(true)}
                   aria-label="Open run summary"
                   title="Run summary (cumulative totals)"
-                  style={{
-                    padding: '0 10px',
-                    background: 'var(--bg-card)',
-                    color: 'var(--text-3)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 3,
-                    cursor: 'pointer',
-                    fontFamily: 'var(--mono)',
-                    fontSize: 'var(--font-2xs)',
-                    fontWeight: 800,
-                    letterSpacing: '0.08em',
-                  }}
+                  className={styles.toolBtn}
                 >
                   STATS
                 </button>
@@ -1018,33 +941,14 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
                   aria-label="Open grid settings"
                   aria-expanded={settingsOpen}
                   title="Viz settings"
-                  style={{
-                    padding: '0 12px',
-                    background: settingsOpen ? 'var(--amber)' : 'var(--bg-card)',
-                    color: settingsOpen ? 'var(--bg-deep)' : 'var(--text-3)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 3,
-                    cursor: 'pointer',
-                    fontFamily: 'var(--mono)',
-                    fontSize: 'var(--font-lg)',
-                    fontWeight: 800,
-                    lineHeight: 1,
-                  }}
+                  className={[styles.settingsBtn, settingsOpen ? styles.settingsBtnOpen : ''].filter(Boolean).join(' ')}
                 >
                   {'\u2699'}
                 </button>
               </div>
             )}
           </div>
-          <div
-            style={{
-              fontSize: 'var(--font-3xs)',
-              color: 'var(--text-4)',
-              fontFamily: 'var(--mono)',
-              letterSpacing: '0.04em',
-              minHeight: 12,
-            }}
-          >
+          <div className={styles.modeHint}>
             {gridModeHint(gridMode, scenarioLabels)}
           </div>
         </div>
@@ -1092,25 +996,13 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
           onHoverTurnChange={setHoveredTurn}
         />
         {diffLine && (
-          <div style={{
-            padding: '4px 12px', fontSize: 'var(--font-2xs)', fontFamily: 'var(--mono)',
-            color: 'var(--text-3)', background: 'var(--bg-panel)',
-            borderBottom: '1px solid var(--border)',
-          }}>
-            {diffLine}
-          </div>
+          <div className={styles.diffLine}>{diffLine}</div>
         )}
         {phone && (
           <div
             role="tablist"
             aria-label="Leader panel selector"
-            style={{
-              display: 'flex',
-              gap: 4,
-              padding: '4px 8px',
-              background: 'var(--bg-panel)',
-              borderBottom: '1px solid var(--border)',
-            }}
+            className={styles.phoneTabRow}
           >
             {(['a', 'b'] as const).map(s => {
               const label = s === 'a' ? (leaderA?.name ?? 'Leader A') : (leaderB?.name ?? 'Leader B');
@@ -1123,24 +1015,8 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
                   role="tab"
                   aria-selected={active}
                   onClick={() => setFocusedSide(s)}
-                  style={{
-                    flex: 1,
-                    padding: '8px 10px',
-                    background: active ? color : 'var(--bg-card)',
-                    color: active ? 'var(--bg-deep)' : 'var(--text-3)',
-                    border: `1px solid ${active ? color : 'var(--border)'}`,
-                    borderRadius: 3,
-                    cursor: 'pointer',
-                    fontFamily: 'var(--mono)',
-                    fontSize: 'var(--font-xs)',
-                    fontWeight: 800,
-                    letterSpacing: '0.04em',
-                    textTransform: 'uppercase',
-                    minWidth: 0,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
+                  className={[styles.phoneTab, active ? styles.phoneTabActive : ''].filter(Boolean).join(' ')}
+                  style={active ? ({ '--tab-color': color } as CSSProperties) : undefined}
                 >
                   {label}
                 </button>
@@ -1149,23 +1025,17 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
           </div>
         )}
         <div
-          className="leaders-row"
-          style={{
-            display: 'flex',
-            flexDirection: narrow ? 'column' : 'row',
-            flex: 1,
-            minHeight: 0,
-            gap: 4,
-            overflow: narrow ? 'auto' : 'hidden',
-          }}
+          className={[
+            'leaders-row',
+            styles.leadersRow,
+            narrow ? styles.leadersRowNarrow : '',
+          ].filter(Boolean).join(' ')}
         >
           <div
-            style={{
-              display: effectiveFocusedSide === 'b' ? 'none' : 'flex',
-              flex: 1,
-              minWidth: 0,
-              minHeight: 0,
-            }}
+            className={[
+              styles.sideWrap,
+              effectiveFocusedSide === 'b' ? styles.sideWrapHidden : '',
+            ].filter(Boolean).join(' ')}
           >
           <LivingSwarmGrid
             snapshot={snapA}
@@ -1204,12 +1074,10 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
           />
           </div>
           <div
-            style={{
-              display: effectiveFocusedSide === 'a' ? 'none' : 'flex',
-              flex: 1,
-              minWidth: 0,
-              minHeight: 0,
-            }}
+            className={[
+              styles.sideWrap,
+              effectiveFocusedSide === 'a' ? styles.sideWrapHidden : '',
+            ].filter(Boolean).join(' ')}
           >
           <LivingSwarmGrid
             snapshot={snapB}
@@ -1260,20 +1128,7 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
           onStepForward={handleStepForward}
           onSpeedChange={setSpeed}
         />
-        <div
-          style={{
-            padding: '2px 10px 4px',
-            background: 'var(--bg-deep)',
-            borderTop: '1px solid var(--border)',
-            fontSize: 'var(--font-3xs)',
-            fontFamily: 'var(--mono)',
-            color: 'var(--text-4)',
-            letterSpacing: '0.08em',
-            display: 'flex',
-            gap: 10,
-            flexWrap: 'wrap',
-          }}
-        >
+        <div className={styles.footerKeys}>
           <Kbd k="?" v="help" />
           <Kbd k="1-5" v="mode" />
           <Kbd k="← →" v="scrub turn" />
@@ -1287,17 +1142,7 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
         <div
           aria-live="polite"
           aria-atomic="true"
-          style={{
-            position: 'absolute',
-            width: 1,
-            height: 1,
-            padding: 0,
-            margin: -1,
-            overflow: 'hidden',
-            clip: 'rect(0, 0, 0, 0)',
-            whiteSpace: 'nowrap',
-            border: 0,
-          }}
+          className={styles.srOnly}
         >
           {snapA && snapB
             ? `Turn ${Math.max(snapA.turn, snapB.turn)}. ${leaderA?.name ?? 'A'} ${scenarioLabels.place}: ${snapA.cells.filter(c => c.alive).length} alive, ${snapA.births} born, ${snapA.deaths} died, morale ${Math.round(snapA.morale * 100)}%. ${leaderB?.name ?? 'B'} ${scenarioLabels.place}: ${snapB.cells.filter(c => c.alive).length} alive, ${snapB.births} born, ${snapB.deaths} died, morale ${Math.round(snapB.morale * 100)}%.`
@@ -1308,31 +1153,10 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
             type="button"
             onClick={() => handleTurnChange(maxTurn - 1)}
             aria-label={`Jump to latest turn (T${maxTurn})`}
-            style={{
-              position: 'absolute',
-              right: 16,
-              bottom: 72,
-              padding: '6px 12px',
-              background: 'var(--amber)',
-              color: 'var(--bg-deep)',
-              border: 'none',
-              borderRadius: 999,
-              cursor: 'pointer',
-              fontFamily: 'var(--mono)',
-              fontSize: 'var(--font-2xs)',
-              fontWeight: 800,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              boxShadow: '0 4px 16px rgba(0, 0, 0, 0.5)',
-              zIndex: 20,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              animation: 'paracosm-jump-pulse 2.2s ease-in-out infinite',
-            }}
+            className={styles.jumpLatest}
           >
             \u2193 Latest · T{maxTurn}
-            <span style={{ fontSize: 'var(--font-3xs)', opacity: 0.7 }}>
+            <span className={styles.jumpLatestBehind}>
               ({maxTurn - 1 - currentTurn} turn{maxTurn - 1 - currentTurn === 1 ? '' : 's'} behind)
             </span>
           </button>
@@ -1377,53 +1201,26 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
             role="status"
             aria-live="assertive"
             onClick={() => setAlertToast(null)}
+            className={styles.toast}
             style={{
-              position: 'absolute',
-              top: crisisToast ? 68 : 8,
-              left: '50%',
-              transform: 'translateX(-50%)',
-              maxWidth: 520,
-              width: 'calc(100% - 24px)',
-              padding: '8px 14px',
-              background: 'var(--bg-panel)',
-              border: `1px solid ${alertToast.side === 'a' ? 'var(--vis)' : 'var(--eng)'}`,
-              borderLeft:
-                alertToast.kind === 'morale-crash'
-                  ? '3px solid var(--rust)'
-                  : '3px solid var(--amber)',
-              borderRadius: 4,
-              fontFamily: 'var(--sans)',
-              fontSize: 'var(--font-sm)',
-              color: 'var(--text-1)',
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.6)',
-              zIndex: 30,
-              cursor: 'pointer',
-              animation: 'paracosm-toast-in 280ms ease-out',
-            }}
+              '--toast-top': crisisToast ? '68px' : '8px',
+              '--side-color': alertToast.side === 'a' ? 'var(--vis)' : 'var(--eng)',
+              '--left-accent': alertToast.kind === 'morale-crash' ? 'var(--rust)' : 'var(--amber)',
+            } as CSSProperties}
             title="Click to dismiss"
           >
             <div
+              className={styles.toastKicker}
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                fontSize: 'var(--font-3xs)',
-                fontFamily: 'var(--mono)',
-                letterSpacing: '0.12em',
-                color:
-                  alertToast.kind === 'morale-crash'
-                    ? 'var(--rust)'
-                    : 'var(--amber)',
-                textTransform: 'uppercase',
-                marginBottom: 2,
-              }}
+                '--kicker-color': alertToast.kind === 'morale-crash' ? 'var(--rust)' : 'var(--amber)',
+              } as CSSProperties}
             >
               <span>{alertToast.kind === 'morale-crash' ? '\u25BC Alert' : '\u26A0 Alert'}</span>
-              <span style={{ color: 'var(--text-3)' }}>
+              <span className={styles.toastKickerMeta}>
                 {alertToast.side.toUpperCase()} · T{alertToast.turn}
               </span>
             </div>
-            <div style={{ fontSize: 'var(--font-sm)', lineHeight: 1.3 }}>{alertToast.message}</div>
+            <div className={styles.toastBody}>{alertToast.message}</div>
           </div>
         )}
         {crisisToast && (
@@ -1432,47 +1229,20 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
             role="status"
             aria-live="polite"
             onClick={() => setCrisisToast(null)}
+            className={styles.toast}
             style={{
-              position: 'absolute',
-              top: 8,
-              left: '50%',
-              transform: 'translateX(-50%)',
-              maxWidth: 520,
-              width: 'calc(100% - 24px)',
-              padding: '8px 14px',
-              background: 'var(--bg-panel)',
-              border: `1px solid ${crisisToast.side === 'a' ? 'var(--vis)' : 'var(--eng)'}`,
-              borderLeft: '3px solid var(--rust)',
-              borderRadius: 4,
-              fontFamily: 'var(--sans)',
-              fontSize: 'var(--font-sm)',
-              color: 'var(--text-1)',
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.6)',
-              zIndex: 30,
-              cursor: 'pointer',
-              animation: 'paracosm-toast-in 280ms ease-out',
-            }}
+              '--side-color': crisisToast.side === 'a' ? 'var(--vis)' : 'var(--eng)',
+              '--left-accent': 'var(--rust)',
+            } as CSSProperties}
             title="Click to dismiss"
           >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                fontSize: 'var(--font-3xs)',
-                fontFamily: 'var(--mono)',
-                letterSpacing: '0.12em',
-                color: 'var(--rust)',
-                textTransform: 'uppercase',
-                marginBottom: 2,
-              }}
-            >
+            <div className={styles.toastKicker}>
               <span>⚡ Crisis</span>
-              <span style={{ color: 'var(--text-3)' }}>
+              <span className={styles.toastKickerMeta}>
                 {crisisToast.side.toUpperCase()} · T{crisisToast.turn} · {crisisToast.category}
               </span>
             </div>
-            <div style={{ fontSize: 'var(--font-md)', lineHeight: 1.3 }}>
+            <div className={styles.toastBodyMd}>
               {crisisToast.title || `${crisisToast.category} crisis unfolding`}
             </div>
           </div>
@@ -1481,15 +1251,7 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
           <div
             key={vignetteKey}
             aria-hidden="true"
-            style={{
-              position: 'absolute',
-              inset: 0,
-              pointerEvents: 'none',
-              background:
-                'radial-gradient(circle at center, transparent 50%, rgba(0,0,0,0.55) 100%)',
-              animation: 'paracosm-vignette 450ms ease-out forwards',
-              zIndex: 50,
-            }}
+            className={styles.vignette}
           />
         )}
         <style>{`
