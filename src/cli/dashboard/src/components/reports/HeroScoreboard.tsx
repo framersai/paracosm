@@ -1,3 +1,6 @@
+import type { CSSProperties } from 'react';
+import styles from './HeroScoreboard.module.scss';
+
 /**
  * Top-of-report scoreboard. Shows winner + one-sentence divergence +
  * seven-stat A-vs-B comparison bars. Sources from verdict.finalStats
@@ -59,12 +62,18 @@ function StatBar({ a, b, winner }: { a: number; b: number; winner: 'a' | 'b' | '
   const aFill = winner === 'a' ? 'var(--vis)' : 'var(--border-hl)';
   const bFill = winner === 'b' ? 'var(--eng)' : 'var(--border-hl)';
   return (
-    <div style={{ display: 'flex', gap: 2, height: 6 }}>
-      <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
-        <div style={{ width: `${aPct}%`, height: '100%', background: aFill, borderRadius: '3px 0 0 3px' }} />
+    <div className={styles.bar}>
+      <div className={styles.barLeftWrap}>
+        <div
+          className={styles.barLeftFill}
+          style={{ '--bar-pct': `${aPct}%`, '--bar-fill': aFill } as CSSProperties}
+        />
       </div>
-      <div style={{ flex: 1 }}>
-        <div style={{ width: `${bPct}%`, height: '100%', background: bFill, borderRadius: '0 3px 3px 0' }} />
+      <div className={styles.barRightWrap}>
+        <div
+          className={styles.barRightFill}
+          style={{ '--bar-pct': `${bPct}%`, '--bar-fill': bFill } as CSSProperties}
+        />
       </div>
     </div>
   );
@@ -92,68 +101,45 @@ export function HeroScoreboard(props: HeroScoreboardProps) {
   });
 
   return (
-    <section
-      aria-label="Run summary"
-      style={{
-        background: 'var(--bg-panel)',
-        border: '1px solid var(--border)',
-        borderRadius: 10,
-        overflow: 'hidden',
-        marginBottom: 16,
-        boxShadow: 'var(--card-shadow)',
-      }}
-    >
-      <div style={{
-        padding: '12px 18px',
-        background: 'linear-gradient(90deg, rgba(232,180,74,0.18), rgba(232,180,74,0.04))',
-        borderBottom: '1px solid var(--border)',
-      }}>
-        <div style={{ fontSize: 'var(--font-xs)', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--amber)', fontFamily: 'var(--mono)' }}>
-          Run Summary
-        </div>
-        {winnerName && (
-          <div style={{ marginTop: 4, fontSize: 'var(--font-2xl)', fontWeight: 800, color: 'var(--text-1)', fontFamily: 'var(--mono)' }}>
-            {winnerName} wins
-          </div>
-        )}
-        {headline && (
-          <div style={{ marginTop: 4, fontSize: 'var(--font-md)', color: 'var(--text-2)', lineHeight: 1.5 }}>
-            {headline}
-          </div>
-        )}
-        {keyDivergence && (
-          <div style={{ marginTop: 6, fontSize: 'var(--font-sm)', color: 'var(--text-3)', fontStyle: 'italic', lineHeight: 1.5 }}>
-            {keyDivergence}
-          </div>
-        )}
+    <section aria-label="Run summary" className={styles.section}>
+      <div className={styles.header}>
+        <div className={styles.kicker}>Run Summary</div>
+        {winnerName && <div className={styles.winner}>{winnerName} wins</div>}
+        {headline && <div className={styles.headline}>{headline}</div>}
+        {keyDivergence && <div className={styles.divergence}>{keyDivergence}</div>}
       </div>
 
       {finalA && finalB ? (
-        <div style={{ padding: '14px 18px' }}>
-          <div style={{
-            display: 'flex', justifyContent: 'space-between', marginBottom: 10,
-            fontSize: 'var(--font-xs)', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase',
-            color: 'var(--text-3)', fontFamily: 'var(--mono)',
-          }}>
-            <span style={{ color: 'var(--vis)' }}>{props.leaderAName}</span>
+        <div className={styles.body}>
+          <div className={styles.bodyHeader}>
+            <span className={styles.nameA}>{props.leaderAName}</span>
             <span>Final stats</span>
-            <span style={{ color: 'var(--eng)' }}>{props.leaderBName}</span>
+            <span className={styles.nameB}>{props.leaderBName}</span>
           </div>
           {STAT_ROWS.map(row => {
             const a = Number(finalA[row.key] ?? 0);
             const b = Number(finalB[row.key] ?? 0);
             const winner: 'a' | 'b' | 'tie' = a > b ? 'a' : b > a ? 'b' : 'tie';
             return (
-              <div key={row.key} style={{ marginBottom: 8 }}>
-                <div style={{
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-                  fontSize: 'var(--font-xs)', fontFamily: 'var(--mono)', marginBottom: 2,
-                }}>
-                  <span style={{ color: winner === 'a' ? 'var(--vis)' : 'var(--text-2)', fontWeight: winner === 'a' ? 700 : 500 }}>
+              <div key={row.key} className={styles.statRow}>
+                <div className={styles.statRowHead}>
+                  <span
+                    className={styles.statValueA}
+                    style={{
+                      '--val-color': winner === 'a' ? 'var(--vis)' : 'var(--text-2)',
+                      '--val-weight': winner === 'a' ? '700' : '500',
+                    } as CSSProperties}
+                  >
                     {fmt(a, row.format)}
                   </span>
-                  <span style={{ color: 'var(--text-3)' }}>{row.label}</span>
-                  <span style={{ color: winner === 'b' ? 'var(--eng)' : 'var(--text-2)', fontWeight: winner === 'b' ? 700 : 500 }}>
+                  <span className={styles.statLabel}>{row.label}</span>
+                  <span
+                    className={styles.statValueB}
+                    style={{
+                      '--val-color': winner === 'b' ? 'var(--eng)' : 'var(--text-2)',
+                      '--val-weight': winner === 'b' ? '700' : '500',
+                    } as CSSProperties}
+                  >
                     {fmt(b, row.format)}
                   </span>
                 </div>
@@ -161,22 +147,14 @@ export function HeroScoreboard(props: HeroScoreboardProps) {
               </div>
             );
           })}
-          <div style={{ textAlign: 'right', marginTop: 10 }}>
-            <button
-              type="button"
-              onClick={scroll}
-              style={{
-                background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-                fontFamily: 'var(--mono)', fontSize: 'var(--font-xs)', fontWeight: 700,
-                color: 'var(--amber)', letterSpacing: '0.04em', textTransform: 'uppercase',
-              }}
-            >
+          <div className={styles.viewWrap}>
+            <button type="button" onClick={scroll} className={styles.viewBtn}>
               View full verdict ›
             </button>
           </div>
         </div>
       ) : (
-        <div style={{ padding: '14px 18px', fontSize: 'var(--font-sm)', color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
+        <div className={styles.empty}>
           Simulation in progress. Scoreboard will populate when the verdict arrives.
         </div>
       )}

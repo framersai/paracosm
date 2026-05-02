@@ -1,0 +1,144 @@
+// Migrated from inline `style={{}}`. Per-row winner color and bar
+// percentages flow in via CSS custom properties.
+
+.section {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 16px;
+  box-shadow: var(--card-shadow);
+}
+
+.header {
+  padding: 12px 18px;
+  background: linear-gradient(90deg, rgba(232, 180, 74, 0.18), rgba(232, 180, 74, 0.04));
+  border-bottom: 1px solid var(--border);
+}
+
+.kicker {
+  font-size: var(--font-xs);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--amber);
+  font-family: var(--mono);
+}
+
+.winner {
+  margin-top: 4px;
+  font-size: var(--font-2xl);
+  font-weight: 800;
+  color: var(--text-1);
+  font-family: var(--mono);
+}
+
+.headline {
+  margin-top: 4px;
+  font-size: var(--font-md);
+  color: var(--text-2);
+  line-height: 1.5;
+}
+
+.divergence {
+  margin-top: 6px;
+  font-size: var(--font-sm);
+  color: var(--text-3);
+  font-style: italic;
+  line-height: 1.5;
+}
+
+.body { padding: 14px 18px; }
+
+.bodyHeader {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-size: var(--font-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  font-family: var(--mono);
+}
+
+.nameA { color: var(--vis); }
+.nameB { color: var(--eng); }
+
+.statRow { margin-bottom: 8px; }
+
+.statRowHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: var(--font-xs);
+  font-family: var(--mono);
+  margin-bottom: 2px;
+}
+
+.statValueA {
+  // --val-color set inline (var(--vis) when winner, else var(--text-2)).
+  color: var(--val-color, var(--text-2));
+  font-weight: var(--val-weight, 500);
+}
+
+.statValueB {
+  color: var(--val-color, var(--text-2));
+  font-weight: var(--val-weight, 500);
+}
+
+.statLabel { color: var(--text-3); }
+
+.bar {
+  display: flex;
+  gap: 2px;
+  height: 6px;
+}
+
+.barLeftWrap {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.barRightWrap { flex: 1; }
+
+.barLeftFill {
+  // --bar-pct, --bar-fill set inline.
+  width: var(--bar-pct, 0%);
+  height: 100%;
+  background: var(--bar-fill, var(--border-hl));
+  border-radius: 3px 0 0 3px;
+}
+
+.barRightFill {
+  width: var(--bar-pct, 0%);
+  height: 100%;
+  background: var(--bar-fill, var(--border-hl));
+  border-radius: 0 3px 3px 0;
+}
+
+.viewWrap {
+  text-align: right;
+  margin-top: 10px;
+}
+
+.viewBtn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: var(--font-xs);
+  font-weight: 700;
+  color: var(--amber);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.empty {
+  padding: 14px 18px;
+  font-size: var(--font-sm);
+  color: var(--text-3);
+  font-family: var(--mono);
+}
