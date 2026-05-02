@@ -69,7 +69,10 @@ const SURFACES = [
     url: '/sim',
     clickTab: 'studio',
     interaction: async (page) => {
-      const branches = page.getByRole('button', { name: /^branches$/i }).first();
+      // SubTabNav buttons are <button role="tab">, so getByRole('tab')
+      // not 'button'. Match the second tab in the tablist named "Studio
+      // sub-tabs" (or the global "Branches" tab anywhere on the page).
+      const branches = page.getByRole('tab', { name: /^branches$/i }).first();
       await branches.waitFor({ state: 'visible', timeout: 4_000 }).catch(() => {});
       await branches.click({ force: true }).catch(() => {});
       await page.waitForTimeout(800);
@@ -80,10 +83,92 @@ const SURFACES = [
     url: '/sim',
     clickTab: 'settings',
     interaction: async (page) => {
-      const log = page.getByRole('button', { name: /^event log$/i }).first();
+      // SettingsPanel uses SubTabNav with options [Settings, Event Log].
+      const log = page.getByRole('tab', { name: /^event log$/i }).first();
       await log.waitFor({ state: 'visible', timeout: 4_000 }).catch(() => {});
       await log.click({ force: true }).catch(() => {});
       await page.waitForTimeout(800);
+    },
+  },
+  // Light theme — only landing + 2 dashboard tabs to keep matrix lean.
+  // Pre-seeds `paracosm-theme=light` so the first-paint init script
+  // adds the .light class before React mounts.
+  {
+    name: 'landing-top-light',
+    url: '/',
+    scroll: 0,
+    theme: 'light',
+  },
+  {
+    name: 'sim-tab-light',
+    url: '/sim',
+    clickTab: 'sim',
+    theme: 'light',
+  },
+  {
+    name: 'library-tab-light',
+    url: '/sim',
+    clickTab: 'library',
+    theme: 'light',
+  },
+  // Pin 2 cells in CompareModal so SwarmDiff actually renders. Each
+  // gallery card has a ☆ pin toggle next to the name; we click the
+  // first two visible ones, then capture.
+  {
+    name: 'compare-pinned-swarm-diff',
+    url: '/sim',
+    clickTab: 'library',
+    interaction: async (page) => {
+      // Open compare modal first.
+      const compare = page.getByRole('button', { name: /^Compare$/ }).first();
+      await compare.waitFor({ state: 'visible', timeout: 5_000 }).catch(() => {});
+      await compare.click({ force: true }).catch(() => {});
+      await page.waitForTimeout(1500);
+      // Pin the first 2 cells. Pin toggles use aria-label like
+      // "Pin actor for diff". Match anything containing "pin" + actor.
+      const pins = page.locator('[aria-label*="pin" i]');
+      const count = await pins.count();
+      for (let i = 0; i < Math.min(2, count); i++) {
+        await pins.nth(i).click({ force: true }).catch(() => {});
+        await page.waitForTimeout(300);
+      }
+      // Scroll the modal so SwarmDiff (last in the diff stack) is visible.
+      await page.waitForTimeout(800);
+      await page.evaluate(() => {
+        const headings = Array.from(document.querySelectorAll('h5, h4, h6'));
+        const swarmHeading = headings.find(h => /agent swarm/i.test(h.textContent ?? ''));
+        if (swarmHeading) swarmHeading.scrollIntoView({ behavior: 'instant', block: 'center' });
+      });
+      await page.waitForTimeout(500);
+    },
+  },
+  // Open the run-detail drawer with the SwarmPanel inline. The path is
+  // Library → click Compare on a bundle → modal opens with actor cells
+  // → click the "Open" button on a cell → drawer slides in from the
+  // right and renders SwarmPanel under the run summary.
+  {
+    name: 'library-run-detail-swarm-panel',
+    url: '/sim',
+    clickTab: 'library',
+    interaction: async (page) => {
+      // Step 1: open the CompareModal.
+      const compare = page.getByRole('button', { name: /^Compare$/ }).first();
+      await compare.waitFor({ state: 'visible', timeout: 5_000 }).catch(() => {});
+      await compare.click({ force: true }).catch(() => {});
+      await page.waitForTimeout(1500);
+      // Step 2: click the first "Open <name> details" button inside the modal.
+      // CompareCell renders aria-label="Open <displayName> details".
+      const open = page.getByRole('button', { name: /^Open .+ details$/i }).first();
+      await open.waitFor({ state: 'visible', timeout: 4_000 }).catch(() => {});
+      await open.click({ force: true }).catch(() => {});
+      await page.waitForTimeout(2000);
+      // Drawer is right-anchored; scroll its content to the SwarmPanel.
+      await page.evaluate(() => {
+        const headings = Array.from(document.querySelectorAll('h3'));
+        const sw = headings.find(h => /agent swarm/i.test(h.textContent ?? ''));
+        if (sw) sw.scrollIntoView({ behavior: 'instant', block: 'center' });
+      });
+      await page.waitForTimeout(500);
     },
   },
 ];
@@ -97,9 +182,17 @@ async function captureSurface(browser, surface, viewportName) {
   });
   // Pre-seed localStorage so the GuidedTour considers itself dismissed
   // before the React app mounts. App.tsx uses key `paracosm:tourSeen=1`.
-  await ctx.addInitScript(() => {
+  // landing.html has its own first-paint script that reads
+  // `paracosm-theme` to apply .light before React mounts; if the
+  // surface declares a theme we set both keys (covers landing + dashboard).
+  const theme = surface.theme;
+  await ctx.addInitScript(({ theme }) => {
     try { localStorage.setItem('paracosm:tourSeen', '1'); } catch { /* ignore */ }
-  });
+    if (theme === 'light') {
+      try { localStorage.setItem('paracosm-theme', 'light'); } catch { /* ignore */ }
+      try { localStorage.setItem('paracosm:theme', 'light'); } catch { /* ignore */ }
+    }
+  }, { theme });
   const page = await ctx.newPage();
 
   page.on('pageerror', err => consoleErrors.push({
