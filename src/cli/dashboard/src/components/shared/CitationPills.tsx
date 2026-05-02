@@ -1,5 +1,6 @@
 import { useCitationContext, type CitationEntry } from '../../hooks/useCitationRegistry';
 import { Tooltip } from './Tooltip';
+import styles from './CitationPills.module.scss';
 
 interface CitationPillsProps {
   citations: Array<{ text?: string; url?: string; doi?: string }>;
@@ -43,22 +44,8 @@ export function CitationPills({ citations, label = 'sources', inline = false }: 
   if (numbered.length === 0) return null;
 
   return (
-    <div style={{
-      display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap',
-      gap: 4,
-      marginTop: inline ? 0 : 6,
-      paddingTop: inline ? 0 : 6,
-      borderTop: inline ? 'none' : '1px solid var(--border)',
-    }}>
-      {label && (
-        <span style={{
-          fontSize: 'var(--font-3xs)', fontWeight: 800, fontFamily: 'var(--mono)',
-          color: 'var(--text-3)', letterSpacing: '0.06em',
-          textTransform: 'uppercase', marginRight: 4,
-        }}>
-          {label}
-        </span>
-      )}
+    <div className={[styles.row, inline ? styles.inline : ''].filter(Boolean).join(' ')}>
+      {label && <span className={styles.label}>{label}</span>}
       {numbered.map(({ n, entry }) => (
         <CitationPill key={n} n={n} entry={entry} />
       ))}
@@ -70,8 +57,6 @@ function CitationPill({ n, entry }: { n: number; entry: CitationEntry | { text: 
   const url = entry.url || '';
   const text = entry.text || url || `Source [${n}]`;
   const doi = entry.doi;
-  // Provenance fields exist only on registry entries; pills derived from
-  // raw payloads still render basic info.
   const departments = (entry as CitationEntry).departments
     ? [...(entry as CitationEntry).departments]
     : [];
@@ -80,40 +65,24 @@ function CitationPill({ n, entry }: { n: number; entry: CitationEntry | { text: 
     : [];
 
   const popover = (
-    <div style={{ minWidth: 0 }}>
-      <div style={{
-        fontSize: 'var(--font-2xs)', fontFamily: 'var(--mono)', fontWeight: 800,
-        color: 'var(--amber)', letterSpacing: '0.06em', marginBottom: 4,
-      }}>
-        REFERENCE [{n}]
-      </div>
-      <div style={{ fontSize: 'var(--font-md)', color: 'var(--text-1)', lineHeight: 1.5, marginBottom: 6 }}>
-        {text}
-      </div>
+    <div className={styles.popoverWrap}>
+      <div className={styles.popoverHeader}>REFERENCE [{n}]</div>
+      <div className={styles.popoverText}>{text}</div>
       {url && (
-        <div style={{ fontSize: 'var(--font-xs)', marginBottom: 4 }}>
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: 'var(--teal)', wordBreak: 'break-all', textDecoration: 'underline' }}
-          >
+        <div className={styles.popoverUrlRow}>
+          <a href={url} target="_blank" rel="noopener noreferrer" className={styles.popoverUrl}>
             {url}
           </a>
         </div>
       )}
-      {doi && (
-        <div style={{ fontSize: 'var(--font-xs)', fontFamily: 'var(--mono)', color: 'var(--text-3)' }}>
-          DOI:{doi}
-        </div>
-      )}
+      {doi && <div className={styles.popoverDoi}>DOI:{doi}</div>}
       {(departments.length > 0 || actorNames.length > 0) && (
-        <div style={{ fontSize: 'var(--font-2xs)', color: 'var(--text-3)', fontFamily: 'var(--mono)', marginTop: 6, paddingTop: 6, borderTop: '1px solid var(--border)' }}>
+        <div className={styles.popoverProvenance}>
           {departments.length > 0 && <>cited by {departments.join(', ')} · </>}
           {actorNames.length > 0 && <>leader {actorNames.join(' · ')}</>}
         </div>
       )}
-      <div style={{ fontSize: 'var(--font-3xs)', color: 'var(--text-3)', fontFamily: 'var(--mono)', marginTop: 6, fontStyle: 'italic' }}>
+      <div className={styles.popoverHint}>
         Click to open source · or scroll to References below
       </div>
     </div>
@@ -126,8 +95,6 @@ function CitationPill({ n, entry }: { n: number; entry: CitationEntry | { text: 
         target={url ? '_blank' : undefined}
         rel={url ? 'noopener noreferrer' : undefined}
         onClick={(e) => {
-          // Always scroll the matching reference into view, even when the
-          // pill also opens a URL in a new tab.
           const ref = document.getElementById(`cite-${n}`);
           if (ref) {
             if (!url) e.preventDefault();
@@ -137,14 +104,7 @@ function CitationPill({ n, entry }: { n: number; entry: CitationEntry | { text: 
             setTimeout(() => { ref.style.background = ''; }, 1200);
           }
         }}
-        style={{
-          fontSize: 'var(--font-2xs)', fontFamily: 'var(--mono)', fontWeight: 700,
-          color: 'var(--amber)', textDecoration: 'none',
-          padding: '1px 6px', borderRadius: 3,
-          border: '1px solid rgba(232,180,74,0.35)',
-          background: 'rgba(232,180,74,0.06)',
-          lineHeight: 1.4, whiteSpace: 'nowrap',
-        }}
+        className={styles.pill}
       >
         [{n}]
       </a>

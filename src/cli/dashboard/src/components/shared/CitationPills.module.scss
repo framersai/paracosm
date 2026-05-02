@@ -1,0 +1,94 @@
+// Migrated from inline `style={{}}`. The `inline` modifier flips the
+// border + padding behavior for in-header use.
+
+.row {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
+.row.inline {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.label {
+  font-size: var(--font-3xs);
+  font-weight: 800;
+  font-family: var(--mono);
+  color: var(--text-3);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-right: 4px;
+}
+
+.pill {
+  font-size: var(--font-2xs);
+  font-family: var(--mono);
+  font-weight: 700;
+  color: var(--amber);
+  text-decoration: none;
+  padding: 1px 6px;
+  border-radius: 3px;
+  border: 1px solid rgba(232, 180, 74, 0.35);
+  background: rgba(232, 180, 74, 0.06);
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.popoverWrap { min-width: 0; }
+
+.popoverHeader {
+  font-size: var(--font-2xs);
+  font-family: var(--mono);
+  font-weight: 800;
+  color: var(--amber);
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+}
+
+.popoverText {
+  font-size: var(--font-md);
+  color: var(--text-1);
+  line-height: 1.5;
+  margin-bottom: 6px;
+}
+
+.popoverUrlRow {
+  font-size: var(--font-xs);
+  margin-bottom: 4px;
+}
+
+.popoverUrl {
+  color: var(--teal);
+  word-break: break-all;
+  text-decoration: underline;
+}
+
+.popoverDoi {
+  font-size: var(--font-xs);
+  font-family: var(--mono);
+  color: var(--text-3);
+}
+
+.popoverProvenance {
+  font-size: var(--font-2xs);
+  color: var(--text-3);
+  font-family: var(--mono);
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
+.popoverHint {
+  font-size: var(--font-3xs);
+  color: var(--text-3);
+  font-family: var(--mono);
+  margin-top: 6px;
+  font-style: italic;
+}
