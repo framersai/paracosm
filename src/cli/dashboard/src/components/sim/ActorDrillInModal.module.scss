@@ -1,0 +1,103 @@
+// Migrated from inline `style={{}}`.
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  width: min(820px, 92vw);
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.actorName {
+  font-family: var(--mono);
+  font-weight: 700;
+}
+
+.closeBtn {
+  background: transparent;
+  color: var(--text-2);
+  border: none;
+  font-size: var(--font-2xl);
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.5rem;
+}
+
+.body {
+  padding: 0.75rem 1rem;
+  overflow: auto;
+}
+
+.section { margin-top: 1rem; }
+
+.sectionTitle {
+  font-family: var(--mono);
+  font-size: var(--font-sm);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0;
+}
+
+.decisionItem {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.decisionTitle { font-weight: 600; }
+
+.decisionRationale {
+  color: var(--text-3);
+  font-size: var(--font-md);
+}
+
+.empty { color: var(--text-3); }
+
+.turnArticle {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.turnHeader {
+  font-weight: 600;
+  font-family: var(--mono);
+}
+
+.turnList {
+  list-style: none;
+  padding: 0;
+  margin: 0.25rem 0 0;
+}
+
+.turnEvent {
+  font-size: var(--font-md);
+  padding: 0.15rem 0;
+}
+
+.turnEventType { color: var(--text-3); }

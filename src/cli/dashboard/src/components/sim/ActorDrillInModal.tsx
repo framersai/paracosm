@@ -14,6 +14,7 @@
 import * as React from 'react';
 import { ActorBar } from '../layout/ActorBar.js';
 import type { GameState, ProcessedEvent } from '../../hooks/useGameState.js';
+import styles from './ActorDrillInModal.module.scss';
 
 export interface ActorDrillInModalProps {
   actorName: string | null;
@@ -21,50 +22,6 @@ export interface ActorDrillInModalProps {
   state: GameState;
   onClose: () => void;
 }
-
-const overlayStyle: React.CSSProperties = {
-  position: 'fixed',
-  inset: 0,
-  background: 'rgba(0, 0, 0, 0.55)',
-  zIndex: 100,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-};
-
-const modalStyle: React.CSSProperties = {
-  background: 'var(--bg-panel)',
-  border: '1px solid var(--border)',
-  borderRadius: 6,
-  width: 'min(820px, 92vw)',
-  maxHeight: '92vh',
-  display: 'flex',
-  flexDirection: 'column',
-  overflow: 'hidden',
-};
-
-const headStyle: React.CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  padding: '0.75rem 1rem',
-  borderBottom: '1px solid var(--border)',
-};
-
-const closeBtnStyle: React.CSSProperties = {
-  background: 'transparent',
-  color: 'var(--text-2)',
-  border: 'none',
-  fontSize: 'var(--font-2xl)',
-  lineHeight: 1,
-  cursor: 'pointer',
-  padding: '0 0.5rem',
-};
-
-const bodyStyle: React.CSSProperties = {
-  padding: '0.75rem 1rem',
-  overflow: 'auto',
-};
 
 function eventTitle(e: ProcessedEvent): string {
   const data = e.data ?? {};
@@ -101,19 +58,19 @@ export function ActorDrillInModal({ actorName, actorIndex, state, onClose }: Act
   const turnNumbers = [...grouped.keys()].sort((a, b) => a - b);
 
   return (
-    <div style={overlayStyle} role="presentation" onClick={onClose}>
+    <div className={styles.overlay} role="presentation" onClick={onClose}>
       <div
-        style={modalStyle}
+        className={styles.modal}
         role="dialog"
         aria-modal="true"
         aria-label={`Report for ${actorName}`}
         onClick={(e) => e.stopPropagation()}
       >
-        <header style={headStyle}>
-          <div style={{ fontFamily: 'var(--mono)', fontWeight: 700 }}>{actorName}</div>
-          <button type="button" aria-label="Close drill-in" style={closeBtnStyle} onClick={onClose}>×</button>
+        <header className={styles.head}>
+          <div className={styles.actorName}>{actorName}</div>
+          <button type="button" aria-label="Close drill-in" className={styles.closeBtn} onClick={onClose}>×</button>
         </header>
-        <div style={bodyStyle}>
+        <div className={styles.body}>
           <ActorBar
             actorIndex={actorIndex}
             leader={side.leader}
@@ -122,18 +79,16 @@ export function ActorDrillInModal({ actorName, actorIndex, state, onClose }: Act
           />
 
           {decisions.length > 0 && (
-            <section style={{ marginTop: '1rem' }}>
-              <h3 style={{ fontFamily: 'var(--mono)', fontSize: 'var(--font-sm)', letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-3)' }}>
-                Decisions ({decisions.length})
-              </h3>
-              <ul style={{ listStyle: 'none', padding: 0, margin: '0.5rem 0' }}>
+            <section className={styles.section}>
+              <h3 className={styles.sectionTitle}>Decisions ({decisions.length})</h3>
+              <ul className={styles.list}>
                 {decisions.map((d) => {
                   const choice = (d.data?.choice ?? d.data?.title ?? '<choice>') as string;
                   const rationale = (d.data?.rationale ?? '') as string;
                   return (
-                    <li key={d.id} style={{ padding: '0.5rem 0', borderBottom: '1px solid var(--border)' }}>
-                      <div style={{ fontWeight: 600 }}>T{d.turn ?? '?'}: {choice}</div>
-                      {rationale && <div style={{ color: 'var(--text-3)', fontSize: 'var(--font-md)' }}>{rationale}</div>}
+                    <li key={d.id} className={styles.decisionItem}>
+                      <div className={styles.decisionTitle}>T{d.turn ?? '?'}: {choice}</div>
+                      {rationale && <div className={styles.decisionRationale}>{rationale}</div>}
                     </li>
                   );
                 })}
@@ -141,20 +96,18 @@ export function ActorDrillInModal({ actorName, actorIndex, state, onClose }: Act
             </section>
           )}
 
-          <section style={{ marginTop: '1rem' }}>
-            <h3 style={{ fontFamily: 'var(--mono)', fontSize: 'var(--font-sm)', letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-3)' }}>
-              Timeline ({events.length} events)
-            </h3>
+          <section className={styles.section}>
+            <h3 className={styles.sectionTitle}>Timeline ({events.length} events)</h3>
             {turnNumbers.length === 0 && (
-              <p style={{ color: 'var(--text-3)' }}>No events captured yet.</p>
+              <p className={styles.empty}>No events captured yet.</p>
             )}
             {turnNumbers.map((turn) => (
-              <article key={turn} style={{ padding: '0.5rem 0', borderBottom: '1px solid var(--border)' }}>
-                <header style={{ fontWeight: 600, fontFamily: 'var(--mono)' }}>Turn {turn}</header>
-                <ul style={{ listStyle: 'none', padding: 0, margin: '0.25rem 0 0' }}>
+              <article key={turn} className={styles.turnArticle}>
+                <header className={styles.turnHeader}>Turn {turn}</header>
+                <ul className={styles.turnList}>
                   {(grouped.get(turn) ?? []).map((e) => (
-                    <li key={e.id} style={{ fontSize: 'var(--font-md)', padding: '0.15rem 0' }}>
-                      <span style={{ color: 'var(--text-3)' }}>{e.type}</span>
+                    <li key={e.id} className={styles.turnEvent}>
+                      <span className={styles.turnEventType}>{e.type}</span>
                       {' '}
                       {eventTitle(e)}
                     </li>
