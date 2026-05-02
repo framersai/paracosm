@@ -50,7 +50,7 @@ export function ExportMenu({
         aria-haspopup="menu"
         aria-label="Export options"
         title={recording ? 'Recording in progress — click for options' : 'Export options'}
-        className={[styles.trigger, open ? styles.open : ''].filter(Boolean).join(' ')}
+        className={[styles.trigger, open ? styles.triggerOpen : ''].filter(Boolean).join(' ')}
       >
         {recording && <span aria-hidden="true" className={styles.recDot} />}
         EXPORT ▼
@@ -76,9 +76,9 @@ export function ExportMenu({
               setOpen(false);
               onToggleRecording();
             }}
-            className={[styles.item, recording ? styles.recording : ''].filter(Boolean).join(' ')}
+            className={[styles.item, recording ? styles.itemRecording : ''].filter(Boolean).join(' ')}
           >
-            <span className={[styles.itemKey, recording ? styles.recordingActive : ''].filter(Boolean).join(' ')}>
+            <span className={[styles.itemKey, recording ? styles.itemKeyRecording : ''].filter(Boolean).join(' ')}>
               {recording ? 'STOP' : 'REC'}
             </span>
             <span className={styles.itemDesc}>

@@ -18,7 +18,8 @@
   gap: 5px;
 }
 
-.trigger.open {
+// Standalone modifier so CSS Modules exports `triggerOpen` as a key.
+.triggerOpen {
   background: var(--amber);
   color: var(--bg-deep);
   border-color: var(--amber);
@@ -67,7 +68,7 @@
 
 .item:hover { background: var(--bg-card); }
 
-.item.recording { color: var(--rust); }
+.itemRecording { color: var(--rust); }
 
 .itemKey {
   color: var(--amber);
@@ -75,7 +76,7 @@
   min-width: 32px;
 }
 
-.itemKey.recordingActive { color: var(--rust); }
+.itemKeyRecording { color: var(--rust); }
 
 .itemDesc {
   color: var(--text-3);
