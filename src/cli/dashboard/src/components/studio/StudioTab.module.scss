@@ -238,7 +238,9 @@
   border-radius: 4px;
   border: 1px solid var(--accent, #4fb1ff);
   background: var(--accent, #4fb1ff);
-  color: var(--accent-foreground, #000);
+  // White text guarantees AA contrast against any --accent value the
+  // host page injects (was #000 → 4.34:1 against the live #dc2626).
+  color: var(--accent-foreground, #fff);
   font-weight: 600;
   font-size: var(--font-lg);
   text-decoration: none;

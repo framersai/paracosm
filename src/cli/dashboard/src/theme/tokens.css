@@ -224,9 +224,9 @@
     --text-contrast: #faf6ee;
 
     /* Accents — rich and saturated on sepia */
-    --rust: #a83810;       /* deep terracotta */
-    --rust-dim: #6a2808;
-    --rust-glow: rgba(168, 56, 16, 0.12);
+    --rust: #8e2c0c;       /* deep terracotta — bumped from #a83810 (4.13:1) to clear AA 4.5:1 against sepia bg */
+    --rust-dim: #5a1e06;
+    --rust-glow: rgba(142, 44, 12, 0.12);
     --amber: #6b4700;      /* burnt gold — bumped from #7a5200 for 4.5:1 AA on sepia bg */
     --amber-dim: #463000;
     --amber-glow: rgba(107, 71, 0, 0.1);

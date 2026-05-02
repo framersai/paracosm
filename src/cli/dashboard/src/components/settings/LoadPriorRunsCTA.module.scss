@@ -122,6 +122,9 @@
 
 .moreNote {
   font-size: var(--font-2xs);
-  color: var(--text-4);
+  // --text-4 (#6b5f50) on --bg-deep is 3:1 — fails AA. --text-3
+  // (#a89878) reads ~6.5:1 and still feels secondary because of the
+  // smaller font size + italic styling.
+  color: var(--text-3);
   font-style: italic;
 }

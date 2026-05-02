@@ -149,6 +149,14 @@ body { padding-top: 44px !important; }
   color: var(--color-text) !important;
   letter-spacing: .08em;
 }
+/* The brand split renders "PARA<span style='color:#e8b44a'>COSM</span>"
+   via JS-injected HTML, baking the dark-theme amber into an inline
+   style. In light mode that hex (#e8b44a) drops to 1.17:1 contrast
+   on the sepia bg — fails AA. Override the inline style at higher
+   specificity for both light and dark to stay token-driven. */
+.paracosm-docs-header .pdh-brand span {
+  color: var(--color-link) !important;
+}
 .paracosm-docs-header .pdh-tag {
   font-size: 9px;
   font-weight: 700;
