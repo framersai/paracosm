@@ -1,0 +1,49 @@
+// Migrated from inline `style={{}}`. Dept color flows in via
+// --dept-color CSS custom property.
+
+.thumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: var(--font-2xs);
+  color: var(--text-1);
+}
+
+.thumb.deceased {
+  color: var(--text-3);
+  text-decoration: line-through;
+}
+
+.swatch {
+  width: 8px;
+  height: 8px;
+  // --dept-color set inline.
+  background: var(--dept-color, var(--text-3));
+  border-radius: 2px;
+}
+
+.name { font-weight: 700; }
+
+.relation { color: var(--text-3); }
+
+.empty {
+  font-size: var(--font-2xs);
+  color: var(--text-3);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.more {
+  font-size: var(--font-2xs);
+  color: var(--text-3);
+}
