@@ -293,8 +293,39 @@ dialog#tsd-search[open] {
 footer .tsd-generator a[href*="typedoc"] {
   text-decoration: underline;
 }
-/* TypeDoc's first-load accordion summaries nest <a> elements inside
-   <summary>, tripping axe nested-interactive. The pattern ships from
-   upstream typedoc-default-modern; it can't be fixed from CSS and
-   patching the template would mean forking the theme. Tracked as
-   third-party. */
+/* TypeDoc's accordion summaries nest <a> elements inside <summary>,
+   tripping axe nested-interactive. We can't fix that from CSS alone,
+   so the docs HTML wrapper injects a small script that moves each
+   inner <a> out to become a next-sibling of the <summary> and tags
+   both with `.tsd-fixed-accordion` / `.tsd-extracted-summary-link`.
+   These rules restore the original visual row (chevron + module link
+   on the same line, accordion content below). */
+.tsd-fixed-accordion {
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: center;
+  row-gap: 2px;
+}
+.tsd-fixed-accordion > summary.tsd-accordion-summary {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+}
+.tsd-fixed-accordion > .tsd-extracted-summary-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  text-decoration: none;
+  color: var(--color-text);
+}
+.tsd-fixed-accordion > .tsd-extracted-summary-link:hover {
+  text-decoration: underline;
+  color: var(--color-link);
+}
+.tsd-fixed-accordion > .tsd-accordion-details,
+.tsd-fixed-accordion > ul,
+.tsd-fixed-accordion > .tsd-nested-navigation {
+  flex-basis: 100%;
+}
