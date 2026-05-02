@@ -640,12 +640,19 @@ roles, family edges, mood, and short-term memory. The final swarm is on
 
 ```ts
 import { WorldModel } from 'paracosm/world-model';
+import {
+  getSwarm,
+  swarmByDepartment,
+  swarmFamilyTree,
+  moodHistogram,
+  departmentHeadcount,
+} from 'paracosm/swarm';
 import type { SwarmSnapshot } from 'paracosm/schema';
 
 const wm = await WorldModel.fromScenario(marsScenario);
 const result = await wm.simulate(leader, { maxTurns: 6, seed: 42 });
 
-// Direct field access — equivalent to WorldModel.swarm(result)
+// Direct field access — equivalent to getSwarm(result) or WorldModel.swarm(result)
 const swarm: SwarmSnapshot | undefined = result.finalSwarm;
 
 if (swarm) {
@@ -653,20 +660,28 @@ if (swarm) {
   for (const a of swarm.agents.slice(0, 5)) {
     console.log(`  ${a.name.padEnd(24)} ${a.department.padEnd(16)} ${a.role.padEnd(16)} ${a.mood ?? ''}`);
   }
+  console.log('Mood histogram:', moodHistogram(swarm));
+  console.log('Headcount by department:', departmentHeadcount(swarm));
 }
 
-// Group by department
-const byDept = WorldModel.swarmByDepartment(result);
+// Group by department (alive + dead, insertion order preserved)
+const byDept = swarmByDepartment(result);
 for (const [dept, agents] of Object.entries(byDept)) {
   const alive = agents.filter(a => a.alive).length;
   console.log(`${dept}: ${alive}/${agents.length} alive`);
 }
 
 // Family graph: parent → [child agentIds]
-const family = WorldModel.swarmFamilyTree(result);
+const family = swarmFamilyTree(result);
 const founders = swarm?.agents.filter(a => !a.partnerId && (family[a.agentId]?.length ?? 0) > 0) ?? [];
 console.log(`${founders.length} founders with descendants`);
 ```
+
+Three import paths reach the same data:
+
+- **`paracosm/swarm`** — pure projections (`getSwarm`, `swarmByDepartment`, `swarmFamilyTree`, `aliveCount`, `deathCount`, `moodHistogram`, `departmentHeadcount`). Tree-shake-friendly when you only want swarm helpers.
+- **`paracosm/world-model`** — `WorldModel.swarm(artifact)` etc. Useful when you already have `WorldModel` imported for `simulate()` / `fork()`.
+- **`paracosm/schema`** — types only (`SwarmAgent`, `SwarmSnapshot`). Pair with direct `result.finalSwarm` access if you don't want the helpers.
 
 The `SwarmAgent` shape is intentionally narrow: identifiers, role/dept,
 alive flag, mood, family edges, last 1–2 short-term memories. Full per-
