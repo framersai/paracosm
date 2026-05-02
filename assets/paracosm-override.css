@@ -296,22 +296,22 @@ footer .tsd-generator a[href*="typedoc"] {
 /* TypeDoc's accordion summaries nest <a> elements inside <summary>,
    tripping axe nested-interactive. We can't fix that from CSS alone,
    so the docs HTML wrapper injects a small script that moves each
-   inner <a> out to become a next-sibling of the <summary> and tags
-   both with `.tsd-fixed-accordion` / `.tsd-extracted-summary-link`.
-   These rules restore the original visual row (chevron + module link
-   on the same line, accordion content below). */
-.tsd-fixed-accordion {
-  display: flex !important;
+   inner <a> out of the <details> entirely (becoming a next-sibling
+   of <details>) and tags the parent with `.tsd-fixed-accordion-row`.
+   These rules flex chevron + link side-by-side. When details opens,
+   its children appear inside the now-grown details box; the link
+   stays adjacent at the top. */
+.tsd-fixed-accordion-row {
+  display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
   row-gap: 2px;
+  column-gap: 4px;
 }
-.tsd-fixed-accordion > summary.tsd-accordion-summary {
+.tsd-fixed-accordion-row > details {
   flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
 }
-.tsd-fixed-accordion > .tsd-extracted-summary-link {
+.tsd-fixed-accordion-row > .tsd-extracted-summary-link {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -320,12 +320,7 @@ footer .tsd-generator a[href*="typedoc"] {
   text-decoration: none;
   color: var(--color-text);
 }
-.tsd-fixed-accordion > .tsd-extracted-summary-link:hover {
+.tsd-fixed-accordion-row > .tsd-extracted-summary-link:hover {
   text-decoration: underline;
   color: var(--color-link);
-}
-.tsd-fixed-accordion > .tsd-accordion-details,
-.tsd-fixed-accordion > ul,
-.tsd-fixed-accordion > .tsd-nested-navigation {
-  flex-basis: 100%;
 }
