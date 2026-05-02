@@ -1,0 +1,161 @@
+// Migrated from inline `style={{}}`. Side color and per-row state
+// (hovered/highlighted/dimmed) flow in via CSS custom properties.
+
+.drawer {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 200px;
+  max-height: calc(100% - 16px);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+  font-family: var(--mono);
+  z-index: 8;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--border);
+  // --side-color set inline.
+  background: linear-gradient(0deg, transparent, color-mix(in srgb, var(--side-color, var(--amber)) 7%, transparent));
+}
+
+.headerLabel {
+  color: var(--side-color, var(--amber));
+  font-size: var(--font-3xs);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.closeBtn {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  color: var(--text-3);
+  cursor: pointer;
+  font-size: var(--font-xs);
+  line-height: 1;
+}
+
+.sortRow {
+  display: flex;
+  gap: 2px;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sortChip {
+  flex: 1;
+  padding: 2px 0;
+  font-size: var(--font-3xs);
+  font-family: var(--mono);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: var(--bg-card);
+  color: var(--text-3);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.sortChip.active {
+  background: var(--amber);
+  color: var(--bg-deep);
+}
+
+.body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.empty {
+  padding: 8px 10px;
+  color: var(--text-4);
+  font-size: var(--font-2xs);
+}
+
+.deptHeader {
+  padding: 3px 8px;
+  font-size: var(--font-3xs);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-4);
+  font-weight: 700;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: var(--font-2xs);
+  // --row-color, --row-bg, --row-border, --row-opacity set inline.
+  color: var(--row-color, var(--text-2));
+  background: var(--row-bg, transparent);
+  border-left: 2px solid var(--row-border, transparent);
+  opacity: var(--row-opacity, 1);
+  width: 100%;
+  border-top: none;
+  border-right: none;
+  border-bottom: none;
+  border-radius: 0;
+  text-align: left;
+}
+
+.row.deceased { text-decoration: line-through; }
+
+.swatch {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  // --swatch-bg set inline.
+  background: var(--swatch-bg, var(--text-4));
+  flex-shrink: 0;
+}
+
+.rowName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.featuredPill {
+  font-size: var(--font-3xs);
+  padding: 0 3px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--side-color, var(--amber)) 20%, transparent);
+  color: var(--side-color, var(--amber));
+  letter-spacing: 0.08em;
+}
+
+.deceasedToggle {
+  width: 100%;
+  padding: 4px 8px;
+  border: none;
+  border-top: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-4);
+  text-align: left;
+  font-size: var(--font-3xs);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  font-weight: 700;
+}

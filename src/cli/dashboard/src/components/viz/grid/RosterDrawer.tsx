@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import type { CellSnapshot } from '../viz-types.js';
 import { useScenarioLabels } from '../../../hooks/useScenarioLabels.js';
+import styles from './RosterDrawer.module.scss';
 
 interface RosterDrawerProps {
   open: boolean;
@@ -102,95 +103,35 @@ export function RosterDrawer({
 
   if (!open) return null;
 
-  const rowStyle = (highlighted: boolean, dimmed: boolean, isHovered: boolean): React.CSSProperties => ({
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    padding: '3px 6px',
-    cursor: 'pointer',
-    fontFamily: 'var(--mono)',
-    fontSize: 'var(--font-2xs)',
-    color: dimmed ? 'var(--text-4)' : 'var(--text-2)',
-    background: isHovered
+  const sideStyle = { '--side-color': sideColor } as CSSProperties;
+
+  const rowVarStyle = (highlighted: boolean, dimmed: boolean, isHovered: boolean): CSSProperties => ({
+    '--row-color': dimmed ? 'var(--text-4)' : 'var(--text-2)',
+    '--row-bg': isHovered
       ? 'var(--bg-card)'
       : highlighted
-      ? `${sideColor}22`
+      ? `color-mix(in srgb, ${sideColor} 13%, transparent)`
       : 'transparent',
-    borderLeft: highlighted ? `2px solid ${sideColor}` : '2px solid transparent',
-    opacity: dimmed ? 0.55 : 1,
-    width: '100%',
-    border: 'none',
-    borderRadius: 0,
-    textAlign: 'left',
-  });
+    '--row-border': highlighted ? sideColor : 'transparent',
+    '--row-opacity': dimmed ? '0.55' : '1',
+  } as CSSProperties);
 
   return (
-    <div
-      style={{
-        position: 'absolute',
-        top: 8,
-        left: 8,
-        width: 200,
-        maxHeight: 'calc(100% - 16px)',
-        display: 'flex',
-        flexDirection: 'column',
-        background: 'var(--bg-panel)',
-        border: '1px solid var(--border)',
-        borderRadius: 4,
-        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.6)',
-        fontFamily: 'var(--mono)',
-        zIndex: 8,
-      }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '5px 8px',
-          borderBottom: '1px solid var(--border)',
-          background: `linear-gradient(0deg, transparent, ${sideColor}11)`,
-        }}
-      >
-        <span
-          style={{
-            color: sideColor,
-            fontSize: 'var(--font-3xs)',
-            fontWeight: 800,
-            letterSpacing: '0.1em',
-            textTransform: 'uppercase',
-          }}
-        >
+    <div className={styles.drawer}>
+      <div className={styles.header} style={sideStyle}>
+        <span className={styles.headerLabel} style={sideStyle}>
           {actorName} Roster · {alive.length}
         </span>
         <button
           type="button"
           onClick={onClose}
           aria-label="Close roster"
-          style={{
-            width: 18,
-            height: 18,
-            padding: 0,
-            background: 'transparent',
-            border: '1px solid var(--border)',
-            borderRadius: 2,
-            color: 'var(--text-3)',
-            cursor: 'pointer',
-            fontSize: 'var(--font-xs)',
-            lineHeight: 1,
-          }}
+          className={styles.closeBtn}
         >
           ×
         </button>
       </div>
-      <div
-        style={{
-          display: 'flex',
-          gap: 2,
-          padding: '4px 6px',
-          borderBottom: '1px solid var(--border)',
-        }}
-      >
+      <div className={styles.sortRow}>
         {SORT_CHIPS.map(chip => {
           const active = sort === chip.key;
           return (
@@ -199,45 +140,21 @@ export function RosterDrawer({
               type="button"
               onClick={() => setSort(chip.key)}
               aria-pressed={active}
-              style={{
-                flex: 1,
-                padding: '2px 0',
-                fontSize: 'var(--font-3xs)',
-                fontFamily: 'var(--mono)',
-                fontWeight: 800,
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                background: active ? 'var(--amber)' : 'var(--bg-card)',
-                color: active ? 'var(--bg-deep)' : 'var(--text-3)',
-                border: '1px solid var(--border)',
-                borderRadius: 2,
-                cursor: 'pointer',
-              }}
+              className={[styles.sortChip, active ? styles.active : ''].filter(Boolean).join(' ')}
             >
               {chip.label}
             </button>
           );
         })}
       </div>
-      <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}>
+      <div className={styles.body}>
         {grouped.length === 0 && (
-          <div style={{ padding: '8px 10px', color: 'var(--text-4)', fontSize: 'var(--font-2xs)' }}>
-            No living {labels.people}.
-          </div>
+          <div className={styles.empty}>No living {labels.people}.</div>
         )}
         {grouped.map(([dept, list]) => (
           <div key={dept}>
             {sort === 'dept' && (
-              <div
-                style={{
-                  padding: '3px 8px',
-                  fontSize: 'var(--font-3xs)',
-                  letterSpacing: '0.12em',
-                  textTransform: 'uppercase',
-                  color: 'var(--text-4)',
-                  fontWeight: 700,
-                }}
-              >
+              <div className={styles.deptHeader}>
                 {dept} · {list.length}
               </div>
             )}
@@ -253,42 +170,17 @@ export function RosterDrawer({
                   onMouseLeave={() => onHover(null)}
                   onClick={() => onSelect(c)}
                   title={`${c.name} · ${c.role} · ${c.mood}`}
-                  style={rowStyle(isMatch, dimmed, isHovered)}
+                  className={styles.row}
+                  style={rowVarStyle(isMatch, dimmed, isHovered)}
                 >
                   <span
                     aria-hidden="true"
-                    style={{
-                      display: 'inline-block',
-                      width: 6,
-                      height: 6,
-                      borderRadius: 999,
-                      background: MOOD_COLORS[c.mood] ?? MOOD_COLORS.neutral,
-                      flexShrink: 0,
-                    }}
+                    className={styles.swatch}
+                    style={{ '--swatch-bg': MOOD_COLORS[c.mood] ?? MOOD_COLORS.neutral } as CSSProperties}
                   />
-                  <span
-                    style={{
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      flex: 1,
-                    }}
-                  >
-                    {c.name}
-                  </span>
+                  <span className={styles.rowName}>{c.name}</span>
                   {c.featured && (
-                    <span
-                      style={{
-                        fontSize: 'var(--font-3xs)',
-                        padding: '0px 3px',
-                        borderRadius: 2,
-                        background: `${sideColor}33`,
-                        color: sideColor,
-                        letterSpacing: '0.08em',
-                      }}
-                    >
-                      ★
-                    </span>
+                    <span className={styles.featuredPill} style={sideStyle}>★</span>
                   )}
                 </button>
               );
@@ -300,22 +192,9 @@ export function RosterDrawer({
             <button
               type="button"
               onClick={() => setShowDeceased(v => !v)}
-              style={{
-                width: '100%',
-                padding: '4px 8px',
-                border: 'none',
-                borderTop: '1px solid var(--border)',
-                background: 'transparent',
-                color: 'var(--text-4)',
-                textAlign: 'left',
-                fontSize: 'var(--font-3xs)',
-                letterSpacing: '0.12em',
-                textTransform: 'uppercase',
-                cursor: 'pointer',
-                fontWeight: 700,
-              }}
+              className={styles.deceasedToggle}
             >
-              {showDeceased ? '\u25BC' : '\u25B6'} Deceased · {deceased.length}
+              {showDeceased ? '▼' : '▶'} Deceased · {deceased.length}
             </button>
             {showDeceased &&
               deceased.map(c => {
@@ -328,32 +207,15 @@ export function RosterDrawer({
                     onMouseLeave={() => onHover(null)}
                     onClick={() => onSelect(c)}
                     title={`${c.name} · ${c.role} · deceased`}
-                    style={{
-                      ...rowStyle(false, true, isHovered),
-                      textDecoration: 'line-through',
-                    }}
+                    className={[styles.row, styles.deceased].join(' ')}
+                    style={rowVarStyle(false, true, isHovered)}
                   >
                     <span
                       aria-hidden="true"
-                      style={{
-                        display: 'inline-block',
-                        width: 6,
-                        height: 6,
-                        borderRadius: 999,
-                        background: 'var(--text-4)',
-                        flexShrink: 0,
-                      }}
+                      className={styles.swatch}
+                      style={{ '--swatch-bg': 'var(--text-4)' } as CSSProperties}
                     />
-                    <span
-                      style={{
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        flex: 1,
-                      }}
-                    >
-                      {c.name}
-                    </span>
+                    <span className={styles.rowName}>{c.name}</span>
                   </button>
                 );
               })}
