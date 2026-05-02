@@ -1,0 +1,81 @@
+// Migrated from inline `style={{}}`. Cell count, divergence flag, and
+// outcome color flow in via CSS custom properties / modifiers.
+
+.section {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 16px;
+  box-shadow: var(--card-shadow);
+}
+
+.title {
+  font-size: var(--font-xs);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--amber);
+  font-family: var(--mono);
+  margin-bottom: 8px;
+}
+
+.grid {
+  display: grid;
+  // --turn-count set inline so the grid scales to the run length.
+  grid-template-columns: repeat(var(--turn-count, 1), minmax(0, 1fr));
+  gap: 6px;
+}
+
+.cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  background: var(--bg-canvas);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--mono);
+  overflow: hidden;
+}
+
+.cell.diverged {
+  background: color-mix(in srgb, var(--bg-canvas) 88%, var(--rust) 12%);
+  border-color: var(--rust-dim, var(--rust));
+}
+
+.cellHead {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--font-2xs);
+  color: var(--text-3);
+  gap: 2px;
+}
+
+.cellTurn { font-weight: 700; }
+
+.badge {
+  font-family: var(--mono);
+  font-weight: 800;
+  line-height: 1.2;
+  padding: 2px 4px;
+  // --side-color, --outcome-color, --badge-size, --badge-spacing set inline.
+  border-left: 2px solid var(--side-color, var(--amber));
+  color: var(--outcome-color, var(--text-3));
+  font-size: var(--badge-size, 9px);
+  letter-spacing: var(--badge-spacing, 0.04em);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.legend {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: var(--font-2xs);
+  color: var(--text-3);
+  font-family: var(--mono);
+}

@@ -4,9 +4,11 @@
  *
  * @module paracosm/dashboard/reports/RunStrip
  */
+import type { CSSProperties } from 'react';
 import type { RunStripCell } from './reports-shared';
 import { outcomeColor } from './reports-shared';
 import { useMediaQuery, PHONE_QUERY } from '../viz/grid/useMediaQuery';
+import styles from './RunStrip.module.scss';
 
 export interface RunStripProps {
   turns: RunStripCell[];
@@ -41,15 +43,15 @@ function outcomeShort(outcome: string | undefined, compact = false): string {
 function Badge({ outcome, sideColor, compact }: { outcome: string | undefined; sideColor: string; compact: boolean }) {
   const color = outcomeColor(outcome);
   return (
-    <div style={{
-      fontSize: compact ? 11 : 9, fontWeight: 800, fontFamily: 'var(--mono)',
-      color, letterSpacing: compact ? 0 : '0.04em', lineHeight: 1.2,
-      padding: '2px 4px',
-      borderLeft: `2px solid ${sideColor}`,
-      whiteSpace: 'nowrap',
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
-    }}>
+    <div
+      className={styles.badge}
+      style={{
+        '--side-color': sideColor,
+        '--outcome-color': color,
+        '--badge-size': compact ? '11px' : '9px',
+        '--badge-spacing': compact ? '0' : '0.04em',
+      } as CSSProperties}
+    >
       {outcomeShort(outcome, compact)}
     </div>
   );
@@ -68,30 +70,12 @@ export function RunStrip(props: RunStripProps) {
   };
 
   return (
-    <section
-      aria-label="Run timeline strip"
-      style={{
-        background: 'var(--bg-panel)',
-        border: '1px solid var(--border)',
-        borderRadius: 8,
-        padding: '10px 12px',
-        marginBottom: 16,
-        boxShadow: 'var(--card-shadow)',
-      }}
-    >
-      <div style={{
-        fontSize: 'var(--font-xs)', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase',
-        color: 'var(--amber)', fontFamily: 'var(--mono)', marginBottom: 8,
-      }}>
-        Run Strip
-      </div>
+    <section aria-label="Run timeline strip" className={styles.section}>
+      <div className={styles.title}>Run Strip</div>
       <div
         role="list"
-        style={{
-          display: 'grid',
-          gridTemplateColumns: `repeat(${turns.length}, minmax(0, 1fr))`,
-          gap: 6,
-        }}
+        className={styles.grid}
+        style={{ '--turn-count': String(turns.length) } as CSSProperties}
       >
         {turns.map(cell => (
           <button
@@ -100,21 +84,10 @@ export function RunStrip(props: RunStripProps) {
             role="listitem"
             onClick={() => handleClick(cell.turn)}
             aria-label={`Jump to turn ${cell.turn}${cell.time ? ', time ' + cell.time : ''}${cell.diverged ? ', divergent' : ''}`}
-            style={{
-              display: 'flex', flexDirection: 'column', gap: 4,
-              padding: '6px 8px',
-              background: cell.diverged ? 'color-mix(in srgb, var(--bg-canvas) 88%, var(--rust) 12%)' : 'var(--bg-canvas)',
-              border: `1px solid ${cell.diverged ? 'var(--rust-dim, var(--rust))' : 'var(--border)'}`,
-              borderRadius: 4, cursor: 'pointer', textAlign: 'left',
-              fontFamily: 'var(--mono)',
-              // overflow:hidden so the badge text never bleeds into
-              // the next grid column on phone widths where the cell
-              // is narrower than the badge label.
-              overflow: 'hidden',
-            }}
+            className={[styles.cell, cell.diverged ? styles.diverged : ''].filter(Boolean).join(' ')}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-2xs)', color: 'var(--text-3)', gap: 2 }}>
-              <span style={{ fontWeight: 700 }}>T{cell.turn}</span>
+            <div className={styles.cellHead}>
+              <span className={styles.cellTurn}>T{cell.turn}</span>
               {cell.time && !isPhone && <span>Y{cell.time}</span>}
             </div>
             <Badge outcome={cell.a.outcome} sideColor="var(--vis)" compact={isPhone} />
@@ -122,7 +95,7 @@ export function RunStrip(props: RunStripProps) {
           </button>
         ))}
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 'var(--font-2xs)', color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
+      <div className={styles.legend}>
         <span>{leaderAName}</span>
         <span>{leaderBName}</span>
       </div>
