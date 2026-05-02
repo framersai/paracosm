@@ -1,6 +1,7 @@
 import type { TurnEventInfo } from '../../hooks/useGameState';
 import { useScenarioLabels } from '../../hooks/useScenarioLabels';
 import { Tooltip } from '../shared/Tooltip';
+import styles from './TurnEventHeader.module.scss';
 
 interface TurnEventHeaderProps {
   actorIndex: number;
@@ -25,72 +26,29 @@ export function TurnEventHeader({ actorIndex, event }: TurnEventHeaderProps) {
 
   const popover = (
     <div>
-      <b style={{ color: 'var(--rust)', fontSize: 'var(--font-lg)', display: 'block', marginBottom: '4px' }}>
+      <b className={styles.popoverTitle}>
         T{event.turn}: {event.title}
       </b>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', flexWrap: 'wrap' }}>
-        <span style={{
-          fontSize: 'var(--font-2xs)', padding: '1px 6px', borderRadius: '3px',
-          background: 'var(--bg-deep)', color: 'var(--text-3)', fontFamily: 'var(--mono)',
-        }}>
-          {event.category}
-        </span>
-        {event.emergent && (
-          <span style={{ fontSize: 'var(--font-3xs)', fontWeight: 800, color: 'var(--rust)', fontFamily: 'var(--mono)' }}>
-            EMERGENT
-          </span>
-        )}
-        <span style={{ fontSize: 'var(--font-xs)', color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
+      <div className={styles.popoverMetaRow}>
+        <span className={styles.popoverCategory}>{event.category}</span>
+        {event.emergent && <span className={styles.popoverEmergent}>EMERGENT</span>}
+        <span className={styles.popoverContext}>
           {labels.Time} {event.time} &middot; Leader {String.fromCharCode(65 + actorIndex)}
         </span>
       </div>
-      {fullText && (
-        <div style={{ fontSize: 'var(--font-md)', color: 'var(--text-1)', lineHeight: 1.7 }}>
-          {fullText}
-        </div>
-      )}
+      {fullText && <div className={styles.popoverBody}>{fullText}</div>}
     </div>
   );
 
   return (
     <Tooltip content={popover} block>
-      <div style={{
-        padding: '6px 12px', lineHeight: 1.4, fontSize: 'var(--font-md)', color: 'var(--text-1)',
-        background: 'linear-gradient(135deg, rgba(224,101,48,.1), transparent)',
-        borderBottom: '1px solid var(--border)',
-        display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0, width: '100%',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', minWidth: 0 }}>
-          <span style={{ fontWeight: 800, color: 'var(--rust)', fontSize: 'var(--font-lg)', flexShrink: 0 }}>
-            T{event.turn}: {event.title}
-          </span>
-          <span style={{
-            fontSize: 'var(--font-2xs)', color: 'var(--text-3)', background: 'var(--bg-deep)',
-            padding: '1px 6px', borderRadius: '3px',
-            fontFamily: 'var(--mono)', flexShrink: 0,
-          }}>
-            {event.category}
-          </span>
-          {event.emergent && (
-            <span style={{ fontSize: 'var(--font-3xs)', fontWeight: 800, color: 'var(--rust)', fontFamily: 'var(--mono)', flexShrink: 0 }}>
-              EMERGENT
-            </span>
-          )}
+      <div className={styles.header}>
+        <div className={styles.titleRow}>
+          <span className={styles.titleText}>T{event.turn}: {event.title}</span>
+          <span className={styles.categoryPill}>{event.category}</span>
+          {event.emergent && <span className={styles.emergentPill}>EMERGENT</span>}
         </div>
-        {fullText && (
-          <span style={{
-            fontSize: 'var(--font-sm)', color: 'var(--text-2)', fontStyle: 'italic',
-            minWidth: 0,
-            display: '-webkit-box',
-            WebkitBoxOrient: 'vertical',
-            WebkitLineClamp: 2,
-            overflow: 'hidden',
-            lineHeight: 1.45,
-            wordBreak: 'break-word',
-          }}>
-            {fullText}
-          </span>
-        )}
+        {fullText && <span className={styles.body}>{fullText}</span>}
       </div>
     </Tooltip>
   );
