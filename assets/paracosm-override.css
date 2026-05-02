@@ -23,10 +23,14 @@
   --light-color-icon-background: #e4d8c0;
   --light-color-text: #1a1208;
   --light-color-text-aside: #4a3e2c;
-  --light-color-link: #7a5200;
-  --light-color-focus-outline: #7a5200;
-  --light-color-accent: #a83810;
-  --light-color-active-menu-item: #7a5200;
+  /* AA-safe values for sepia bg (#f0e6d2 / #d8cab0). Synced with
+     landing.css and src/cli/dashboard/src/theme/tokens.css.
+     Old amber #7a5200 → 4.28:1 against #d8cab0 (footer brand bg);
+     new #6b4700 reads ~5:1 on the same bg. */
+  --light-color-link: #6b4700;
+  --light-color-focus-outline: #6b4700;
+  --light-color-accent: #8e2c0c;
+  --light-color-active-menu-item: #6b4700;
   --light-color-toolbar: #d8cab0;
   --light-color-toolbar-text: #1a1208;
 }
