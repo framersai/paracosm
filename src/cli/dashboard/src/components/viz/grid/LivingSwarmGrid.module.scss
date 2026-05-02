@@ -15,6 +15,13 @@
 .region.narrow {
   flex: 0 0 auto;
   min-height: 420px;
+  // `flex: 0 0 auto` means "don't shrink" — combined with auto basis
+  // the region sizes to its widest descendant. On phone widths the
+  // canvas overlay buttons (drilldown popovers anchored to colonist
+  // tiles) push the region past the viewport so the always-on featured
+  // labels at x=221+224=445px bleed off-screen on a 390px viewport.
+  // Pin to the parent width so overflow:hidden actually clips.
+  max-width: 100%;
 }
 
 .canvasWrap {
