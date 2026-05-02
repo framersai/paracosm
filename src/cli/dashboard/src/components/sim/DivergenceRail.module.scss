@@ -1,0 +1,74 @@
+// Migrated from inline `style={{}}`. Per-outcome color flows in via
+// --outcome-color CSS custom property.
+
+.rail {
+  padding: 6px 16px;
+  background: linear-gradient(90deg, rgba(232, 180, 74, 0.08), rgba(76, 168, 168, 0.08));
+  border-bottom: 1px solid var(--border);
+  font-size: var(--font-sm);
+}
+
+.heading {
+  font-weight: 800;
+  color: var(--text-1);
+  font-size: var(--font-sm);
+  margin-bottom: 4px;
+  font-family: var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sides {
+  display: flex;
+  gap: 12px;
+}
+
+.sideA {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 10px;
+  border-radius: 4px;
+  background: rgba(232, 180, 74, 0.08);
+  border: 1px solid rgba(232, 180, 74, 0.2);
+}
+
+.sideB {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 10px;
+  border-radius: 4px;
+  background: rgba(76, 168, 168, 0.08);
+  border: 1px solid rgba(76, 168, 168, 0.2);
+}
+
+.titleA {
+  font-size: var(--font-md);
+  color: var(--vis);
+  display: block;
+  margin-bottom: 2px;
+  overflow-wrap: break-word;
+}
+
+.titleB {
+  font-size: var(--font-md);
+  color: var(--eng);
+  display: block;
+  margin-bottom: 2px;
+  overflow-wrap: break-word;
+}
+
+.decision {
+  color: var(--text-1);
+  font-size: var(--font-sm);
+  display: block;
+  overflow-wrap: break-word;
+}
+
+.outcome {
+  margin-top: 4px;
+  font-size: var(--font-sm);
+  font-weight: 800;
+  font-family: var(--mono);
+  // --outcome-color set inline (green or rust).
+  color: var(--outcome-color, var(--text-2));
+}

@@ -1,4 +1,6 @@
+import type { CSSProperties } from 'react';
 import type { GameState } from '../../hooks/useGameState';
+import styles from './DivergenceRail.module.scss';
 
 interface DivergenceRailProps {
   state: GameState;
@@ -19,10 +21,7 @@ export function DivergenceRail({ state }: DivergenceRailProps) {
   const fmtOutcome = (o: string) => o.replace(/_/g, ' ').toUpperCase();
 
   // Pull each side's decision text with a layered fallback so the two
-  // cards always render parity. Fallbacks in priority:
-  //   1. outcome event's _decision (commander's actual call)
-  //   2. pendingDecision in sideState (fresher, may arrive before outcome)
-  //   3. the turn event's description itself (shows the user WHAT)
+  // cards always render parity.
   const pickDecision = (side: typeof a): string => {
     const outcomeEvt = side.events.find(e => e.type === 'outcome' && e.turn === side.event?.turn);
     const fromOutcome = outcomeEvt?.data?._decision as string | undefined;
@@ -34,35 +33,32 @@ export function DivergenceRail({ state }: DivergenceRailProps) {
   const decisionA = pickDecision(a).slice(0, 180);
   const decisionB = pickDecision(b).slice(0, 180);
 
+  const outcomeColorA = a.outcome.includes('success') ? 'var(--green)' : 'var(--rust)';
+  const outcomeColorB = b.outcome.includes('success') ? 'var(--green)' : 'var(--rust)';
+
   return (
-    <div aria-label="Divergence rail" style={{
-      padding: '6px 16px',
-      background: 'linear-gradient(90deg, rgba(232,180,74,.08), rgba(76,168,168,.08))',
-      borderBottom: '1px solid var(--border)',
-      fontSize: 'var(--font-sm)',
-    }}>
-      <div style={{
-        fontWeight: 800, color: 'var(--text-1)', fontSize: 'var(--font-sm)', marginBottom: '4px',
-        fontFamily: 'var(--mono)', textTransform: 'uppercase', letterSpacing: '0.5px',
-      }}>
+    <div aria-label="Divergence rail" className={styles.rail}>
+      <div className={styles.heading}>
         DIVERGENCE T{a.event.turn} {sameEvent ? '(same event, different outcome)' : '(different events)'}
       </div>
-      <div className="diverge-sides" style={{ display: 'flex', gap: '12px' }}>
-        <div style={{ flex: 1, minWidth: 0, padding: '6px 10px', borderRadius: '4px', background: 'rgba(232,180,74,.08)', border: '1px solid rgba(232,180,74,.2)' }}>
-          <b style={{ fontSize: 'var(--font-md)', color: 'var(--vis)', display: 'block', marginBottom: '2px', overflowWrap: 'break-word' }}>{a.event.title}</b>
-          <span style={{ color: 'var(--text-1)', fontSize: 'var(--font-sm)', display: 'block', overflowWrap: 'break-word' }}>
-            {decisionA}
-          </span>
-          <div style={{ marginTop: '4px', fontSize: 'var(--font-sm)', fontWeight: 800, fontFamily: 'var(--mono)', color: a.outcome.includes('success') ? 'var(--green)' : 'var(--rust)' }}>
+      <div className={`diverge-sides ${styles.sides}`}>
+        <div className={styles.sideA}>
+          <b className={styles.titleA}>{a.event.title}</b>
+          <span className={styles.decision}>{decisionA}</span>
+          <div
+            className={styles.outcome}
+            style={{ '--outcome-color': outcomeColorA } as CSSProperties}
+          >
             {fmtOutcome(a.outcome)}
           </div>
         </div>
-        <div style={{ flex: 1, minWidth: 0, padding: '6px 10px', borderRadius: '4px', background: 'rgba(76,168,168,.08)', border: '1px solid rgba(76,168,168,.2)' }}>
-          <b style={{ fontSize: 'var(--font-md)', color: 'var(--eng)', display: 'block', marginBottom: '2px', overflowWrap: 'break-word' }}>{b.event.title}</b>
-          <span style={{ color: 'var(--text-1)', fontSize: 'var(--font-sm)', display: 'block', overflowWrap: 'break-word' }}>
-            {decisionB}
-          </span>
-          <div style={{ marginTop: '4px', fontSize: 'var(--font-sm)', fontWeight: 800, fontFamily: 'var(--mono)', color: b.outcome.includes('success') ? 'var(--green)' : 'var(--rust)' }}>
+        <div className={styles.sideB}>
+          <b className={styles.titleB}>{b.event.title}</b>
+          <span className={styles.decision}>{decisionB}</span>
+          <div
+            className={styles.outcome}
+            style={{ '--outcome-color': outcomeColorB } as CSSProperties}
+          >
             {fmtOutcome(b.outcome)}
           </div>
         </div>
