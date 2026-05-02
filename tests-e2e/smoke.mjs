@@ -25,6 +25,7 @@ const BASE_URL = process.env.BASE_URL ?? 'https://paracosm.agentos.sh';
 
 const VIEWPORTS = {
   desktop: { width: 1440, height: 900 },
+  tablet: { width: 768, height: 1024 },
   mobile: { width: 390, height: 844 },
 };
 
@@ -49,6 +50,42 @@ const SURFACES = [
   { name: 'settings-tab', url: '/sim', clickTab: 'settings' },
   { name: 'about-tab', url: '/sim', clickTab: 'about' },
   { name: 'docs-landing', url: '/docs' },
+  // Interactive states — open the drawer/modal so we can verify the
+  // SwarmPanel + SwarmDiff actually render in production.
+  {
+    name: 'library-run-drawer',
+    url: '/sim',
+    clickTab: 'library',
+    interaction: async (page) => {
+      // First Compare button on the gallery cards opens the drawer.
+      const card = page.locator('button', { hasText: /^Compare$/ }).first();
+      await card.waitFor({ state: 'visible', timeout: 5_000 }).catch(() => {});
+      await card.click({ force: true }).catch(() => {});
+      await page.waitForTimeout(1500);
+    },
+  },
+  {
+    name: 'studio-branches',
+    url: '/sim',
+    clickTab: 'studio',
+    interaction: async (page) => {
+      const branches = page.getByRole('button', { name: /^branches$/i }).first();
+      await branches.waitFor({ state: 'visible', timeout: 4_000 }).catch(() => {});
+      await branches.click({ force: true }).catch(() => {});
+      await page.waitForTimeout(800);
+    },
+  },
+  {
+    name: 'settings-event-log',
+    url: '/sim',
+    clickTab: 'settings',
+    interaction: async (page) => {
+      const log = page.getByRole('button', { name: /^event log$/i }).first();
+      await log.waitFor({ state: 'visible', timeout: 4_000 }).catch(() => {});
+      await log.click({ force: true }).catch(() => {});
+      await page.waitForTimeout(800);
+    },
+  },
 ];
 
 const consoleErrors = [];
@@ -114,6 +151,16 @@ async function captureSurface(browser, surface, viewportName) {
       await page.waitForTimeout(900);
     } catch (err) {
       console.warn(`  [warn] tab click "${surface.clickTab}" failed for ${surface.name} ${viewportName}: ${err.message}`);
+    }
+  }
+
+  // Per-surface interaction (open drawer, click sub-tab, etc.) runs
+  // after primary tab click so it can act on the rendered tab content.
+  if (typeof surface.interaction === 'function') {
+    try {
+      await surface.interaction(page);
+    } catch (err) {
+      console.warn(`  [warn] interaction failed for ${surface.name} ${viewportName}: ${err.message}`);
     }
   }
 

@@ -579,9 +579,10 @@
     .leaders-row > div { width: 100% !important; }
     .viz-content .leaders-row > div { min-height: 280px !important; }
 
-    /* Chat sidebar collapses */
-    .chat-layout { flex-direction: column !important; }
-    .chat-sidebar { width: 100% !important; max-height: 180px !important; }
+    /* Chat sidebar collapse moved to the phone-only @media block below
+       (640px). Tablet (~768px) keeps the side-by-side roster + chat
+       window because the agent list needs vertical room and the empty-
+       state takes most of the screen otherwise. */
 
     /* About page padding */
     .about-content { padding: 16px !important; }
@@ -633,6 +634,13 @@
     /* Hide the "Live"/"Complete" status text; the colored dot still
        conveys state, freeing room for the overflow menu + theme toggle. */
     .topbar-status-text { display: none !important; }
+
+    /* Chat sidebar collapses on phones (was at 768px and stranded the
+       tablet chat empty-state under a 180px-tall roster strip). At
+       640px the screen is narrow enough that vertical stack reads
+       better than the side-by-side roster + window. */
+    .chat-layout { flex-direction: column !important; }
+    .chat-sidebar { width: 100% !important; max-height: 180px !important; }
 
     /* Footer wraps onto multiple rows below ~640px because the nav
        links + status chip + cost span + brand attribution can't fit a
