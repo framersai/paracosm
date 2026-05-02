@@ -54,15 +54,19 @@
   --t2: #2e2418;
   --t3: #4a3e2c;
   --t4: #6a5c44;
-  --rust: #a83810;
-  --rust-d: #6a2808;
-  --amber: #7a5200;
-  --amber-d: #523800;
+  /* AA-safe values for sepia bg (#dbcdb4 in nav, #d8cab0 in footer):
+     - amber #7a5200 → #6b4700 (was 4.28-4.41:1, now 4.5:1+)
+     - rust  #a83810 → #8e2c0c (was 4.13:1, now 4.5:1+)
+     Synced with src/cli/dashboard/src/theme/tokens.css. */
+  --rust: #8e2c0c;
+  --rust-d: #5a1e06;
+  --amber: #6b4700;
+  --amber-d: #463000;
   --teal: #186060;
   --teal-d: #0e4040;
   --green: #305a10;
   --pc-line: #8a7e6c;
-  --grad: linear-gradient(135deg, #a83810, #7a5200, #186060);
+  --grad: linear-gradient(135deg, #8e2c0c, #6b4700, #186060);
   color-scheme: light;
 }
 
