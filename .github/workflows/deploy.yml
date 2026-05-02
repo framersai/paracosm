@@ -109,6 +109,23 @@ jobs:
       - name: Run tests
         run: npm test || true
 
+      # The build job's checkout has the dev-floor version (0.8.0) from
+      # package.json. The publish job auto-bumps to 0.8.${run_number} in
+      # its own checkout, so the build job never sees the published
+      # version. typedoc has `includeVersion: true` and reads
+      # package.json directly, which means without this step every
+      # docs.agentos.sh deploy advertises "v0.8.0" while npm ships
+      # 0.8.${prev_run_number}. Mirror the publish job's bump here so
+      # docs report the version this workflow run is publishing
+      # (library commits) or the version that just published (UI-only
+      # commits, where the published version is at most 1 run_number
+      # behind and the docs converge on the next library push).
+      - name: Sync version for docs
+        run: |
+          NEXT_VERSION="0.8.${{ github.run_number }}"
+          node -e "const p=require('./package.json'); p.version='${NEXT_VERSION}'; require('fs').writeFileSync('./package.json', JSON.stringify(p, null, 2) + '\n')"
+          echo "Docs will report version: ${NEXT_VERSION}"
+
       - name: Build API docs (TypeDoc)
         run: |
           npm run docs
