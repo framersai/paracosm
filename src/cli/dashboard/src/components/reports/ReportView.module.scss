@@ -1,0 +1,549 @@
+// Migrated from inline `style={{}}` per the no-inline-styles convention.
+// Dynamic values (per-side leader color, mood color, stat tone, divergence
+// tint) flow in via CSS custom properties set on the consuming element.
+
+.empty {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 32px;
+  background: var(--bg-deep);
+}
+
+.emptyMsg {
+  color: var(--text-3);
+  font-size: var(--font-lg);
+  text-align: center;
+  padding: 40px;
+}
+
+.layout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.scroll {
+  flex: 1;
+  // Without min-width: 0 the flex child refuses to shrink below its
+  // intrinsic content width, which on narrow viewports pushes the
+  // side-rail off-screen AND collapses <details> markers into
+  // one-char-per-line vertical text. Explicit zero fixes both.
+  min-width: 0;
+  overflow-y: auto;
+  padding: 24px 32px;
+  background: var(--bg-deep);
+}
+
+.tldr {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  background: linear-gradient(135deg, rgba(232, 180, 74, 0.08), rgba(224, 101, 48, 0.04));
+  border: 1px solid rgba(232, 180, 74, 0.35);
+  border-radius: 6px;
+}
+
+.tldrTopRow {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tldrTag {
+  font-size: var(--font-2xs);
+  font-family: var(--mono);
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+
+.tldrHeadline {
+  font-size: var(--font-lg);
+  font-family: var(--sans);
+  font-weight: 800;
+  color: var(--text-1);
+}
+
+.tldrSub {
+  font-size: var(--font-sm);
+  color: var(--text-2);
+  flex: 1;
+  min-width: 200px;
+}
+
+.tldrStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: var(--font-xs);
+  font-family: var(--mono);
+  color: var(--text-2);
+}
+
+.tldrStatLabel {
+  color: var(--text-3);
+  margin-right: 4px;
+}
+
+.tldrStatValue {
+  // --tone-color set inline (var(--green) | var(--rust) | var(--text-1)).
+  color: var(--tone-color, var(--text-1));
+  font-weight: 700;
+}
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.headerTitle {
+  font-size: var(--font-2xl);
+  color: var(--amber);
+  font-family: var(--mono);
+  margin: 0;
+}
+
+.jumpBtn {
+  background: linear-gradient(135deg, var(--amber), #c8952e);
+  color: var(--bg-deep);
+  border: none;
+  padding: 8px 18px;
+  border-radius: 6px;
+  font-size: var(--font-sm);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  font-family: var(--mono);
+  box-shadow: 0 2px 10px rgba(232, 180, 74, 0.25);
+}
+
+.trajectoryGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.costBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: var(--font-md);
+}
+
+.costLabel {
+  color: var(--text-3);
+  letter-spacing: 0.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.costAmount {
+  color: var(--green);
+  font-weight: 800;
+  font-size: var(--font-lg);
+}
+
+.costMeta { color: var(--text-3); }
+
+.costBtn {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: var(--font-xs);
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: var(--bg-card);
+  color: var(--amber);
+  border: 1px solid var(--amber-dim);
+  cursor: pointer;
+}
+
+.turnSection {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin-bottom: 14px;
+  box-shadow: var(--card-shadow);
+}
+
+.turnSection.diverged {
+  background: color-mix(in srgb, var(--bg-panel) 90%, var(--rust) 10%);
+  border-left: 3px solid var(--rust);
+}
+
+.turnHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.turnTitle {
+  font-size: var(--font-2xl);
+  font-weight: 800;
+  font-family: var(--mono);
+  color: var(--text-1);
+}
+
+.turnEventCount {
+  font-size: var(--font-xs);
+  font-weight: 600;
+  color: var(--text-3);
+  margin-left: 8px;
+  font-family: var(--mono);
+}
+
+.turnHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.divergenceFlag {
+  font-size: var(--font-sm);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-family: var(--mono);
+  color: var(--text-3);
+}
+
+.divergenceFlag.diverged { color: var(--rust); }
+
+.eventGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.eventGridSpaced {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.footerGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.summarySection { margin-top: 24px; }
+
+.summaryLabel {
+  font-size: var(--font-sm);
+  font-family: var(--mono);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--amber);
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.summaryVerdictWrap { margin-top: 16px; }
+
+.aboutDetails {
+  margin-top: 16px;
+  padding: 10px 14px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: var(--font-xs);
+  font-family: var(--mono);
+  color: var(--text-3);
+}
+
+.aboutSummary {
+  cursor: pointer;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+.aboutBody {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 10px;
+}
+
+.aboutBlockTitle {
+  font-weight: 800;
+  color: var(--amber);
+  margin-bottom: 4px;
+}
+
+.aboutChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.aboutChip {
+  font-size: var(--font-2xs);
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated, var(--bg-card));
+  color: var(--amber);
+}
+
+.aboutChipNeutral {
+  font-size: var(--font-2xs);
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-2);
+}
+
+// EventSide
+
+.eventCard {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 16px;
+}
+
+.eventHeading {
+  font-size: var(--font-lg);
+  font-family: var(--mono);
+  font-weight: 800;
+  // --side-color set inline (var(--vis) or var(--eng)).
+  color: var(--side-color, var(--text-1));
+  margin-bottom: 8px;
+}
+
+.eventSubLabel {
+  font-size: var(--font-2xs);
+  color: var(--text-3);
+  margin-left: 8px;
+  font-weight: 600;
+}
+
+.eventAwaiting {
+  font-size: var(--font-sm);
+  color: var(--text-3);
+}
+
+.eventTitle {
+  font-size: var(--font-lg);
+  font-weight: 700;
+  color: var(--text-1);
+  margin-bottom: 4px;
+}
+
+.categoryPill {
+  font-size: var(--font-2xs);
+  color: var(--text-3);
+  background: var(--bg-deep);
+  padding: 1px 6px;
+  border-radius: 3px;
+  margin-left: 6px;
+  font-family: var(--mono);
+}
+
+.emergentPill {
+  font-size: var(--font-3xs);
+  font-weight: 800;
+  color: var(--rust);
+  font-family: var(--mono);
+  margin-left: 6px;
+}
+
+.eventDescription {
+  font-size: var(--font-sm);
+  color: var(--text-3);
+  line-height: 1.5;
+  margin-bottom: 8px;
+  font-style: italic;
+}
+
+.eventDecision {
+  font-size: var(--font-md);
+  color: var(--text-2);
+  line-height: 1.6;
+  margin-bottom: 6px;
+}
+
+.eventOutcomeRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.eventPolicies {
+  font-size: var(--font-2xs);
+  color: var(--text-3);
+  font-family: var(--mono);
+}
+
+.eventDetails { margin-bottom: 8px; }
+
+.eventDetailsSummary {
+  font-size: var(--font-xs);
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--side-color, var(--amber));
+  font-family: var(--mono);
+}
+
+.eventRationale {
+  font-size: var(--font-sm);
+  color: var(--text-2);
+  line-height: 1.6;
+  margin-top: 4px;
+  font-style: italic;
+  padding-left: 8px;
+  border-left: 2px solid var(--side-color, var(--border));
+}
+
+.deptList {
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.deptItem {
+  font-size: var(--font-sm);
+  padding: 4px 8px;
+  background: var(--bg-deep);
+  border-radius: 4px;
+  border-left: 2px solid var(--side-color, var(--border));
+}
+
+.deptHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.deptName {
+  font-weight: 700;
+  color: var(--text-1);
+}
+
+.deptMeta {
+  font-size: var(--font-2xs);
+  color: var(--text-3);
+  font-family: var(--mono);
+}
+
+.deptSummary {
+  color: var(--text-2);
+  line-height: 1.5;
+  margin-top: 2px;
+}
+
+// TurnSharedFooter
+
+.footerCard {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
+.footerDetails { margin-bottom: 8px; }
+.footerDetailsLast { margin-bottom: 0; }
+
+.footerSummary {
+  font-size: var(--font-xs);
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--side-color, var(--amber));
+  font-family: var(--mono);
+}
+
+.systemsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-top: 4px;
+  font-size: var(--font-xs);
+  font-family: var(--mono);
+}
+
+.systemItem { color: var(--text-2); }
+.systemKey { color: var(--text-3); }
+.systemValue {
+  font-weight: 700;
+  color: var(--text-1);
+}
+
+.reactionsList {
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.reactionItem {
+  font-size: var(--font-sm);
+  padding: 4px 8px;
+  background: var(--bg-deep);
+  border-radius: 4px;
+  line-height: 1.5;
+}
+
+.reactionHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.reactionName {
+  font-weight: 700;
+  color: var(--side-color, var(--text-1));
+}
+
+.moodPill {
+  font-size: var(--font-3xs);
+  font-weight: 800;
+  font-family: var(--mono);
+  padding: 1px 5px;
+  border-radius: 3px;
+  // --mood-color set inline; bg uses color-mix on the same color.
+  color: var(--mood-color, var(--text-3));
+  background: color-mix(in srgb, var(--mood-color, var(--text-3)) 12%, transparent);
+}
+
+.reactionQuote {
+  color: var(--text-2);
+  font-style: italic;
+}
+
+.reactionRole {
+  font-size: var(--font-2xs);
+  color: var(--text-3);
+  margin-top: 2px;
+}

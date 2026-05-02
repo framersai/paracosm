@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useRef, useState, useCallback, type ReactNode } from 'react';
+import { useMemo, useEffect, useRef, useState, useCallback, type CSSProperties, type ReactNode } from 'react';
 import type { GameState } from '../../hooks/useGameState';
 import { useCitationContext } from '../../hooks/useCitationRegistry';
 import { useToolContext } from '../../hooks/useToolRegistry';
@@ -11,7 +11,7 @@ import { Badge } from '../shared/Badge';
 import { CitationPills } from '../shared/CitationPills';
 import { ReferencesSection } from '../shared/ReferencesSection';
 import { ToolboxSection } from '../shared/ToolboxSection';
-import { VerdictCard, VerdictPanel } from '../sim/VerdictCard';
+import { VerdictPanel } from '../sim/VerdictCard';
 import { CostBreakdownModal } from '../layout/CostBreakdownModal';
 import { CommanderTrajectoryCard } from './CommanderTrajectoryCard';
 import {
@@ -25,6 +25,7 @@ import { RunStrip } from './RunStrip';
 import { MetricSparklines } from './MetricSparklines';
 import { ReportSideNav, type SideNavItem } from './ReportSideNav';
 import { collectMetricSeries, collectRunStripData } from './reports-shared';
+import styles from './ReportView.module.scss';
 
 /**
  * Tiny hook for booleans persisted to localStorage. Used here to remember
@@ -88,6 +89,12 @@ function getEventBlock(turn: TurnData, eventIndex: number, totalEvents: number):
   }
   if (totalEvents > block.totalEvents) block.totalEvents = totalEvents;
   return block;
+}
+
+function toneColor(tone: 'pos' | 'neg' | 'neutral' | undefined): string {
+  if (tone === 'pos') return 'var(--green)';
+  if (tone === 'neg') return 'var(--rust)';
+  return 'var(--text-1)';
 }
 
 export function ReportView({ state, verdict, reportSections }: ReportViewProps) {
@@ -344,8 +351,8 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
 
   if (!(sideA?.events.length ?? 0) && !(sideB?.events.length ?? 0)) {
     return (
-      <div style={{ flex: 1, overflowY: 'auto', padding: '24px 32px', background: 'var(--bg-deep)' }}>
-        <div style={{ color: 'var(--text-3)', fontSize: 'var(--font-lg)', textAlign: 'center', padding: '40px' }}>
+      <div className={styles.empty}>
+        <div className={styles.emptyMsg}>
           Run a simulation first to see the report.
         </div>
       </div>
@@ -353,24 +360,13 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
   }
 
   return (
-    <div className="reports-layout" style={{ display: 'flex', flex: 1, minHeight: 0, minWidth: 0 }}>
+    <div className={`reports-layout ${styles.layout}`}>
       <div
         ref={scrollRef}
         onScroll={onScroll}
-        className="reports-content"
+        className={`reports-content ${styles.scroll}`}
         role="region"
         aria-label="Turn-by-turn report"
-        style={{
-          flex: 1,
-          // Without minWidth: 0 the flex child refuses to shrink below
-          // its intrinsic content width, which on narrow viewports pushes
-          // the side-rail off-screen AND collapses `<details>` markers
-          // into one-char-per-line vertical text. Explicit zero fixes both.
-          minWidth: 0,
-          overflowY: 'auto',
-          padding: '24px 32px',
-          background: 'var(--bg-deep)',
-        }}
       >
       {/* Key Insight tile — the TL;DR card at the very top so users
           who aren't going to scroll the full report still see the
@@ -413,46 +409,25 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
           { label: 'Tools forged', value: `A ${totalToolsA} · B ${totalToolsB}` },
         ];
         return (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 8,
-              padding: '12px 14px',
-              marginBottom: 12,
-              background: 'linear-gradient(135deg, rgba(232,180,74,0.08), rgba(224,101,48,0.04))',
-              border: '1px solid rgba(232,180,74,0.35)',
-              borderRadius: 6,
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 'var(--font-2xs)', fontFamily: 'var(--mono)', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--amber)' }}>
-                TL;DR
-              </span>
+          <div className={styles.tldr}>
+            <div className={styles.tldrTopRow}>
+              <span className={styles.tldrTag}>TL;DR</span>
               {winnerName ? (
-                <span style={{ fontSize: 'var(--font-lg)', fontFamily: 'var(--sans)', fontWeight: 800, color: 'var(--text-1)' }}>
-                  {winnerName} wins
-                </span>
+                <span className={styles.tldrHeadline}>{winnerName} wins</span>
               ) : turnCount > 0 ? (
-                <span style={{ fontSize: 'var(--font-lg)', fontFamily: 'var(--sans)', fontWeight: 800, color: 'var(--text-1)' }}>
+                <span className={styles.tldrHeadline}>
                   Run {turnCount} turn{turnCount === 1 ? '' : 's'} — verdict pending
                 </span>
               ) : null}
-              {headline && (
-                <span style={{ fontSize: 'var(--font-sm)', color: 'var(--text-2)', flex: 1, minWidth: 200 }}>
-                  {headline}
-                </span>
-              )}
+              {headline && <span className={styles.tldrSub}>{headline}</span>}
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, fontSize: 'var(--font-xs)', fontFamily: 'var(--mono)', color: 'var(--text-2)' }}>
+            <div className={styles.tldrStats}>
               {stats.map(s => (
                 <span key={s.label}>
-                  <span style={{ color: 'var(--text-3)', marginRight: 4 }}>{s.label}:</span>
+                  <span className={styles.tldrStatLabel}>{s.label}:</span>
                   <span
-                    style={{
-                      color: s.tone === 'pos' ? 'var(--green)' : s.tone === 'neg' ? 'var(--rust)' : 'var(--text-1)',
-                      fontWeight: 700,
-                    }}
+                    className={styles.tldrStatValue}
+                    style={{ '--tone-color': toneColor(s.tone) } as CSSProperties}
                   >
                     {s.value}
                   </span>
@@ -468,39 +443,15 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
           bottom (just above References) with a scroll-to anchor up
           top so they can jump there without reading the whole
           turn-by-turn report first. */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 12,
-          marginBottom: 16,
-        }}
-      >
-        <h2 style={{ fontSize: 'var(--font-2xl)', color: 'var(--amber)', fontFamily: 'var(--mono)', margin: 0 }}>
-          Turn-by-Turn Report
-        </h2>
+      <div className={styles.headerRow}>
+        <h2 className={styles.headerTitle}>Turn-by-Turn Report</h2>
         <button
           type="button"
           onClick={() => {
             const el = document.getElementById('summary');
             if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
           }}
-          style={{
-            background: 'linear-gradient(135deg, var(--amber), #c8952e)',
-            color: 'var(--bg-deep)',
-            border: 'none',
-            padding: '8px 18px',
-            borderRadius: 6,
-            fontSize: 'var(--font-sm)',
-            fontWeight: 800,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            cursor: 'pointer',
-            fontFamily: 'var(--mono)',
-            boxShadow: '0 2px 10px rgba(232,180,74,0.25)',
-          }}
+          className={styles.jumpBtn}
         >
           {verdict ? '↓ See verdict + full summary' : '↓ Jump to summary'}
         </button>
@@ -520,7 +471,7 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
           from drift SSE events emitted after every turn. */}
       <section id="trajectory">
         {hasTrajectories && (
-          <div className="responsive-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+          <div className={`responsive-grid-2 ${styles.trajectoryGrid}`}>
             <CommanderTrajectoryCard
               events={sideA?.events ?? []}
               actorName={nameA}
@@ -540,30 +491,18 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
           land here to dig into the run. Hidden on cached runs that
           never reported any LLM calls. */}
       {state.cost && state.cost.llmCalls > 0 && (
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16,
-          padding: '10px 14px', borderRadius: 8,
-          background: 'var(--bg-panel)', border: '1px solid var(--border)',
-          fontFamily: 'var(--mono)', fontSize: 'var(--font-md)',
-        }}>
-          <span style={{ color: 'var(--text-3)', letterSpacing: '0.5px', fontWeight: 700, textTransform: 'uppercase' }}>
-            Run cost
-          </span>
-          <span style={{ color: 'var(--green)', fontWeight: 800, fontSize: 'var(--font-lg)' }}>
+        <div className={styles.costBar}>
+          <span className={styles.costLabel}>Run cost</span>
+          <span className={styles.costAmount}>
             ${state.cost.totalCostUSD < 0.01 ? state.cost.totalCostUSD.toFixed(4) : state.cost.totalCostUSD.toFixed(2)}
           </span>
-          <span style={{ color: 'var(--text-3)' }}>
+          <span className={styles.costMeta}>
             · {state.cost.llmCalls} LLM calls · {(state.cost.totalTokens / 1000).toFixed(1)}k tokens
           </span>
           <button
             type="button"
             onClick={() => setCostOpen(true)}
-            style={{
-              marginLeft: 'auto', fontFamily: 'var(--mono)', fontSize: 'var(--font-xs)', fontWeight: 700,
-              padding: '4px 10px', borderRadius: 4,
-              background: 'var(--bg-card)', color: 'var(--amber)',
-              border: '1px solid var(--amber-dim)', cursor: 'pointer',
-            }}
+            className={styles.costBtn}
           >
             Per-stage breakdown ›
           </button>
@@ -594,32 +533,23 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
         // Determine divergence by comparing event titles between A and B
         const aFirst = a.events.get(0)?.title;
         const bFirst = b.events.get(0)?.title;
-        const diverged = aFirst && bFirst && aFirst !== bFirst;
+        const diverged = !!(aFirst && bFirst && aFirst !== bFirst);
 
         return (
-          <section key={turnNum} id={`turn-${turnNum}`} style={{
-            background: diverged
-              ? 'color-mix(in srgb, var(--bg-panel) 90%, var(--rust) 10%)'
-              : 'var(--bg-panel)',
-            border: '1px solid var(--border)',
-            borderLeft: diverged ? '3px solid var(--rust)' : '1px solid var(--border)',
-            borderRadius: '8px',
-            padding: '16px 20px', marginBottom: '14px', boxShadow: 'var(--card-shadow)',
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-              <span style={{ fontSize: 'var(--font-2xl)', fontWeight: 800, fontFamily: 'var(--mono)', color: 'var(--text-1)' }}>
+          <section
+            key={turnNum}
+            id={`turn-${turnNum}`}
+            className={[styles.turnSection, diverged ? styles.diverged : ''].filter(Boolean).join(' ')}
+          >
+            <div className={styles.turnHeader}>
+              <span className={styles.turnTitle}>
                 Turn {turnNum} &mdash; Y{time}
                 {eventCount > 1 && (
-                  <span style={{ fontSize: 'var(--font-xs)', fontWeight: 600, color: 'var(--text-3)', marginLeft: 8, fontFamily: 'var(--mono)' }}>
-                    {eventCount} events
-                  </span>
+                  <span className={styles.turnEventCount}>{eventCount} events</span>
                 )}
               </span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{
-                  fontSize: 'var(--font-sm)', color: diverged ? 'var(--rust)' : 'var(--text-3)',
-                  fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', fontFamily: 'var(--mono)',
-                }}>
+              <div className={styles.turnHeaderRight}>
+                <span className={[styles.divergenceFlag, diverged ? styles.diverged : ''].filter(Boolean).join(' ')}>
                   {diverged ? 'DIVERGENT' : 'SHARED'}
                 </span>
                 {canFork(turnNum) && (
@@ -637,17 +567,17 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
 
             {/* Render each event as its own row of two side-by-side blocks */}
             {Array.from({ length: eventCount }).map((_, ei) => (
-              <div key={ei} className="responsive-grid-2" style={{
-                display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px',
-                marginBottom: ei < eventCount - 1 ? 12 : 0,
-              }}>
+              <div
+                key={ei}
+                className={`responsive-grid-2 ${ei < eventCount - 1 ? styles.eventGridSpaced : styles.eventGrid}`}
+              >
                 <EventSide block={a.events.get(ei)} eventIndex={ei} totalEvents={eventCount} name={nameA} sideColor="var(--vis)" sections={reportPlan.eventSections} />
                 <EventSide block={b.events.get(ei)} eventIndex={ei} totalEvents={eventCount} name={nameB} sideColor="var(--eng)" sections={reportPlan.eventSections} />
               </div>
             ))}
 
             {/* Per-turn shared sections: colony state + agent voices */}
-            <div className="responsive-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: 12 }}>
+            <div className={`responsive-grid-2 ${styles.footerGrid}`}>
               <TurnSharedFooter data={a} name={nameA} sideColor="var(--vis)" showQuotes={reportPlan.footerSections.includes('quotes')} />
               <TurnSharedFooter data={b} name={nameB} sideColor="var(--eng)" showQuotes={reportPlan.footerSections.includes('quotes')} />
             </div>
@@ -677,29 +607,15 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
           the `#summary` anchor. Hosts both the hero scoreboard
           (winner + key deltas) and the full verdict panel (LLM
           judgement reasoning). */}
-      <section id="summary" style={{ marginTop: 24 }}>
-        <div
-          style={{
-            fontSize: 'var(--font-sm)',
-            fontFamily: 'var(--mono)',
-            fontWeight: 800,
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-            color: 'var(--amber)',
-            marginBottom: 8,
-            paddingBottom: 6,
-            borderBottom: '1px solid var(--border)',
-          }}
-        >
-          Run Summary · Verdict · Winner
-        </div>
+      <section id="summary" className={styles.summarySection}>
+        <div className={styles.summaryLabel}>Run Summary · Verdict · Winner</div>
         <HeroScoreboard
           verdict={verdict}
           leaderAName={nameA}
           leaderBName={nameB}
         />
         {verdict && (
-          <div style={{ marginTop: 16 }}>
+          <div className={styles.summaryVerdictWrap}>
             <VerdictPanel verdict={verdict} />
           </div>
         )}
@@ -717,38 +633,24 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
         )}
       </section>
 
-      <details style={{
-        marginTop: 16, padding: '10px 14px',
-        background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 8,
-        fontSize: 'var(--font-xs)', fontFamily: 'var(--mono)', color: 'var(--text-3)',
-      }}>
-        <summary style={{ cursor: 'pointer', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-2)' }}>
-          What's in this report?
-        </summary>
-        <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 10 }}>
+      <details className={styles.aboutDetails}>
+        <summary className={styles.aboutSummary}>What's in this report?</summary>
+        <div className={styles.aboutBody}>
           <div>
-            <div style={{ fontWeight: 800, color: 'var(--amber)', marginBottom: 4 }}>Scenario focus</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            <div className={styles.aboutBlockTitle}>Scenario focus</div>
+            <div className={styles.aboutChips}>
               {reportPlan.focusSections.map(section => (
-                <span key={section} style={{
-                  fontSize: 'var(--font-2xs)', fontWeight: 700, padding: '2px 8px', borderRadius: 999,
-                  border: '1px solid var(--border)', background: 'var(--bg-elevated, var(--bg-card))',
-                  color: 'var(--amber)',
-                }}>
+                <span key={section} className={styles.aboutChip}>
                   {REPORT_FOCUS_LABELS[section]}
                 </span>
               ))}
             </div>
           </div>
           <div>
-            <div style={{ fontWeight: 800, color: 'var(--amber)', marginBottom: 4 }}>This run produced</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            <div className={styles.aboutBlockTitle}>This run produced</div>
+            <div className={styles.aboutChips}>
               {reportPlan.artifacts.map(artifact => (
-                <span key={artifact} style={{
-                  fontSize: 'var(--font-2xs)', fontWeight: 700, padding: '2px 8px', borderRadius: 999,
-                  border: '1px solid var(--border)', background: 'var(--bg-card)',
-                  color: 'var(--text-2)',
-                }}>
+                <span key={artifact} className={styles.aboutChipNeutral}>
                   {REPORT_ARTIFACT_LABELS[artifact]}
                 </span>
               ))}
@@ -786,18 +688,18 @@ function EventSide({ block, eventIndex, totalEvents, name, sideColor, sections }
   sideColor: string;
   sections: EventReportSection[];
 }) {
+  const sideStyle = { '--side-color': sideColor } as CSSProperties;
+
   if (!block || !block.title) {
     return (
-      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '6px', padding: '14px 16px' }}>
-        <h4 style={{ fontSize: 'var(--font-lg)', fontFamily: 'var(--mono)', fontWeight: 800, color: sideColor, marginBottom: '8px' }}>
+      <div className={styles.eventCard}>
+        <h4 className={styles.eventHeading} style={sideStyle}>
           {name}
           {totalEvents > 1 && (
-            <span style={{ fontSize: 'var(--font-2xs)', color: 'var(--text-3)', marginLeft: 8, fontWeight: 600 }}>
-              Event {eventIndex + 1}/{totalEvents}
-            </span>
+            <span className={styles.eventSubLabel}>Event {eventIndex + 1}/{totalEvents}</span>
           )}
         </h4>
-        <span style={{ fontSize: 'var(--font-sm)', color: 'var(--text-3)' }}>Awaiting data...</span>
+        <span className={styles.eventAwaiting}>Awaiting data...</span>
       </div>
     );
   }
@@ -805,59 +707,49 @@ function EventSide({ block, eventIndex, totalEvents, name, sideColor, sections }
   const eventSections: Record<EventReportSection, ReactNode> = {
     crisis: (
       <div key="crisis">
-        <div style={{ fontSize: 'var(--font-lg)', fontWeight: 700, color: 'var(--text-1)', marginBottom: '4px' }}>
+        <div className={styles.eventTitle}>
           {block.title}
-          {block.category && (
-            <span style={{ fontSize: 'var(--font-2xs)', color: 'var(--text-3)', background: 'var(--bg-deep)', padding: '1px 6px', borderRadius: '3px', marginLeft: '6px', fontFamily: 'var(--mono)' }}>
-              {block.category}
-            </span>
-          )}
-          {block.emergent && <span style={{ fontSize: 'var(--font-3xs)', fontWeight: 800, color: 'var(--rust)', fontFamily: 'var(--mono)', marginLeft: '6px' }}>EMERGENT</span>}
+          {block.category && <span className={styles.categoryPill}>{block.category}</span>}
+          {block.emergent && <span className={styles.emergentPill}>EMERGENT</span>}
         </div>
 
         {block.description && (
-          <div style={{ fontSize: 'var(--font-sm)', color: 'var(--text-3)', lineHeight: 1.5, marginBottom: '8px', fontStyle: 'italic' }}>
-            {block.description}
-          </div>
+          <div className={styles.eventDescription}>{block.description}</div>
         )}
       </div>
     ),
     decision: block.decision ? (
-      <div key="decision" style={{ fontSize: 'var(--font-md)', color: 'var(--text-2)', lineHeight: 1.6, marginBottom: '6px' }}>
-        {block.decision}
-      </div>
+      <div key="decision" className={styles.eventDecision}>{block.decision}</div>
     ) : null,
     outcome: block.outcome ? (
-      <div key="outcome" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+      <div key="outcome" className={styles.eventOutcomeRow}>
         <Badge outcome={block.outcome} />
         {Array.isArray(block.policies) && block.policies.length > 0 && (
-          <span style={{ fontSize: 'var(--font-2xs)', color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
+          <span className={styles.eventPolicies}>
             {block.policies.map(p => String(p)).join(' / ')}
           </span>
         )}
       </div>
     ) : null,
     causality: block.rationale ? (
-      <details key="causality" style={{ marginBottom: '8px' }}>
-        <summary style={{ fontSize: 'var(--font-xs)', fontWeight: 600, cursor: 'pointer', color: sideColor, fontFamily: 'var(--mono)' }}>Rationale</summary>
-        <div style={{ fontSize: 'var(--font-sm)', color: 'var(--text-2)', lineHeight: 1.6, marginTop: '4px', fontStyle: 'italic', paddingLeft: '8px', borderLeft: `2px solid ${sideColor}` }}>
-          {block.rationale}
-        </div>
+      <details key="causality" className={styles.eventDetails}>
+        <summary className={styles.eventDetailsSummary} style={sideStyle}>Rationale</summary>
+        <div className={styles.eventRationale} style={sideStyle}>{block.rationale}</div>
       </details>
     ) : null,
     departments: Object.keys(block.depts).length > 0 ? (
-      <details key="departments" style={{ marginBottom: '8px' }} open>
-        <summary style={{ fontSize: 'var(--font-xs)', fontWeight: 600, cursor: 'pointer', color: sideColor, fontFamily: 'var(--mono)' }}>
+      <details key="departments" className={styles.eventDetails} open>
+        <summary className={styles.eventDetailsSummary} style={sideStyle}>
           Departments ({Object.keys(block.depts).length})
         </summary>
-        <div style={{ marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <div className={styles.deptList}>
           {Object.entries(block.depts).map(([dept, d]) => (
-            <div key={dept} style={{ fontSize: 'var(--font-sm)', padding: '4px 8px', background: 'var(--bg-deep)', borderRadius: '4px', borderLeft: `2px solid ${sideColor}` }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontWeight: 700, color: 'var(--text-1)' }}>{dept.charAt(0).toUpperCase() + dept.slice(1)}</span>
-                <span style={{ fontSize: 'var(--font-2xs)', color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>{d.citations}c {d.tools}t</span>
+            <div key={dept} className={styles.deptItem} style={sideStyle}>
+              <div className={styles.deptHead}>
+                <span className={styles.deptName}>{dept.charAt(0).toUpperCase() + dept.slice(1)}</span>
+                <span className={styles.deptMeta}>{d.citations}c {d.tools}t</span>
               </div>
-              {d.summary && <div style={{ color: 'var(--text-2)', lineHeight: 1.5, marginTop: '2px' }}>{d.summary}</div>}
+              {d.summary && <div className={styles.deptSummary}>{d.summary}</div>}
               <CitationPills citations={d.citationList} label="" />
             </div>
           ))}
@@ -867,13 +759,11 @@ function EventSide({ block, eventIndex, totalEvents, name, sideColor, sections }
   };
 
   return (
-    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '6px', padding: '14px 16px' }}>
-      <h4 style={{ fontSize: 'var(--font-lg)', fontFamily: 'var(--mono)', fontWeight: 800, color: sideColor, marginBottom: '8px' }}>
+    <div className={styles.eventCard}>
+      <h4 className={styles.eventHeading} style={sideStyle}>
         {name}
         {totalEvents > 1 && (
-          <span style={{ fontSize: 'var(--font-2xs)', color: 'var(--text-3)', marginLeft: 8, fontWeight: 600 }}>
-            Event {eventIndex + 1}/{totalEvents}
-          </span>
+          <span className={styles.eventSubLabel}>Event {eventIndex + 1}/{totalEvents}</span>
         )}
       </h4>
 
@@ -886,18 +776,20 @@ function TurnSharedFooter({ data, name, sideColor, showQuotes }: { data: TurnDat
   const systems = data.metrics as Record<string, number> | undefined;
   if (!systems && (!showQuotes || data.reactions.length === 0)) return <div />;
 
+  const sideStyle = { '--side-color': sideColor } as CSSProperties;
+
   return (
-    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px 12px' }}>
+    <div className={styles.footerCard}>
       {systems && (
-        <details style={{ marginBottom: data.reactions.length ? '8px' : 0 }}>
-          <summary style={{ fontSize: 'var(--font-xs)', fontWeight: 600, cursor: 'pointer', color: sideColor, fontFamily: 'var(--mono)' }}>
+        <details className={data.reactions.length ? styles.footerDetails : styles.footerDetailsLast}>
+          <summary className={styles.footerSummary} style={sideStyle}>
             {name} &middot; Systems State
           </summary>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 12px', marginTop: '4px', fontSize: 'var(--font-xs)', fontFamily: 'var(--mono)' }}>
+          <div className={styles.systemsRow}>
             {Object.entries(systems).map(([k, v]) => (
-              <span key={k} style={{ color: 'var(--text-2)' }}>
-                <span style={{ color: 'var(--text-3)' }}>{k}: </span>
-                <span style={{ fontWeight: 700, color: 'var(--text-1)' }}>{typeof v === 'number' ? (Number.isInteger(v) ? v : v.toFixed(2)) : String(v)}</span>
+              <span key={k} className={styles.systemItem}>
+                <span className={styles.systemKey}>{k}: </span>
+                <span className={styles.systemValue}>{typeof v === 'number' ? (Number.isInteger(v) ? v : v.toFixed(2)) : String(v)}</span>
               </span>
             ))}
           </div>
@@ -906,27 +798,29 @@ function TurnSharedFooter({ data, name, sideColor, showQuotes }: { data: TurnDat
 
       {showQuotes && data.reactions.length > 0 && (
         <details open>
-          <summary style={{ fontSize: 'var(--font-xs)', fontWeight: 600, cursor: 'pointer', color: sideColor, fontFamily: 'var(--mono)' }}>
+          <summary className={styles.footerSummary} style={sideStyle}>
             Agent Voices ({data.totalReactions || data.reactions.length})
           </summary>
-          <div style={{ marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div className={styles.reactionsList}>
             {data.reactions.map((r, i) => (
-              <div key={i} style={{ fontSize: 'var(--font-sm)', padding: '4px 8px', background: 'var(--bg-deep)', borderRadius: '4px', lineHeight: 1.5 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
-                  <span style={{ fontWeight: 700, color: sideColor }}>{String(r.name)}</span>
-                  <span style={{
-                    fontSize: 'var(--font-3xs)', fontWeight: 800, fontFamily: 'var(--mono)',
-                    padding: '1px 5px', borderRadius: '3px',
-                    color: moodColors[String(r.mood)] || 'var(--text-3)',
-                    background: `color-mix(in srgb, ${moodColors[String(r.mood)] || 'var(--text-3)'} 12%, transparent)`,
-                  }}>
+              <div key={i} className={styles.reactionItem}>
+                <div className={styles.reactionHead}>
+                  <span className={styles.reactionName} style={sideStyle}>{String(r.name)}</span>
+                  <span
+                    className={styles.moodPill}
+                    style={{ '--mood-color': moodColors[String(r.mood)] || 'var(--text-3)' } as CSSProperties}
+                  >
                     {String(r.mood || '').toUpperCase()}
                   </span>
                 </div>
-                <div style={{ color: 'var(--text-2)', fontStyle: 'italic' }}>
+                <div className={styles.reactionQuote}>
                   &ldquo;{String(r.quote || '')}&rdquo;
                 </div>
-                {!!r.role && <div style={{ fontSize: 'var(--font-2xs)', color: 'var(--text-3)', marginTop: '2px' }}>{String(r.role)} {r.department ? `in ${String(r.department)}` : ''}</div>}
+                {!!r.role && (
+                  <div className={styles.reactionRole}>
+                    {String(r.role)} {r.department ? `in ${String(r.department)}` : ''}
+                  </div>
+                )}
               </div>
             ))}
           </div>
