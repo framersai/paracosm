@@ -142,6 +142,85 @@ export const WorldSnapshotSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
+// 2b. SwarmAgent + SwarmSnapshot — agent roster at a point in time
+// ---------------------------------------------------------------------------
+
+/**
+ * Single agent in the paracosm swarm. The public, serializable subset of
+ * the internal {@link Agent} type — fields that downstream consumers,
+ * dashboards, and analytics pipelines can rely on across scenarios.
+ *
+ * One leader runs the swarm top-down; specialists report; ~100 of these
+ * agents react and propagate state. `partnerId` + `childrenIds` form a
+ * family graph; `department` + `role` form a job graph; `mood` and
+ * `psychScore` capture the per-turn emotional state. Use
+ * {@link SwarmSnapshotSchema} to query the whole population at once.
+ */
+export const SwarmAgentSchema = z.object({
+  /** Stable agent identifier, unique within a run. */
+  agentId: z.string().min(1),
+  /** Human-readable name; the renderer label. */
+  name: z.string().min(1),
+  /** Department membership (scenario-defined string). */
+  department: z.string().min(1),
+  /** Role within the department (scenario-defined string). */
+  role: z.string().min(1),
+  /** Career rank ladder. */
+  rank: z.enum(['junior', 'senior', 'lead', 'chief']).optional(),
+  /** Whether the agent is alive at snapshot time. */
+  alive: z.boolean(),
+  /**
+   * Whether the agent was born inside the simulated world (vs.
+   * earth-born / external founder). Mars/Lunar legacy field; safe to
+   * ignore for non-space scenarios where every agent is "marsborn-like".
+   */
+  marsborn: z.boolean().optional(),
+  /** Mental health proxy 0..1 (lower = distressed). */
+  psychScore: z.number().min(0).max(1).optional(),
+  /** Agent's age at snapshot time in scenario time-units. */
+  age: z.number().min(0).optional(),
+  /** Generational depth: 0 = founder, 1+ = born in-world. */
+  generation: z.number().int().min(0).optional(),
+  /** Spousal/partner agentId, if any. */
+  partnerId: z.string().optional(),
+  /** Direct descendants by agentId (one edge of the family graph). */
+  childrenIds: z.array(z.string()).optional(),
+  /** Highlighted in the cast (featured panel / hover priority). */
+  featured: z.boolean().optional(),
+  /** Latest emotional state label (`hopeful`, `anxious`, `defiant`, …). */
+  mood: z.string().optional(),
+  /** Last 1–2 short-term memory entries (recent salient experiences). */
+  shortTermMemory: z.array(z.string()).optional(),
+});
+
+/**
+ * Snapshot of the entire agent swarm at a point in time. Pairs naturally
+ * with {@link WorldSnapshotSchema}: the world snapshot describes the
+ * macro state (metrics, statuses), the swarm snapshot describes the
+ * micro state (every agent's role, mood, family edges).
+ *
+ * Surfaced by {@link RunArtifactSchema}'s `finalSwarm` field at end-of-run
+ * and by `WorldModel.swarm()` at any point during a live simulation.
+ */
+export const SwarmSnapshotSchema = z.object({
+  /** Turn number this snapshot was taken at (0-indexed). */
+  turn: z.number().int().min(0),
+  /** Scenario time at snapshot (years/quarters/ticks per scenario). */
+  time: z.number(),
+  /** Every agent in the swarm at snapshot time, alive or dead. */
+  agents: z.array(SwarmAgentSchema),
+  /** Aggregate counts derived from `agents`. */
+  population: z.number().int().min(0),
+  /** Aggregate morale 0..1 (population-weighted). */
+  morale: z.number().min(0).max(1).optional(),
+  /** Number of births this turn. */
+  births: z.number().int().min(0).optional(),
+  /** Number of deaths this turn. */
+  deaths: z.number().int().min(0).optional(),
+  scenarioExtensions: ScenarioExtensionsSchema,
+});
+
+// ---------------------------------------------------------------------------
 // 3. Score — bounded numeric score with metadata
 // ---------------------------------------------------------------------------
 

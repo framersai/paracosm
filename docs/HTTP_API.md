@@ -19,6 +19,7 @@ For the SDK (`WorldModel`, `runBatch`, `simulateIntervention`, etc.) see the [Co
 | GET    | `/api/v1/runs` | List runs with filters and pagination |
 | GET    | `/api/v1/runs/aggregate` | Rollup stats for the filtered set |
 | GET    | `/api/v1/runs/:runId` | Run record + full RunArtifact JSON |
+| GET    | `/api/v1/runs/:runId/swarm` | Final agent-swarm snapshot (lightweight) |
 | POST   | `/api/v1/runs/:runId/replay` | Re-execute the kernel against the stored artifact |
 | POST   | `/api/v1/runs/:runId/replay-result` | Record a client-side replay outcome |
 | GET    | `/api/v1/bundles/:bundleId` | Bundle metadata + member RunRecords |
@@ -111,6 +112,57 @@ Single run record plus the full RunArtifact loaded from disk.
 - `404 not_found` — `runId` not in the run-history store
 - `410 artifact_unavailable` — record exists but `artifactPath` was never preserved (legacy run)
 - `410 artifact_unreadable` — file was preserved but is missing or unreadable on disk
+
+## `GET /api/v1/runs/:runId/swarm`
+
+Final agent-swarm snapshot for the run — every agent's name, department, role, mood, family edges, and last short-term memory entries. Lighter payload than the full RunArtifact when the consumer (network viz, org-chart UI, family-tree renderer) only needs the roster.
+
+**200 response**
+
+```json
+{
+  "runId": "run_a1b2c3d4-...",
+  "swarm": {
+    "turn": 6,
+    "time": 6,
+    "population": 98,
+    "morale": 0.72,
+    "births": 1,
+    "deaths": 2,
+    "agents": [
+      {
+        "agentId": "agent-001",
+        "name": "Maria Chen",
+        "department": "engineering",
+        "role": "lead-engineer",
+        "rank": "lead",
+        "alive": true,
+        "marsborn": false,
+        "psychScore": 0.84,
+        "age": 6,
+        "generation": 0,
+        "partnerId": "agent-014",
+        "childrenIds": ["agent-072"],
+        "featured": true,
+        "mood": "focused",
+        "shortTermMemory": [
+          "Repaired the backup oxygen line.",
+          "Argued with logistics over the rover schedule."
+        ]
+      }
+    ]
+  }
+}
+```
+
+**Status codes**
+
+- `404 not_found` — unknown `runId`
+- `404 swarm_not_captured` — run exists but did not produce a swarm (e.g., `batch-point` mode that bypassed the turn loop)
+- `410 artifact_unavailable` — record exists but the artifact file was never preserved
+- `410 artifact_unreadable` — file is missing or unreadable on disk
+
+Equivalent SDK access: `WorldModel.swarm(artifact)` (or `artifact.finalSwarm` directly). Derived helpers: `WorldModel.swarmByDepartment(artifact)`, `WorldModel.swarmFamilyTree(artifact)`.
 
 ## `POST /api/v1/runs/:runId/replay`
 

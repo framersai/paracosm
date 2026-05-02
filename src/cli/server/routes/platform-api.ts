@@ -220,6 +220,42 @@ export async function handlePlatformApiRoute(
       }
     }
 
+    // GET /api/v1/runs/:runId/swarm — return only the agent-swarm
+    // snapshot. Lighter payload than the full artifact when the consumer
+    // (e.g., a swarm-network visualization) only needs the roster.
+    const swarmMatch = url.pathname.match(/^\/api\/v1\/runs\/([^/]+)\/swarm$/);
+    if (swarmMatch && req.method === 'GET') {
+      const runId = decodeURIComponent(swarmMatch[1]);
+      const record = await options.runHistoryStore.getRun(runId);
+      if (!record) {
+        res.writeHead(404, { 'Content-Type': 'application/json', ...options.corsHeaders });
+        res.end(JSON.stringify({ error: 'not_found', runId }));
+        return true;
+      }
+      if (!record.artifactPath) {
+        res.writeHead(410, { 'Content-Type': 'application/json', ...options.corsHeaders });
+        res.end(JSON.stringify({ error: 'artifact_unavailable', runId }));
+        return true;
+      }
+      try {
+        const fs = await import('node:fs/promises');
+        const artifact = JSON.parse(await fs.readFile(record.artifactPath, 'utf-8')) as { finalSwarm?: unknown };
+        const swarm = artifact.finalSwarm;
+        if (!swarm) {
+          res.writeHead(404, { 'Content-Type': 'application/json', ...options.corsHeaders });
+          res.end(JSON.stringify({ error: 'swarm_not_captured', runId, message: 'This run did not produce a swarm snapshot (e.g., batch-point mode).' }));
+          return true;
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json', ...options.corsHeaders });
+        res.end(JSON.stringify({ runId, swarm }));
+        return true;
+      } catch {
+        res.writeHead(410, { 'Content-Type': 'application/json', ...options.corsHeaders });
+        res.end(JSON.stringify({ error: 'artifact_unreadable', runId }));
+        return true;
+      }
+    }
+
     // GET /api/v1/runs/:runId — load full RunArtifact via record.artifactPath
     const detailMatch = url.pathname.match(/^\/api\/v1\/runs\/([^/]+)$/);
     if (detailMatch && req.method === 'GET') {

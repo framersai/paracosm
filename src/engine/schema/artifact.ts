@@ -21,6 +21,7 @@ import {
   ScenarioExtensionsSchema,
   SpecialistNoteSchema,
   SubjectConfigSchema,
+  SwarmSnapshotSchema,
   TrajectorySchema,
   WorldSnapshotSchema,
 } from './primitives.js';
@@ -157,6 +158,14 @@ export const RunArtifactSchema = z.object({
   // -----------------------------------------------------------------------
 
   finalState: WorldSnapshotSchema.optional(),
+  /**
+   * Final agent-swarm roster at end-of-run. Pairs with `finalState`: the
+   * world snapshot is the macro view (metrics, statuses), the swarm
+   * snapshot is the micro view (every agent's role, mood, family edges,
+   * memory). Populated in `turn-loop` runs that exercised the swarm.
+   * Use `WorldModel.swarm()` for the live equivalent during a run.
+   */
+  finalSwarm: SwarmSnapshotSchema.optional(),
   /** Loose classification scores. Paracosm heritage; scenarios may extend. */
   fingerprint: z.record(z.string(), z.union([z.number(), z.string()])).optional(),
 

@@ -40,7 +40,7 @@ import { compileFromSeed, type CompileFromSeedInput, type CompileFromSeedOptions
 import type { CompileOptions } from '../../engine/compiler/types.js';
 import type { KeyPersonnel } from '../../engine/core/agent-generator.js';
 import type { ScenarioPackage } from '../../engine/types.js';
-import type { RunArtifact, SubjectConfig, InterventionConfig } from '../../engine/schema/index.js';
+import type { RunArtifact, SubjectConfig, InterventionConfig, SwarmAgent, SwarmSnapshot } from '../../engine/schema/index.js';
 import type { KernelSnapshot } from '../../engine/core/snapshot.js';
 import { z } from 'zod';
 import { generateValidatedObject } from '../llm-invocations/generateValidatedObject.js';
@@ -289,6 +289,76 @@ export class WorldModel {
   ): Promise<WorldModel> {
     const scenario = await compileFromSeed(seed, options);
     return new WorldModel(scenario);
+  }
+
+  // ---------------------------------------------------------------------
+  // Swarm inspection
+  //
+  // The swarm is paracosm's agent population: ~100 named agents with
+  // departments, roles, family edges, mood, and short-term memory. Top-
+  // level access is `RunArtifact.finalSwarm`. The static helpers below
+  // are convenience views over that snapshot.
+  // ---------------------------------------------------------------------
+
+  /**
+   * Final agent-swarm snapshot from a {@link RunArtifact}, or `undefined`
+   * if the run did not produce one (e.g., batch-point modes that bypass
+   * the turn loop). Equivalent to reading `artifact.finalSwarm` directly;
+   * provided so consumers have a single import surface for swarm access.
+   *
+   * @example
+   * ```ts
+   * const result = await wm.simulate(leader, { maxTurns: 6 });
+   * const swarm = WorldModel.swarm(result);
+   * if (swarm) {
+   *   console.log(`T${swarm.turn}: ${swarm.population} agents`);
+   *   for (const a of swarm.agents) console.log(`  ${a.name} · ${a.department} · ${a.mood}`);
+   * }
+   * ```
+   */
+  static swarm(artifact: RunArtifact): SwarmSnapshot | undefined {
+    return artifact.finalSwarm;
+  }
+
+  /**
+   * Group the swarm by department. Returns a map keyed by department
+   * label; values are the (alive + dead) agents in that department,
+   * preserving insertion order from the snapshot.
+   *
+   * Useful for org-chart-style summaries: "Engineering: 18 agents (15
+   * alive). Lead: Maria Chen."
+   */
+  static swarmByDepartment(artifact: RunArtifact): Record<string, SwarmAgent[]> {
+    const swarm = artifact.finalSwarm;
+    if (!swarm) return {};
+    const out: Record<string, SwarmAgent[]> = {};
+    for (const agent of swarm.agents) {
+      const dept = agent.department || 'unassigned';
+      if (!out[dept]) out[dept] = [];
+      out[dept].push(agent);
+    }
+    return out;
+  }
+
+  /**
+   * Build a family-tree adjacency map from the swarm: parent agentId →
+   * list of direct-descendant agentIds. Edge direction is parent→child;
+   * walk the map recursively to render multi-generation trees. Founders
+   * (no parent in the swarm) are the roots.
+   *
+   * Returns an empty object when the run produced no swarm or the
+   * scenario does not track family edges.
+   */
+  static swarmFamilyTree(artifact: RunArtifact): Record<string, string[]> {
+    const swarm = artifact.finalSwarm;
+    if (!swarm) return {};
+    const out: Record<string, string[]> = {};
+    for (const agent of swarm.agents) {
+      if (agent.childrenIds && agent.childrenIds.length > 0) {
+        out[agent.agentId] = [...agent.childrenIds];
+      }
+    }
+    return out;
   }
 
   /**

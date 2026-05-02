@@ -18,6 +18,7 @@ import type {
   SimulationMode,
   SpecialistNote,
   SubjectConfig,
+  SwarmSnapshot,
   Timepoint,
   TrajectoryPoint,
   WorldSnapshot,
@@ -115,6 +116,12 @@ export interface BuildArtifactInputs {
     environment?: Record<string, number | string | boolean>;
     metadata?: unknown;
   };
+  /**
+   * Final agent-swarm snapshot — every agent's role, mood, family edges,
+   * memory at end-of-run. Pairs with `finalState`. Optional; turn-loop
+   * runs that exercised the swarm populate this, batch modes do not.
+   */
+  finalSwarm?: SwarmSnapshot;
   fingerprint?: Record<string, number | string>;
   cost?: Cost;
   providerError?: ProviderError | null;
@@ -258,6 +265,7 @@ export function buildRunArtifact(inputs: BuildArtifactInputs): RunArtifact {
           environment: inputs.finalState.environment,
         }
       : undefined,
+    finalSwarm: inputs.finalSwarm,
     fingerprint: inputs.fingerprint,
     citations: inputs.citationCatalog.length > 0 ? inputs.citationCatalog : undefined,
     forgedTools: inputs.forgedToolbox.length > 0 ? inputs.forgedToolbox : undefined,

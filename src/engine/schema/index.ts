@@ -46,6 +46,9 @@ export {
   SubjectMarkerSchema,
   SubjectConfigSchema,
   InterventionConfigSchema,
+  // Swarm primitives
+  SwarmAgentSchema,
+  SwarmSnapshotSchema,
 } from './primitives.js';
 
 export { RunArtifactSchema, ForgedToolSummarySchema } from './artifact.js';
@@ -82,4 +85,6 @@ export type {
   SubjectMarker,
   SubjectConfig,
   InterventionConfig,
+  SwarmAgent,
+  SwarmSnapshot,
 } from './types.js';

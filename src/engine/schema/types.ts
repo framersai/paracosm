@@ -31,6 +31,8 @@ import type {
   SubjectConfigSchema,
   SubjectMarkerSchema,
   SubjectSignalSchema,
+  SwarmAgentSchema,
+  SwarmSnapshotSchema,
   TimepointSchema,
   TrajectoryPointSchema,
   TrajectorySchema,
@@ -65,6 +67,10 @@ export type SubjectSignal = z.infer<typeof SubjectSignalSchema>;
 export type SubjectMarker = z.infer<typeof SubjectMarkerSchema>;
 export type SubjectConfig = z.infer<typeof SubjectConfigSchema>;
 export type InterventionConfig = z.infer<typeof InterventionConfigSchema>;
+
+// Swarm primitives — public view of the agent roster
+export type SwarmAgent = z.infer<typeof SwarmAgentSchema>;
+export type SwarmSnapshot = z.infer<typeof SwarmSnapshotSchema>;
 
 // ---------------------------------------------------------------------------
 // Artifact

@@ -632,6 +632,75 @@ After the fix, all three compiled cleanly on a single pass.
 
 ---
 
+## Inspecting the agent swarm
+
+Every turn-loop run produces a swarm: ~100 named agents with departments,
+roles, family edges, mood, and short-term memory. The final swarm is on
+`RunArtifact.finalSwarm`; the `WorldModel` static helpers add derived views.
+
+```ts
+import { WorldModel } from 'paracosm/world-model';
+import type { SwarmSnapshot } from 'paracosm/schema';
+
+const wm = await WorldModel.fromScenario(marsScenario);
+const result = await wm.simulate(leader, { maxTurns: 6, seed: 42 });
+
+// Direct field access — equivalent to WorldModel.swarm(result)
+const swarm: SwarmSnapshot | undefined = result.finalSwarm;
+
+if (swarm) {
+  console.log(`T${swarm.turn} · ${swarm.population} alive · morale ${Math.round((swarm.morale ?? 0) * 100)}%`);
+  for (const a of swarm.agents.slice(0, 5)) {
+    console.log(`  ${a.name.padEnd(24)} ${a.department.padEnd(16)} ${a.role.padEnd(16)} ${a.mood ?? ''}`);
+  }
+}
+
+// Group by department
+const byDept = WorldModel.swarmByDepartment(result);
+for (const [dept, agents] of Object.entries(byDept)) {
+  const alive = agents.filter(a => a.alive).length;
+  console.log(`${dept}: ${alive}/${agents.length} alive`);
+}
+
+// Family graph: parent → [child agentIds]
+const family = WorldModel.swarmFamilyTree(result);
+const founders = swarm?.agents.filter(a => !a.partnerId && (family[a.agentId]?.length ?? 0) > 0) ?? [];
+console.log(`${founders.length} founders with descendants`);
+```
+
+The `SwarmAgent` shape is intentionally narrow: identifiers, role/dept,
+alive flag, mood, family edges, last 1–2 short-term memories. Full per-
+agent HEXACO history, hexaco drift, and detailed memory live in
+`scenarioExtensions.paracosmInternal.agentTrajectories` (paracosm's
+internal slot) for the runs that opt into rich trajectories.
+
+### HTTP equivalent
+
+```bash
+$ curl https://paracosm.agentos.sh/api/v1/runs/$RUN_ID/swarm
+{
+  "runId": "...",
+  "swarm": {
+    "turn": 6,
+    "time": 6,
+    "agents": [
+      { "agentId": "agent-001", "name": "Maria Chen", "department": "engineering", "role": "lead-engineer", "alive": true, "mood": "focused", ... },
+      ...
+    ],
+    "population": 98,
+    "morale": 0.72,
+    "births": 1,
+    "deaths": 2
+  }
+}
+```
+
+The endpoint returns `404 swarm_not_captured` for runs that did not
+exercise the turn loop (batch-point modes), `404 not_found` for unknown
+runIds, `410 artifact_unavailable` if the artifact file was rotated.
+
+---
+
 ## CLI smoke test
 
 Captured output of the new umbrella CLI introduced in `0.7.452`. Files under [`output/cookbook/cli/`](../output/cookbook/cli/).

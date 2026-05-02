@@ -617,6 +617,12 @@ export async function runSimulation(leader: ActorConfig, keyPersonnel: KeyPerson
   // Populates RunArtifact.scenarioExtensions.kernelSnapshotsPerTurn.
   const kernelSnapshotsPerTurn: import('../engine/core/snapshot.js').KernelSnapshot[] = [];
 
+  // Rolling capture of the agent-swarm snapshot. Updated at the end of
+  // each turn (immediately after the systems_snapshot emit). At end-of-
+  // run this gets attached to the artifact as `finalSwarm` — the public,
+  // serializable view of every agent's role, mood, family edges, memory.
+  let latestSwarmSnapshot: import('../engine/schema/index.js').SwarmSnapshot | undefined;
+
   const webSearchTool = createWebSearchTool(opts);
   const toolMap = new Map<string, ITool>();
   toolMap.set('web_search', webSearchTool);
@@ -1925,6 +1931,15 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
       foodReserve: after.metrics.foodMonthsReserve,
       births, deaths,
     });
+    latestSwarmSnapshot = {
+      turn,
+      time,
+      agents: snapshotAgents,
+      population: after.metrics.population,
+      morale: after.metrics.morale,
+      births,
+      deaths,
+    };
     } catch (err) {
       // Classify first: if this is a terminal quota/auth error it flips
       // the run-abort flag and the next turn will be skipped entirely via
@@ -2050,6 +2065,7 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
       environment: final.environment,
       metadata: final.metadata,
     },
+    finalSwarm: latestSwarmSnapshot,
     fingerprint,
     cost: {
       totalUSD: finalCost.totalCostUSD,
