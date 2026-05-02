@@ -142,6 +142,66 @@ const SURFACES = [
       await page.waitForTimeout(500);
     },
   },
+  // First-load guided tour as new users see it. Skips the tourSeen
+  // pre-seed so the tour overlay actually shows, captures step 1
+  // (Quickstart) without dismissing.
+  {
+    name: 'tour-step-1-quickstart',
+    url: '/sim',
+    skipTourSeen: true,
+  },
+  // Walk a few tour milestones via the Next button to verify each
+  // step's spotlight target resolves and the description renders.
+  // Captures only the description card; the spotlight ring on the
+  // target shifts per tab.
+  {
+    name: 'tour-step-3-topbar',
+    url: '/sim',
+    skipTourSeen: true,
+    interaction: async (page) => {
+      // Press Next twice to advance from step 1 → step 3.
+      for (let i = 0; i < 2; i++) {
+        const next = page.getByRole('button', { name: /^next$/i }).first();
+        await next.click({ force: true }).catch(() => {});
+        await page.waitForTimeout(700);
+      }
+    },
+  },
+  {
+    name: 'tour-step-9-viz',
+    url: '/sim',
+    skipTourSeen: true,
+    interaction: async (page) => {
+      for (let i = 0; i < 8; i++) {
+        const next = page.getByRole('button', { name: /^next$/i }).first();
+        await next.click({ force: true }).catch(() => {});
+        await page.waitForTimeout(500);
+      }
+    },
+  },
+  // Open the scenario picker in Settings and capture the dropdown
+  // state so we can verify the scenario list renders cleanly with the
+  // built-in pack (Mars / Lunar / Frontier AI Lab / Submarine /
+  // Corporate / T2D Protocol).
+  {
+    name: 'settings-scenario-picker-open',
+    url: '/sim',
+    clickTab: 'settings',
+    interaction: async (page) => {
+      // The picker is a button summary that toggles a list of scenario
+      // cards. Match by aria-label or by visible "Scenario" trigger.
+      const trigger = page.getByRole('button', { name: /scenario|change scenario/i }).first();
+      if (await trigger.count() > 0) {
+        await trigger.click({ force: true }).catch(() => {});
+        await page.waitForTimeout(600);
+      } else {
+        // Fall back: click on the SCENARIO label area.
+        const label = page.locator('text=/^Scenario$/i').first();
+        await label.click({ force: true }).catch(() => {});
+      }
+      await page.waitForTimeout(700);
+    },
+  },
   // Open the run-detail drawer with the SwarmPanel inline. The path is
   // Library → click Compare on a bundle → modal opens with actor cells
   // → click the "Open" button on a cell → drawer slides in from the
@@ -186,13 +246,16 @@ async function captureSurface(browser, surface, viewportName) {
   // `paracosm-theme` to apply .light before React mounts; if the
   // surface declares a theme we set both keys (covers landing + dashboard).
   const theme = surface.theme;
-  await ctx.addInitScript(({ theme }) => {
-    try { localStorage.setItem('paracosm:tourSeen', '1'); } catch { /* ignore */ }
+  const skipTourSeen = surface.skipTourSeen ?? false;
+  await ctx.addInitScript(({ theme, skipTourSeen }) => {
+    if (!skipTourSeen) {
+      try { localStorage.setItem('paracosm:tourSeen', '1'); } catch { /* ignore */ }
+    }
     if (theme === 'light') {
       try { localStorage.setItem('paracosm-theme', 'light'); } catch { /* ignore */ }
       try { localStorage.setItem('paracosm:theme', 'light'); } catch { /* ignore */ }
     }
-  }, { theme });
+  }, { theme, skipTourSeen });
   const page = await ctx.newPage();
 
   page.on('pageerror', err => consoleErrors.push({
@@ -245,6 +308,13 @@ async function captureSurface(browser, surface, viewportName) {
     } catch (err) {
       console.warn(`  [warn] tab click "${surface.clickTab}" failed for ${surface.name} ${viewportName}: ${err.message}`);
     }
+  }
+
+  // Tour surfaces need extra settle time. The auto-start has a 600ms
+  // setTimeout in App.tsx before firing the tour overlay; we wait
+  // 1500ms total to give it room plus animation.
+  if (surface.skipTourSeen) {
+    await page.waitForTimeout(1500);
   }
 
   // Per-surface interaction (open drawer, click sub-tab, etc.) runs
