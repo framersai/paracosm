@@ -41,6 +41,11 @@ import type { CompileOptions } from '../../engine/compiler/types.js';
 import type { KeyPersonnel } from '../../engine/core/agent-generator.js';
 import type { ScenarioPackage } from '../../engine/types.js';
 import type { RunArtifact, SubjectConfig, InterventionConfig, SwarmAgent, SwarmSnapshot } from '../../engine/schema/index.js';
+import {
+  getSwarm as swarmGet,
+  swarmByDepartment as swarmGroupByDepartment,
+  swarmFamilyTree as swarmGetFamilyTree,
+} from '../swarm/index.js';
 import type { KernelSnapshot } from '../../engine/core/snapshot.js';
 import { z } from 'zod';
 import { generateValidatedObject } from '../llm-invocations/generateValidatedObject.js';
@@ -317,48 +322,34 @@ export class WorldModel {
    * ```
    */
   static swarm(artifact: RunArtifact): SwarmSnapshot | undefined {
-    return artifact.finalSwarm;
+    return swarmGet(artifact);
   }
 
   /**
    * Group the swarm by department. Returns a map keyed by department
    * label; values are the (alive + dead) agents in that department,
-   * preserving insertion order from the snapshot.
+   * preserving insertion order from the snapshot. Delegates to
+   * {@link import('paracosm/swarm').swarmByDepartment}.
    *
    * Useful for org-chart-style summaries: "Engineering: 18 agents (15
    * alive). Lead: Maria Chen."
    */
   static swarmByDepartment(artifact: RunArtifact): Record<string, SwarmAgent[]> {
-    const swarm = artifact.finalSwarm;
-    if (!swarm) return {};
-    const out: Record<string, SwarmAgent[]> = {};
-    for (const agent of swarm.agents) {
-      const dept = agent.department || 'unassigned';
-      if (!out[dept]) out[dept] = [];
-      out[dept].push(agent);
-    }
-    return out;
+    return swarmGroupByDepartment(artifact);
   }
 
   /**
    * Build a family-tree adjacency map from the swarm: parent agentId →
    * list of direct-descendant agentIds. Edge direction is parent→child;
    * walk the map recursively to render multi-generation trees. Founders
-   * (no parent in the swarm) are the roots.
+   * (no parent in the swarm) are the roots. Delegates to
+   * {@link import('paracosm/swarm').swarmFamilyTree}.
    *
    * Returns an empty object when the run produced no swarm or the
    * scenario does not track family edges.
    */
   static swarmFamilyTree(artifact: RunArtifact): Record<string, string[]> {
-    const swarm = artifact.finalSwarm;
-    if (!swarm) return {};
-    const out: Record<string, string[]> = {};
-    for (const agent of swarm.agents) {
-      if (agent.childrenIds && agent.childrenIds.length > 0) {
-        out[agent.agentId] = [...agent.childrenIds];
-      }
-    }
-    return out;
+    return swarmGetFamilyTree(artifact);
   }
 
   /**

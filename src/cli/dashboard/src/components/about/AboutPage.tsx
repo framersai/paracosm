@@ -18,6 +18,10 @@ const FAQ: FaqItem[] = [
     a: 'AI leaders with distinct personality profiles run the same world in parallel. Each turn: an Event Director generates events based on the world state and decision history. Department agents analyze the situation and forge computational tools at runtime. Leaders decide. The deterministic kernel applies consequences. Same seed, same starting conditions, different leaders, different outcomes. Leaders are abstract: they can model people, organizations, policies, or autonomous systems.',
   },
   {
+    q: 'How do I inspect the agent swarm?',
+    a: 'Every turn-loop run produces a swarm of ~100 named agents with departments, roles, family edges, mood, and short-term memory. Read it from RunArtifact.finalSwarm, import helpers from paracosm/swarm (getSwarm, swarmByDepartment, swarmFamilyTree, moodHistogram, departmentHeadcount, aliveCount, deathCount), or fetch GET /api/v1/runs/:runId/swarm for the lightweight HTTP version. The Library tab streams the same swarm data live during a run for the dashboard visualization.',
+  },
+  {
     q: 'How much does Paracosm cost?',
     a: 'The core engine, Mars Genesis and Lunar Outpost scenarios, CLI, dashboard, and batch runner are free and open source under the Apache-2.0 license today. Pro ($49/mo), Enterprise ($499/mo), and Platform are planned hosted tiers. They are roadmap packages, not generally available products yet.',
   },

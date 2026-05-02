@@ -42,6 +42,10 @@
       "import": "./dist/runtime/world-model/index.js",
       "types": "./dist/runtime/world-model/index.d.ts"
     },
+    "./swarm": {
+      "import": "./dist/runtime/swarm/index.js",
+      "types": "./dist/runtime/swarm/index.d.ts"
+    },
     "./digital-twin": {
       "import": "./dist/engine/digital-twin/index.js",
       "types": "./dist/engine/digital-twin/index.d.ts"
