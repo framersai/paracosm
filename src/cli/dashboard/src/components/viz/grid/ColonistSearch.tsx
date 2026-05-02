@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import type { CellSnapshot } from '../viz-types.js';
 import { useScenarioLabels } from '../../../hooks/useScenarioLabels.js';
+import styles from './ColonistSearch.module.scss';
 
 export interface SearchMatch {
   cell: CellSnapshot;
@@ -42,47 +43,9 @@ export function ColonistSearch({ value, onChange, matches, onPick }: ColonistSea
   const showDropdown = focused && value.trim().length > 0 && matches.length > 0;
 
   return (
-    <div
-      style={{
-        position: 'relative',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 6,
-        padding: '4px 10px',
-        background: 'var(--bg-deep)',
-        borderBottom: '1px solid var(--border)',
-      }}
-    >
-      <span
-        aria-hidden="true"
-        style={{
-          fontSize: 'var(--font-lg)',
-          color: 'var(--text-3)',
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: 18,
-          height: 18,
-        }}
-        title="Search agents"
-      >
-        {/* Magnifying-glass glyph so the search row reads as a search
-            affordance at a glance instead of just a plain "Find" label.
-            Uses a unicode loupe rather than an SVG to keep the single
-            glyph cheap to render + color-variable via font `color`. */}
-        🔍
-      </span>
-      <span
-        style={{
-          fontSize: 'var(--font-3xs)',
-          fontFamily: 'var(--mono)',
-          color: 'var(--text-4)',
-          letterSpacing: '0.1em',
-          textTransform: 'uppercase',
-        }}
-      >
-        Find
-      </span>
+    <div className={styles.bar}>
+      <span aria-hidden="true" className={styles.icon} title="Search agents">🔍</span>
+      <span className={styles.label}>Find</span>
       <input
         ref={inputRef}
         type="text"
@@ -92,38 +55,10 @@ export function ColonistSearch({ value, onChange, matches, onPick }: ColonistSea
         onBlur={() => setTimeout(() => setFocused(false), 120)}
         placeholder={`${labels.person} name, dept, mood… (space-separate to AND-match; / to focus)`}
         aria-label={`Search ${labels.people} by name, department, role, or mood`}
-        style={{
-          flex: 1,
-          minWidth: 0,
-          padding: '3px 8px',
-          background: 'var(--bg-input)',
-          border: '1px solid var(--border)',
-          borderRadius: 3,
-          fontFamily: 'var(--mono)',
-          fontSize: 'var(--font-2xs)',
-          color: 'var(--text-1)',
-          outline: 'none',
-        }}
+        className={styles.input}
       />
       {showDropdown && (
-        <div
-          role="listbox"
-          style={{
-            position: 'absolute',
-            left: 44,
-            top: '100%',
-            width: 'calc(100% - 180px)',
-            maxWidth: 420,
-            maxHeight: 280,
-            overflowY: 'auto',
-            background: 'var(--bg-panel)',
-            border: '1px solid var(--border)',
-            borderRadius: 3,
-            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.5)',
-            zIndex: 30,
-            marginTop: 2,
-          }}
-        >
+        <div role="listbox" className={styles.dropdown}>
           {matches.slice(0, 10).map((m, i) => (
             <button
               key={`${m.side}-${m.cell.agentId}-${i}`}
@@ -134,87 +69,30 @@ export function ColonistSearch({ value, onChange, matches, onPick }: ColonistSea
                 e.preventDefault();
                 onPick?.(m);
               }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                width: '100%',
-                padding: '5px 10px',
-                background: 'transparent',
-                border: 'none',
-                borderBottom: '1px solid var(--border)',
-                cursor: 'pointer',
-                fontFamily: 'var(--mono)',
-                fontSize: 'var(--font-2xs)',
-                color: 'var(--text-2)',
-                textAlign: 'left',
-              }}
-              onMouseEnter={e => {
-                (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-card)';
-              }}
-              onMouseLeave={e => {
-                (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
-              }}
+              className={styles.option}
+              style={{ '--result-color': m.sideColor } as CSSProperties}
             >
-              <span
-                style={{
-                  padding: '1px 5px',
-                  borderRadius: 2,
-                  background: `${m.sideColor}33`,
-                  color: m.sideColor,
-                  fontSize: 'var(--font-3xs)',
-                  fontWeight: 800,
-                  letterSpacing: '0.1em',
-                }}
-              >
-                {m.side.toUpperCase()}
-              </span>
-              <span style={{ color: 'var(--text-1)', fontWeight: 700 }}>{m.cell.name}</span>
-              <span style={{ color: 'var(--text-4)' }}>
+              <span className={styles.sidePill}>{m.side.toUpperCase()}</span>
+              <span className={styles.optionName}>{m.cell.name}</span>
+              <span className={styles.optionMeta}>
                 {m.cell.department?.toUpperCase?.() || ''} · {m.cell.mood}
                 {typeof m.cell.age === 'number' ? ` · age ${m.cell.age}` : ''}
               </span>
               {m.cell.featured && (
-                <span
-                  style={{
-                    marginLeft: 'auto',
-                    fontSize: 'var(--font-3xs)',
-                    padding: '1px 4px',
-                    borderRadius: 2,
-                    background: `${m.sideColor}33`,
-                    color: m.sideColor,
-                  }}
-                >
-                  FEATURED
-                </span>
+                <span className={styles.featuredPill}>FEATURED</span>
               )}
             </button>
           ))}
           {matches.length > 10 && (
-            <div
-              style={{
-                padding: '4px 10px',
-                fontSize: 'var(--font-3xs)',
-                color: 'var(--text-4)',
-                fontStyle: 'italic',
-                fontFamily: 'var(--mono)',
-              }}
-            >
-              + {matches.length - 10} more…
-            </div>
+            <div className={styles.moreNote}>+ {matches.length - 10} more…</div>
           )}
         </div>
       )}
       {value && (
         <>
           <span
-            style={{
-              fontSize: 'var(--font-3xs)',
-              fontFamily: 'var(--mono)',
-              color: matchCount > 0 ? 'var(--amber)' : 'var(--rust)',
-              letterSpacing: '0.05em',
-              whiteSpace: 'nowrap',
-            }}
+            className={styles.matchCount}
+            style={{ '--count-color': matchCount > 0 ? 'var(--amber)' : 'var(--rust)' } as CSSProperties}
           >
             {matchCount} match{matchCount === 1 ? '' : 'es'}
           </span>
@@ -222,16 +100,7 @@ export function ColonistSearch({ value, onChange, matches, onPick }: ColonistSea
             type="button"
             onClick={() => onChange('')}
             aria-label="Clear search"
-            style={{
-              padding: '2px 6px',
-              background: 'var(--bg-card)',
-              color: 'var(--text-3)',
-              border: '1px solid var(--border)',
-              borderRadius: 3,
-              cursor: 'pointer',
-              fontFamily: 'var(--mono)',
-              fontSize: 'var(--font-3xs)',
-            }}
+            className={styles.clearBtn}
           >
             clear
           </button>
