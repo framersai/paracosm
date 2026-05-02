@@ -1,0 +1,51 @@
+// Migrated from inline `style={{}}`. Per-trait color flows in via
+// --trait-color CSS custom property.
+
+.card {
+  padding: 8px 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: var(--font-2xs);
+  color: var(--text-2);
+}
+
+.headerRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 4px;
+}
+
+.title {
+  font-weight: 700;
+  color: var(--text-1);
+  letter-spacing: 0.5px;
+}
+
+.range { color: var(--text-3); }
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin-top: 4px;
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.legendSwatch {
+  width: 8px;
+  height: 2px;
+  // --trait-color set inline.
+  background: var(--trait-color, var(--amber));
+  display: inline-block;
+}
+
+.legendLabel { color: var(--text-3); }
+.legendValue { color: var(--text-1); }

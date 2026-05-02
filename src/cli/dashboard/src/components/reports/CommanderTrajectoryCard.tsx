@@ -1,4 +1,6 @@
+import type { CSSProperties } from 'react';
 import type { SimEvent } from '../../hooks/useSSE';
+import styles from './CommanderTrajectoryCard.module.scss';
 
 /**
  * Compact line chart of a commander's HEXACO trajectory across the run.
@@ -145,24 +147,12 @@ export function CommanderTrajectoryCard({
   const xFor = (turn: number) => padX + (W - padX * 2) * ((turn - minTurn) / xRange);
 
   return (
-    <div
-      style={{
-        padding: '8px 10px',
-        background: 'var(--bg-card)',
-        border: '1px solid var(--border)',
-        borderRadius: '4px',
-        fontFamily: 'var(--mono)',
-        fontSize: 'var(--font-2xs)',
-        color: 'var(--text-2)',
-      }}
-      aria-label={`HEXACO trajectory for ${actorName}`}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '4px' }}>
-        <span style={{ fontWeight: 700, color: 'var(--text-1)', letterSpacing: '.5px' }}>PERSONALITY ARC</span>
-        <span style={{ color: 'var(--text-3)' }}>turn {minTurn} → {maxTurn}</span>
+    <div className={styles.card} aria-label={`HEXACO trajectory for ${actorName}`}>
+      <div className={styles.headerRow}>
+        <span className={styles.title}>PERSONALITY ARC</span>
+        <span className={styles.range}>turn {minTurn} → {maxTurn}</span>
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} role="img">
-        {/* Horizontal mid-line at 0.5 for reference */}
         <line x1={padX} y1={yFor(0.5)} x2={W - padX} y2={yFor(0.5)} stroke="var(--border)" strokeWidth="0.5" strokeDasharray="2,3" />
         {TRAIT_KEYS.map(trait => {
           const points = series.map(s => `${xFor(s.turn)},${yFor(s.hexaco[trait])}`).join(' ');
@@ -180,12 +170,16 @@ export function CommanderTrajectoryCard({
           );
         })}
       </svg>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 10px', marginTop: '4px' }}>
+      <div className={styles.legend}>
         {TRAIT_KEYS.map(trait => (
-          <span key={trait} style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-            <span aria-hidden="true" style={{ width: '8px', height: '2px', background: TRAIT_COLORS[trait], display: 'inline-block' }} />
-            <span style={{ color: 'var(--text-3)' }}>{TRAIT_LABELS[trait]}</span>
-            <span style={{ color: 'var(--text-1)' }}>{series[series.length - 1].hexaco[trait].toFixed(2)}</span>
+          <span key={trait} className={styles.legendItem}>
+            <span
+              aria-hidden="true"
+              className={styles.legendSwatch}
+              style={{ '--trait-color': TRAIT_COLORS[trait] } as CSSProperties}
+            />
+            <span className={styles.legendLabel}>{TRAIT_LABELS[trait]}</span>
+            <span className={styles.legendValue}>{series[series.length - 1].hexaco[trait].toFixed(2)}</span>
           </span>
         ))}
       </div>
