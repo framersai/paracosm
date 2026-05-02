@@ -1,0 +1,187 @@
+@use '../../../theme/typography' as typo;
+
+.summaryGrid {
+  display: grid;
+  gap: 8px;
+}
+
+.summaryCol {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  min-width: 0;
+}
+
+.summaryEmpty {
+  font-style: italic;
+  color: var(--text-3);
+  font-size: var(--font-sm);
+}
+
+.summaryStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-family: var(--mono);
+  font-size: var(--font-sm);
+  color: var(--text-2);
+
+  strong {
+    color: var(--text-1);
+    font-weight: 700;
+  }
+}
+
+.summaryGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.summaryLabel {
+  @include typo.field-label;
+  color: var(--text-3);
+}
+
+.summaryList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: var(--mono);
+  font-size: var(--font-xs);
+
+  li {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    color: var(--text-2);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+}
+
+.summaryCount {
+  color: var(--text-3);
+  font-size: var(--font-xs);
+}
+
+.divBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--glass-border);
+}
+
+.divTitle {
+  @include typo.section-label;
+  color: var(--text-3);
+  margin: 0;
+}
+
+.divMeta {
+  color: var(--text-4);
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.divNote {
+  margin: 0;
+  font-size: var(--font-xs);
+  color: var(--text-3);
+  line-height: 1.5;
+}
+
+.aliveOnlyGrid {
+  display: grid;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.aliveOnlyCol {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--rust);
+  border-radius: var(--radius-sm);
+  min-width: 0;
+}
+
+.aliveOnlyHead {
+  @include typo.field-label;
+  color: var(--text-2);
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.aliveOnlyCount {
+  color: var(--text-3);
+  font-size: var(--font-xs);
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.aliveOnlyList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: var(--mono);
+  font-size: var(--font-xs);
+  color: var(--text-2);
+}
+
+.aliveOnlyMore {
+  color: var(--text-3);
+  font-style: italic;
+}
+
+.aliveOnlyEmpty {
+  color: var(--text-4);
+  font-family: var(--mono);
+}
+
+.moodTable {
+  display: grid;
+  gap: 4px;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.moodHead {
+  @include typo.field-label;
+  color: var(--text-3);
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.moodAgent {
+  font-family: var(--sans);
+  font-size: var(--font-sm);
+  color: var(--text-1);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.moodCell {
+  font-family: var(--mono);
+  font-size: var(--font-xs);
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}

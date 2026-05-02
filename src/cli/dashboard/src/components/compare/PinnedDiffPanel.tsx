@@ -5,6 +5,7 @@ import { TimelineDiff } from './diff/TimelineDiff.js';
 import { FingerprintDiff } from './diff/FingerprintDiff.js';
 import { DecisionRationaleDiff } from './diff/DecisionRationaleDiff.js';
 import { MetricTrajectoryDiff } from './diff/MetricTrajectoryDiff.js';
+import { SwarmDiff } from './diff/SwarmDiff.js';
 import type { RunRecord } from '../../../../server/run-record.js';
 
 export interface PinnedDiffPanelProps {
@@ -54,6 +55,7 @@ export function PinnedDiffPanel({ pinnedIds, members }: PinnedDiffPanelProps): J
           <TimelineDiff artifacts={pinnedArtifacts} />
           <DecisionRationaleDiff artifacts={pinnedArtifacts} />
           <MetricTrajectoryDiff artifacts={pinnedArtifacts} />
+          <SwarmDiff artifacts={pinnedArtifacts} />
         </>
       )}
     </section>
