@@ -11,7 +11,7 @@ interface FaqItem {
 const FAQ: FaqItem[] = [
   {
     q: 'What is Paracosm?',
-    a: 'Paracosm is a structured world model for AI agents. Start from a prompt, brief, URL, or scenario JSON draft, compile or ground it into a typed ScenarioPackage, then assign AI leaders with distinct HEXACO personality profiles. The engine handles event generation, department analysis, runtime tool forging, personality drift, and deterministic state transitions. Leaders can be colony commanders, CEOs, generals, governing councils, AI systems, or any top-down decision maker.',
+    a: 'Paracosm is an agent swarm simulation framework for structured world modeling with LLMs. Start from a prompt, brief, URL, or scenario JSON draft, compile or ground it into a typed ScenarioPackage, then assign AI leaders with distinct HEXACO personality profiles. The engine handles event generation, department analysis, runtime tool forging, personality drift, and deterministic state transitions. Leaders can be colony commanders, CEOs, generals, governing councils, AI systems, or any top-down decision maker — each running a multi-agent swarm of specialists and ~100 personality-typed cells.',
   },
   {
     q: 'How does the simulation work?',
@@ -233,12 +233,13 @@ export function AboutPage() {
             PARA<span className={styles.h1Accent}>COSM</span>
           </h1>
           <p className={styles.lead}>
-            Structured world model for AI agents. Start from a prompt, brief, URL, or scenario JSON draft,
-            compile or ground it into a typed world contract, then assign AI leaders with distinct personalities.
-            Watch their decisions compound into divergent outcomes from identical starting
-            conditions. Leaders can be commanders, CEOs, generals, councils, AI systems, or any top-down
-            decision maker. The engine handles event generation, department analysis, tool forging, personality
-            drift, and state transitions. Currently running: <strong className={styles.leadStrong}>{scenario.labels.name}</strong>.
+            Agent swarm simulation framework for structured world modeling with LLMs. Start from a prompt, brief, URL,
+            or scenario JSON draft, compile or ground it into a typed world contract, then assign AI leaders with
+            distinct personalities running multi-agent swarms of specialists and personality-typed cells. Watch their
+            decisions compound into divergent outcomes from identical starting conditions. Leaders can be commanders,
+            CEOs, generals, councils, AI systems, or any top-down decision maker. The engine handles event generation,
+            department analysis, tool forging, personality drift, and state transitions. Currently running:
+            <strong className={styles.leadStrong}>{scenario.labels.name}</strong>.
           </p>
           <p className={styles.leadSecondary}>
             Availability note: the open-source engine is available now. Hosted Pro, Enterprise, and Platform offerings shown below are roadmap tiers and early-access packaging, not generally available SaaS products yet.

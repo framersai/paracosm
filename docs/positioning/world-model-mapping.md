@@ -85,9 +85,9 @@ Yann LeCun's [AMI Labs raised $1.03B on 2026-03-09](https://techcrunch.com/2026/
 
 LangGraph, AutoGen / AG2, CrewAI, OpenAI Agents SDK, Google ADK, Mastra: these build agentic workflows that execute real tasks against real tools and real APIs. Their output reaches the real world. Paracosm is a simulation; nothing ships outside the run. [Turing's "Detailed Comparison of Top 6 AI Agent Frameworks"](https://www.turing.com/resources/ai-agent-frameworks) is the current canonical side-by-side of that category; paracosm isn't on it and shouldn't be.
 
-### Not a bottom-up swarm intelligence simulator
+### Top-down agent swarm, not bottom-up emergent swarm
 
-[MiroFish](https://github.com/666ghj/MiroFish) and its upstream [OASIS (CAMEL-AI): OpenReview](https://openreview.net/forum?id=JBzTculaVV) build open-ended social simulations with thousands to one million LLM-driven agents interacting on social-media-shaped substrates. Output is an aggregate prediction report of emergent collective behavior. Paracosm is top-down (one leader decides, everyone else reacts), ~100 agents by design, and its output is a deterministic trajectory plus measurable divergence across leaders, not an emergent-crowd forecast.
+[MiroFish](https://github.com/666ghj/MiroFish) and its upstream [OASIS (CAMEL-AI): OpenReview](https://openreview.net/forum?id=JBzTculaVV) build open-ended social simulations with thousands to one million LLM-driven agents interacting on social-media-shaped substrates. Output is an aggregate prediction report of emergent collective behavior. Paracosm runs a top-down agent swarm: one leader decides, a swarm of specialists and ~100 personality-typed cells reacts, and the output is a deterministic trajectory plus measurable divergence across leaders rather than an emergent-crowd forecast. Both shapes are valid agent swarm architectures; paracosm's lane is the directed, replayable, decision-support side.
 
 | Axis | MiroFish / OASIS | Paracosm |
 |---|---|---|

@@ -5,7 +5,7 @@
 <h1 align="center">PARACOSM</h1>
 
 <p align="center">
-  <em>A structured world model for AI agents. Prompt to runnable world to forked futures.</em>
+  <em>Agent swarm simulation for structured world modeling with LLMs. Prompt to runnable multi-agent world to forked futures.</em>
 </p>
 
 <p align="center">
@@ -25,7 +25,7 @@
 
 ---
 
-Paracosm is a structured world model for AI agents. It compiles a JSON scenario draft (or a prompt, or an extracted document) into a runnable world, plays it through a deterministic kernel, and lets agents with HEXACO personality profiles decide turn by turn how the world unfolds. Snapshots persist on disk. Runs replay byte-for-byte. Any past turn can be forked with a different actor, a different seed, or a custom event, and the divergent branch streams alongside the trunk so the contrast is visible in the artifact, not promised in copy.
+Paracosm is an agent swarm simulation framework for structured world modeling with LLMs. It compiles a JSON scenario draft (or a prompt, or an extracted document) into a runnable multi-agent world, plays it through a deterministic kernel, and lets agents with HEXACO personality profiles decide turn by turn how the world unfolds. Snapshots persist on disk. Runs replay byte-for-byte. Any past turn can be forked with a different actor, a different seed, or a custom event, and the divergent branch streams alongside the trunk so the contrast is visible in the artifact, not promised in copy.
 
 The product is the contrast. Same compiled world, same crises, same kernel: swap one variable and the trajectory measurably moves.
 

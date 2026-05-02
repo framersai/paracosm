@@ -1,7 +1,7 @@
 {
   "name": "paracosm",
   "version": "0.8.0",
-  "description": "Prompt/document/URL-grounded structured world model for AI agents: typed ScenarioPackages, deterministic kernels, HEXACO actors, LLM events, runtime tool forging, and reproducible counterfactual RunArtifacts. Built on AgentOS.",
+  "description": "Agent swarm simulation for structured world modeling with LLMs. Multi-agent worlds with HEXACO personalities, deterministic kernels, runtime tool forging, and reproducible forkable RunArtifacts. Built on AgentOS.",
   "type": "module",
   "main": "dist/engine/index.js",
   "types": "dist/engine/index.d.ts",
