@@ -110,8 +110,10 @@
   line-height: 1.5;
   // --bg-tint, --border-tint, --accent set inline; pass through here.
   background: var(--bg-tint, transparent);
-  border-left: 3px solid var(--accent, var(--rust));
+  // Border shorthand FIRST, then border-left to override — otherwise the
+  // shorthand resets every side including the accent stripe.
   border: 1px solid var(--border-tint, var(--border));
+  border-left: 3px solid var(--accent, var(--rust));
   border-radius: 4px;
   animation: forgeSlide 0.4s ease both;
   // --shadow-tint set inline (approved | card-shadow).
@@ -324,9 +326,9 @@
   font-size: var(--font-sm);
   // --tool-bg, --tool-border, --tool-accent, --tool-shadow set inline.
   background: var(--tool-bg, var(--bg-card));
-  border-left: 3px solid var(--tool-accent, var(--green));
+  // Border shorthand FIRST, then border-left so the accent stripe survives.
   border: 1px solid var(--tool-border, var(--border));
-  border-left-width: 3px;
+  border-left: 3px solid var(--tool-accent, var(--green));
   box-shadow: var(--tool-shadow, var(--card-shadow));
   // Animation set via class modifier
 }
