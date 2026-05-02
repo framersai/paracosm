@@ -275,3 +275,22 @@ dialog#tsd-search[open] {
   display: flex;
   gap: 16px;
 }
+/* Footer brand split renders the same JS-injected
+   "PARA<span style='color:#e8b44a'>COSM</span>" pattern as the header.
+   Same fix: token-driven color so light mode meets AA. */
+.paracosm-docs-footer span span span {
+  color: var(--color-link) !important;
+}
+/* TypeDoc's footer "Generated using TypeDoc" link uses the link color
+   (--amber #6b4700 in light) against body text (#1a1208) → 2.67:1
+   contrast between link and surrounding text fails axe's
+   link-in-text-block 3:1. Underline restores distinguishability
+   without requiring a second token swap. */
+footer .tsd-generator a[href*="typedoc"] {
+  text-decoration: underline;
+}
+/* TypeDoc's first-load accordion summaries nest <a> elements inside
+   <summary>, tripping axe nested-interactive. The pattern ships from
+   upstream typedoc-default-modern; it can't be fixed from CSS and
+   patching the template would mean forking the theme. Tracked as
+   third-party. */
