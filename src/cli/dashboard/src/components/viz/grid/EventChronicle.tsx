@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
+import styles from './EventChronicle.module.scss';
 
 interface ChronicleEvent {
   turn: number;
@@ -153,33 +154,12 @@ export function EventChronicle({
   if (chronicle.length === 0) return null;
 
   return (
-    <div
-      aria-label="Event filter"
-      style={{
-        padding: '4px 10px',
-        background: 'var(--bg-panel)',
-        borderBottom: '1px solid var(--border)',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        overflowX: 'auto',
-      }}
-    >
-      <span
-        style={{
-          fontSize: 'var(--font-2xs)',
-          fontFamily: 'var(--mono)',
-          color: 'var(--text-3)',
-          letterSpacing: '0.1em',
-          textTransform: 'uppercase',
-          whiteSpace: 'nowrap',
-          fontWeight: 700,
-        }}
-      >
+    <div aria-label="Event filter" className={styles.bar}>
+      <span className={styles.heading}>
         Events ({filtered.length}
         {filter !== 'all' ? `/${chronicle.length}` : ''})
       </span>
-      <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+      <div className={styles.filterRow}>
         {FILTER_CHIPS.map(chip => {
           const active = filter === chip.key;
           return (
@@ -188,56 +168,32 @@ export function EventChronicle({
               type="button"
               onClick={() => setFilter(chip.key)}
               aria-pressed={active}
-              // Bigger + higher-contrast per user feedback — the
-              // prior 8px / 1×6 padding rendered as unreadable
-              // specks on the dashboard density. Now 11px / 4×10
-              // padding with brighter active state so the pills
-              // read as real buttons and the filter state is
-              // obvious at a glance.
-              style={{
-                padding: '4px 10px',
-                fontSize: 'var(--font-xs)',
-                fontFamily: 'var(--mono)',
-                fontWeight: 800,
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                background: active
-                  ? 'linear-gradient(135deg, var(--amber), #c8952e)'
-                  : 'var(--bg-card)',
-                color: active ? 'var(--bg-deep)' : 'var(--text-2)',
-                border: active ? '1px solid var(--amber)' : '1px solid var(--border)',
-                borderRadius: 4,
-                cursor: 'pointer',
-                boxShadow: active ? '0 0 0 2px rgba(232,180,74,0.2)' : 'none',
-                transition: 'background 120ms, color 120ms, border-color 120ms',
-              }}
+              className={[styles.filterChip, active ? styles.active : ''].filter(Boolean).join(' ')}
             >
               {chip.label}
             </button>
           );
         })}
       </div>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 2,
-          flex: 1,
-          minWidth: 0,
-        }}
-      >
+      <div className={styles.dotsRow}>
         {filtered.map((ev, i) => {
           const evTurn0 = Math.max(0, ev.turn - 1);
           const isCurrent = evTurn0 === currentTurn;
           const isHovered = hoveredTurn === evTurn0;
+          const dotCls = [
+            styles.dot,
+            isCurrent ? styles.current : '',
+            isHovered ? styles.hovered : '',
+          ].filter(Boolean).join(' ');
+          const dotStyle = {
+            '--kind-color': KIND_COLORS[ev.kind],
+            '--side-shift': ev.side === 'a' ? '-2px' : '2px',
+          } as CSSProperties;
           return (
             <button
               key={`${ev.turn}-${ev.side}-${ev.kind}-${i}`}
               type="button"
               onClick={(e) => {
-                // Shift+click → open the turn's full breakdown in the
-                // Reports tab. Normal click keeps the existing viz
-                // behaviour (scrub playhead or open forge lineage).
                 if (e.shiftKey && onJumpToReports) {
                   e.preventDefault();
                   onJumpToReports(ev.turn);
@@ -267,26 +223,8 @@ export function EventChronicle({
               }}
               title={`${ev.label}${onJumpToReports ? ' · Shift+click to open in Reports' : ''}`}
               aria-label={ev.label}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 16,
-                height: 16,
-                padding: 0,
-                fontSize: 'var(--font-3xs)',
-                fontFamily: 'var(--mono)',
-                fontWeight: 800,
-                background: isHovered ? 'rgba(232, 180, 74, 0.18)' : 'transparent',
-                color: KIND_COLORS[ev.kind],
-                border: 'none',
-                borderRadius: 3,
-                cursor: 'pointer',
-                transform: ev.side === 'a' ? 'translateY(-2px)' : 'translateY(2px)',
-                opacity: isCurrent || isHovered ? 1 : 0.7,
-                textShadow: isCurrent || isHovered ? `0 0 6px ${KIND_COLORS[ev.kind]}` : 'none',
-                transition: 'opacity 120ms, text-shadow 120ms, background 120ms',
-              }}
+              className={dotCls}
+              style={dotStyle}
             >
               {KIND_GLYPHS[ev.kind]}
             </button>

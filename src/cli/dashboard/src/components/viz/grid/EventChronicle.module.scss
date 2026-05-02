@@ -1,0 +1,91 @@
+// Migrated from inline `style={{}}`. Per-pill kind color and side
+// vertical offset flow in via CSS custom properties.
+
+.bar {
+  padding: 4px 10px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+}
+
+.heading {
+  font-size: var(--font-2xs);
+  font-family: var(--mono);
+  color: var(--text-3);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+.filterRow {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.filterChip {
+  padding: 4px 10px;
+  font-size: var(--font-xs);
+  font-family: var(--mono);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: var(--bg-card);
+  color: var(--text-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 120ms, color 120ms, border-color 120ms;
+}
+
+.filterChip.active {
+  background: linear-gradient(135deg, var(--amber), #c8952e);
+  color: var(--bg-deep);
+  border-color: var(--amber);
+  box-shadow: 0 0 0 2px rgba(232, 180, 74, 0.2);
+}
+
+.dotsRow {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  font-size: var(--font-3xs);
+  font-family: var(--mono);
+  font-weight: 800;
+  background: transparent;
+  // --kind-color and --side-shift set inline.
+  color: var(--kind-color, var(--text-3));
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  transform: translateY(var(--side-shift, 0));
+  opacity: 0.7;
+  text-shadow: none;
+  transition: opacity 120ms, text-shadow 120ms, background 120ms;
+}
+
+.dot.hovered {
+  background: rgba(232, 180, 74, 0.18);
+  opacity: 1;
+  text-shadow: 0 0 6px var(--kind-color, var(--amber));
+}
+
+.dot.current {
+  opacity: 1;
+  text-shadow: 0 0 6px var(--kind-color, var(--amber));
+}
