@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { TurnSnapshot, ClusterMode, CellSnapshot } from '../viz-types.js';
+import styles from './LivingSwarmGrid.module.scss';
 import { computeGridPositions } from './gridPositions.js';
 import { drawGlyphs } from './GlyphLayer.js';
 import { drawFlares } from './FlareLayer.js';
@@ -799,75 +800,57 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
     if (!popover) lastTouchIdRef.current = null;
   }, [popover]);
 
+  // Compute morale + chronicle-hover-driven border/glow once per render
+  // so the canvas's hot path doesn't reflow on every animation frame.
+  const tintColor = resolveCssColor(mode === 'mood' ? moodTintedSideColor : sideColor, containerRef.current);
+  const chronicleKindBorder: Record<string, string> = {
+    birth: 'rgba(154, 205, 96, 0.95)',
+    death: 'rgba(200, 95, 80, 0.95)',
+    forge: 'rgba(232, 180, 74, 0.95)',
+    crisis: 'rgba(196, 74, 30, 0.95)',
+  };
+  const chronicleKindGlow: Record<string, string> = {
+    birth: 'rgba(154, 205, 96, 0.55)',
+    death: 'rgba(200, 95, 80, 0.55)',
+    forge: 'rgba(232, 180, 74, 0.55)',
+    crisis: 'rgba(196, 74, 30, 0.55)',
+  };
+  const wrapBorder = chronicleHover && chronicleHover.side === side
+    ? chronicleKindBorder[chronicleHover.kind]
+    : snapshot
+      ? snapshot.morale >= 0.6
+        ? 'rgba(106, 173, 72, 0.55)'
+        : snapshot.morale >= 0.3
+          ? 'rgba(232, 180, 74, 0.55)'
+          : 'rgba(196, 74, 30, 0.65)'
+      : `${sideColor}33`;
+  const wrapGlow = chronicleHover && chronicleHover.side === side
+    ? `0 0 24px ${chronicleKindGlow[chronicleHover.kind]}`
+    : snapshot
+      ? snapshot.morale >= 0.6
+        ? '0 0 16px rgba(106, 173, 72, 0.18)'
+        : snapshot.morale >= 0.3
+          ? '0 0 16px rgba(232, 180, 74, 0.12)'
+          : '0 0 20px rgba(196, 74, 30, 0.25)'
+      : 'none';
+
   return (
     <div
       ref={containerRef}
       data-testid={`living-colony-grid-${side}`}
       role="region"
       aria-label={`${actorName} ${scenarioLabels.place} viz`}
-      style={{
-        flex: narrow ? '0 0 auto' : 1,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 6,
-        padding: 8,
-        minWidth: 0,
-        minHeight: narrow ? 420 : 0,
-        overflow: 'hidden',
-      }}
+      className={[styles.region, narrow ? styles.narrow : ''].filter(Boolean).join(' ')}
     >
       {snapshot && <GridMetricsStrip snapshot={snapshot} sideColor={sideColor} />}
       <div
         ref={canvasWrapRef}
+        className={styles.canvasWrap}
         style={{
-          flex: 1,
-          position: 'relative',
-          minHeight: 0,
-          overflow: 'hidden',
-          // Soft morale-tinted radial wash centered on the canvas. In
-          // mood-mode the tint is the dominant mood color; otherwise
-          // it follows side. No WebGL, no simulation, no pattern noise.
-          background: `radial-gradient(ellipse at 50% 55%, ${resolveCssColor(mode === 'mood' ? moodTintedSideColor : sideColor, containerRef.current)}18 0%, ${resolveCssColor(mode === 'mood' ? moodTintedSideColor : sideColor, containerRef.current)}08 45%, var(--bg-deep) 85%)`,
-          // Border + boxShadow cycle between the morale-derived
-          // default and a chronicle-hover override. When the user
-          // hovers a chronicle pill that belongs to THIS side, the
-          // panel pulses in the event's category color so the two
-          // UI surfaces read as connected. Fades back to the morale
-          // color on pointer leave via the 400ms border-color
-          // transition already in place.
-          border: `2px solid ${
-            chronicleHover && chronicleHover.side === side
-              ? ({
-                  birth: 'rgba(154, 205, 96, 0.95)',
-                  death: 'rgba(200, 95, 80, 0.95)',
-                  forge: 'rgba(232, 180, 74, 0.95)',
-                  crisis: 'rgba(196, 74, 30, 0.95)',
-                } as const)[chronicleHover.kind]
-              : snapshot
-              ? snapshot.morale >= 0.6
-                ? 'rgba(106, 173, 72, 0.55)'
-                : snapshot.morale >= 0.3
-                ? 'rgba(232, 180, 74, 0.55)'
-                : 'rgba(196, 74, 30, 0.65)'
-              : `${sideColor}33`
-          }`,
-          borderRadius: 4,
-          boxShadow: chronicleHover && chronicleHover.side === side
-            ? `0 0 24px ${({
-                birth: 'rgba(154, 205, 96, 0.55)',
-                death: 'rgba(200, 95, 80, 0.55)',
-                forge: 'rgba(232, 180, 74, 0.55)',
-                crisis: 'rgba(196, 74, 30, 0.55)',
-              } as const)[chronicleHover.kind]}`
-            : snapshot
-            ? snapshot.morale >= 0.6
-              ? '0 0 16px rgba(106, 173, 72, 0.18)'
-              : snapshot.morale >= 0.3
-              ? '0 0 16px rgba(232, 180, 74, 0.12)'
-              : '0 0 20px rgba(196, 74, 30, 0.25)'
-            : 'none',
-          transition: 'border-color 200ms ease, box-shadow 200ms ease',
-        }}
+          '--tint-color': tintColor,
+          '--wrap-border': wrapBorder,
+          '--wrap-glow': wrapGlow,
+        } as CSSProperties}
       >
         <canvas
           ref={overlayCanvasRef}
@@ -881,61 +864,30 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
           onMouseLeave={onMouseLeave}
           onClick={onClick}
           onTouchStart={onTouchStart}
-          style={{
-            position: 'absolute',
-            inset: 0,
-            width: '100%',
-            height: '100%',
-            cursor: hovered ? 'pointer' : 'default',
-          }}
+          className={styles.canvas}
+          style={{ '--canvas-cursor': hovered ? 'pointer' : 'default' } as CSSProperties}
         />
         {/* Staged fade-in cover. Starts opaque on mount, transitions
             to transparent so the canvas emerges over 400ms with a
-            slight radial reveal — feels intentional instead of
-            popping all layers on cold. CSS-driven to avoid per-frame
-            state churn; pointer-events:none so it never intercepts
-            hover / click on the canvas beneath. */}
+            slight radial reveal. */}
         <div
           aria-hidden="true"
-          style={{
-            position: 'absolute',
-            inset: 0,
-            pointerEvents: 'none',
-            background:
-              'radial-gradient(circle at 50% 50%, rgba(10,8,6,0) 0%, rgba(10,8,6,0.6) 60%, rgba(10,8,6,1) 100%)',
-            opacity: revealed ? 0 : 1,
-            transition: 'opacity 400ms cubic-bezier(0.22, 0.61, 0.36, 1)',
-            zIndex: 2,
-          }}
+          className={styles.revealCover}
+          style={{ '--reveal-opacity': revealed ? '0' : '1' } as CSSProperties}
         />
         <button
           type="button"
           onClick={() => setRosterOpen(v => !v)}
           aria-label={rosterOpen ? 'Close roster' : 'Open roster'}
           title={rosterOpen ? 'Close roster' : 'Open roster'}
+          className={styles.cornerBtn}
           style={{
-            position: 'absolute',
-            top: 8,
-            right: onToggleFocus ? 36 : 8,
-            width: 22,
-            height: 22,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 0,
-            background: 'var(--bg-panel)',
-            color: rosterOpen ? 'var(--amber)' : 'var(--text-3)',
-            border: `1px solid ${rosterOpen ? 'var(--amber)' : 'var(--border)'}`,
-            borderRadius: 3,
-            cursor: 'pointer',
-            fontFamily: 'var(--mono)',
-            fontSize: 'var(--font-xs)',
-            fontWeight: 800,
-            lineHeight: 1,
-            zIndex: 6,
-          }}
+            '--right-offset': onToggleFocus ? '36px' : '8px',
+            '--btn-color': rosterOpen ? 'var(--amber)' : 'var(--text-3)',
+            '--btn-border': rosterOpen ? 'var(--amber)' : 'var(--border)',
+          } as CSSProperties}
         >
-          {'\u2630'}
+          \u2630
         </button>
         {onToggleFocus && (
           <button
@@ -943,26 +895,11 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
             onClick={() => onToggleFocus(side)}
             aria-label={isFocused ? 'Restore split view' : 'Focus this panel'}
             title={isFocused ? 'Restore split view' : 'Focus this panel'}
+            className={`${styles.cornerBtn} ${styles.focusBtn}`}
             style={{
-              position: 'absolute',
-              top: 8,
-              right: 8,
-              width: 22,
-              height: 22,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: 0,
-              background: 'var(--bg-panel)',
-              color: isFocused ? 'var(--amber)' : 'var(--text-3)',
-              border: `1px solid ${isFocused ? 'var(--amber)' : 'var(--border)'}`,
-              borderRadius: 3,
-              cursor: 'pointer',
-              fontFamily: 'var(--mono)',
-              fontSize: 'var(--font-sm)',
-              lineHeight: 1,
-              zIndex: 6,
-            }}
+              '--btn-color': isFocused ? 'var(--amber)' : 'var(--text-3)',
+              '--btn-border': isFocused ? 'var(--amber)' : 'var(--border)',
+            } as CSSProperties}
           >
             {isFocused ? '\u2921' : '\u2922'}
           </button>
@@ -1003,31 +940,8 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
           onClose={() => setRosterOpen(false)}
         />
         {mode === 'divergence' && snapshot && (divergedIds?.size ?? 0) === 0 && (
-          <div
-            style={{
-              position: 'absolute',
-              left: 0,
-              right: 0,
-              bottom: 16,
-              display: 'flex',
-              justifyContent: 'center',
-              pointerEvents: 'none',
-              zIndex: 4,
-            }}
-          >
-            <div
-              style={{
-                padding: '6px 12px',
-                background: 'rgba(10, 8, 6, 0.85)',
-                border: '1px solid var(--border)',
-                borderRadius: 4,
-                fontFamily: 'var(--mono)',
-                fontSize: 'var(--font-2xs)',
-                color: 'var(--text-3)',
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-              }}
-            >
+          <div className={styles.divergenceEmpty}>
+            <div className={styles.divergenceEmptyMsg}>
               Both timelines identical this turn — no divergence yet
             </div>
           </div>
@@ -1050,58 +964,39 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
             : sideColor;
           return (
             <div
+              className={styles.tileTooltip}
               style={{
-                position: 'absolute',
-                left,
-                top,
-                padding: '8px 12px',
-                background: 'var(--bg-panel)',
-                border: `1px solid ${kindColor}66`,
-                borderLeft: `3px solid ${kindColor}`,
-                borderRadius: 4,
-                fontFamily: 'var(--mono)',
-                fontSize: 'var(--font-2xs)',
-                color: 'var(--text-2)',
-                pointerEvents: 'none',
-                zIndex: 5,
-                maxWidth: ttW,
-                lineHeight: 1.4,
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
-              }}
+                '--tt-left': `${left}px`,
+                '--tt-top': `${top}px`,
+                '--kind-color': kindColor,
+              } as CSSProperties}
             >
-              <div style={{
-                color: kindColor, fontWeight: 800,
-                letterSpacing: '0.08em', fontSize: 'var(--font-3xs)', marginBottom: 3,
-              }}>
-                {kindLabel}
-              </div>
-              <div style={{ fontSize: 'var(--font-3xs)', color: 'var(--text-3)', marginBottom: 4 }}>
+              <div className={styles.tileKindLabel}>{kindLabel}</div>
+              <div className={styles.tileCoords}>
                 tile ({hoveredTile.col}, {hoveredTile.row})
               </div>
               {hoveredTile.nearest ? (
                 <>
-                  <div style={{ color: 'var(--text-1)', fontWeight: 700 }}>
-                    {hoveredTile.nearest.name}
-                  </div>
-                  <div style={{ fontSize: 'var(--font-3xs)', color: 'var(--text-3)', marginTop: 2 }}>
+                  <div className={styles.tileNearestName}>{hoveredTile.nearest.name}</div>
+                  <div className={styles.tileNearestRole}>
                     {hoveredTile.nearest.role} · {hoveredTile.nearest.department.toUpperCase()}
                   </div>
                   {hoveredTile.kind === 'death' ? (
-                    <div style={{ fontSize: 'var(--font-3xs)', color: 'var(--rust)', marginTop: 3 }}>
+                    <div className={styles.tileNearestDeath}>
                       deceased · mood at death: {hoveredTile.nearest.mood}
                     </div>
                   ) : hoveredTile.kind === 'birth' ? (
-                    <div style={{ fontSize: 'var(--font-3xs)', color: 'var(--green)', marginTop: 3 }}>
+                    <div className={styles.tileNearestBirth}>
                       native-born · generation {hoveredTile.nearest.generation ?? 0}
                     </div>
                   ) : (
-                    <div style={{ fontSize: 'var(--font-3xs)', color: 'var(--text-3)', marginTop: 3 }}>
+                    <div className={styles.tileNearestPattern}>
                       pattern seeded by nearest colonist's mood: {hoveredTile.nearest.mood}
                     </div>
                   )}
                 </>
               ) : (
-                <div style={{ color: 'var(--text-3)' }}>ambient CA cell</div>
+                <div className={styles.tileAmbient}>ambient CA cell</div>
               )}
             </div>
           );
@@ -1120,47 +1015,25 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
           );
           return (
           <div
+            className={styles.hoverTooltip}
             style={{
-              position: 'absolute',
-              left,
-              top,
-              padding: '6px 10px',
-              background: 'var(--bg-panel)',
-              border: `1px solid ${sideColor}66`,
-              borderRadius: 4,
-              fontFamily: 'var(--mono)',
-              fontSize: 'var(--font-2xs)',
-              color: 'var(--text-2)',
-              pointerEvents: 'none',
-              zIndex: 5,
-              whiteSpace: 'nowrap',
-              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
-              maxWidth: ttW,
-            }}
+              '--tt-left': `${left}px`,
+              '--tt-top': `${top}px`,
+              '--side-color': sideColor,
+            } as CSSProperties}
           >
-            <div style={{ color: sideColor, fontWeight: 700, fontSize: 'var(--font-xs)' }}>
+            <div className={styles.hoverHeader}>
               {hovered.cell.name}
               {hovered.cell.featured && (
-                <span
-                  style={{
-                    marginLeft: 6,
-                    fontSize: 'var(--font-3xs)',
-                    padding: '1px 4px',
-                    borderRadius: 2,
-                    background: `${sideColor}33`,
-                    color: sideColor,
-                  }}
-                >
-                  FEATURED
-                </span>
+                <span className={styles.hoverFeaturedPill}>FEATURED</span>
               )}
             </div>
-            <div style={{ color: 'var(--text-3)', marginTop: 2 }}>
+            <div className={styles.hoverRole}>
               {hovered.cell.department.toUpperCase()} · {hovered.cell.role}
               {typeof hovered.cell.age === 'number' ? ` · age ${hovered.cell.age}` : ''}
             </div>
-            <div style={{ marginTop: 2 }}>
-              mood: <span style={{ color: 'var(--text-2)' }}>{hovered.cell.mood}</span>
+            <div className={styles.hoverMood}>
+              mood: <span className={styles.hoverMoodValue}>{hovered.cell.mood}</span>
               {typeof hovered.cell.psychScore === 'number'
                 ? ` · psych ${Math.round(hovered.cell.psychScore * 100)}%`
                 : ''}
@@ -1186,21 +1059,14 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
                 })
                 .join(' ');
               return (
-                <div style={{ marginTop: 4 }}>
-                  <div style={{ fontSize: 'var(--font-3xs)', color: 'var(--text-4)', letterSpacing: '0.1em' }}>
-                    PSYCH TRAJECTORY
-                  </div>
+                <div className={styles.psychBlock}>
+                  <div className={styles.psychLabel}>PSYCH TRAJECTORY</div>
                   <svg
                     viewBox={`0 0 ${sW} ${sH}`}
                     preserveAspectRatio="none"
-                    style={{
-                      display: 'block',
-                      width: sW,
-                      height: sH,
-                      background: 'var(--bg-deep)',
-                      borderRadius: 2,
-                      marginTop: 2,
-                    }}
+                    width={sW}
+                    height={sH}
+                    className={styles.psychSvg}
                   >
                     <line
                       x1={pad}
@@ -1222,7 +1088,7 @@ export function LivingSwarmGrid(props: LivingSwarmGridProps) {
                 </div>
               );
             })()}
-            <div style={{ marginTop: 3, fontSize: 'var(--font-3xs)', color: 'var(--text-4)' }}>
+            <div className={styles.hoverHint}>
               click for drilldown
             </div>
           </div>
