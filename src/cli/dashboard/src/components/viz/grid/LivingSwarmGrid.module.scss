@@ -195,7 +195,12 @@
   color: var(--text-2);
   pointer-events: none;
   z-index: 5;
-  white-space: nowrap;
+  // Children declare their own text-overflow handling. The container
+  // clips the box so the white-space:nowrap children don't bleed past
+  // the 200px max-width on phone canvases (the bottom-right of the
+  // grid where ttW=200 from LivingSwarmGrid hover-clamp puts the
+  // tooltip flush against the right edge of the panel).
+  overflow: hidden;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   max-width: 200px;
 }
@@ -204,10 +209,14 @@
   color: var(--side-color, var(--amber));
   font-weight: 700;
   font-size: var(--font-xs);
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
 }
 
 .hoverFeaturedPill {
-  margin-left: 6px;
+  flex: 0 0 auto;
   font-size: var(--font-3xs);
   padding: 1px 4px;
   border-radius: 2px;
@@ -218,6 +227,9 @@
 .hoverRole {
   color: var(--text-3);
   margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .hoverMood { margin-top: 2px; }
