@@ -80,6 +80,29 @@ type Phase =
   | { kind: 'progress'; stage: Stage; scenario?: ScenarioPackage; actors?: ActorConfig[] }
   | { kind: 'results'; scenario: ScenarioPackage; actors: ActorConfig[]; artifacts: RunArtifact[] };
 
+/**
+ * Map a raw launch-error message (from /setup or /api/quickstart/*)
+ * into actionable user-facing copy. Mirrors handleSeedReady's existing
+ * mapping so the loaded-scenario CTA path produces the same friendly
+ * messages instead of dumping raw stack traces / rate-limit JSON into
+ * the error banner.
+ */
+function mapLaunchErrorToMessage(raw: string): string {
+  if (/Failed to fetch|NetworkError|ERR_CONNECTION|ERR_NETWORK/i.test(raw)) {
+    return "Couldn't reach the server. Check your connection and try again.";
+  }
+  if (/HTTP 502|HTTP 503|HTTP 504/.test(raw)) {
+    return 'Server is temporarily unavailable (502/503/504). Try again in a moment.';
+  }
+  if (/HTTP 429|rate.?limit/i.test(raw)) {
+    return 'Hosted demo is rate-limited (3 runs/day). Drop your own API key in Settings to bypass — your saved keys flow into the run automatically.';
+  }
+  if (/Two actors required|at least 2 actors/i.test(raw)) {
+    return 'This scenario needs at least 2 actors. Bump the slider before launching.';
+  }
+  return raw;
+}
+
 export function QuickstartView({ sse, sessionId, onRunStarted, onInterventionResult, onInterventionStart }: QuickstartViewProps) {
   const scenario = useScenarioContext();
   const [phase, setPhase] = useState<Phase>({ kind: 'input' });
@@ -178,7 +201,7 @@ export function QuickstartView({ sse, sessionId, onRunStarted, onInterventionRes
       } catch (err) {
         setPhase({ kind: 'input' });
         const raw = (err as Error)?.message ?? String(err);
-        setErrorBanner(raw);
+        setErrorBanner(mapLaunchErrorToMessage(raw));
       }
       return;
     }
@@ -234,7 +257,7 @@ export function QuickstartView({ sse, sessionId, onRunStarted, onInterventionRes
     } catch (err) {
       setPhase({ kind: 'input' });
       const raw = (err as Error)?.message ?? String(err);
-      setErrorBanner(raw);
+      setErrorBanner(mapLaunchErrorToMessage(raw));
     }
   }, [scenario, sse, onRunStarted]);
 
