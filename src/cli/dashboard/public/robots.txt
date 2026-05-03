@@ -2,4 +2,24 @@ User-agent: *
 Allow: /
 Disallow: /api/
 
+# Allow LLM/AI crawlers explicitly so paracosm shows up in
+# answer-engine results (ChatGPT, Perplexity, Claude etc.).
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Anthropic-AI
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
 Sitemap: https://paracosm.agentos.sh/sitemap.xml

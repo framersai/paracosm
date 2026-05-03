@@ -2255,6 +2255,34 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       }
     }
 
+    // SEO + AI-crawler assets — sitemap.xml, robots.txt, and llms.txt
+    // live in the dashboard's public/ tree (Vite copies them to dist/
+    // on build) but Vite only mounts that tree under its own asset
+    // routes. Serve them explicitly from the root so
+    // paracosm.agentos.sh/sitemap.xml + /robots.txt + /llms.txt resolve
+    // cleanly. Without these handlers Cloudflare returns 404 and Search
+    // Console / GPTBot / Perplexity can't crawl the site.
+    if (req.url === '/sitemap.xml' || req.url === '/robots.txt' || req.url === '/llms.txt') {
+      try {
+        const distDir = resolve(__dirname, 'dashboard/dist');
+        const fileName = req.url.slice(1);
+        const filePath = resolve(distDir, fileName);
+        if (existsSync(filePath)) {
+          const contentType = req.url === '/sitemap.xml' ? 'application/xml' : 'text/plain';
+          res.writeHead(200, {
+            'Content-Type': contentType + '; charset=utf-8',
+            'Cache-Control': 'public, max-age=3600',
+          });
+          res.end(readFileSync(filePath, 'utf-8'));
+          return;
+        }
+        res.writeHead(404); res.end();
+      } catch {
+        res.writeHead(404); res.end();
+      }
+      return;
+    }
+
     if (req.url === '/favicon.svg' || req.url === '/favicon.png' || req.url === '/favicon.ico' || req.url === '/icon.svg' || req.url === '/apple-touch-icon.png') {
       try {
         const assetsDir = resolve(__dirname, '..', '..', 'assets');

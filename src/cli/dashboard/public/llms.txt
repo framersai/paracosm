@@ -1,0 +1,55 @@
+# Paracosm
+
+> Agent swarm simulation for structured world modeling with LLMs. Open-source TypeScript framework: compile prompts into typed ScenarioPackages, run multi-agent worlds with HEXACO personalities, deterministic kernel, sandboxed tool forging.
+
+Paracosm is built by [Manic Agency LLC](https://manic.agency) on top of [AgentOS](https://agentos.sh). It turns prompts, briefs, URLs, or scenario JSON drafts into typed ScenarioPackages, then runs deterministic multi-agent simulations with HEXACO leaders, LLM events, runtime tool forging, and universal forkable RunArtifacts.
+
+## Links
+
+- Homepage: https://paracosm.agentos.sh
+- API Reference: https://paracosm.agentos.sh/docs
+- npm: https://www.npmjs.com/package/paracosm
+- GitHub: https://github.com/framersai/paracosm
+- AgentOS (parent runtime): https://agentos.sh
+- Sitemap: https://paracosm.agentos.sh/sitemap.xml
+
+## Install
+
+```bash
+npm install paracosm
+```
+
+## Core Capabilities
+
+- **Agent Swarms**: Multi-agent worlds with up to thousands of LLM-driven actors, each carrying HEXACO personality vectors, role-aware memory, and observable mood/health/career state.
+- **Structured World Modeling**: Compile a prompt, brief, URL, or JSON draft into a typed `ScenarioPackage` with departments, metrics, events, effects, and progression hooks. Reproducible from a seed.
+- **Deterministic Kernel**: Same scenario + same seed = same simulation. Forkable RunArtifacts let you replay, branch, or A/B counterfactuals.
+- **Runtime Tool Forging**: Agents can author and sandbox-test new tools mid-run when they detect missing capabilities.
+- **HEXACO Personalities**: 6-axis personality vectors drive leader behavior, decision-making, and event reactions. Pluggable trait models.
+- **Universal RunArtifacts**: Every run produces a JSON artifact containing the full trajectory, swarm snapshots, scoring rubrics, and provenance. Diff-able, shareable, replayable.
+- **Live Dashboard**: Real-time SSE feed at `/sim` shows agents, events, metrics, and swarm composition as the run unfolds.
+
+## Quickstart
+
+```typescript
+import { runSimulation } from 'paracosm/runtime';
+import { marsScenario } from 'paracosm/engine/mars';
+
+const result = await runSimulation(
+  { name: 'Commander Vega', traits: { /* HEXACO vector */ } },
+  [/* key personnel */],
+  { scenario: marsScenario, turns: 6, seed: 42 },
+);
+```
+
+## Use Cases
+
+- Agent-based modeling for crisis simulations, urban planning, hurricane evacuations, mass-casualty triage
+- Counterfactual analysis: "what if the mayor had ordered evacuation 12 hours earlier?"
+- Digital twins of organizations or scenarios for decision-support
+- Multi-agent benchmarks for LLM behavior under structured constraints
+- Lore generation and world-building for games, fiction, and interactive media
+
+## License
+
+Apache-2.0. Free to use commercially. You provide LLM API keys.
