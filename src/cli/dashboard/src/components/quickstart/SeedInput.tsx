@@ -8,6 +8,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { validateSeedText, validateSeedUrl } from './QuickstartView.helpers';
 import { extractPdfText } from './pdf-extract';
+import { ViewAsCodePanel } from './ViewAsCodePanel';
 import styles from './SeedInput.module.scss';
 
 export interface SeedInputProps {
@@ -275,6 +276,14 @@ export function SeedInput({ onSeedReady, disabled = false }: SeedInputProps) {
           ~${(0.10 + 0.30 * actorCount).toFixed(2)} · {wallTimeEstimate(actorCount)}
         </span>
       </div>
+
+      <ViewAsCodePanel
+        seedText={seedText}
+        domainHint={domainHint}
+        sourceUrl={sourceUrl}
+        actorCount={actorCount}
+        disabled={disabled}
+      />
 
       <button
         type="button"

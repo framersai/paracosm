@@ -1,0 +1,99 @@
+// Styles for the View-as-Code panel. Follows the existing landing
+// `.code-body` mono-font block so the rendered TS/curl reads with the
+// same density as the cookbook tabs further down the page.
+
+.wrap {
+  margin-top: 14px;
+  font-family: var(--mono);
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  background: none;
+  border: none;
+  color: var(--text-2);
+  font-family: var(--mono);
+  font-size: var(--font-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+
+  &:hover { color: var(--text-1); }
+  &:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; border-radius: 2px; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.panel {
+  margin-top: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-deep);
+  overflow: hidden;
+}
+
+.tabRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-card);
+}
+
+.tabPill {
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-3);
+  font-family: var(--mono);
+  font-size: var(--font-2xs);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+
+  &[aria-pressed='true'] {
+    color: var(--amber);
+    border-color: var(--amber);
+    background: rgba(232, 180, 74, 0.08);
+  }
+
+  &:focus-visible { outline: 2px solid var(--amber); outline-offset: 1px; }
+}
+
+.copyBtn {
+  margin-left: auto;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--bg-panel);
+  color: var(--text-2);
+  font-family: var(--mono);
+  font-size: var(--font-2xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+
+  &:hover { color: var(--text-1); border-color: var(--amber); }
+  &:focus-visible { outline: 2px solid var(--amber); outline-offset: 1px; }
+}
+
+.code {
+  margin: 0;
+  padding: 12px 14px;
+  font-family: var(--mono);
+  font-size: var(--font-2xs);
+  line-height: 1.55;
+  color: var(--text-1);
+  background: transparent;
+  white-space: pre;
+  overflow-x: auto;
+  // Long lines scroll horizontally instead of pushing the layout —
+  // critical on the 360px Quickstart card width.
+}
