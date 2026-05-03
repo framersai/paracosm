@@ -15,6 +15,7 @@ import type { RunArtifact } from '../../../../../engine/schema/index.js';
 import type { LeaderPreset } from '../../../../../engine/leader-presets.js';
 import type { SimEvent } from '../../hooks/useSSE';
 import { useScenarioContext } from '../../App';
+import { readKeyOverrides, readLastLaunchConfig } from '../../hooks/useLastLaunchConfig';
 import styles from './QuickstartView.module.scss';
 
 /** Shape returned by /api/quickstart/ground-scenario, surfaced to the
@@ -105,6 +106,29 @@ export function QuickstartView({ sse, sessionId, onRunStarted, onInterventionRes
     setErrorBanner(null);
     onRunStarted?.();
 
+    // Inherit the user's Settings-tab choices (API keys, provider,
+    // model picks, economics profile) so the CTA respects what the
+    // user configured and bypasses the hosted-demo rate limit when
+    // their own keys are available. Mirrors how RerunPanel composes
+    // the next-run body — the same /setup endpoint reads the same
+    // field names (apiKey, anthropicKey, provider, models, economics).
+    const overrides = typeof window !== 'undefined' ? readKeyOverrides(window.localStorage) : {};
+    const lastLaunch = typeof window !== 'undefined' ? readLastLaunchConfig(window.localStorage) : null;
+    const settingsSpread: Record<string, unknown> = {};
+    if (overrides.openai) settingsSpread.apiKey = overrides.openai;
+    if (overrides.anthropic) settingsSpread.anthropicKey = overrides.anthropic;
+    if (overrides.serper) settingsSpread.serperKey = overrides.serper;
+    if (overrides.firecrawl) settingsSpread.firecrawlKey = overrides.firecrawl;
+    if (overrides.tavily) settingsSpread.tavilyKey = overrides.tavily;
+    if (overrides.cohere) settingsSpread.cohereKey = overrides.cohere;
+    if (lastLaunch?.provider) settingsSpread.provider = lastLaunch.provider;
+    if (lastLaunch?.models && typeof lastLaunch.models === 'object') {
+      settingsSpread.models = lastLaunch.models;
+    }
+    if (lastLaunch?.economics && typeof lastLaunch.economics === 'object') {
+      settingsSpread.economics = lastLaunch.economics;
+    }
+
     const presetActors = scenario.presets[0]?.leaders ?? scenario.presets[0]?.actors ?? [];
     const presetCount = presetActors.length;
 
@@ -130,6 +154,7 @@ export function QuickstartView({ sse, sessionId, onRunStarted, onInterventionRes
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            ...settingsSpread,
             actors,
             turns: scenario.setup.defaultTurns,
             seed: scenario.setup.defaultSeed ?? 42,
@@ -189,6 +214,7 @@ export function QuickstartView({ sse, sessionId, onRunStarted, onInterventionRes
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          ...settingsSpread,
           actors,
           turns: scenario.setup.defaultTurns,
           seed: scenario.setup.defaultSeed ?? 42,
