@@ -146,13 +146,21 @@ body { padding-top: 44px !important; }
   align-items: center;
   gap: 12px;
 }
-/* Orbital logo SVG inherits color from this anchor so the orbit lines
-   (stroke="currentColor") stay visible across light + dark themes. The
-   colored hub/orbit-dots inside the SVG are hardcoded brand colors and
-   ignore this. Sepia mode without this fix renders the lines as
-   #f5f0e4 cream-on-cream — effectively invisible. */
-.paracosm-docs-header .pdh-left > a[aria-label="Paracosm home"] {
-  color: var(--color-text-aside);
+/* Paracosm orbital-logo brand tokens — must mirror landing.css exactly
+   so the docs nav logo matches the main paracosm.agentos.sh logo across
+   light + dark modes. Without these, the inline SVG falls back to
+   browser defaults (black) and looks broken. */
+:root {
+  --pc-line: #8a7e6c;
+  --pc-amber: #6b4700;
+  --pc-rust: #8e2c0c;
+  --pc-teal: #186060;
+}
+[data-theme="dark"] {
+  --pc-line: #f5f0e4;
+  --pc-amber: #e8b44a;
+  --pc-rust: #e06530;
+  --pc-teal: #4ca8a8;
 }
 .paracosm-docs-header .pdh-brand {
   font-family: 'JetBrains Mono', monospace;

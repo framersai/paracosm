@@ -2,21 +2,30 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { renderWaitlistConfirmation } from './email-templates.js';
 
-test('renderWaitlistConfirmation includes position, email, brand assets', () => {
+test('renderWaitlistConfirmation includes email + brand assets, omits position number', () => {
   const out = renderWaitlistConfirmation({
     email: 'test@example.com',
     name: 'Ada',
     position: 42,
     useCase: 'evaluating decision rehearsal for a hospital triage scenario',
   });
-  assert.match(out.html, /#42/);
+  // Position is intentionally NOT rendered — it's private info; surfacing it in
+  // the recipient's mailbox lets them infer how small the waitlist is.
+  assert.doesNotMatch(out.html, /#42/);
+  assert.doesNotMatch(out.text, /#42/);
+  assert.doesNotMatch(out.subject, /#42/);
   assert.match(out.html, /paracosm\.agentos\.sh/);
   assert.match(out.html, /team@frame\.dev/);
   assert.match(out.html, /https:\/\/frame\.dev\/icon-192\.png/);
   assert.match(out.html, /github\.com\/framersai\/paracosm/);
-  assert.match(out.text, /#42/);
+  assert.match(out.html, /https:\/\/frame\.dev"/);
+  assert.match(out.html, /https:\/\/agentos\.sh"/);
+  assert.match(out.html, /https:\/\/manic\.agency"/);
+  // Footer drops safeos.sh + wilds.ai per user request.
+  assert.doesNotMatch(out.html, /safeos\.sh/);
+  assert.doesNotMatch(out.html, /wilds\.ai/);
   assert.match(out.text, /paracosm\.agentos\.sh/);
-  assert.equal(out.subject, "You're on the Paracosm waitlist (#42)");
+  assert.equal(out.subject, "You're on the Paracosm waitlist");
 });
 
 test('renderWaitlistConfirmation tolerates empty optional fields', () => {
@@ -26,7 +35,6 @@ test('renderWaitlistConfirmation tolerates empty optional fields', () => {
     position: 1,
     useCase: null,
   });
-  assert.match(out.html, /#1/);
   assert.match(out.html, /a@b\.co/);
   assert.doesNotMatch(out.html, /undefined/);
   assert.doesNotMatch(out.html, /null/);

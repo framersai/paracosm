@@ -46,7 +46,7 @@ export function renderWaitlistConfirmation(input: WaitlistConfirmationInput): Re
   const safeUseCase = input.useCase ? escapeHtml(input.useCase) : null;
   const greeting = safeName ? `Hi ${safeName},` : 'Hi,';
 
-  const subject = `You're on the Paracosm waitlist (#${input.position})`;
+  const subject = `You're on the Paracosm waitlist`;
 
   const html = `<!DOCTYPE html><html><body style="margin:0;padding:0;background:${BG_DEEP};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:${TEXT_PRIMARY};">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:${BG_DEEP};padding:40px 20px;">
@@ -62,7 +62,7 @@ export function renderWaitlistConfirmation(input: WaitlistConfirmationInput): Re
 </td></tr>
 
 <tr><td style="padding:32px 40px 0 40px;">
-<h1 style="margin:0 0 24px 0;font-size:28px;font-weight:700;color:${TEXT_PRIMARY};line-height:1.3;">You're on the waitlist (#${input.position}).</h1>
+<h1 style="margin:0 0 24px 0;font-size:28px;font-weight:700;color:${TEXT_PRIMARY};line-height:1.3;">You're on the waitlist.</h1>
 <p style="margin:0 0 16px 0;font-size:16px;line-height:1.6;color:${TEXT_PRIMARY};">${greeting}</p>
 <p style="margin:0 0 16px 0;font-size:16px;line-height:1.6;color:${TEXT_PRIMARY};">Thanks for requesting early access to the hosted Paracosm dashboard. We're shipping in Q3 2026 with fleet orchestration, team workspaces, and the full analytics suite.</p>
 <p style="margin:0 0 16px 0;font-size:16px;line-height:1.6;color:${TEXT_PRIMARY};">In the meantime, the engine is open source under Apache-2.0:</p>
@@ -79,7 +79,7 @@ export function renderWaitlistConfirmation(input: WaitlistConfirmationInput): Re
 
 <tr><td style="padding:24px 40px;border-top:1px solid #2a1f18;font-size:12px;color:${TEXT_MUTED};">
 <p style="margin:0 0 6px 0;">Sent to <strong style="color:${TEXT_PRIMARY};">${safeEmail}</strong> from <a href="mailto:${SUPPORT_EMAIL}" style="color:${ACCENT_AMBER};text-decoration:none;">${SUPPORT_EMAIL}</a>.</p>
-<p style="margin:0;">Frame.dev &middot; agentos.sh &middot; safeos.sh &middot; wilds.ai</p>
+<p style="margin:0;"><a href="https://frame.dev" style="color:${ACCENT_AMBER};text-decoration:none;">Frame.dev</a> &middot; <a href="https://agentos.sh" style="color:${ACCENT_AMBER};text-decoration:none;">agentos.sh</a> &middot; <a href="https://manic.agency" style="color:${ACCENT_AMBER};text-decoration:none;">manic.agency</a></p>
 </td></tr>
 </table>
 </td></tr>
@@ -87,7 +87,7 @@ export function renderWaitlistConfirmation(input: WaitlistConfirmationInput): Re
 </body></html>`;
 
   const text = [
-    `You're on the Paracosm waitlist (#${input.position}).`,
+    `You're on the Paracosm waitlist.`,
     '',
     input.name ? `Hi ${input.name},` : 'Hi,',
     '',
@@ -105,7 +105,7 @@ export function renderWaitlistConfirmation(input: WaitlistConfirmationInput): Re
     '-- The Paracosm team @ Frame.dev',
     '',
     `Sent to ${input.email} from ${SUPPORT_EMAIL}.`,
-    'Frame.dev / agentos.sh / safeos.sh / wilds.ai',
+    'frame.dev | agentos.sh | manic.agency',
   ].join('\n');
 
   return { subject, html, text };
