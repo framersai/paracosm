@@ -1,3 +1,7 @@
 node_modules/
 dist/
 .env
+
+# TypeScript incremental build cache. Per-machine artifact; should
+# never be committed.
+*.tsbuildinfo

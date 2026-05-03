@@ -174,7 +174,12 @@ export function QuickstartView({ sse, sessionId, onRunStarted, onInterventionRes
       }
       const actorsData = (await actorsRes.json().catch(() => null)) as { actors?: ActorConfig[] } | null;
       const actors = actorsData?.actors;
-      if (!actors || actors.length < 2) {
+      // Empty array is the only failure mode here. Single-actor runs
+      // are valid (the CTA slider allows actorCount=1); /setup itself
+      // enforces the >=2 rule for non-fork setups, so let it surface
+      // that error if the user picked an invalid count rather than
+      // pre-filtering valid 1-actor responses out at this layer.
+      if (!actors || actors.length === 0) {
         throw new Error('Actor generation returned no actors');
       }
       setPhase({ kind: 'progress', stage: 'running' });
