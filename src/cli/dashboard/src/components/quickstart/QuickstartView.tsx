@@ -14,6 +14,7 @@ import type { ActorConfig, ScenarioPackage } from '../../../../../engine/types.j
 import type { RunArtifact } from '../../../../../engine/schema/index.js';
 import type { LeaderPreset } from '../../../../../engine/leader-presets.js';
 import type { SimEvent } from '../../hooks/useSSE';
+import { useScenarioContext } from '../../App';
 import styles from './QuickstartView.module.scss';
 
 /** Shape returned by /api/quickstart/ground-scenario, surfaced to the
@@ -79,6 +80,7 @@ type Phase =
   | { kind: 'results'; scenario: ScenarioPackage; actors: ActorConfig[]; artifacts: RunArtifact[] };
 
 export function QuickstartView({ sse, sessionId, onRunStarted, onInterventionResult, onInterventionStart }: QuickstartViewProps) {
+  const scenario = useScenarioContext();
   const [phase, setPhase] = useState<Phase>({ kind: 'input' });
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
   // Bundle id for the just-finished run; surfaced as a "Compare all N
@@ -90,6 +92,102 @@ export function QuickstartView({ sse, sessionId, onRunStarted, onInterventionRes
   // generate-actors. Forwarded into QuickstartProgress so the Research
   // stage card can render real citation events.
   const [groundingSummary, setGroundingSummary] = useState<GroundingSummary | null>(null);
+
+  /**
+   * One-click run path: when the user clicks LoadedScenarioCTA, run
+   * the loaded scenario directly. With presets ≥ requested actorCount,
+   * skip compile + actor-generation and post straight to /setup. With
+   * fewer presets (or none), route through generate-actors first, then
+   * /setup. The CTA stays visible in both cases; only the wait time
+   * differs (~0s vs ~30s).
+   */
+  const handleLoadedScenarioRun = useCallback(async (actorCount: number) => {
+    setErrorBanner(null);
+    onRunStarted?.();
+
+    const presetActors = scenario.presets[0]?.actors ?? [];
+    const presetCount = presetActors.length;
+
+    // Fast path: scenario has enough presets to fill the requested
+    // actor count. Skip compile + actor generation; post directly to
+    // /setup with the preset's leader configs.
+    if (presetCount >= actorCount) {
+      setPhase({ kind: 'progress', stage: 'running' });
+      const actors: ActorConfig[] = presetActors.slice(0, actorCount).map(p => ({
+        name: p.name,
+        archetype: p.archetype,
+        // The scenario-payload preset's hexaco is a generic
+        // `Record<string, number>`; the engine's HexacoProfile expects
+        // named axes (openness/conscientiousness/etc.). Cast through
+        // unknown — the runtime values are produced by the same
+        // engine that consumes them, so the keys match by contract.
+        hexaco: p.hexaco as unknown as ActorConfig['hexaco'],
+        instructions: p.instructions,
+      } as ActorConfig));
+      sse.reset();
+      try {
+        const setupRes = await fetch('/setup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            actors,
+            turns: scenario.setup.defaultTurns,
+            seed: scenario.setup.defaultSeed ?? 42,
+            captureSnapshots: true,
+            quickstart: { scenarioId: scenario.id },
+          }),
+        });
+        if (!setupRes.ok) {
+          const body = await setupRes.json().catch(() => ({} as { error?: string }));
+          throw new Error(body.error ?? `Setup failed: HTTP ${setupRes.status}`);
+        }
+      } catch (err) {
+        setPhase({ kind: 'input' });
+        const raw = (err as Error)?.message ?? String(err);
+        setErrorBanner(raw);
+      }
+      return;
+    }
+
+    // Fallback: scenario has fewer presets than requested. Use the
+    // existing /api/quickstart/generate-actors endpoint with the
+    // loaded scenario's id, then /setup.
+    setPhase({ kind: 'progress', stage: 'actors' });
+    try {
+      const actorsRes = await fetch('/api/quickstart/generate-actors', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scenarioId: scenario.id, count: actorCount }),
+      });
+      if (!actorsRes.ok) {
+        const body = await actorsRes.json().catch(() => ({} as { error?: string }));
+        throw new Error(body.error ?? `Actor generation failed: HTTP ${actorsRes.status}`);
+      }
+      const { actors } = await actorsRes.json() as { actors: ActorConfig[] };
+      setPhase({ kind: 'progress', stage: 'running' });
+
+      sse.reset();
+      const setupRes = await fetch('/setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          actors,
+          turns: scenario.setup.defaultTurns,
+          seed: scenario.setup.defaultSeed ?? 42,
+          captureSnapshots: true,
+          quickstart: { scenarioId: scenario.id },
+        }),
+      });
+      if (!setupRes.ok) {
+        const body = await setupRes.json().catch(() => ({} as { error?: string }));
+        throw new Error(body.error ?? `Setup failed: HTTP ${setupRes.status}`);
+      }
+    } catch (err) {
+      setPhase({ kind: 'input' });
+      const raw = (err as Error)?.message ?? String(err);
+      setErrorBanner(raw);
+    }
+  }, [scenario, sse, onRunStarted]);
 
   const handleSeedReady = useCallback(async (payload: { seedText: string; sourceUrl?: string; domainHint?: string; actorCount?: number }) => {
     setErrorBanner(null);
@@ -273,7 +371,10 @@ export function QuickstartView({ sse, sessionId, onRunStarted, onInterventionRes
             <p>Paste a brief, drop a PDF, or supply a URL. Paracosm compiles a scenario and runs three distinct actors against it.</p>
           </header>
           {errorBanner && <p className={styles.errorBanner} role="alert">{errorBanner}</p>}
-          <SeedInput onSeedReady={handleSeedReady} />
+          <SeedInput
+            onSeedReady={handleSeedReady}
+            onLoadedScenarioRunStart={handleLoadedScenarioRun}
+          />
           {/* Digital-twin demo lives BELOW the seed input as a
               secondary path. Quickstart's primary use case is
               compile-a-scenario + run-three-actors; the dt card is a

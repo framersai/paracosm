@@ -1,5 +1,26 @@
 @use '../../theme/typography' as typo;
 
+// Visual separator between LoadedScenarioCTA and the paste/URL/PDF tab
+// strip. Renders as a horizontal rule with a centered text label.
+
+.dividerWrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0 8px;
+  color: var(--text-3);
+  font-family: var(--mono);
+  font-size: var(--font-3xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dividerLine {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
 .seedInput {
   display: flex;
   flex-direction: column;

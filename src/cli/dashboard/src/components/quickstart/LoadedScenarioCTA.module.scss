@@ -1,0 +1,92 @@
+// Loaded-scenario CTA — primary card above the paste/URL/PDF tabs in
+// SeedInput. Inherits the dark-panel + amber-accent treatment from the
+// landing-page hero CTA so the affordance reads as the recommended path.
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px;
+  background: var(--bg-card);
+  border: 1px solid color-mix(in srgb, var(--amber) 30%, transparent);
+  border-left: 3px solid var(--amber);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(232, 180, 74, 0.08);
+}
+
+.heading {
+  font-family: var(--mono);
+  font-size: var(--font-md);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--amber);
+  margin: 0;
+}
+
+.subline {
+  font-size: var(--font-sm);
+  color: var(--text-2);
+  line-height: 1.45;
+  font-style: italic;
+}
+
+.actorRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--mono);
+  font-size: var(--font-xs);
+  color: var(--text-2);
+}
+
+.actorLabel {
+  flex-shrink: 0;
+  color: var(--text-3);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 700;
+  font-size: var(--font-3xs);
+}
+
+.actorSlider {
+  flex: 1;
+  min-width: 0;
+}
+
+.actorValue {
+  flex-shrink: 0;
+  color: var(--text-1);
+  font-weight: 700;
+}
+
+.runButton {
+  width: 100%;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 6px;
+  background: linear-gradient(135deg, var(--rust), #c44a1e);
+  color: #fff;
+  font-family: var(--mono);
+  font-size: var(--font-md);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  text-transform: uppercase;
+  box-shadow: 0 4px 16px rgba(224, 101, 48, 0.25);
+
+  &:hover { filter: brightness(1.08); }
+  &:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    filter: none;
+  }
+}
+
+.tradeoff {
+  font-size: var(--font-3xs);
+  font-family: var(--mono);
+  color: var(--text-3);
+  text-align: center;
+  letter-spacing: 0.04em;
+}

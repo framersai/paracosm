@@ -9,10 +9,17 @@ import { useState, useRef, useCallback } from 'react';
 import { validateSeedText, validateSeedUrl } from './QuickstartView.helpers';
 import { extractPdfText } from './pdf-extract';
 import { ViewAsCodePanel } from './ViewAsCodePanel';
+import { LoadedScenarioCTA } from './LoadedScenarioCTA';
 import styles from './SeedInput.module.scss';
 
 export interface SeedInputProps {
   onSeedReady: (payload: { seedText: string; sourceUrl?: string; domainHint?: string; actorCount?: number }) => void;
+  /** Optional: fires when the user clicks the LoadedScenarioCTA's run
+   *  button. Parent decides whether to fast-path through `/setup`
+   *  (presets present) or route through actor-generation. When omitted
+   *  the CTA does not render — preserves existing tests for callers
+   *  that don't surface a loaded scenario. */
+  onLoadedScenarioRunStart?: (actorCount: number) => void;
   disabled?: boolean;
 }
 
@@ -34,7 +41,7 @@ function readPromptFromUrl(): string {
   }
 }
 
-export function SeedInput({ onSeedReady, disabled = false }: SeedInputProps) {
+export function SeedInput({ onSeedReady, onLoadedScenarioRunStart, disabled = false }: SeedInputProps) {
   const [tab, setTab] = useState<Tab>('paste');
   const [seedText, setSeedText] = useState(readPromptFromUrl);
   const [urlInput, setUrlInput] = useState('');
@@ -152,6 +159,19 @@ export function SeedInput({ onSeedReady, disabled = false }: SeedInputProps) {
   const TAB_LABELS: Record<Tab, string> = { paste: 'WRITE', url: 'URL', pdf: 'PDF' };
   return (
     <div className={styles.seedInput}>
+      {onLoadedScenarioRunStart && (
+        <>
+          <LoadedScenarioCTA
+            onRunStart={onLoadedScenarioRunStart}
+            disabled={disabled || fetching}
+          />
+          <div className={styles.dividerWrap}>
+            <span className={styles.dividerLine} aria-hidden="true" />
+            <span>or paste a new scenario</span>
+            <span className={styles.dividerLine} aria-hidden="true" />
+          </div>
+        </>
+      )}
       <div className={styles.tabs} role="tablist">
         {(['paste', 'url', 'pdf'] as Tab[]).map(t => (
           <button
