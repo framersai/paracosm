@@ -1609,3 +1609,177 @@ footer { padding: 28px 24px; border-top: 1px solid var(--border); background: va
   .rv { opacity: 1; transform: none; }
   .use-case { transition: none; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Hero CTA: "secondary" pill — same shape as .cta but inverted color so
+   it stays subordinate to the primary demo button.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.cta-secondary {
+  background: transparent !important;
+  color: var(--amber) !important;
+  border: 1px solid var(--amber) !important;
+  box-shadow: none !important;
+}
+.cta-secondary:hover {
+  background: rgba(232, 180, 74, 0.08) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Waitlist section
+   ═══════════════════════════════════════════════════════════════════════════ */
+.waitlist-section {
+  padding: 96px 24px 64px;
+  border-top: 1px solid rgba(232, 180, 74, 0.08);
+  background: linear-gradient(180deg, rgba(224, 101, 48, 0.04) 0%, transparent 60%);
+  scroll-margin-top: 80px;
+}
+.waitlist-inner {
+  max-width: 640px;
+  margin: 0 auto;
+  text-align: center;
+}
+.waitlist-eyebrow {
+  font-family: var(--mono);
+  font-size: var(--font-xs);
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--rust);
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+.waitlist-heading {
+  font-size: clamp(28px, 4vw, 40px);
+  font-weight: 700;
+  margin: 0 0 12px;
+  color: var(--t1);
+  letter-spacing: -0.01em;
+}
+.waitlist-sub {
+  font-size: 17px;
+  line-height: 1.55;
+  color: var(--t2);
+  margin: 0 auto 32px;
+  max-width: 520px;
+}
+.waitlist-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  text-align: left;
+}
+.waitlist-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.waitlist-field > span {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--t3);
+  text-transform: uppercase;
+}
+.waitlist-required {
+  color: var(--rust);
+}
+.waitlist-field input,
+.waitlist-field textarea {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 14px;
+  font-size: 15px;
+  color: var(--t1);
+  font-family: inherit;
+  transition: border-color 120ms ease;
+  resize: vertical;
+}
+.waitlist-field input:focus,
+.waitlist-field textarea:focus {
+  outline: none;
+  border-color: var(--amber);
+}
+.waitlist-submit {
+  background: linear-gradient(135deg, var(--rust), var(--amber));
+  color: #0a0806;
+  border: none;
+  border-radius: 6px;
+  padding: 14px 20px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: transform 80ms ease, opacity 120ms ease;
+  margin-top: 4px;
+}
+.waitlist-submit:hover { transform: translateY(-1px); }
+.waitlist-submit:disabled { opacity: 0.6; cursor: wait; transform: none; }
+.waitlist-submit svg { width: 14px; height: 14px; }
+.waitlist-fineprint {
+  font-size: 12px;
+  color: var(--t3);
+  margin: 4px 0 0;
+  text-align: center;
+}
+.waitlist-fineprint code {
+  background: rgba(232, 180, 74, 0.08);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 11px;
+  color: var(--amber);
+}
+.waitlist-success {
+  text-align: center;
+  padding: 32px 16px;
+}
+.waitlist-success-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--rust), var(--amber));
+  color: #0a0806;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0 auto 16px;
+}
+.waitlist-success h3 {
+  font-size: 22px;
+  margin: 0 0 8px;
+  color: var(--t1);
+}
+.waitlist-success p {
+  margin: 0;
+  color: var(--t2);
+  font-size: 15px;
+  line-height: 1.5;
+}
+.waitlist-error {
+  margin-top: 12px;
+  padding: 12px 14px;
+  background: rgba(224, 101, 48, 0.12);
+  border: 1px solid rgba(224, 101, 48, 0.4);
+  border-radius: 6px;
+  color: var(--t1);
+  font-size: 14px;
+}
+.waitlist-error strong { color: var(--rust); margin-right: 6px; }
+
+/* Mobile: stack hero CTAs vertically below 640px */
+@media (max-width: 640px) {
+  .hero-ctas {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .hero-ctas a {
+    width: 100%;
+    justify-content: center;
+  }
+  .waitlist-section { padding: 64px 20px 40px; }
+}
