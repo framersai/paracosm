@@ -130,14 +130,6 @@ export function EventCard({ event, actorIndex }: EventCardProps) {
         <>
         <details className={styles.forgeDetails} style={forgeStyle}>
           <summary className={styles.forgeSummary}>
-            <button
-              type="button"
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInspectingTool(name); }}
-              aria-label={`Inspect forged tool ${name}`}
-              className={styles.forgeInspectInline}
-            >
-              INSPECT
-            </button>
             <span className={styles.forgeRow}>
               <span className={styles.forgeBadge}>
                 {approved ? '✦ FORGED TOOL' : '✗ FORGED TOOL'}
@@ -150,6 +142,20 @@ export function EventCard({ event, actorIndex }: EventCardProps) {
               </span>
             </span>
           </summary>
+          {/* INSPECT lives OUTSIDE <summary> so axe + screen readers
+              don't flag a nested-interactive (summary is itself
+              interactive). Position is absolute, mirroring the
+              tool-card pattern at .toolInspectBtn — visually sits
+              on the summary row's right edge while staying a sibling
+              of <summary> in the DOM. */}
+          <button
+            type="button"
+            onClick={() => setInspectingTool(name)}
+            aria-label={`Inspect forged tool ${name}`}
+            className={styles.forgeInspectAbs}
+          >
+            INSPECT
+          </button>
           <div className={styles.forgeBody}>
             {(inputFields.length > 0 || outputFields.length > 0) && (
               <div className={styles.forgeFieldsRow}>

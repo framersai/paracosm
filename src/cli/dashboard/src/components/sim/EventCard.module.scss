@@ -1183,6 +1183,7 @@
 
 .forgeDetails {
   display: block;
+  position: relative;
   margin: 0 8px 4px;
   border: 1px solid var(--border-tint, var(--border));
   border-left: 3px solid var(--accent, var(--rust));
@@ -1196,7 +1197,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 10px;
+  padding: 6px 60px 6px 10px;
   cursor: pointer;
   list-style: none;
 }
@@ -1204,7 +1205,14 @@
 .forgeSummary::-webkit-details-marker { display: none; }
 .forgeSummary::marker { content: ''; }
 
-.forgeInspectInline {
+.forgeInspectAbs {
+  // Lives OUTSIDE the <summary> in DOM (a11y: summary is interactive
+  // and can't contain another interactive control). Absolute-positioned
+  // here so it visually sits on the summary row's right edge.
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  z-index: 1;
   font-size: var(--font-3xs);
   font-family: var(--mono);
   font-weight: 700;
@@ -1216,7 +1224,6 @@
   cursor: pointer;
   letter-spacing: 0.05em;
   white-space: nowrap;
-  flex-shrink: 0;
 }
 
 .forgeBody {
