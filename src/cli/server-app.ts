@@ -2262,13 +2262,16 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
     // paracosm.agentos.sh/sitemap.xml + /robots.txt + /llms.txt resolve
     // cleanly. Without these handlers Cloudflare returns 404 and Search
     // Console / GPTBot / Perplexity can't crawl the site.
-    if (req.url === '/sitemap.xml' || req.url === '/robots.txt' || req.url === '/llms.txt') {
+    if (req.url === '/sitemap.xml' || req.url === '/sitemap.xsl' || req.url === '/robots.txt' || req.url === '/llms.txt') {
       try {
         const distDir = resolve(__dirname, 'dashboard/dist');
         const fileName = req.url.slice(1);
         const filePath = resolve(distDir, fileName);
         if (existsSync(filePath)) {
-          const contentType = req.url === '/sitemap.xml' ? 'application/xml' : 'text/plain';
+          const contentType =
+            req.url === '/sitemap.xml' ? 'application/xml'
+            : req.url === '/sitemap.xsl' ? 'text/xsl'
+            : 'text/plain';
           res.writeHead(200, {
             'Content-Type': contentType + '; charset=utf-8',
             'Cache-Control': 'public, max-age=3600',
