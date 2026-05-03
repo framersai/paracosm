@@ -52,8 +52,10 @@ import {
 } from './tab-routing';
 import styles from './App.module.scss';
 
-// Scenario context available to all components
-const ScenarioContext = createContext<ScenarioClientPayload | null>(null);
+// Scenario context available to all components. Exported so SSR tests
+// can wrap their renders with a stubbed scenario value without booting
+// the full App tree.
+export const ScenarioContext = createContext<ScenarioClientPayload | null>(null);
 export function useScenarioContext() {
   const ctx = useContext(ScenarioContext);
   if (!ctx) throw new Error('useScenarioContext must be used within App');

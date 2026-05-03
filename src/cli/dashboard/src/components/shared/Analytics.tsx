@@ -8,8 +8,13 @@ import { useEffect } from 'react';
  * dashboard .env or deployment environment. If not set, no scripts load.
  */
 
-const GA_ID = import.meta.env.VITE_GA_MEASUREMENT_ID || '';
-const CLARITY_ID = import.meta.env.VITE_CLARITY_PROJECT_ID || '';
+// Read via optional chaining + cast so node:test runs (which load this
+// module transitively through App.tsx but don't populate import.meta.env)
+// don't crash at import time. Production builds via Vite still inline
+// the env values; the optional access is a no-op there.
+const META_ENV = ((import.meta as { env?: Record<string, string | undefined> }).env) ?? {};
+const GA_ID = META_ENV.VITE_GA_MEASUREMENT_ID || '';
+const CLARITY_ID = META_ENV.VITE_CLARITY_PROJECT_ID || '';
 
 function injectScript(id: string, src: string) {
   if (document.getElementById(id)) return;

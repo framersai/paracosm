@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { useEffect, useState, type CSSProperties } from 'react';
 import type { ProcessedEvent } from '../../hooks/useGameState';
 import { getActorColorVar } from '../../hooks/useGameState';
@@ -7,6 +8,13 @@ import { Badge } from '../shared/Badge';
 import { Tooltip } from '../shared/Tooltip';
 import { CitationPills } from '../shared/CitationPills';
 import styles from './EventCard.module.scss';
+
+// `import * as React` keeps the SSR test runner happy. The dashboard's
+// tsconfig sets `jsx: 'react-jsx'` so React is not directly referenced
+// in compiled JSX, but `node --import tsx` falls through a different
+// JSX transform path during the unit-test run that still expects
+// `React` to be in scope.
+void React;
 
 interface EventCardProps {
   event: ProcessedEvent;

@@ -1,0 +1,119 @@
+// One turn-row inside TurnGrid: shared label + DiffBadge above a
+// two-cell grid (left: leader A's events, right: leader B's events).
+// Per-cell side bands identify the column color; whole-row tint
+// reflects the diff classification.
+
+.row {
+  position: relative;
+  scroll-margin-top: 64px;
+  border-bottom: 1px solid var(--border);
+  padding: 10px 12px;
+  background: var(--bg-deep);
+}
+
+.row.differentOutcome { background: rgba(232, 180, 74, 0.04); }
+.row.differentEvent { background: rgba(224, 101, 48, 0.04); }
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 0 8px;
+  font-family: var(--mono);
+  font-size: var(--font-sm);
+  color: var(--text-1);
+  flex-wrap: wrap;
+  row-gap: 4px;
+  margin: 0;
+}
+
+.headerTurn {
+  font-weight: 800;
+  color: var(--text-1);
+  letter-spacing: 0.06em;
+}
+
+.headerTitle {
+  color: var(--text-2);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.headerTitleSplit {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.headerTitleA {
+  color: var(--vis);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.headerTitleB {
+  color: var(--eng);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cells {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.cell {
+  position: relative;
+  padding-left: 12px;
+  min-width: 0;
+}
+
+.cellBand {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--cell-color, var(--amber));
+  border-radius: 2px;
+}
+
+.cellEmpty {
+  color: var(--text-4);
+  font-style: italic;
+  font-size: var(--font-xs);
+  padding: 8px 0;
+}
+
+@media (max-width: 768px) {
+  .cells {
+    grid-template-columns: 1fr;
+  }
+
+  .cell {
+    padding-left: 0;
+    padding-top: 8px;
+    border-top: 3px solid var(--cell-color, var(--amber));
+    border-radius: 0;
+  }
+
+  .cell:first-child {
+    padding-top: 0;
+    border-top: none;
+  }
+
+  .cellBand {
+    display: none;
+  }
+}

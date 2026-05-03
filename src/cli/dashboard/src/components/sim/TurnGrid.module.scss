@@ -1,0 +1,42 @@
+// Top-level grid for the SIM tab's side-by-side mode. Sticky compact-
+// ActorBar header above a scrollable list of TurnRow per turn.
+
+.grid {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  background: var(--bg-deep);
+  overflow: hidden;
+}
+
+.stickyHeader {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.scroll {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.empty {
+  padding: 40px 24px;
+  text-align: center;
+  color: var(--text-3);
+  font-size: var(--font-md);
+}
+
+@media (max-width: 768px) {
+  .stickyHeader {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}
