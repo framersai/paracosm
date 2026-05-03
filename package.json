@@ -100,10 +100,15 @@
   },
   "keywords": [
     "paracosm",
+    "agent-swarm",
+    "agent-swarm-simulation",
+    "multi-agent-simulation",
+    "multi-agent",
     "world-model",
     "structured-world-model",
     "llm-world-model",
     "llm-readable-world-model",
+    "world-modeling",
     "prompt-to-world-model",
     "prompt-to-simulation",
     "http-api",
@@ -111,23 +116,33 @@
     "cwsm",
     "digital-twin",
     "decision-simulation",
+    "scenario-simulation",
     "simulation",
-    "multi-agent",
+    "ai-simulation",
+    "ai-agent-simulation",
     "ai-agents",
     "llm-agents",
     "agent-based-modeling",
+    "abm",
     "emergent-behavior",
     "tool-forging",
+    "runtime-tool-forging",
     "hexaco",
     "personality",
     "agentos",
-    "typescript"
+    "framers-agentos",
+    "typescript",
+    "framers",
+    "frame-dev"
   ],
   "author": "Manic Agency LLC <team@frame.dev>",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/framersai/paracosm"
+    "url": "git+https://github.com/framersai/paracosm.git"
   },
-  "homepage": "https://agentos.sh/en"
+  "bugs": {
+    "url": "https://github.com/framersai/paracosm/issues"
+  },
+  "homepage": "https://paracosm.agentos.sh"
 }
