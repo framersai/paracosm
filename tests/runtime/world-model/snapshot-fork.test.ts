@@ -161,7 +161,7 @@ test('WorldModel.fork: simulate rejects maxTurns at or before fork turn', async 
   });
 
   await assert.rejects(
-    () => child.simulate(forkLeader, { maxTurns: 3 }),
+    () => child.simulate({ actor: forkLeader, maxTurns: 3 }),
     /maxTurns=3 must be greater than fork turn 3/,
   );
 });

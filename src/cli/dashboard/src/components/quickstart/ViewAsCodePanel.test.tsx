@@ -41,20 +41,16 @@ test('ViewAsCodePanel: expanded with TS tab renders the escaped recipe', () => {
   assert.match(html, /id="quickstart-view-as-code-tab-ts"[^>]*aria-pressed="true"/);
   assert.match(html, /id="quickstart-view-as-code-tab-curl"[^>]*aria-pressed="false"/);
 
-  // Text content of <code> passes backticks / `${` / braces / backslash
-  // through verbatim, but react-dom HTML-escapes single quotes to
-  // `&#x27;` (and double quotes to `&quot;`) defensively. Substring
-  // assertions encode that distinction so a future react-dom version
-  // that flips the policy fails loudly with the rendered HTML attached.
+  // v0.9 emits a `runMany(brief, { count: N })` shape with the brief as
+  // a backtick-delimited template literal. Backticks/`${...}`/backslash
+  // get escaped inside the template; react-dom passes those through
+  // verbatim. The seed appears between two backticks on the runMany line.
   assert.ok(
-    html.includes('seedText: `cost \\${burn} \\`now\\``'),
+    html.includes('`cost \\${burn} \\`now\\``'),
     `expected escaped seedText in rendered HTML; got:\n${html}`,
   );
-  assert.ok(
-    html.includes('domainHint: &#x27;urban planning&#x27;'),
-    `expected domainHint with HTML-escaped single quotes; got:\n${html}`,
-  );
-  assert.ok(html.includes('wm.quickstart({ actorCount: 5 })'));
+  assert.ok(html.includes('runMany('), 'expected v0.9 runMany call');
+  assert.ok(html.includes('{ count: 5 }'), 'expected count: 5 in options bag');
 });
 
 test('ViewAsCodePanel: expanded with curl tab renders the curl POST', () => {

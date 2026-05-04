@@ -45,8 +45,15 @@ const DEFAULT_CACHE_DIR = '.paracosm/cache';
  *   reference nested state paths (e.g. state.metrics.hull.integrity)
  *   that throw at runtime. Regenerate to pick up the tightened
  *   contract (one-time ~$0.10 per previously-compiled scenario).
+ * - v6 (2026-05-04): RunArtifactSchema gained an optional `finalSwarm`
+ *   field carrying the terminal swarm snapshot (population/turn/time
+ *   plus the agent roster). Cached hooks don't depend on the field,
+ *   but consumers parsing artifacts under the old schema now reject
+ *   any artifact that includes finalSwarm because of strict-mode
+ *   parsing. Bump forces clients to regenerate so artifact parsers
+ *   pick up the optional-field tolerance.
  */
-export const COMPILE_SCHEMA_VERSION = 5;
+export const COMPILE_SCHEMA_VERSION = 6;
 
 /** SHA-256 hash of the scenario JSON, used for cache invalidation. */
 export function hashScenario(scenarioJson: Record<string, unknown>): string {

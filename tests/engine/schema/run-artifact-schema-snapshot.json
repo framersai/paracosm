@@ -1,6 +1,6 @@
 {
   "comment": "Schema snapshot for the breaking-change gate test. Regenerate via `npm run snapshot:schema`.",
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "shape": {
     "aborted": "optional(boolean)",
     "assumptions": "optional(array(string))",
@@ -9,6 +9,7 @@
     "decisions": "optional(array(object(...)))",
     "disclaimer": "optional(string)",
     "finalState": "optional(object{capacities:optional(record);environment:optional(record);metrics:record;politics:optional(record);scenarioExtensions:optional(record);statuses:optional(record)})",
+    "finalSwarm": "optional(object{agents:array(object(...));births:optional(number);deaths:optional(number);morale:optional(number);population:number;scenarioExtensions:optional(record);time:number;turn:number})",
     "fingerprint": "optional(record)",
     "forgedTools": "optional(array(object(...)))",
     "intervention": "optional(object{adherenceProfile:optional(object(...));category:optional(string);description:string;duration:optional(object(...));id:string;mechanism:optional(string);name:string;scenarioExtensions:optional(record);targetBehaviors:optional(array(string))})",
