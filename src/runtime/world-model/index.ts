@@ -33,7 +33,7 @@
  */
 
 import { runSimulation, replaySimulation, WorldModelReplayError, type RunOptions, type ActorConfig } from '../orchestrator.js';
-import type { SimulateOptions, InterveneOptions, BatchOptions } from '../../api/types.js';
+import type { SimulateOptions, InterveneOptions, BatchOptions, ActorRun } from '../../api/types.js';
 import { runBatch, type BatchConfig, type BatchManifest } from '../batch.js';
 import { canonicalJson } from '../canonical-json.js';
 import { compileScenario } from '../../engine/compiler/index.js';
@@ -98,6 +98,10 @@ export interface WorldModelQuickstartResult {
   actors: ActorConfig[];
   /** One {@link RunArtifact} per actor, in the same order as `actors`. */
   artifacts: RunArtifact[];
+  /** Actor + artifact zipped together. Equivalent to
+   * `actors.map((a, i) => ({ actor: a, artifact: artifacts[i] }))`.
+   * Easier to iterate via `runs.forEach(({ actor, artifact }) => ...)`. */
+  runs: ActorRun[];
 }
 
 /**
@@ -505,7 +509,8 @@ export class WorldModel {
       provider,
     })));
 
-    return { scenario: this.scenario, actors, artifacts };
+    const runs: ActorRun[] = actors.map((actor, i) => ({ actor, artifact: artifacts[i] }));
+    return { scenario: this.scenario, actors, artifacts, runs };
   }
 
   /**
