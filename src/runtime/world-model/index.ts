@@ -33,6 +33,7 @@
  */
 
 import { runSimulation, replaySimulation, WorldModelReplayError, type RunOptions, type ActorConfig } from '../orchestrator.js';
+import type { SimulateOptions, InterveneOptions, BatchOptions } from '../../api/types.js';
 import { runBatch, type BatchConfig, type BatchManifest } from '../batch.js';
 import { canonicalJson } from '../canonical-json.js';
 import { compileScenario } from '../../engine/compiler/index.js';
@@ -370,10 +371,9 @@ export class WorldModel {
    * WorldModel does not double-apply.
    */
   async simulate(
-    leader: ActorConfig,
-    options: WorldModelSimulateOptions = {},
-    keyPersonnel: KeyPersonnel[] = [],
+    opts: SimulateOptions,
   ): Promise<RunArtifact> {
+    const { actor, keyPersonnel = [], ...options } = opts;
     const resumeFrom = this._pendingResumeFrom;
     const maxTurns = options.maxTurns ?? 12;
     if (resumeFrom && maxTurns <= resumeFrom.turn) {
@@ -389,7 +389,7 @@ export class WorldModel {
       _resumeFrom?: KernelSnapshot;
     } = {
       ...options,
-      scenario: this.scenario,
+      scenario: options.scenario ?? this.scenario,
       _forkedFrom: this._pendingForkedFrom,
       _resumeFrom: resumeFrom,
     };
@@ -398,7 +398,7 @@ export class WorldModel {
     this._pendingForkedFrom = undefined;
     this._pendingResumeFrom = undefined;
 
-    const artifact = await runSimulation(leader, keyPersonnel, mergedOpts as RunOptions);
+    const artifact = await runSimulation(actor, keyPersonnel, mergedOpts as RunOptions);
     this._lastRunId = artifact.metadata.runId;
 
     // Pull the terminal kernel snapshot from the artifact's embedded
@@ -451,7 +451,7 @@ export class WorldModel {
     options: Omit<WorldModelSimulateOptions, 'subject' | 'intervention'> = {},
     keyPersonnel: KeyPersonnel[] = [],
   ): Promise<RunArtifact> {
-    return this.simulate(leader, { ...options, subject, intervention }, keyPersonnel);
+    return this.simulate({ actor: leader, keyPersonnel, ...options, subject, intervention });
   }
 
   /**

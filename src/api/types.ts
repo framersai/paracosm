@@ -11,9 +11,9 @@ import type {
   SimulationModelConfig,
 } from '../engine/types.js';
 import type { KeyPersonnel } from '../engine/core/agent-generator.js';
-import type { RunArtifact } from '../engine/schema/artifact.js';
+import type { RunArtifact, SubjectConfig, InterventionConfig } from '../engine/schema/types.js';
 import type { WorldModel } from '../runtime/world-model/index.js';
-import type { SubjectConfig, InterventionConfig } from '../engine/digital-twin/index.js';
+import type { RunOptions as InternalRunOptions } from '../runtime/orchestrator.js';
 import type { z } from 'zod';
 import type { StreamEventSchema } from '../engine/schema/stream.js';
 
@@ -98,30 +98,18 @@ export interface RunManyResult {
 
 /**
  * Options-bag for `wm.simulate`. Replaces the v0.8 positional form
- * `simulate(leader, options, keyPersonnel)`.
+ * `simulate(leader, options, keyPersonnel)`. Extends the full internal
+ * RunOptions (provider keys, economics, initial population, etc.) and
+ * adds `actor` + `keyPersonnel` so visitor-facing call sites need only
+ * one argument.
  *
  * @public
  */
-export interface SimulateOptions {
+export interface SimulateOptions extends InternalRunOptions {
   /** The actor whose decisions drive the simulation. */
   actor: ActorConfig;
   /** Optional supporting cast for context retrieval. Default []. */
   keyPersonnel?: KeyPersonnel[];
-  /** Optional scenario override; falls back to the WorldModel's compiled scenario. */
-  scenario?: ScenarioPackage;
-  maxTurns?: number;
-  seed?: number;
-  captureSnapshots?: boolean;
-  provider?: 'openai' | 'anthropic';
-  costPreset?: 'quality' | 'economy';
-  models?: SimulationModelConfig;
-  customEvents?: CustomEvent[];
-  signal?: AbortSignal;
-  onEvent?: (e: StreamEvent) => void;
-  /** Wall-clock anchor for turn timestamps. */
-  startTime?: number;
-  /** Wall-clock duration of one turn. */
-  timePerTurn?: number;
 }
 
 /**

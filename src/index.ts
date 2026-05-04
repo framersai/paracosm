@@ -56,5 +56,5 @@ export type {
 export type { HexacoProfile } from './engine/core/state.js';
 export type { TraitProfile } from './engine/trait-models/index.js';
 export type { KeyPersonnel } from './engine/core/agent-generator.js';
-export type { RunArtifact } from './engine/schema/artifact.js';
+export type { RunArtifact } from './engine/schema/types.js';
 export type { SubjectConfig, InterventionConfig } from './engine/digital-twin/index.js';

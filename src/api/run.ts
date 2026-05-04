@@ -8,7 +8,7 @@
  */
 import type { RunOptions, RunManyOptions, RunManyResult } from './types.js';
 import type { ScenarioPackage } from '../engine/types.js';
-import type { RunArtifact } from '../engine/schema/artifact.js';
+import type { RunArtifact } from '../engine/schema/types.js';
 import { WorldModel } from '../runtime/world-model/index.js';
 
 /**
