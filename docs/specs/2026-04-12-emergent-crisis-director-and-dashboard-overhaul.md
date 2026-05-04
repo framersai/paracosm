@@ -4,7 +4,7 @@
 **Status:** Final draft (merged from Claude audit + Codex review)
 **Repo:** `apps/mars-genesis-simulation/` (submodule: [framersai/mars-genesis-simulation](https://github.com/framersai/mars-genesis-simulation))
 **Parent:** [manicinc/voice-chat-assistant](https://github.com/manicinc/voice-chat-assistant) monorepo
-**Runtime:** [AgentOS](https://agentos.sh) `@framers/agentos ^0.1.211`
+**Runtime:** [AgentOS](https://agentos.sh/en) `@framers/agentos ^0.1.211`
 **Reviews:** Claude audit (full source read), Codex review (AUDIT-AND-LIVE-APP-RECOMMENDATIONS-2026-04-12.md)
 
 ---

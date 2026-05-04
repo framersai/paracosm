@@ -16,6 +16,7 @@ import type { LeaderPreset } from '../../../../../engine/leader-presets.js';
 import type { SimEvent } from '../../hooks/useSSE';
 import { useScenarioContext } from '../../App';
 import { readKeyOverrides, readLastLaunchConfig } from '../../hooks/useLastLaunchConfig';
+import { useToast } from '../shared/Toast';
 import styles from './QuickstartView.module.scss';
 
 /** Shape returned by /api/quickstart/ground-scenario, surfaced to the
@@ -105,6 +106,7 @@ function mapLaunchErrorToMessage(raw: string): string {
 
 export function QuickstartView({ sse, sessionId, onRunStarted, onInterventionResult, onInterventionStart }: QuickstartViewProps) {
   const scenario = useScenarioContext();
+  const { toast } = useToast();
   const [phase, setPhase] = useState<Phase>({ kind: 'input' });
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
   // Bundle id for the just-finished run; surfaced as a "Compare all N
@@ -201,7 +203,11 @@ export function QuickstartView({ sse, sessionId, onRunStarted, onInterventionRes
       } catch (err) {
         setPhase({ kind: 'input' });
         const raw = (err as Error)?.message ?? String(err);
-        setErrorBanner(mapLaunchErrorToMessage(raw));
+        const friendly = mapLaunchErrorToMessage(raw);
+        setErrorBanner(friendly);
+        // Toast on top of the banner so the user actually notices the
+        // failure — banner alone is easy to miss when scrolled past.
+        toast('error', 'Launch failed', friendly, 8000);
       }
       return;
     }
@@ -257,9 +263,11 @@ export function QuickstartView({ sse, sessionId, onRunStarted, onInterventionRes
     } catch (err) {
       setPhase({ kind: 'input' });
       const raw = (err as Error)?.message ?? String(err);
-      setErrorBanner(mapLaunchErrorToMessage(raw));
+      const friendly = mapLaunchErrorToMessage(raw);
+      setErrorBanner(friendly);
+      toast('error', 'Launch failed', friendly, 8000);
     }
-  }, [scenario, sse, onRunStarted]);
+  }, [scenario, sse, onRunStarted, toast]);
 
   const handleSeedReady = useCallback(async (payload: { seedText: string; sourceUrl?: string; domainHint?: string; actorCount?: number }) => {
     setErrorBanner(null);
