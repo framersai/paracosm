@@ -216,6 +216,17 @@ function AppContent() {
     window.history.replaceState({}, '', createDashboardTabHref(window.location.href, tab));
   }, []);
 
+  // Direct deep-link to /sim?tab=about lands the user on the dashboard
+  // with activeTab='about' but no rendering branch handles it (the
+  // setActiveTab redirect only fires on user click). Without this
+  // effect, the page renders blank below the topbar/tab-bar — caught
+  // by the post-deploy click-through audit.
+  useEffect(() => {
+    if (activeTab === 'about') {
+      window.location.href = '/';
+    }
+  }, [activeTab]);
+
   const handleSave = useCallback(() => {
     // Include verdict in the export so reload restores the end-of-sim
     // judgment (previously dropped — saves looked incomplete on load).
