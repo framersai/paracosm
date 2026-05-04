@@ -102,6 +102,16 @@ function mapLaunchErrorToMessage(raw: string): string {
   if (/Two actors required|at least 2 actors/i.test(raw)) {
     return 'This scenario needs at least 2 actors. Bump the slider before launching.';
   }
+  // Last-resort guard: never let a raw V8 TypeError or generic
+  // reference error bleed into the user-facing banner. Internal-shape
+  // failures ('Cannot read properties of null', 'undefined is not a
+  // function', etc.) are developer-facing — a user seeing them can't
+  // act on the message. Translate to actionable copy and keep the
+  // raw text in the console for debugging.
+  if (/^TypeError|^ReferenceError|Cannot read propert|is not a function|is not iterable/i.test(raw)) {
+    if (typeof console !== 'undefined') console.error('[quickstart] launch error:', raw);
+    return 'Something went wrong starting the run. Refresh the page and try again — if it keeps happening, drop a note in the GitHub issues with what you clicked just before.';
+  }
   return raw;
 }
 

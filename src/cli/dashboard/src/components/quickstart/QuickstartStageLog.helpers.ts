@@ -176,7 +176,7 @@ export interface BuildLogContext {
 export function buildCompileLog(ctx: BuildLogContext): LogLine[] {
   const { stage, startMs, phaseTransitionMs } = ctx;
   const lines: LogLine[] = [];
-  const compileStart = phaseTransitionMs.compile ?? startMs;
+  const compileStart = phaseTransitionMs?.compile ?? startMs;
   lines.push({
     ts: formatTs(compileStart - startMs),
     glyph: '→',
@@ -184,7 +184,7 @@ export function buildCompileLog(ctx: BuildLogContext): LogLine[] {
     body: '/api/quickstart/compile-from-seed',
     tone: stage === 'compile' ? 'active' : 'info',
   });
-  const researchAt = phaseTransitionMs.research;
+  const researchAt = phaseTransitionMs?.research;
   if (researchAt) {
     lines.push({
       ts: formatTs(researchAt - startMs),
@@ -210,7 +210,7 @@ export function buildCompileLog(ctx: BuildLogContext): LogLine[] {
 export function buildResearchLog(ctx: BuildLogContext): LogLine[] {
   const { stage, startMs, phaseTransitionMs, groundingSummary } = ctx;
   const lines: LogLine[] = [];
-  const researchStart = phaseTransitionMs.research;
+  const researchStart = phaseTransitionMs?.research;
   if (!researchStart) return lines;
   const baseTs = formatTs(researchStart - startMs);
 
@@ -296,7 +296,7 @@ export function buildResearchLog(ctx: BuildLogContext): LogLine[] {
     body: 'Grounding scenario with web research…',
     tone: stage === 'research' ? 'active' : 'info',
   });
-  const actorsAt = phaseTransitionMs.actors;
+  const actorsAt = phaseTransitionMs?.actors;
   if (actorsAt) {
     lines.push({
       ts: formatTs(actorsAt - startMs),
@@ -316,7 +316,7 @@ export function buildResearchLog(ctx: BuildLogContext): LogLine[] {
 export function buildActorsLog(ctx: BuildLogContext): LogLine[] {
   const { stage, startMs, phaseTransitionMs, actorCount } = ctx;
   const lines: LogLine[] = [];
-  const actorsStart = phaseTransitionMs.actors;
+  const actorsStart = phaseTransitionMs?.actors;
   if (!actorsStart) return lines;
   lines.push({
     ts: formatTs(actorsStart - startMs),
@@ -325,7 +325,7 @@ export function buildActorsLog(ctx: BuildLogContext): LogLine[] {
     body: `/api/quickstart/generate-actors · count=${actorCount}`,
     tone: stage === 'actors' ? 'active' : 'info',
   });
-  const runningAt = phaseTransitionMs.running;
+  const runningAt = phaseTransitionMs?.running;
   if (runningAt) {
     lines.push({
       ts: formatTs(runningAt - startMs),
@@ -367,9 +367,9 @@ export function buildLogForStage(stageId: Stage, ctx: BuildLogContext): LogLine[
 export function formatStageDuration(stageId: Stage, ctx: BuildLogContext): string {
   const order: Stage[] = ['compile', 'research', 'actors', 'running', 'done'];
   const stageIdx = order.indexOf(stageId);
-  const startTransition = ctx.phaseTransitionMs[stageId];
+  const startTransition = ctx.phaseTransitionMs?.[stageId];
   const next = order[stageIdx + 1];
-  const endTransition = next ? ctx.phaseTransitionMs[next] : undefined;
+  const endTransition = next ? ctx.phaseTransitionMs?.[next] : undefined;
   if (!startTransition) return '';
   const end = endTransition ?? Date.now();
   const sec = (end - startTransition) / 1000;
