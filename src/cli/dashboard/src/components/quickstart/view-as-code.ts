@@ -18,29 +18,29 @@ export interface RecipeInput {
 }
 
 /**
- * Render the form state as a TypeScript recipe using
- * `WorldModel.fromPrompt` + `wm.quickstart`. Mirrors the cookbook's
- * §1 + §2 example, scoped to the four form fields the user can change.
+ * Render the form state as a TypeScript recipe using the v0.9
+ * `runMany` top-level shortcut. Single import, the prompt is the
+ * first arg (string brief or URL instance for sourceUrl-driven runs).
  */
 export function renderTsRecipe(state: RecipeInput): string {
   const seed = escapeForTsTemplate(state.seedText.length > 0 ? state.seedText : '<paste your scenario above>');
   const lines: string[] = [];
   lines.push("// Recreate this Quickstart run from your code.");
-  lines.push("import { WorldModel } from 'paracosm/world-model';");
+  lines.push("import { runMany } from 'paracosm';");
   lines.push('');
-  lines.push('const wm = await WorldModel.fromPrompt({');
-  lines.push(`  seedText: \`${seed}\`,`);
-  if (state.domainHint && state.domainHint.trim().length > 0) {
-    lines.push(`  domainHint: '${escapeForTsSingleQuote(state.domainHint)}',`);
-  }
   if (state.sourceUrl && state.sourceUrl.length > 0) {
-    lines.push(`  sourceUrl: '${escapeForTsSingleQuote(state.sourceUrl)}',`);
+    lines.push('const { runs } = await runMany(');
+    lines.push(`  new URL('${escapeForTsSingleQuote(state.sourceUrl)}'),`);
+    lines.push(`  { count: ${state.actorCount} },`);
+    lines.push(');');
+  } else {
+    lines.push('const { runs } = await runMany(');
+    lines.push(`  \`${seed}\`,`);
+    lines.push(`  { count: ${state.actorCount} },`);
+    lines.push(');');
   }
-  lines.push('});');
   lines.push('');
-  const quickstartArgs = state.actorCount !== 3 ? `{ actorCount: ${state.actorCount} }` : '{}';
-  lines.push(`const run = await wm.quickstart(${quickstartArgs});`);
-  lines.push('console.log(run.fingerprint);');
+  lines.push('runs.forEach(({ actor, artifact }) => console.log(actor.name, artifact.fingerprint));');
   return lines.join('\n');
 }
 
