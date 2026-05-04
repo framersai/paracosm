@@ -219,18 +219,14 @@
       <span class="hero-trust-label">npm</span>
       <span class="hero-trust-value" data-trust="npm-version">v0.9</span>
     </a>
-    <a class="hero-trust-pill" href="https://www.npmjs.com/package/paracosm" target="_blank" rel="noopener" aria-label="npm downloads per week">
-      <span class="hero-trust-label">downloads/wk</span>
-      <span class="hero-trust-value" data-trust="npm-weekly">—</span>
-    </a>
-    <a class="hero-trust-pill" href="https://github.com/framersai/paracosm" target="_blank" rel="noopener" aria-label="GitHub stars">
+    <a class="hero-trust-pill" href="https://github.com/framersai/paracosm/stargazers" target="_blank" rel="noopener" aria-label="GitHub stars">
       <span class="hero-trust-label">★ stars</span>
       <span class="hero-trust-value" data-trust="gh-stars">—</span>
     </a>
-    <span class="hero-trust-pill hero-trust-pill-static" aria-label="License and runtime">
-      <span class="hero-trust-label">runtime</span>
-      <span class="hero-trust-value">Node 20+ · Bun · Deno</span>
-    </span>
+    <a class="hero-trust-pill" href="https://github.com/framersai/paracosm/network/members" target="_blank" rel="noopener" aria-label="GitHub forks">
+      <span class="hero-trust-label">⑂ forks</span>
+      <span class="hero-trust-value" data-trust="gh-forks">—</span>
+    </a>
   </div>
 
   <div class="hero-ctas">
@@ -1496,19 +1492,19 @@ curl -X POST http://localhost:3456/simulate \
     if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
     return String(n);
   }
-  // npm — version + weekly downloads
+  // npm — version
   fetch('https://registry.npmjs.org/paracosm/latest')
     .then(function (r) { return r.ok ? r.json() : null; })
     .then(function (d) { if (d && d.version) setText('npm-version', 'v' + d.version); })
     .catch(function () {});
-  fetch('https://api.npmjs.org/downloads/point/last-week/paracosm')
-    .then(function (r) { return r.ok ? r.json() : null; })
-    .then(function (d) { if (d && typeof d.downloads === 'number') setText('npm-weekly', abbreviate(d.downloads)); })
-    .catch(function () {});
-  // GitHub stars
+  // GitHub stars + forks (one request, both numbers)
   fetch('https://api.github.com/repos/framersai/paracosm')
     .then(function (r) { return r.ok ? r.json() : null; })
-    .then(function (d) { if (d && typeof d.stargazers_count === 'number') setText('gh-stars', abbreviate(d.stargazers_count)); })
+    .then(function (d) {
+      if (!d) return;
+      if (typeof d.stargazers_count === 'number') setText('gh-stars', abbreviate(d.stargazers_count));
+      if (typeof d.forks_count === 'number') setText('gh-forks', abbreviate(d.forks_count));
+    })
     .catch(function () {});
 })();
 

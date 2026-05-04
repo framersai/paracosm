@@ -17,6 +17,7 @@ import type { SimEvent } from '../../hooks/useSSE';
 import { useScenarioContext } from '../../App';
 import { readKeyOverrides, readLastLaunchConfig } from '../../hooks/useLastLaunchConfig';
 import { useToast } from '../shared/Toast';
+import { resolveSetupRedirectHref } from '../../tab-routing';
 import styles from './QuickstartView.module.scss';
 
 /** Shape returned by /api/quickstart/ground-scenario, surfaced to the
@@ -192,12 +193,14 @@ export function QuickstartView({ sse, sessionId, onRunStarted, onInterventionRes
           throw new Error(body.error ?? `Setup failed: HTTP ${setupRes.status}`);
         }
         // /setup returns { redirect: '/sim', ... } so the dashboard
-        // can navigate to the running simulation. Mirror RerunPanel's
-        // window.location.href flip — without it the user stays on
-        // Quickstart while the sim runs in the background.
+        // can navigate to the running simulation. Routing through
+        // resolveSetupRedirectHref forces ?tab=sim onto the URL — a
+        // bare /sim lands on the QUICKSTART tab (the URL parser's
+        // default), which is exactly where the user just came from,
+        // making the click look silently broken.
         const setupData = (await setupRes.json().catch(() => ({}))) as { redirect?: string };
         if (setupData.redirect) {
-          window.location.href = setupData.redirect;
+          window.location.href = resolveSetupRedirectHref(window.location.href, setupData.redirect);
           return;
         }
       } catch (err) {
@@ -257,7 +260,7 @@ export function QuickstartView({ sse, sessionId, onRunStarted, onInterventionRes
       }
       const setupData = (await setupRes.json().catch(() => ({}))) as { redirect?: string };
       if (setupData.redirect) {
-        window.location.href = setupData.redirect;
+        window.location.href = resolveSetupRedirectHref(window.location.href, setupData.redirect);
         return;
       }
     } catch (err) {
