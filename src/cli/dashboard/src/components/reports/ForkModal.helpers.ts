@@ -7,8 +7,8 @@
  */
 import type { ScenarioPackage, ActorConfig } from '../../../../../engine/types.js';
 
-function normalizeHexacoProfile(hexaco: Record<string, number>): ActorConfig['hexaco'] {
-  const readTrait = (trait: keyof ActorConfig['hexaco']) => {
+function normalizeHexacoProfile(hexaco: Record<string, number>): NonNullable<ActorConfig['hexaco']> {
+  const readTrait = (trait: keyof NonNullable<ActorConfig['hexaco']>) => {
     const value = hexaco[trait];
     return Number.isFinite(value) ? value : 0.5;
   };

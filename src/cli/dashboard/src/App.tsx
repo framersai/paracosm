@@ -410,13 +410,28 @@ function AppContent() {
   // guarantees once-ever auto-start behavior regardless of how
   // the user exits the tour. Manual re-play via HOW IT WORKS still
   // works since that path bypasses this effect.
+  //
+  // Mobile gate: skip auto-start below 640px (the tour's own
+  // breakpoint). The 14-step tour highlights desktop-only elements
+  // (sim-columns, leaders-row, divergence-rail) and on a phone
+  // covers ~60vh as a bottom sheet — fresh visitors arriving from
+  // landing-page CTAs interpret that as a paywall, not an onboarding.
+  // Mobile users still can replay via the HOW IT WORKS button in
+  // the top bar, which is the manual entry point.
   useEffect(() => {
     try {
       if (localStorage.getItem('paracosm:tourSeen') === '1') return;
+      // Mark seen on mobile too so a user who opens on mobile then later
+      // resizes / rotates / hits a desktop browser doesn't see the tour
+      // pop unexpectedly. The HOW IT WORKS button is the canonical
+      // re-entry point.
       localStorage.setItem('paracosm:tourSeen', '1');
     } catch {
       // Privacy mode / quota error: skip autostart — if we can't
       // persist "seen", don't fire or the tour loops forever.
+      return;
+    }
+    if (typeof window !== 'undefined' && window.innerWidth < 640) {
       return;
     }
     // Defer one tick so the initial layout (tab bar, topbar, sim

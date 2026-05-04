@@ -56,9 +56,9 @@ test('resolveLeaderPresets: incomplete HEXACO records are normalized with neutra
     }],
   } as typeof marsScenario;
   const [leader] = resolveLeaderPresets(scenario);
-  assert.equal(leader.hexaco.openness, 0.9);
-  assert.equal(leader.hexaco.conscientiousness, 0.5);
-  assert.equal(leader.hexaco.honestyHumility, 0.5);
+  assert.equal(leader.hexaco?.openness, 0.9);
+  assert.equal(leader.hexaco?.conscientiousness, 0.5);
+  assert.equal(leader.hexaco?.honestyHumility, 0.5);
 });
 
 test('resolveLeaderPresets: session customs are appended after presets', () => {

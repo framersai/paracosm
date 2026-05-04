@@ -28,7 +28,7 @@ export interface QuickstartResultsProps {
   onSwap: (actorIndex: number, preset: LeaderPreset) => void;
 }
 
-const HEXACO_TRAITS: Array<keyof ActorConfig['hexaco']> = [
+const HEXACO_TRAITS: Array<keyof NonNullable<ActorConfig['hexaco']>> = [
   'openness', 'conscientiousness', 'extraversion',
   'agreeableness', 'emotionality', 'honestyHumility',
 ];
@@ -202,7 +202,7 @@ function ActorResultCard({
             <div className={styles.traitBarOuter}>
               <div
                 className={styles.traitBarInner}
-                style={{ width: `${Math.round(actor.hexaco[trait] * 100)}%` }}
+                style={{ width: `${Math.round((actor.hexaco?.[trait] ?? 0.5) * 100)}%` }}
               />
             </div>
           </div>
