@@ -34,13 +34,13 @@ export type SimulationMode = 'turn-loop' | 'batch-trajectory' | 'batch-point';
 /**
  * Render the entry script for a paracosm-init scaffolded project.
  *
- * The script imports `runSimulation` from `paracosm/runtime` and runs the
- * actor at index 0 against a turn-loop simulation. Mode is intentionally
- * NOT a runtime input: it is a property of the produced
- * `RunArtifact.metadata`, surfaced after the run completes. Batch-trajectory
- * and batch-point modes are produced by `runBatch` (different entry point,
- * different config shape); a future spec adds a separate `renderRunMjsBatch`
- * for those modes.
+ * The script imports `WorldModel` from `paracosm` (v0.9 root export)
+ * and runs the actor at index 0 against a turn-loop simulation. Mode
+ * is intentionally NOT a runtime input: it is a property of the
+ * produced `RunArtifact.metadata`, surfaced after the run completes.
+ * Batch-trajectory and batch-point modes are produced by `wm.batch`
+ * (different config shape); a future spec adds a separate
+ * `renderRunMjsBatch` for those modes.
  */
 export function renderRunMjs(): string {
   return `#!/usr/bin/env node
@@ -52,13 +52,13 @@ export function renderRunMjs(): string {
  * Edit the actor index, maxTurns, or seed below to explore.
  *
  * The "mode" of the resulting run lives on artifact.metadata.mode and is
- * always "turn-loop" for runs produced by runSimulation. For
- * batch-trajectory or batch-point modes, use runBatch directly.
+ * always "turn-loop" for runs produced by wm.simulate. For
+ * batch-trajectory or batch-point modes, use wm.batch directly.
  */
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { runSimulation } from 'paracosm/runtime';
+import { WorldModel } from 'paracosm';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const scenario = JSON.parse(readFileSync(resolve(here, 'scenario.json'), 'utf-8'));
@@ -69,10 +69,10 @@ if (!Array.isArray(actors) || actors.length === 0) {
   process.exit(1);
 }
 
-const actor = actors[0];
+const wm = WorldModel.fromScenario(scenario);
 
-const result = await runSimulation(actor, [], {
-  scenario,
+const result = await wm.simulate({
+  actor: actors[0],
   maxTurns: 6,
   seed: 42,
 });

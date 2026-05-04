@@ -18,10 +18,12 @@ test('renderPackageJson produces parseable JSON with caret dep', () => {
   assert.equal(parsed.scripts.start, 'node run.mjs');
 });
 
-test('renderRunMjs imports runSimulation from paracosm/runtime with positional args', () => {
+test('renderRunMjs imports WorldModel from paracosm root + uses options-bag', () => {
   const out = renderRunMjs();
-  assert.ok(out.includes(`from 'paracosm/runtime'`), 'must import from paracosm/runtime');
-  assert.match(out, /runSimulation\(\s*actor\s*,\s*\[\s*\]\s*,/, 'must use positional signature');
+  assert.ok(out.includes(`from 'paracosm'`), 'must import from paracosm root');
+  assert.ok(!out.includes(`paracosm/runtime`), 'must not import from removed v0.8 subpath');
+  assert.match(out, /wm\.simulate\(\{/, 'must use options-bag form');
+  assert.ok(out.includes('actor: actors[0]'), 'must pass actor in options bag');
   assert.ok(out.includes('maxTurns:'), 'must use maxTurns');
   assert.ok(out.includes('readFileSync'), 'must read scenario.json + actors.json');
 });
