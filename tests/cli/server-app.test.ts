@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync, utimesSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { buildResultsPayloadFromEventBuffer, createMarsServer } from '../../src/cli/server-app.js';
@@ -1015,5 +1015,168 @@ test('POST /admin/data/wipe: 200 when X-Admin-Token header matches', async () =>
   } finally {
     server.close();
     await once(server, 'close');
+  }
+});
+
+test('skips rehydration of stale .event-buffer.json (older than STALE_BUFFER_MS)', async () => {
+  const appDir = mkdtempSync(join(tmpdir(), 'paracosm-stale-buffer-'));
+  const bufferPath = join(appDir, '.event-buffer.json');
+  // Write a buffer that simulates a finished (but old) run: a turn_done
+  // and a sim_aborted, plus a cost_update. These are exactly the events
+  // that polluted fresh-visitor sessions in the production audit.
+  const stalePayload = JSON.stringify([
+    'event: turn_done\ndata: {"turn":2,"year":2043,"seed":950}\n\n',
+    'event: cost_update\ndata: {"totalCostUSD":0.23,"totalTokens":256000,"llmCalls":40}\n\n',
+    'event: sim_aborted\ndata: {"reason":"client_disconnected","turn":2,"completedTurns":2}\n\n',
+  ]);
+  writeFileSync(bufferPath, stalePayload);
+  // Backdate the file's mtime to 45 minutes ago. STALE_BUFFER_MS in
+  // server-app.ts is 30 minutes, so this is well past the gate.
+  const fortyFiveMinAgoSec = (Date.now() - 45 * 60 * 1000) / 1000;
+  utimesSync(bufferPath, fortyFiveMinAgoSec, fortyFiveMinAgoSec);
+
+  const server = createMarsServer({
+    env: { ...process.env, APP_DIR: appDir },
+    runPairSimulations: async () => {},
+  } as any);
+  server.listen(0);
+  await once(server, 'listening');
+  const port = (server.address() as { port: number }).port;
+  try {
+    const res = await fetch(`http://127.0.0.1:${port}/results`);
+    assert.equal(res.status, 200);
+    const data = await res.json() as { events?: unknown[]; results?: unknown[] };
+    // Stale buffer should be dropped on rehydration → /results sees an
+    // empty event stream, not the stale turn_done/cost_update/sim_aborted.
+    assert.equal((data.events ?? []).length, 0, 'stale events should be dropped');
+    // The on-startup gate also unlinks the file so a subsequent restart
+    // doesn't keep tripping the same gate.
+    assert.equal(existsSync(bufferPath), false, 'stale buffer file should be unlinked');
+  } finally {
+    server.close();
+    await once(server, 'close');
+    rmSync(appDir, { recursive: true, force: true });
+  }
+});
+
+test('runtime gate drops stale buffer on first reconnect after idle', async () => {
+  // Reproduces the production audit scenario without waiting 30 minutes:
+  // staleBufferMs is set to 50ms so a 200ms idle is enough to trigger the
+  // gate. The flow:
+  //   1. Server starts with a captured broadcast handle.
+  //   2. /setup invokes runPairSimulations, which captures broadcast.
+  //   3. Push turn_done + cost_update + sim_aborted via captured handle.
+  //   4. Wait 200ms so eventTimestamps[last] is > 50ms old.
+  //   5. Open a fresh /events client — the runtime gate fires because
+  //      clients.size === 0 at the moment of connection (the /setup
+  //      request did not subscribe to /events).
+  //   6. Assert the polluted historical events do NOT replay.
+  // APP_DIR is isolated to a temp dir to keep the test from sharing a
+  // global .event-buffer.json with parallel tests.
+  const appDir = mkdtempSync(join(tmpdir(), 'paracosm-runtime-gate-'));
+  let captureBroadcast: ((event: string, data: unknown) => void) | null = null;
+  const server = createMarsServer({
+    env: { ...process.env, APP_DIR: appDir },
+    staleBufferMs: 50,
+    runPairSimulations: async (_config, broadcast) => {
+      captureBroadcast = broadcast;
+      // Hold the promise open so the server treats the sim as active
+      // (otherwise it auto-resolves and the disconnect watchdog logic
+      // changes). The test closes the server in finally{} which races
+      // this promise to rejection — that's fine for a unit test.
+      await new Promise(() => {});
+    },
+  } as any);
+  server.listen(0);
+  await once(server, 'listening');
+  const port = (server.address() as { port: number }).port;
+  try {
+    const setupRes = await fetch(`http://127.0.0.1:${port}/setup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        actors: [leaderA, leaderB],
+        provider: 'anthropic',
+        turns: 1,
+        startTime: 2042,
+        population: 110,
+        activeDepartments: ['medical', 'engineering', 'governance'],
+        startingResources: {
+          food: 20, water: 900, power: 500, morale: 80,
+          pressurizedVolumeM3: 4100, lifeSupportCapacity: 175,
+          infrastructureModules: 5,
+        },
+        startingPolitics: { earthDependencyPct: 68 },
+        execution: { commanderMaxSteps: 7, departmentMaxSteps: 11, sandboxTimeoutMs: 15000, sandboxMemoryMB: 256 },
+        models: { commander: 'gpt-5.4', departments: 'gpt-5.4-mini', judge: 'gpt-5.4' },
+      }),
+    });
+    assert.ok(setupRes.ok, `setup failed: ${setupRes.status} ${await setupRes.text()}`);
+    // Give /setup a tick to invoke runPairSimulations and capture broadcast.
+    await new Promise((r) => setTimeout(r, 50));
+    assert.ok(captureBroadcast, 'broadcast handle not captured');
+    // Push the polluted-state events that the production audit captured.
+    captureBroadcast!('turn_done', { turn: 2, year: 2043, seed: 950 });
+    captureBroadcast!('cost_update', { totalCostUSD: 0.23, totalTokens: 256000, llmCalls: 40 });
+    captureBroadcast!('sim_aborted', { reason: 'client_disconnected', turn: 2, completedTurns: 2 });
+
+    // Wait long enough for the last broadcast timestamp to be > 50ms old.
+    await new Promise((r) => setTimeout(r, 200));
+
+    // Connect a fresh /events client and read one chunk. The server
+    // writes `connected` + (replay) + `replay_done` synchronously on
+    // first write, so a single read covers the gate's behavior.
+    const eventsRes = await fetch(`http://127.0.0.1:${port}/events`);
+    assert.equal(eventsRes.status, 200);
+    const reader = eventsRes.body!.getReader();
+    const decoder = new TextDecoder();
+    const { value } = await reader.read();
+    const text = decoder.decode(value);
+    await reader.cancel();
+    assert.ok(text.includes('event: connected'), 'expected connected event');
+    assert.ok(text.includes('event: replay_done'), 'expected replay_done event');
+    assert.ok(!text.includes('turn_done'), `stale turn_done leaked: ${text}`);
+    assert.ok(!text.includes('cost_update'), `stale cost_update leaked: ${text}`);
+    assert.ok(!text.includes('sim_aborted'), `stale sim_aborted leaked: ${text}`);
+  } finally {
+    server.close();
+    await once(server, 'close');
+    rmSync(appDir, { recursive: true, force: true });
+  }
+});
+
+test('rehydrates fresh .event-buffer.json (within STALE_BUFFER_MS)', async () => {
+  const appDir = mkdtempSync(join(tmpdir(), 'paracosm-fresh-buffer-'));
+  const bufferPath = join(appDir, '.event-buffer.json');
+  // Use a `result` event because buildResultsPayloadFromEventBuffer
+  // filters by event type; turn_done isn't surfaced through /results,
+  // but result/verdict/complete are. The gate is what's under test —
+  // event content doesn't matter as long as the rehydrated array is
+  // non-empty when read back.
+  const freshPayload = JSON.stringify([
+    'event: result\ndata: {"runId":"run_fresh_test","leader":"TestLeader","totalTurns":1}\n\n',
+  ]);
+  writeFileSync(bufferPath, freshPayload);
+  // mtime defaults to "now" on writeFileSync, so the gate's mtime check
+  // passes and rehydration proceeds.
+
+  const server = createMarsServer({
+    env: { ...process.env, APP_DIR: appDir },
+    runPairSimulations: async () => {},
+  } as any);
+  server.listen(0);
+  await once(server, 'listening');
+  const port = (server.address() as { port: number }).port;
+  try {
+    const res = await fetch(`http://127.0.0.1:${port}/results`);
+    assert.equal(res.status, 200);
+    const data = await res.json() as { results?: unknown[] };
+    // Fresh buffer rehydrates: the seeded `result` event surfaces in
+    // /results.results.
+    assert.equal((data.results ?? []).length, 1, 'fresh result event should rehydrate');
+  } finally {
+    server.close();
+    await once(server, 'close');
+    rmSync(appDir, { recursive: true, force: true });
   }
 });

@@ -104,29 +104,29 @@ test('every advertised export resolves at compile time', () => {
   assert.equal(aiAgentModel.id, 'ai-agent');
 });
 
-test('package.json exports map covers every subpath the docs advertise', () => {
+test('package.json exports map exactly matches the v0.9 public subpath contract', () => {
   const pkg = JSON.parse(
     readFileSync(resolve(import.meta.dirname, '..', 'package.json'), 'utf-8'),
   ) as { exports: Record<string, unknown> };
-  // Every subpath referenced in any doc code sample must appear in `exports`.
-  const required = [
+  // v0.9 hard-break: 6 public subpaths exactly. Adding more requires
+  // a deliberate decision (and a docs/migration update); removing one
+  // is a breaking change that requires a major version bump. Both
+  // directions of drift get flagged here so the package.json + docs
+  // contract stays in lockstep.
+  const expected = new Set([
     '.',
-    './runtime',
-    './world-model',
-    './swarm',
-    './schema',
-    './compiler',
-    './digital-twin',
-    './mars',
-    './lunar',
-    './leader-presets',
     './core',
-  ];
-  for (const subpath of required) {
-    assert.ok(
-      Object.prototype.hasOwnProperty.call(pkg.exports, subpath),
-      `package.json exports map missing "${subpath}" — docs reference it but consumers cannot resolve it`,
-    );
+    './compiler',
+    './schema',
+    './swarm',
+    './digital-twin',
+  ]);
+  const actual = new Set(Object.keys(pkg.exports));
+  for (const subpath of expected) {
+    assert.ok(actual.has(subpath), `package.json exports map missing "${subpath}"`);
+  }
+  for (const subpath of actual) {
+    assert.ok(expected.has(subpath), `package.json exports map has unexpected subpath "${subpath}" not in v0.9 contract`);
   }
 });
 

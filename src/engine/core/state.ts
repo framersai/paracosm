@@ -1,3 +1,11 @@
+/**
+ * Paracosm core state — kernel types, the deterministic SimulationKernel,
+ * SeededRng, and the agent generator. The lowest layer most consumers
+ * touch directly: build a kernel, advance it, snapshot it, replay it.
+ *
+ * @module paracosm/core
+ */
+
 /** Department ID. Scenario-defined, not a fixed union. */
 export type Department = string;
 

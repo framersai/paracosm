@@ -1,16 +1,11 @@
 {
   "$schema": "https://typedoc.org/schema.json",
   "entryPoints": [
-    "src/engine/index.ts",
+    "src/index.ts",
     "src/engine/core/state.ts",
     "src/engine/compiler/index.ts",
     "src/engine/schema/index.ts",
     "src/engine/digital-twin/index.ts",
-    "src/engine/mars/index.ts",
-    "src/engine/lunar/index.ts",
-    "src/engine/leader-presets.ts",
-    "src/runtime/index.ts",
-    "src/runtime/world-model/index.ts",
     "src/runtime/swarm/index.ts"
   ],
   "entryPointStrategy": "resolve",

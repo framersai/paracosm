@@ -175,6 +175,14 @@ export interface CreateMarsServerOptions {
    */
   disconnectGraceMs?: number;
   /**
+   * Override the stale-buffer threshold. The on-startup and runtime
+   * gates drop the eventBuffer when its last activity was more than
+   * this many milliseconds ago. Production default is 30 minutes;
+   * tests inject a small value (e.g. 100ms) to exercise the gate
+   * without waiting half an hour.
+   */
+  staleBufferMs?: number;
+  /**
    * Override the session store instance. Intended for tests; the
    * default production path opens a SQLite store at
    * `${APP_DIR}/data/sessions.db`.
@@ -514,10 +522,30 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
   // crash) does not evaporate a completed run from the /chat and /results
   // endpoints, which otherwise would tell users "no simulation data" the
   // moment they navigate away and come back after a deploy.
+  //
+  // Staleness gate: skip rehydration when the buffer file's mtime is older
+  // than STALE_BUFFER_MS. mtime tracks the last broadcast event (every
+  // event triggers persistBufferSoon → writeFileSync), so a buffer that
+  // hasn't moved in 30 minutes belongs to a run that's terminal in
+  // practice — either complete-and-walked-away, aborted-and-walked-away,
+  // or crashed-mid-run. Replaying any of those to a fresh visitor surfaces
+  // an "Interrupted" badge + stale turn counter + leftover cost meter on
+  // the dashboard's first paint, which was the audit's P0 finding.
+  // Completed runs the user wants to revisit live in sessions.db via the
+  // auto-save path; that store is canonical for replay, the live buffer
+  // is not.
+  const STALE_BUFFER_MS = options.staleBufferMs ?? 30 * 60 * 1000;
   const eventBufferPath = resolve(env.APP_DIR || '.', '.event-buffer.json');
   const eventBuffer: string[] = (() => {
     try {
       if (existsSync(eventBufferPath)) {
+        const ageMs = Date.now() - statSync(eventBufferPath).mtimeMs;
+        if (ageMs > STALE_BUFFER_MS) {
+          const ageMin = Math.round(ageMs / 60000);
+          console.log(`  [event-buffer] Skipping rehydration: buffer is ${ageMin}m old (> ${STALE_BUFFER_MS / 60000}m); fresh visitors get a clean slate`);
+          try { unlinkSync(eventBufferPath); } catch { /* best-effort */ }
+          return [];
+        }
         const raw = readFileSync(eventBufferPath, 'utf-8');
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
@@ -1032,6 +1060,31 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         'Access-Control-Allow-Origin': '*',
       });
       res.write('event: connected\ndata: {}\n\n');
+      // Stale-buffer gate: when this is the first reconnect after a long
+      // idle and the buffer hasn't moved in over STALE_BUFFER_MS, the run
+      // it represents is terminal in practice (user closed the tab,
+      // watchdog aborted, cost meter froze). Replaying that to a fresh
+      // visitor surfaces an "Interrupted" badge + frozen turn counter as
+      // their first paint. Drop the buffer so they get the empty state
+      // instead. Active runs (clients still connected, or a recent
+      // broadcast) keep replaying as before.
+      //
+      // Concurrency invariant: this gate, the replay loop below, and the
+      // `clients.add(res)` call all execute synchronously on a single
+      // Node turn — there is no `await` between them. Two simultaneous
+      // /events requests cannot interleave inside this block, so the
+      // worst case for concurrent fresh visitors is two redundant calls
+      // to clearEventBuffer() (idempotent: the second is a no-op against
+      // an already-emptied array). Do NOT introduce an `await` between
+      // here and `clients.add(res)` without re-evaluating this.
+      if (clients.size === 0 && eventBuffer.length > 0) {
+        const lastTs = eventTimestamps[eventTimestamps.length - 1] || 0;
+        if (lastTs > 0 && Date.now() - lastTs > STALE_BUFFER_MS) {
+          const ageMin = Math.round((Date.now() - lastTs) / 60000);
+          console.log(`  [event-buffer] Dropping stale buffer on first reconnect: last event ${ageMin}m ago (> ${STALE_BUFFER_MS / 60000}m)`);
+          clearEventBuffer();
+        }
+      }
       // Replay all buffered events so new clients catch up. The trailing
       // `replay_done` marker lets the client distinguish historical-buffer
       // events from truly live ones so toasts (transient per-event

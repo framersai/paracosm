@@ -1,5 +1,5 @@
 /**
- * Paracosm Scenario Compiler
+ * Paracosm Scenario Compiler.
  *
  * Takes a canonical scenario JSON draft (the data portion of a ScenarioPackage)
  * and generates all runtime hooks via LLM calls. Natural-language prompts,
@@ -11,13 +11,16 @@
  * @example
  * ```typescript
  * import { compileScenario } from 'paracosm/compiler';
- * import { runSimulation } from 'paracosm';
+ * import { run } from 'paracosm';
  *
  * // Defaults to OpenAI (gpt-5.4-mini). Pass provider: 'anthropic' to switch.
  * const scenario = await compileScenario(submarineJson);
  *
- * const output = await runSimulation(leader, personnel, { scenario, maxTurns: 8 });
+ * const result = await run('Mars colony at year 2043', { scenario });
+ * console.log(result.totalTurns, result.cost.totalCostUSD);
  * ```
+ *
+ * @module paracosm/compiler
  */
 
 import type { ScenarioPackage, ScenarioHooks, LlmProvider } from '../types.js';
