@@ -10,7 +10,7 @@ The runner exercises the API in this order:
 - [`wm.forkFromArtifact`](#3-wmforkfromartifact) branch at any past turn with a different leader
 - [`wm.replay`](#4-wmreplay) verify the kernel is byte-equal-deterministic
 - [`POST /simulate`](#5-post-simulate) one-shot HTTP endpoint for non-SSE consumers
-- [`wm.simulateIntervention`](#6-wmsimulateintervention) digital-twin pattern with subject + intervention
+- [`wm.intervene`](#6-wmintervene) digital-twin pattern with subject + intervention
 - [`runBatch`](#7-runbatch) N scenarios x M leaders manifest
 
 Captured JSON files live in [`output/cookbook/`](../output/cookbook/). Each section embeds excerpts; the full files are linked.
@@ -41,7 +41,7 @@ Compile a paracosm scenario from a free-text brief plus an optional domain hint.
 ### Input
 
 ```ts
-import { WorldModel } from 'paracosm/world-model';
+import { WorldModel } from 'paracosm';
 
 const wm = await WorldModel.fromPrompt(
   {
@@ -116,7 +116,7 @@ For runtime captures the runner switches to the built-in `corporate-quarterly` s
 
 ```ts
 import { compileScenario } from 'paracosm/compiler';
-import { WorldModel } from 'paracosm/world-model';
+import { WorldModel } from 'paracosm';
 
 const compiled = await compileScenario(worldJson, {
   provider: 'openai',
@@ -370,7 +370,7 @@ Full response: [`output/cookbook/05-output-http-simulate.json`](../output/cookbo
 
 ---
 
-## 6. `wm.simulateIntervention`
+## 6. `wm.intervene`
 
 Digital-twin pattern: model a single subject under a counterfactual intervention. The artifact's `subject` and `intervention` fields carry the inputs for downstream consumers (LangGraph-style pipelines populate them from their own flow).
 
@@ -396,7 +396,10 @@ const intervention: InterventionConfig = {
   adherenceProfile: { expected: 1.0 },
 };
 
-const artifact = await wm.simulateIntervention(subject, intervention, leader, {
+const artifact = await wm.intervene({
+  subject,
+  intervention,
+  actor: leader,
   maxTurns: 2,
   seed: 11,
   provider: 'openai',
@@ -438,7 +441,7 @@ Both `subject` and `intervention` carry through verbatim. Full output: [`output/
 
 ### What just happened
 
-`simulateIntervention` is sugar over `simulate` that names the digital-twin pattern in the call site. Turn-loop mode stashes both fields verbatim without semantic consumption; external batch-trajectory executors (LangGraph-style pipelines) populate them from their own flow. The artifact is still a universal `RunArtifact` validated against the same Zod shape every other entry point produces.
+`wm.intervene` is sugar over `wm.simulate` that names the digital-twin pattern in the call site. Turn-loop mode stashes both fields verbatim without semantic consumption; external batch-trajectory executors (LangGraph-style pipelines) populate them from their own flow. The artifact is still a universal `RunArtifact` validated against the same Zod shape every other entry point produces.
 
 ---
 
@@ -449,15 +452,19 @@ Run N scenarios x M leaders against shared config. Useful for ablations, leader 
 ### Input
 
 ```ts
-const manifest = await runBatch({
-  scenarios: [wm.scenario, marsScenario],
-  leaders: [leaderA, leaderB],
+const manifest = await wm.batch({
+  actors: [leaderA, leaderB],
   turns: 2,
   seed: 950,
   maxConcurrency: 2,
   provider: 'openai',
   costPreset: 'economy',
 });
+
+// For cross-scenario sweeps, run wm.batch per scenario and merge:
+//   const a = await wmA.batch({ actors, turns: 2, seed: 950 });
+//   const b = await wmB.batch({ actors, turns: 2, seed: 950 });
+//   const merged = [...a.runs, ...b.runs];
 ```
 
 Full input: [`output/cookbook/07-input-batch-config.json`](../output/cookbook/07-input-batch-config.json).
@@ -639,7 +646,7 @@ roles, family edges, mood, and short-term memory. The final swarm is on
 `RunArtifact.finalSwarm`; the `WorldModel` static helpers add derived views.
 
 ```ts
-import { WorldModel } from 'paracosm/world-model';
+import { WorldModel } from 'paracosm';
 import {
   getSwarm,
   swarmByDepartment,
@@ -650,7 +657,7 @@ import {
 import type { SwarmSnapshot } from 'paracosm/schema';
 
 const wm = await WorldModel.fromScenario(marsScenario);
-const result = await wm.simulate(leader, { maxTurns: 6, seed: 42 });
+const result = await wm.simulate({ actor: leader, maxTurns: 6, seed: 42 });
 
 // Direct field access — equivalent to getSwarm(result) or WorldModel.swarm(result)
 const swarm: SwarmSnapshot | undefined = result.finalSwarm;

@@ -359,18 +359,14 @@ export interface ActorConfig {
    */
   unit: string;
   /**
-   * Six-axis HEXACO personality profile. Required for back-compat with
-   * v0.7 callers; for non-HEXACO trait models (e.g. `ai-agent`), supply
-   * a representative HEXACO snapshot AND set `traitProfile` to the
-   * canonical model + traits the runtime should use. The
-   * `normalizeActorConfig` helper at runtime synthesizes a
-   * `traitProfile` from this field when `traitProfile` is omitted, so
-   * existing leader configs continue to work unchanged.
-   *
-   * @deprecated since 0.8.0: prefer `traitProfile` for new code.
-   *   Removal scheduled for 0.9.0.
+   * Six-axis HEXACO personality profile. Optional in v0.9: callers
+   * supplying `traitProfile` (e.g. ai-agent leaders) can omit this.
+   * The runtime requires AT LEAST ONE of `hexaco` or `traitProfile`;
+   * `normalizeActorConfig` throws a clear error if both are missing.
+   * When both are supplied, `traitProfile` wins for cue translation +
+   * drift; `hexaco` is preserved on the artifact for legacy display.
    */
-  hexaco: HexacoProfile;
+  hexaco?: HexacoProfile;
   /**
    * Pluggable trait profile naming a registered TraitModel and its
    * per-axis values. When set, this overrides the legacy `hexaco`
@@ -412,7 +408,7 @@ export interface SimulationModelConfig {
  * @example
  * ```typescript
  * import type { ScenarioPackage } from 'paracosm';
- * import { marsScenario } from 'paracosm/mars';
+ * import { marsScenario } from 'paracosm';
  *
  * const myScenario: ScenarioPackage = { ... };
  * ```
