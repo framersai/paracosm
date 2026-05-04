@@ -1865,3 +1865,28 @@ html.light .waitlist-field select:focus {
   }
   .waitlist-section { padding: 64px 20px 40px; }
 }
+
+/* Mobile hero trim — page is 27k+ px tall on phones because the hero
+   stacks logo + tagline + 3 CTAs + 5 prompt chips + demo video + sub-
+   paragraph + waitlist before the visitor reaches the explainer. The
+   demo video + redundant sub-paragraph collectively eat ~700-900px of
+   vertical real estate on a 375px-wide phone for content that's also
+   covered by the prompts and the page below. Show a tappable "Watch
+   the demo" hint instead; the video still autoplays on tablet+desktop
+   where vertical space is cheap. */
+@media (max-width: 768px) {
+  .hero-video {
+    display: none !important;
+  }
+  .hero-sub {
+    display: none;
+  }
+  /* Trim the hero-prompts label since the hero CTAs already explain
+     the affordance and on mobile the chips wrap into a tall column. */
+  .hero-prompts {
+    margin-top: 18px !important;
+  }
+  .hero-prompts > div:first-child {
+    display: none;
+  }
+}
