@@ -435,23 +435,17 @@ export class WorldModel {
    * import { WorldModel } from 'paracosm/world-model';
    *
    * const wm = await WorldModel.fromJson(scenarioJson);
-   * const artifact = await wm.simulateIntervention(
-   *   { id: 'company', kind: 'organization', attributes: { headcount: 100 } },
-   *   { id: 'layoff', kind: 'policy', description: '25% RIF', parameters: { percent: 25 } },
-   *   leader,
-   *   { maxTurns: 4 },
-   * );
+   * const artifact = await wm.intervene({
+   *   subject: { id: 'company', kind: 'organization', attributes: { headcount: 100 } },
+   *   intervention: { id: 'layoff', kind: 'policy', description: '25% RIF', parameters: { percent: 25 } },
+   *   actor: leader,
+   *   maxTurns: 4,
+   * });
    * console.log(artifact.subject, artifact.intervention);
    * ```
    */
-  async simulateIntervention(
-    subject: SubjectConfig,
-    intervention: InterventionConfig,
-    leader: ActorConfig,
-    options: Omit<WorldModelSimulateOptions, 'subject' | 'intervention'> = {},
-    keyPersonnel: KeyPersonnel[] = [],
-  ): Promise<RunArtifact> {
-    return this.simulate({ actor: leader, keyPersonnel, ...options, subject, intervention });
+  async intervene(opts: InterveneOptions): Promise<RunArtifact> {
+    return this.simulate(opts);
   }
 
   /**

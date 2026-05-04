@@ -144,7 +144,7 @@ export interface QuickstartDeps {
   ) => void;
   /**
    * Lazily compile + cache the corporate-quarterly scenario and return a
-   * WorldModel ready for `simulateIntervention`. Used by the
+   * WorldModel ready for `intervene`. Used by the
    * /simulate-intervention route so the digital-twin tab does not need
    * the user to compile a scenario first.
    *
@@ -422,20 +422,18 @@ export async function handleSimulateIntervention(
   const startedAt = Date.now();
   let artifact: RunArtifact;
   try {
-    artifact = await world.simulateIntervention(
-      subject as SubjectConfig,
-      intervention as InterventionConfig,
-      effectiveLeader,
-      {
-        maxTurns: options.maxTurns ?? 2,
-        seed: options.seed ?? 11,
-        costPreset: options.costPreset ?? 'economy',
-        captureSnapshots: false,
-        onEvent,
-      },
-    );
+    artifact = await world.intervene({
+      subject: subject as SubjectConfig,
+      intervention: intervention as InterventionConfig,
+      actor: effectiveLeader,
+      maxTurns: options.maxTurns ?? 2,
+      seed: options.seed ?? 11,
+      costPreset: options.costPreset ?? 'economy',
+      captureSnapshots: false,
+      onEvent,
+    });
   } catch (err) {
-    console.error('[simulate-intervention] simulateIntervention failed:', err);
+    console.error('[simulate-intervention] intervene failed:', err);
     res.writeHead(500, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: `Intervention run failed: ${err instanceof Error ? err.message : String(err)}` }));
     return;
