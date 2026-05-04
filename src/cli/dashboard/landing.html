@@ -210,6 +210,29 @@
   </p>
   <p class="hero-mono" style="margin-top:18px">OPEN SOURCE &middot; APACHE-2.0 &middot; TYPESCRIPT &middot; BUILT ON AGENTOS</p>
 
+  <!-- Trust signals: live counts pulled from npm + GitHub at page load.
+       The static hex copy is the SSR fallback so crawlers see real numbers
+       even before JS runs; the script below replaces them with the
+       actual current counts so the badges stay fresh without rebuilding. -->
+  <div class="hero-trust" aria-label="Project trust signals">
+    <a class="hero-trust-pill" href="https://www.npmjs.com/package/paracosm" target="_blank" rel="noopener" aria-label="npm package">
+      <span class="hero-trust-label">npm</span>
+      <span class="hero-trust-value" data-trust="npm-version">v0.9</span>
+    </a>
+    <a class="hero-trust-pill" href="https://www.npmjs.com/package/paracosm" target="_blank" rel="noopener" aria-label="npm downloads per week">
+      <span class="hero-trust-label">downloads/wk</span>
+      <span class="hero-trust-value" data-trust="npm-weekly">—</span>
+    </a>
+    <a class="hero-trust-pill" href="https://github.com/framersai/paracosm" target="_blank" rel="noopener" aria-label="GitHub stars">
+      <span class="hero-trust-label">★ stars</span>
+      <span class="hero-trust-value" data-trust="gh-stars">—</span>
+    </a>
+    <span class="hero-trust-pill hero-trust-pill-static" aria-label="License and runtime">
+      <span class="hero-trust-label">runtime</span>
+      <span class="hero-trust-value">Node 20+ · Bun · Deno</span>
+    </span>
+  </div>
+
   <div class="hero-ctas">
     <a href="/sim" class="cta cta-pulse">Try Live Demo <svg><use href="#i-arrow"/></svg></a>
     <a href="#waitlist" class="cta cta-secondary">Request Early Access</a>
@@ -250,10 +273,12 @@
         <label class="waitlist-field">
           <span>Work email <span class="waitlist-required">*</span></span>
           <input type="email" name="email" required maxlength="254" autocomplete="email" placeholder="you@company.com">
+          <span class="waitlist-field-hint" aria-live="polite"></span>
         </label>
         <label class="waitlist-field">
           <span>Name (optional)</span>
           <input type="text" name="name" maxlength="120" autocomplete="name" placeholder="Your name">
+          <span class="waitlist-field-hint" aria-live="polite"></span>
         </label>
         <label class="waitlist-field">
           <span>I'm a (optional)</span>
@@ -271,6 +296,7 @@
         <label class="waitlist-field">
           <span>Use case (optional)</span>
           <textarea name="useCase" maxlength="2000" rows="3" placeholder="What problem are you trying to solve with agent simulation?"></textarea>
+          <span class="waitlist-field-hint" aria-live="polite"></span>
         </label>
         <button type="submit" class="waitlist-submit">Join waitlist <svg><use href="#i-arrow"/></svg></button>
         <p class="waitlist-fineprint">No spam. One confirmation email from <code>team@frame.dev</code>. Unsubscribe anytime.</p>
@@ -295,6 +321,59 @@
     var successMsg = document.getElementById('waitlist-success-msg');
     var errorEl = document.getElementById('waitlist-error');
     var errorMsg = document.getElementById('waitlist-error-msg');
+
+    // Real-time validation: mark each field as ok/err/empty as the user
+    // types. Avoids the :invalid-fires-on-paint problem where empty
+    // required inputs look broken before the user has touched them.
+    var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    function setFieldState(field, state, hintText) {
+      field.setAttribute('data-validity', state);
+      var hint = field.querySelector('.waitlist-field-hint');
+      if (hint) hint.textContent = hintText || '';
+    }
+    var emailField = form.email && form.email.closest('.waitlist-field');
+    var nameField = form.name && form.name.closest('.waitlist-field');
+    var useCaseField = form.useCase && form.useCase.closest('.waitlist-field');
+    function validateEmail() {
+      if (!emailField) return;
+      var v = (form.email.value || '').trim();
+      if (!v) { setFieldState(emailField, 'empty', ''); return; }
+      if (EMAIL_RE.test(v) && v.length <= 254) {
+        setFieldState(emailField, 'ok', 'Looks good.');
+      } else {
+        setFieldState(emailField, 'err', 'That doesn’t look like an email.');
+      }
+    }
+    function validateName() {
+      if (!nameField) return;
+      var v = (form.name.value || '').trim();
+      if (!v) { setFieldState(nameField, 'empty', ''); return; }
+      if (v.length > 120) {
+        setFieldState(nameField, 'err', 'Keep names under 120 characters.');
+      } else {
+        setFieldState(nameField, 'ok', '');
+      }
+    }
+    function validateUseCase() {
+      if (!useCaseField) return;
+      var v = (form.useCase.value || '').trim();
+      if (!v) { setFieldState(useCaseField, 'empty', ''); return; }
+      if (v.length > 2000) {
+        setFieldState(useCaseField, 'err', 'Keep use case under 2000 characters.');
+      } else {
+        setFieldState(useCaseField, 'ok', '');
+      }
+    }
+    if (form.email) {
+      form.email.addEventListener('input', validateEmail);
+      form.email.addEventListener('blur', validateEmail);
+    }
+    if (form.name) {
+      form.name.addEventListener('input', validateName);
+    }
+    if (form.useCase) {
+      form.useCase.addEventListener('input', validateUseCase);
+    }
 
     function getSource() {
       try {
@@ -805,49 +884,49 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
 
     <div class="feat-grid">
       <div class="feat rv rv-d1">
-        <img class="feat-icon" src="/brand/feature-icons/forge.svg?v=1" width="48" height="48" alt="">
+        <img class="feat-icon" src="/brand/feature-icons/forge.svg?v=1" width="48" height="48" loading="lazy" decoding="async" alt="">
         <h3>Runtime Tool Forging</h3>
         <p>A medical officer invents a radiation dose calculator. An engineer writes a structural load analyzer. These tools don't exist in the codebase. The agent writes them, they execute in a hardened node:vm sandbox, and an LLM judge reviews output before it enters the decision pipeline.</p>
         <div class="feat-ref">AgentOS ForgeToolMetaTool, 10s timeout, observed heap usage</div>
       </div>
       <div class="feat rv rv-d2">
-        <img class="feat-icon" src="/brand/feature-icons/hexaco.svg?v=1" width="48" height="48" alt="">
+        <img class="feat-icon" src="/brand/feature-icons/hexaco.svg?v=1" width="48" height="48" loading="lazy" decoding="async" alt="">
         <h3>Pluggable Trait Models</h3>
         <p>Leaders aren't locked to human personality. paracosm ships a TraitModel registry with two built-ins: <code>hexaco</code> (Ashton-Lee six-axis human personality) and <code>ai-agent</code> (six axes for AI-system leaders: exploration, verification-rigor, deference, risk-tolerance, transparency, instruction-following). Each model defines its axes, drift table, and prompt cues. Custom models register in one call. The same agent under two different leaders, on the same seed, becomes a measurably different entity by turn 12.</p>
         <div class="feat-ref">Ashton &amp; Lee, PSPR 11(2), 2007 (HEXACO) &middot; ai-agent v1 calibrated by Frame.dev, 2026</div>
       </div>
       <div class="feat rv rv-d3">
-        <img class="feat-icon" src="/brand/feature-icons/crisis.svg?v=1" width="48" height="48" alt="">
+        <img class="feat-icon" src="/brand/feature-icons/crisis.svg?v=1" width="48" height="48" loading="lazy" decoding="async" alt="">
         <h3>Emergent Event Director</h3>
         <p>The Event Director reads world state, resource levels, population health, prior decisions, and the tools agents have built. It generates events that target actual weak points in the simulation: crises, opportunities, disruptions, transitions. If a leader neglected agriculture in turn 3, the food shortage in turn 7 is a consequence, not a coincidence.</p>
         <div class="feat-ref">cf. Riedl &amp; Bulitko, "Interactive Narrative: An Intelligent Systems Approach," AI Magazine 34(1), 2013</div>
       </div>
       <div class="feat rv rv-d1">
-        <img class="feat-icon" src="/brand/feature-icons/kernel.svg?v=1" width="48" height="48" alt="">
+        <img class="feat-icon" src="/brand/feature-icons/kernel.svg?v=1" width="48" height="48" loading="lazy" decoding="async" alt="">
         <h3>Deterministic Kernel</h3>
         <p>The simulation kernel uses Mulberry32, a 32-bit seeded PRNG. Given the same seed, the kernel produces identical agent rosters, lifecycle schedules, and promotion sequences. The only source of variation is the AI commander's decisions. Two runs with the same seed and different personalities produce different outcomes from provably identical starting conditions.</p>
         <div class="feat-ref">cf. Law &amp; Kelton, Simulation Modeling and Analysis, 5th ed., McGraw-Hill, 2015</div>
       </div>
       <div class="feat rv rv-d2">
-        <img class="feat-icon" src="/brand/feature-icons/compiler.svg?v=1" width="48" height="48" alt="">
+        <img class="feat-icon" src="/brand/feature-icons/compiler.svg?v=1" width="48" height="48" loading="lazy" decoding="async" alt="">
         <h3>Scenario Compiler</h3>
         <p>Write a scenario JSON draft, or ground it with a prompt, brief, or URL. The compiler calls generateText() to produce TypeScript hooks for progression, event generation, milestones, and political dynamics. A Mars colony, a lunar outpost, an Antarctic station, a corporate org, a submarine crew: same compiler, different world contract, different future. Cost is roughly $0.10 per compile. Results cache to disk.</p>
         <div class="feat-ref">compileScenario() in paracosm/engine/compiler</div>
       </div>
       <div class="feat rv rv-d3">
-        <img class="feat-icon" src="/brand/feature-icons/research.svg?v=1" width="48" height="48" alt="">
+        <img class="feat-icon" src="/brand/feature-icons/research.svg?v=1" width="48" height="48" loading="lazy" decoding="async" alt="">
         <h3>Semantic Research Pipeline</h3>
         <p>Specialist agents search academic literature before making recommendations. The pipeline queries Serper, Tavily, Firecrawl, and Brave in parallel, then applies Cohere Rerank v3.5 for neural relevance scoring. Citations include DOI links. A medical agent recommending radiation shielding cites actual NASA dosimetry guidelines, not a hallucinated source.</p>
         <div class="feat-ref">Deep research via AgentOS AgentMemory + Cohere Rerank v3.5</div>
       </div>
       <div class="feat rv rv-d1">
-        <img class="feat-icon" src="/brand/feature-icons/research.svg?v=1" width="48" height="48" alt="">
+        <img class="feat-icon" src="/brand/feature-icons/research.svg?v=1" width="48" height="48" loading="lazy" decoding="async" alt="">
         <h3>Seed Enrichment &amp; Citation Provenance</h3>
         <p>Pass a brief, paper, or URL into the compiler. An LLM extracts topics, facts, and search queries; AgentOS WebSearchService fans out to Firecrawl, Tavily, Serper, and Brave; results pass through semantic dedup, RRF fusion, and Cohere neural reranking. The resulting KnowledgeBundle ingests into an AgentOS sqlite-backed memory store. Every department analysis recalls semantically and cites the same sources you fed in. The orchestrator guarantees provenance: when the LLM omits citations, the research packet is auto-attached so the report always carries the sources the agent saw.</p>
         <div class="feat-ref">paracosm compile --seed-text / --seed-url &middot; KnowledgeBundle &middot; recallResearch()</div>
       </div>
       <div class="feat rv rv-d2">
-        <img class="feat-icon" src="/brand/feature-icons/replay.svg?v=1" width="48" height="48" alt="">
+        <img class="feat-icon" src="/brand/feature-icons/replay.svg?v=1" width="48" height="48" loading="lazy" decoding="async" alt="">
         <h3>Replay-Verified Determinism</h3>
         <p><code>wm.replay(stored)</code> re-executes the deterministic between-turn progression hook from each recorded snapshot, captures fresh snapshots, and compares them under canonical JSON. <code>matches=true</code> proves the kernel is byte-equal-deterministic for this artifact's transitions; <code>matches=false</code> names the first divergence path so you can localize the change. Pillar 2 (Reproducible) is now verifiable in code, not just promised in copy.</p>
         <div class="feat-ref">WorldModel.replay() in paracosm &middot; canonicalJson &middot; firstDivergence</div>
@@ -938,11 +1017,11 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
       <video class="demo-video" autoplay muted loop playsinline controls preload="metadata"
         poster="/demo/digital-twin-maria-2-poster.jpg?v=dt-11"
         style="width:100%;height:auto;border-radius:8px;display:block;background:#000"
-        aria-label="Digital twin run recorded against paracosm.agentos.sh: filling in the Subject and Intervention forms with a Maria Chen + 12-week semaglutide example, then clicking 'Run digital twin' fires twin.simulateIntervention(...) and returns the trajectory inline in the SIM tab.">
+        aria-label="Digital twin run recorded against paracosm.agentos.sh: filling in the Subject and Intervention forms with a Maria Chen + 12-week semaglutide example, then clicking 'Run digital twin' fires twin.intervene({ subject, intervention, actor }) and returns the trajectory inline in the SIM tab.">
         <source src="/demo/digital-twin-maria-2-hero.mp4?v=dt-11" type="video/mp4">
       </video>
 
-      <p style="font-size: var(--font-sm);color:var(--t3);line-height:1.6;margin:4px 0 0">Recorded end-to-end against <code>paracosm.agentos.sh</code>. The click hits <code>POST /api/quickstart/simulate-intervention</code>, the server runs <code>twin.simulateIntervention(subject, intervention, leader)</code>, and the SIM tab renders the returned <code>RunArtifact</code>: HbA1c trajectory, weight loss, exercise adherence climb, side-effect burden, quality-of-life shifts. Real LLM-driven decisions across endocrinology, nutrition, behavioral health, cardiology, and lifestyle coaching.</p>
+      <p style="font-size: var(--font-sm);color:var(--t3);line-height:1.6;margin:4px 0 0">Recorded end-to-end against <code>paracosm.agentos.sh</code>. The click hits <code>POST /api/quickstart/simulate-intervention</code>, the server runs <code>twin.intervene({ subject, intervention, actor })</code>, and the SIM tab renders the returned <code>RunArtifact</code>: HbA1c trajectory, weight loss, exercise adherence climb, side-effect burden, quality-of-life shifts. Real LLM-driven decisions across endocrinology, nutrition, behavioral health, cardiology, and lifestyle coaching.</p>
     </div>
 
     <div class="code-block rv" style="margin:20px 0 0">
@@ -979,9 +1058,10 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
   adherenceProfile: { expected: 0.85 },
 };
 
-<span class="kw">const</span> artifact = <span class="kw">await</span> twin.simulateIntervention(
-  subject, intervention, endocrinologist, { maxTurns: 6, seed: 11 }
-);
+<span class="kw">const</span> artifact = <span class="kw">await</span> twin.<span class="fn">intervene</span>({
+  subject, intervention, actor: endocrinologist,
+  maxTurns: <span class="num">6</span>, seed: <span class="num">11</span>,
+});
 
 <span class="cm">// artifact.subject + artifact.intervention preserved</span>
 <span class="cm">// artifact.trajectory.timepoints[t].worldSnapshot</span>
@@ -1201,6 +1281,119 @@ curl -X POST http://localhost:3456/simulate \
   </div>
 </section>
 
+<!-- COMPARISON: paracosm vs other agent frameworks
+     Collapsed by default with <details> so visitors aren't blasted with a
+     comparison table on first scroll, but the markup is fully present in
+     the DOM so search engines and structured-data extractors can index
+     the rows. The <summary> click toggles the expansion. -->
+<section class="sec" id="compare" aria-label="Paracosm vs other agent frameworks">
+  <div class="sec-inner">
+    <details class="compare-details rv">
+      <summary class="compare-summary">
+        <span class="compare-summary-eyebrow">Compare</span>
+        <span class="compare-summary-title">paracosm vs AutoGen / CrewAI / LangGraph</span>
+        <span class="compare-summary-hint">Click to expand · feature-by-feature</span>
+      </summary>
+      <div class="compare-body">
+        <p class="compare-lede">All four are TypeScript/Python agent frameworks shipping on npm or PyPI. They overlap on "multi-agent orchestration" but diverge sharply on what they treat as the core abstraction: a chat graph (CrewAI, AutoGen), a state graph (LangGraph), or a deterministic structured world model (paracosm).</p>
+        <div class="compare-table-wrap">
+          <table class="compare-table">
+            <thead>
+              <tr>
+                <th scope="col">Capability</th>
+                <th scope="col">paracosm</th>
+                <th scope="col">AutoGen</th>
+                <th scope="col">CrewAI</th>
+                <th scope="col">LangGraph</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">Core abstraction</th>
+                <td>Structured world model with seeded kernel + per-turn state</td>
+                <td>Multi-agent chat orchestration</td>
+                <td>Role-based agent crew with sequential or hierarchical tasks</td>
+                <td>State graph of agent nodes with explicit edges</td>
+              </tr>
+              <tr>
+                <th scope="row">Determinism</th>
+                <td><strong>Byte-equal at fixed seed</strong> via Mulberry32 + canonical JSON</td>
+                <td>None — LLM non-determinism throughout</td>
+                <td>None — LLM non-determinism throughout</td>
+                <td>Partial — graph control flow is deterministic, agent calls are not</td>
+              </tr>
+              <tr>
+                <th scope="row">Counterfactual replay</th>
+                <td><code>wm.replay(artifact)</code> reproduces byte-equal artifacts</td>
+                <td>Not supported</td>
+                <td>Not supported</td>
+                <td>Not supported (rerun the graph from scratch)</td>
+              </tr>
+              <tr>
+                <th scope="row">Fork at past state</th>
+                <td><code>wm.forkFromArtifact(artifact, atTurn)</code></td>
+                <td>Not supported</td>
+                <td>Not supported</td>
+                <td>Time-travel via persistent checkpoints (langgraph-checkpoint)</td>
+              </tr>
+              <tr>
+                <th scope="row">Personality model</th>
+                <td>HEXACO (humans) + ai-agent + pluggable trait registry</td>
+                <td>Per-agent system prompt only</td>
+                <td>Per-agent role + goal + backstory text</td>
+                <td>Per-agent system prompt only</td>
+              </tr>
+              <tr>
+                <th scope="row">Runtime tool forging</th>
+                <td>Yes — sandboxed <code>node:vm</code> tool generation, judge-validated</td>
+                <td>Function-calling only — predefined tools</td>
+                <td>Function-calling only — predefined tools</td>
+                <td>Function-calling only — predefined tools</td>
+              </tr>
+              <tr>
+                <th scope="row">Universal output contract</th>
+                <td>Zod-validated <code>RunArtifact</code> across all simulation modes</td>
+                <td>Per-agent message log, no unified schema</td>
+                <td>Task outputs in agent-specific shape</td>
+                <td>Final state object (graph-defined)</td>
+              </tr>
+              <tr>
+                <th scope="row">Digital-twin pattern</th>
+                <td>First-class <code>wm.intervene({ subject, intervention, actor })</code></td>
+                <td>Not supported (no subject/intervention primitive)</td>
+                <td>Not supported</td>
+                <td>Not supported (build it yourself with state nodes)</td>
+              </tr>
+              <tr>
+                <th scope="row">Compile from prose</th>
+                <td><code>WorldModel.fromPrompt</code> — brief or URL → typed scenario</td>
+                <td>Not supported (hand-author agents + graph)</td>
+                <td>Not supported (hand-author crew + tasks)</td>
+                <td>Not supported (hand-author state graph)</td>
+              </tr>
+              <tr>
+                <th scope="row">License</th>
+                <td>Apache-2.0</td>
+                <td>MIT</td>
+                <td>MIT</td>
+                <td>MIT</td>
+              </tr>
+              <tr>
+                <th scope="row">Language</th>
+                <td>TypeScript (Node 20+, Bun, Deno)</td>
+                <td>Python · .NET</td>
+                <td>Python</td>
+                <td>Python · TypeScript</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="compare-footer">Picking a framework is downstream of picking a task. Use <strong>AutoGen / CrewAI</strong> when the task is multi-agent <em>conversation</em> with predefined tools. Use <strong>LangGraph</strong> when the task is a state machine you want explicit control over. Use <strong>paracosm</strong> when the task is a <em>simulation</em>: world state evolves over turns, decisions affect outcomes, you need to fork or replay at a past turn, or you need byte-equal reproducibility for evals or compliance.</p>
+      </div>
+    </details>
+  </div>
+</section>
+
 <!-- WHITEPAPER COMING SOON -->
 <section class="sec sec-alt whitepaper-sec" id="whitepaper" aria-label="Paracosm whitepaper coming soon">
   <div class="sec-inner whitepaper-inner">
@@ -1218,7 +1411,7 @@ curl -X POST http://localhost:3456/simulate \
         who want a citable PDF instead of scrolling docs. Deterministic kernel design,
         HEXACO leader differentiation, LLM-as-a-judge event grounding, runtime tool
         forging with sandboxed safety, reproducible counterfactual surfaces (fork /
-        replay / simulateIntervention), and the `RunArtifact` schema with Zod
+        replay / intervene), and the `RunArtifact` schema with Zod
         validation for byte-equal reproducibility at fixed seeds.
       </p>
       <div class="whitepaper-grid">
@@ -1231,7 +1424,7 @@ curl -X POST http://localhost:3456/simulate \
         <div class="whitepaper-grid-item">
           <div class="whitepaper-grid-label">Methodology</div>
           <div class="whitepaper-grid-body">
-            Counterfactual surfaces (fork at turn N, replay byte-equal, simulateIntervention as digital twin), divergence metrics, KPI rollups, judge verdict semantics.
+            Counterfactual surfaces (fork at turn N, replay byte-equal, intervene as digital twin), divergence metrics, KPI rollups, judge verdict semantics.
           </div>
         </div>
         <div class="whitepaper-grid-item">
@@ -1288,6 +1481,37 @@ curl -X POST http://localhost:3456/simulate \
 </footer>
 
 <script>
+// Trust-signal fetch: live npm + GitHub counts. Async + best-effort —
+// failures stay silent and the SSR fallback (the static "—" placeholder
+// + hardcoded "v0.9") remains visible. Cached by browser per the CDN
+// headers npm/GitHub return; we don't add cache-busting because fresh
+// numbers on every page load aren't worth the request volume.
+(function () {
+  function setText(key, value) {
+    var el = document.querySelector('[data-trust="' + key + '"]');
+    if (el) el.textContent = value;
+  }
+  function abbreviate(n) {
+    if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+    return String(n);
+  }
+  // npm — version + weekly downloads
+  fetch('https://registry.npmjs.org/paracosm/latest')
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) { if (d && d.version) setText('npm-version', 'v' + d.version); })
+    .catch(function () {});
+  fetch('https://api.npmjs.org/downloads/point/last-week/paracosm')
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) { if (d && typeof d.downloads === 'number') setText('npm-weekly', abbreviate(d.downloads)); })
+    .catch(function () {});
+  // GitHub stars
+  fetch('https://api.github.com/repos/framersai/paracosm')
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) { if (d && typeof d.stargazers_count === 'number') setText('gh-stars', abbreviate(d.stargazers_count)); })
+    .catch(function () {});
+})();
+
 // Intersection Observer for scroll-triggered reveals.
 // Falls back gracefully: if IntersectionObserver isn't supported (very
 // old browser) or never fires (puppeteer-headless without scroll, some
@@ -1322,19 +1546,30 @@ const flowObs = new IntersectionObserver(entries => {
 const flowWrap = document.querySelector('.flow-wrap');
 if (flowWrap) flowObs.observe(flowWrap);
 
-// Theme toggle synced with dashboard
+// Theme toggle synced with dashboard. The HEAD inline-script applies
+// the saved class before first paint to kill the theme-flash; this
+// block (a) syncs the button glyph to the resolved theme, (b) wires
+// the click handler, (c) sets aria-pressed so screen readers report
+// state, (d) handles the system-preference change for visitors who
+// never set an explicit choice.
 const themeBtn = document.getElementById('theme-toggle');
 const savedTheme = localStorage.getItem('paracosm-theme') || 'dark';
 function applyTheme(t) {
   document.documentElement.classList.toggle('light', t === 'light');
-  themeBtn.textContent = t === 'dark' ? '\u2600' : '\u263D';
-  localStorage.setItem('paracosm-theme', t);
+  if (themeBtn) {
+    themeBtn.textContent = t === 'dark' ? '\u2600' : '\u263D';
+    themeBtn.setAttribute('aria-pressed', t === 'light' ? 'true' : 'false');
+    themeBtn.setAttribute('aria-label', t === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
+  }
+  try { localStorage.setItem('paracosm-theme', t); } catch (_) {}
 }
 applyTheme(savedTheme);
-themeBtn.addEventListener('click', () => {
-  const next = document.documentElement.classList.contains('light') ? 'dark' : 'light';
-  applyTheme(next);
-});
+if (themeBtn) {
+  themeBtn.addEventListener('click', () => {
+    const next = document.documentElement.classList.contains('light') ? 'dark' : 'light';
+    applyTheme(next);
+  });
+}
 
 // Copy code to clipboard
 function copyCode(btn, text) {
@@ -1368,19 +1603,64 @@ const barObs = new IntersectionObserver(entries => {
 }, { threshold: 0.5 });
 document.querySelectorAll('.diverge').forEach(el => barObs.observe(el));
 
-// Hamburger menu toggle
+// Hamburger menu toggle. A11y additions:
+// - aria-expanded on the trigger reflects open/closed state for SRs.
+// - When the menu opens, focus moves to the first link so keyboard +
+//   screen-reader users land inside the menu instead of having to tab
+//   through every nav link to reach it.
+// - ESC anywhere closes the menu and returns focus to the trigger.
+// - Tab past the last link wraps to the first (focus-trap inside the
+//   open mobile menu is the WCAG-friendly behavior for modal-like nav).
+// - Clicking a link or outside the menu closes it.
 const hamburger = document.getElementById('nav-hamburger');
 const mobileNav = document.getElementById('nav-mobile');
 if (hamburger && mobileNav) {
+  function openMenu() {
+    hamburger.classList.add('open');
+    mobileNav.classList.add('open');
+    hamburger.setAttribute('aria-expanded', 'true');
+    var firstLink = mobileNav.querySelector('a, button');
+    if (firstLink) firstLink.focus();
+  }
+  function closeMenu(returnFocus) {
+    hamburger.classList.remove('open');
+    mobileNav.classList.remove('open');
+    hamburger.setAttribute('aria-expanded', 'false');
+    if (returnFocus) hamburger.focus();
+  }
   hamburger.addEventListener('click', () => {
-    hamburger.classList.toggle('open');
-    mobileNav.classList.toggle('open');
+    if (mobileNav.classList.contains('open')) closeMenu(false);
+    else openMenu();
   });
   mobileNav.querySelectorAll('a').forEach(link => {
-    link.addEventListener('click', () => {
-      hamburger.classList.remove('open');
-      mobileNav.classList.remove('open');
-    });
+    link.addEventListener('click', () => closeMenu(false));
+  });
+  // ESC closes from anywhere inside the menu (or outside).
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && mobileNav.classList.contains('open')) closeMenu(true);
+  });
+  // Focus trap: when the menu is open, Tab from the last focusable
+  // element wraps to the first; Shift+Tab from the first wraps to the
+  // last. Skipped when the menu is closed so the page tabbing is normal.
+  mobileNav.addEventListener('keydown', (e) => {
+    if (e.key !== 'Tab' || !mobileNav.classList.contains('open')) return;
+    var focusable = mobileNav.querySelectorAll('a, button, [tabindex]:not([tabindex="-1"])');
+    if (!focusable.length) return;
+    var first = focusable[0];
+    var last = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  });
+  // Click outside the menu closes it (keyboard users still get ESC).
+  document.addEventListener('click', (e) => {
+    if (!mobileNav.classList.contains('open')) return;
+    if (mobileNav.contains(e.target) || hamburger.contains(e.target)) return;
+    closeMenu(false);
   });
 }
 
