@@ -138,7 +138,7 @@ The quickstart auto-generates N HEXACO archetypes for the world and runs them al
 
 ```ts
 const result = await wm.quickstart({
-  leaderCount: 3,
+  actorCount: 3,
   maxTurns: 3,
   seed: 42,
   captureSnapshots: true,
