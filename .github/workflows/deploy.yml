@@ -109,6 +109,9 @@ jobs:
       - name: Run tests
         run: npm test || true
 
+      - name: Check doc examples compile against package
+        run: npm run check:doc-examples
+
       # The build job's checkout has the dev-floor version (0.8.0) from
       # package.json. The publish job auto-bumps to 0.8.${run_number} in
       # its own checkout, so the build job never sees the published
