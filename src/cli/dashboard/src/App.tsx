@@ -551,7 +551,21 @@ function AppContent() {
   // and still see the spinner instead of the empty-state Run button.
   // Local SimView state was being lost on unmount, which made the user
   // think nothing happened and click Run again.
-  const [launching, setLaunching] = useState(false);
+  //
+  // Initial value reads a localStorage handoff flag set by Quickstart
+  // (and any other launch path that uses window.location.href to
+  // navigate to /sim). Without this, a Quickstart Run → page reload →
+  // /sim?tab=sim mount has launching=false, no events yet, and SSE
+  // already connected → SimView falls into the empty "No simulation
+  // running" state for 2-5s while the server queues + emits the first
+  // event. The flag clears in a useEffect once the first event lands
+  // OR after a 30s safety timeout so a stuck launch doesn't pin the
+  // spinner forever.
+  const [launching, setLaunching] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    try { return window.localStorage.getItem('paracosm:launchPending') === '1'; }
+    catch { return false; }
+  });
 
   // Digital-twin artifact returned by /api/quickstart/simulate-intervention.
   // When set, SIM tab renders DigitalTwinPanel instead of the parallel-actor

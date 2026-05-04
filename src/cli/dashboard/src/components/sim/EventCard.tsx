@@ -647,11 +647,14 @@ export function EventCard({ event, actorIndex }: EventCardProps) {
     }
 
     case 'turn_done':
-      return (
-        <div className={styles.turnDone}>
-          Turn {String(dd.turn)} complete
-        </div>
-      );
+      // Marker suppressed inside TurnGrid — the per-row header (T{n} +
+      // diff badge) already communicates the turn boundary, so emitting
+      // a footer marker per cell duplicates information AND creates a
+      // visual hole in the column whose turn finished with fewer events
+      // (the grid row stretches to match the taller cell's height, so a
+      // short cell with a "Turn N complete" footer ends up showing 200+
+      // px of empty space between its last real event and the marker).
+      return null;
 
     case 'validation_fallback': {
       const schemaName = String(dd.schemaName || '<unknown>');

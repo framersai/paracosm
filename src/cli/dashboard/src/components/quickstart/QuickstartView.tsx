@@ -200,6 +200,11 @@ export function QuickstartView({ sse, sessionId, onRunStarted, onInterventionRes
         // making the click look silently broken.
         const setupData = (await setupRes.json().catch(() => ({}))) as { redirect?: string };
         if (setupData.redirect) {
+          // Hand off launching state across the page reload — App reads
+          // this on mount so the Sim tab shows "Launching simulation..."
+          // instead of the empty "No simulation running" state during
+          // the 2-5s window between SSE connect and first event.
+          try { window.localStorage.setItem('paracosm:launchPending', '1'); } catch { /* private mode */ }
           window.location.href = resolveSetupRedirectHref(window.location.href, setupData.redirect);
           return;
         }

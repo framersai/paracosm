@@ -42,6 +42,15 @@ export function useLaunchState({
     }
   }, [launching, isRunning, isComplete, sseStatus, setLaunching]);
 
+  // Drop the cross-page localStorage handoff flag set by Quickstart's
+  // window.location.href flip once the launching state resolves. Without
+  // this, a subsequent /sim reload or hot-mount would re-hydrate
+  // launching=true even though no fresh launch is pending.
+  useEffect(() => {
+    if (launching) return;
+    try { window.localStorage.removeItem('paracosm:launchPending'); } catch { /* private mode */ }
+  }, [launching]);
+
   // Safety timeout: if /setup succeeded but no events arrived in 30s,
   // give up on the spinner. Only toast when we really saw nothing —
   // if SSE events arrived, the sim is alive and the user does not
