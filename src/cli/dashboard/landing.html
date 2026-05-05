@@ -435,7 +435,7 @@
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:8px">
       <div style="border:1px solid var(--border);border-radius:8px;padding:14px 16px;background:var(--bg)">
         <div style="font-family:var(--mono);font-size: var(--font-2xs);letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);margin-bottom:10px">Visual world model</div>
-        <ul style="list-style:none;padding:0;margin:0;color:var(--t2);font-size: var(--font-md);line-height:1.7">
+        <ul class="l-list-md">
           <li><strong style="color:var(--t1)">Output:</strong> pixels (video / 3D scene)</li>
           <li><strong style="color:var(--t1)">Audience:</strong> humans watching</li>
           <li><strong style="color:var(--t1)">Replay:</strong> rerun the model, get a new sample</li>
@@ -444,7 +444,7 @@
       </div>
       <div style="border:1px solid var(--amber);border-radius:8px;padding:14px 16px;background:rgba(232,180,74,0.04)">
         <div style="font-family:var(--mono);font-size: var(--font-2xs);letter-spacing:1.5px;text-transform:uppercase;color:var(--amber);margin-bottom:10px">Structured world model · paracosm</div>
-        <ul style="list-style:none;padding:0;margin:0;color:var(--t2);font-size: var(--font-md);line-height:1.7">
+        <ul class="l-list-md">
           <li><strong style="color:var(--t1)">Output:</strong> typed JSON state, decisions, citations</li>
           <li><strong style="color:var(--t1)">Audience:</strong> AI agents deciding and measuring</li>
           <li><strong style="color:var(--t1)">Replay:</strong> deterministic kernel, byte-equal output</li>
@@ -870,7 +870,7 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
       <strong style="color:var(--t2)">Inspired by</strong> the long arc of world-model research — Ha &amp; Schmidhuber's <a href="https://arxiv.org/abs/1803.10122" target="_blank" rel="noopener" style="color:var(--amber)">World&nbsp;Models&nbsp;(2018)</a> dream-state agents, the deterministic-microworld tradition behind Sugarscape and Schelling, the agent-based modeling lineage from Conway and Wolfram, and the structured-prompting trajectory traced by Kirfel et al's <a href="https://link.springer.com/article/10.1007/s43681-025-00718-4" target="_blank" rel="noopener" style="color:var(--amber)">counterfactual world simulation models</a>. Where prior work used hand-coded rules, learned latents, or unstructured emergence, paracosm uses an LLM as the world's reasoning surface and a typed kernel as its mutable spine — the result is a deterministic, replayable, citation-grounded simulator that fits both research and product use.
     </p>
 
-    <p class="sec-desc rv" style="margin-top:24px;font-size: var(--font-lg);color:var(--t3)">Full taxonomy mapping with adjacent-category citations lives at <a href="https://github.com/framersai/paracosm/blob/master/docs/positioning/world-model-mapping.md" target="_blank" rel="noopener" style="color:var(--amber)">docs/positioning/world-model-mapping.md</a>.</p>
+    <p class="sec-desc rv l-sec-trailer">Full taxonomy mapping with adjacent-category citations lives at <a href="https://github.com/framersai/paracosm/blob/master/docs/positioning/world-model-mapping.md" target="_blank" rel="noopener" style="color:var(--amber)">docs/positioning/world-model-mapping.md</a>.</p>
   </div>
 </section>
 
@@ -977,8 +977,8 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
     <div class="diverge rv">
       <div class="diverge-side" style="border-left:3px solid var(--amber)">
         <h3 style="color:var(--amber)">Leader A: high-openness profile</h3>
-        <p style="font-size: var(--font-md);color:var(--t2)">HEXACO openness 0.95, conscientiousness 0.35. The director picks unconventional candidates at promotion and weights risk-tolerant department reports more heavily. Decisions push experimental options; outcomes have higher variance.</p>
-        <div style="font-size: var(--font-xs);color:var(--t3);font-family:var(--mono);margin-top:12px">
+        <p class="l-body-md">HEXACO openness 0.95, conscientiousness 0.35. The director picks unconventional candidates at promotion and weights risk-tolerant department reports more heavily. Decisions push experimental options; outcomes have higher variance.</p>
+        <div class="l-mono-meta">
           <div>Higher variance on metrics under this profile</div>
           <div class="diverge-bar"><div class="diverge-fill" style="width:78%;background:var(--amber)"></div></div>
           <div style="margin-top:6px">Higher forge attempts, higher veto rate</div>
@@ -987,8 +987,8 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
       </div>
       <div class="diverge-side" style="border-left:3px solid var(--teal)">
         <h3 style="color:var(--teal)">Leader B: high-conscientiousness profile</h3>
-        <p style="font-size: var(--font-md);color:var(--t2)">HEXACO openness 0.25, conscientiousness 0.97. The director picks by-the-book candidates and weights margin-of-safety reports. Decisions favor conservative options; outcomes have lower variance and longer time-to-resolution.</p>
-        <div style="font-size: var(--font-xs);color:var(--t3);font-family:var(--mono);margin-top:12px">
+        <p class="l-body-md">HEXACO openness 0.25, conscientiousness 0.97. The director picks by-the-book candidates and weights margin-of-safety reports. Decisions favor conservative options; outcomes have lower variance and longer time-to-resolution.</p>
+        <div class="l-mono-meta">
           <div>Lower variance on metrics under this profile</div>
           <div class="diverge-bar"><div class="diverge-fill" style="width:88%;background:var(--teal)"></div></div>
           <div style="margin-top:6px">Lower forge attempts, higher acceptance rate</div>
@@ -1067,7 +1067,7 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
 <span class="cm">//   sleep, QoL, mortality risk, side-effect load</span></div>
     </div>
 
-    <p class="sec-desc rv" style="margin-top:24px;font-size: var(--font-lg);color:var(--t3)">The same shape applies to medical interventions (subject = patient, intervention = treatment), policy modeling (subject = jurisdiction, intervention = ordinance), and product launches (subject = market, intervention = pricing change). The kernel is domain-agnostic — the scenario contract names the world.</p>
+    <p class="sec-desc rv l-sec-trailer">The same shape applies to medical interventions (subject = patient, intervention = treatment), policy modeling (subject = jurisdiction, intervention = ordinance), and product launches (subject = market, intervention = pricing change). The kernel is domain-agnostic — the scenario contract names the world.</p>
   </div>
 </section>
 

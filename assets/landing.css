@@ -716,6 +716,29 @@ a:hover { text-decoration: underline; }
 .sec-center { text-align: center; }
 .sec-center .sec-desc { margin-left: auto; margin-right: auto; }
 
+/* ── Landing typography utilities ─────────────────────────────────────────────
+ * Extracted from inline `style="font-size: var(--font-…); color: var(--…)"`
+ * declarations that were scattered across landing.html. Same visual output as
+ * the inline styles they replaced; consolidating here means a future i18n /
+ * theme pass touches one file instead of 23 spans. Keep these in sync with
+ * .sec-* and .feat-* sizing above.
+ *
+ *   .l-eyebrow         — mono uppercase tracker label, neutral color
+ *   .l-eyebrow-rust    — same, accent rust color (used on hero-adjacent eyebrows)
+ *   .l-body-md         — body paragraph at the default reading size
+ *   .l-body-lg         — body paragraph at the larger pull-quote size
+ *   .l-list-md         — unstyled list at body-md size + comfortable line-height
+ *   .l-mono-meta       — small mono caption (footnotes, metric refs)
+ *   .l-sec-trailer     — section-trailing copy with a margin push above
+ */
+.l-eyebrow { font-family: var(--mono); font-size: var(--font-xs); letter-spacing: 1.5px; text-transform: uppercase; color: var(--t3); margin-bottom: 10px; }
+.l-eyebrow-rust { font-family: var(--mono); font-size: var(--font-xs); font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--rust); margin-bottom: 12px; }
+.l-body-md { font-size: var(--font-md); color: var(--t2); line-height: 1.7; }
+.l-body-lg { font-size: var(--font-lg); color: var(--t2); line-height: 1.65; }
+.l-list-md { list-style: none; padding: 0; margin: 0; font-size: var(--font-md); color: var(--t2); line-height: 1.7; }
+.l-mono-meta { font-family: var(--mono); font-size: var(--font-xs); color: var(--t3); margin-top: 12px; }
+.l-sec-trailer { margin-top: 24px; font-size: var(--font-lg); color: var(--t3); }
+
 /* ── Features ─────────────────────────────────────────────────────────────── */
 
 .feat-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
