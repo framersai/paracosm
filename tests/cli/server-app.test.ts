@@ -805,6 +805,42 @@ test('does not auto-save when sim_aborted fires before complete', async () => {
   }
 });
 
+test('does not auto-save when sim_error fires before complete (failed run)', async () => {
+  // Mirror of the sim_aborted test, for the partial-error case: a run
+  // where one actor blows up mid-turn (LLM API hiccup, schema retry
+  // exhaustion) but the surviving actor's turn_done frames pass the
+  // MIN_TURNS floor. Without filtering on currentRunErrored, the LoadMenu
+  // / Replay-Last-Run CTAs cached half-broken sessions; users hit Replay
+  // and got the misleading "stored event stream" banner over a session
+  // that never ran cleanly the first time.
+  const tmp = mkdtempSync(join(tmpdir(), 'paracosm-autosave-error-'));
+  const server = createMarsServer({
+    env: { ...process.env, APP_DIR: tmp },
+    runPairSimulations: async (_cfg, broadcast) => {
+      broadcast('setup', { leaderA: { name: leaderA.name }, leaderB: { name: leaderB.name } });
+      broadcast('turn_done', { turn: 1 });
+      broadcast('turn_done', { turn: 2 });
+      broadcast('sim_error', { leader: 'A', error: 'simulated provider error' });
+      broadcast('turn_done', { turn: 3 });
+      broadcast('complete', { cost: { totalCostUSD: 0 } });
+    },
+  });
+  server.listen(0);
+  await once(server, 'listening');
+  const address = server.address();
+  const port = typeof address === 'object' && address ? address.port : 0;
+  try {
+    await server.startWithConfig(makeConfig());
+    const res = await fetch(`http://127.0.0.1:${port}/sessions`);
+    const json = await res.json() as { sessions: unknown[] };
+    assert.equal(json.sessions.length, 0, 'errored runs must not poison the cache ring');
+  } finally {
+    server.close();
+    await once(server, 'close');
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('does not auto-save when zero turn_done frames fired (crash before turn 1)', async () => {
   // With AUTO_SAVE_MIN_TURNS=1, a run saves as long as at least one
   // turn_done made it through. This test asserts the lower bound: a

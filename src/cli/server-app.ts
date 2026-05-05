@@ -577,6 +577,14 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
   // which kept the LoadMenu perpetually empty for visitors.
   let currentRunAborted = false;
   let currentRunSaved = false;
+  // Set when any actor in the current run emits a `sim_error` event.
+  // Auto-save then skips this run so the LoadMenu / Replay-Last-Run
+  // CTAs only ever surface clean runs. Without this, a run where one
+  // actor blew up mid-turn (LLM API hiccup, rate-limit, schema retry
+  // exhaustion) would still get into the ring once turn_done fired
+  // for the surviving actor — replay UX then advertised a half-broken
+  // session as cached state.
+  let currentRunErrored = false;
   const AUTO_SAVE_MIN_TURNS = 1;
 
   // Persistent storage for completed sim runs. Lives at
@@ -781,6 +789,11 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       emitSaveStatus('skipped', { reason: 'run_aborted' });
       return;
     }
+    if (currentRunErrored) {
+      console.log('[sessions] auto-save skipped: run had sim_error events');
+      emitSaveStatus('skipped', { reason: 'run_errored' });
+      return;
+    }
     if (currentRunSaved) {
       console.log('[sessions] auto-save skipped: already saved for this run');
       return;
@@ -881,6 +894,9 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
     if (event === 'sim_aborted') {
       currentRunAborted = true;
     }
+    if (event === 'sim_error') {
+      currentRunErrored = true;
+    }
     // On simulation completion, snapshot the run's schema-retry payload
     // to the cross-run ring buffer so /retry-stats can aggregate across
     // production runs. We pull schemaRetries from the MOST RECENT cost
@@ -905,6 +921,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
   const clearEventBuffer = () => {
     currentRunAborted = false;
     currentRunSaved = false;
+    currentRunErrored = false;
     eventBuffer.length = 0;
     eventTimestamps.length = 0;
     if (persistTimer) {
