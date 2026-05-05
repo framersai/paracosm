@@ -169,13 +169,22 @@ export function TopBar({ scenario, sse, gameState, onSave, onLoad, onClear, onRu
     >
       {/* Left: Logo + name + scenario */}
       <div className="flex items-center gap-2 shrink-0">
-        <a href="/" className={styles.logoLink} aria-label="Paracosm home">
+        {/* Single anchor wrapping logo + brand text — both pointed at `/`
+            previously, creating two adjacent Tab stops for the same
+            navigation. Visible layout is preserved by keeping the
+            inline-flex container on .logoLink. */}
+        <a href="/" className={`${styles.logoLink} ${styles.brand}`} aria-label="Paracosm home">
           <ParacosmLogo size={20} />
+          <span>PARA<span className={styles.brandAccent}>COSM</span></span>
         </a>
-        <a href="/" className={styles.brand}>
-          PARA<span className={styles.brandAccent}>COSM</span>
-        </a>
-        <a href="https://agentos.sh/en" target="_blank" rel="noopener" className={`topbar-agentos ${styles.agentosTag}`} title="AgentOS Runtime">
+        <a
+          href="https://agentos.sh/en"
+          target="_blank"
+          rel="noopener"
+          className={`topbar-agentos ${styles.agentosTag}`}
+          aria-label="AgentOS Runtime (opens in new tab)"
+          title="AgentOS Runtime"
+        >
           AGENTOS
         </a>
         <span className={`topbar-agentos ${styles.divider}`} aria-hidden="true">|</span>

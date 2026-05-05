@@ -415,7 +415,18 @@ export function ChatPanel({ state, onChatUsage }: ChatPanelProps) {
           </div>
         )}
 
-        <div ref={messagesRef} onScroll={onMessagesScroll} className={styles.messages}>
+        {/* role="log" so AT users can navigate the chat as a message
+            history and hear new messages appended live (aria-live polite
+            scoped to additions). */}
+        <div
+          ref={messagesRef}
+          onScroll={onMessagesScroll}
+          className={styles.messages}
+          role="log"
+          aria-live="polite"
+          aria-relevant="additions"
+          aria-label={selected?.name ? `Messages with ${selected.name}` : 'Chat messages'}
+        >
           {!selectedId && (
             <div className={styles.emptyState}>
               <div className={styles.emptyTitle}>
@@ -454,9 +465,9 @@ export function ChatPanel({ state, onChatUsage }: ChatPanelProps) {
               </div>
               <div className={styles.typingBubble}>
                 <span className={styles.typingLabel}>typing</span>
-                <span className={styles.dot} style={{ '--dot-delay': '0ms' } as CSSProperties}>.</span>
-                <span className={styles.dot} style={{ '--dot-delay': '160ms' } as CSSProperties}>.</span>
-                <span className={styles.dot} style={{ '--dot-delay': '320ms' } as CSSProperties}>.</span>
+                <span className={styles.dot} aria-hidden="true" style={{ '--dot-delay': '0ms' } as CSSProperties}>.</span>
+                <span className={styles.dot} aria-hidden="true" style={{ '--dot-delay': '160ms' } as CSSProperties}>.</span>
+                <span className={styles.dot} aria-hidden="true" style={{ '--dot-delay': '320ms' } as CSSProperties}>.</span>
               </div>
             </div>
           )}
