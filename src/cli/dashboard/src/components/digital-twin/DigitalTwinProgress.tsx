@@ -111,7 +111,7 @@ export function DigitalTwinProgress({ state, subject, intervention }: DigitalTwi
     <div className={styles.root}>
       <div className={styles.headerRow}>
         <h2 className={styles.title}>
-          <span className={styles.spinner} />
+          <span className={styles.spinner} aria-hidden="true" />
           Digital Twin · Running
         </h2>
         <span className={styles.timer}>

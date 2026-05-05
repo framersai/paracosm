@@ -90,7 +90,7 @@ export function TurnRow({ entry, eventsA, eventsB }: TurnRowProps) {
               {cellEvents.length === 0 ? (
                 isCatchingUp ? (
                   <div className={styles.cellPending} aria-live="polite" title="Parallel runs can drift turn-to-turn — events arrive whenever this side's LLM calls finish.">
-                    <span className={`spinner ${styles.cellPendingSpinner}`} />
+                    <span className={`spinner ${styles.cellPendingSpinner}`} aria-hidden="true" />
                     Catching up to turn {entry.turn}…
                   </div>
                 ) : (

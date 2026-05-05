@@ -59,7 +59,13 @@ export function VerdictBanner({
   const turnLabel = `Turn ${currentTurn}/${maxTurns} · verdict by gpt-4o`;
   return (
     <div
-      role="region"
+      // role=status + aria-live polite so screen readers announce the
+      // verdict the moment the banner mounts. The banner appears
+      // mid-stream when the run completes and disappears on dismiss;
+      // role=region (the prior value) is for navigation landmarks, not
+      // for live announcements.
+      role="status"
+      aria-live="polite"
       aria-label="Simulation verdict"
       className={styles.banner}
       style={winColorCssVars(winner)}

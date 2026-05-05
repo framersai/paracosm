@@ -447,8 +447,8 @@ export function InterventionDemoCard({ onResult, onError, onRunStart }: Interven
           {running ? 'Running…' : 'Run digital twin'}
         </button>
         {running ? (
-          <span className={styles.timer}>
-            <span className={styles.spinner} />
+          <span className={styles.timer} role="status" aria-live="polite">
+            <span className={styles.spinner} aria-hidden="true" />
             {elapsedSec}s elapsed · 2 turns × LLM decisions, typically 40-90s
           </span>
         ) : (

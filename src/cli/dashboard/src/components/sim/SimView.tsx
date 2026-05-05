@@ -310,10 +310,14 @@ export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: l
 
       <DivergenceRail state={state} />
 
-      {/* Loading state: connected but no events after 2s grace period */}
+      {/* Loading state: connected but no events after 2s grace period.
+          role="status" + aria-live polite so SR users hear the heading
+          when this state mounts. Spinner is aria-hidden — purely
+          decorative, the visible "Simulation starting..." text is the
+          accessible signal. */}
       {showLoading && !hasEvents && !state.isComplete && state.turn === 0 && (
-        <div className={styles.centerState}>
-          <span className={`spinner ${styles.centerStateSpinnerSmall}`} />
+        <div className={styles.centerState} role="status" aria-live="polite">
+          <span className={`spinner ${styles.centerStateSpinnerSmall}`} aria-hidden="true" />
           <div className={styles.centerStateHeading}>Simulation starting...</div>
           <div className={styles.centerStateCopy}>
             The Event Director is reading simulation state and generating the first event. Departments will analyze and forge tools once it arrives.
@@ -323,8 +327,8 @@ export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: l
 
       {/* Launching state: user clicked Run, waiting for first events */}
       {launching && !hasEvents && !state.isRunning && (
-        <div className={styles.centerState}>
-          <span className={`spinner ${styles.centerStateSpinnerLarge}`} />
+        <div className={styles.centerState} role="status" aria-live="polite">
+          <span className={`spinner ${styles.centerStateSpinnerLarge}`} aria-hidden="true" />
           <div className={styles.centerStateHeadingAmber}>Launching Simulation...</div>
           <div className={styles.centerStateCopy}>
             Initializing the Event Director, departments, and agent personalities. First events will appear shortly.
@@ -334,8 +338,8 @@ export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: l
 
       {/* Connecting state: SSE not yet connected, no events, show spinner */}
       {!hasEvents && !state.isComplete && !launching && sseStatus === 'connecting' && (
-        <div className={styles.centerState}>
-          <span className={`spinner ${styles.centerStateSpinnerSmall}`} />
+        <div className={styles.centerState} role="status" aria-live="polite">
+          <span className={`spinner ${styles.centerStateSpinnerSmall}`} aria-hidden="true" />
           <div className={styles.centerStateHeading}>Connecting...</div>
           <div className={styles.centerStateCopy}>
             Loading simulation state from the server. If a simulation is running, events will appear shortly.

@@ -127,6 +127,25 @@ function useReplaySessionId(): string | null {
   return id;
 }
 
+/**
+ * Human-readable heading per dashboard tab. Used for the SR-only `<h1>`
+ * inside `<main>` so the heading outline is well-formed on every view.
+ */
+function tabHeadingFor(tab: DashboardTab): string {
+  switch (tab) {
+    case 'quickstart': return 'Paracosm — Quickstart';
+    case 'studio':     return 'Paracosm — Studio';
+    case 'sim':        return 'Paracosm — Simulation';
+    case 'viz':        return 'Paracosm — Visualization';
+    case 'chat':       return 'Paracosm — Chat';
+    case 'reports':    return 'Paracosm — Reports';
+    case 'library':    return 'Paracosm — Library';
+    case 'settings':   return 'Paracosm — Settings';
+    case 'about':      return 'Paracosm — About';
+    default:           return 'Paracosm';
+  }
+}
+
 function AppContent() {
   const { scenario } = useScenario();
   const replaySessionId = useReplaySessionId();
@@ -865,6 +884,13 @@ function AppContent() {
             role="main"
             aria-label={`${activeTab} view`}
           >
+            {/* SR-only h1 anchors the heading hierarchy per tab. Sighted
+                users see the visible TabBar + view chrome; AT users
+                land on a real <h1> on every tab so the page outline
+                reads "Paracosm > <Tab Name>" instead of "no h1 found".
+                Per-tab views can still emit their own h2/h3 for
+                section structure. */}
+            <h1 className="sr-only">{tabHeadingFor(activeTab)}</h1>
             {activeTab === 'quickstart' && (
               <section
                 role="tabpanel"

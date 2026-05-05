@@ -28,6 +28,24 @@
     transform: translateX(-50%);
   }
 
+  /* === SCREEN-READER ONLY (a11y) ===
+     Visible to AT, invisible to sighted users. The standard utility for
+     anchoring SR-only headings (per-tab h1) and labels that don't fit
+     the visible chrome. Tailwind v4 ships .sr-only via @import; the
+     explicit definition here guarantees it survives any future Tailwind
+     config change or purge. */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
   /* === FOCUS-VISIBLE BASELINE (a11y) ===
      Strip the browser default outline only when focus comes from a
      mouse click (`:focus:not(:focus-visible)`); keep a high-contrast
