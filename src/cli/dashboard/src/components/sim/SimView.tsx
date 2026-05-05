@@ -119,7 +119,9 @@ export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: l
   if (interventionArtifact) {
     return (
       <div className={styles.root}>
-        <DigitalTwinPanel artifact={interventionArtifact} state={state} onDismiss={onInterventionDismiss} />
+        <div className={styles.scrollableBody}>
+          <DigitalTwinPanel artifact={interventionArtifact} state={state} onDismiss={onInterventionDismiss} />
+        </div>
       </div>
     );
   }
@@ -130,7 +132,9 @@ export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: l
   if (interventionRunning) {
     return (
       <div className={styles.root}>
-        <DigitalTwinProgress state={state} subject={interventionRunning.subject} intervention={interventionRunning.intervention} />
+        <div className={styles.scrollableBody}>
+          <DigitalTwinProgress state={state} subject={interventionRunning.subject} intervention={interventionRunning.intervention} />
+        </div>
       </div>
     );
   }

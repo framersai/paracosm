@@ -29,6 +29,46 @@
   }
 }
 
+// Inline glossary surfaced under the Quickstart subtitle so first-time
+// readers know what "scenario" / "actor" / "run" mean before they hit
+// the launch CTA. Three short definitions, left-aligned (the centered
+// hero copy reads as a tagline; the glossary is a glanceable reference
+// the eye can return to). Hidden on phone widths because the textarea
+// already pushes the CTA below the fold there — vocab support belongs
+// on hover (data-tooltip planned for a follow-up).
+.glossary {
+  list-style: none;
+  padding: 14px 18px;
+  margin: 16px auto 0;
+  max-width: 600px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  text-align: left;
+  font-family: var(--sans);
+  font-size: var(--font-sm);
+  color: var(--text-2);
+  line-height: 1.55;
+
+  li {
+    margin: 0;
+
+    & + li {
+      margin-top: 6px;
+    }
+  }
+
+  strong {
+    color: var(--amber);
+    font-weight: 600;
+    margin-right: 4px;
+  }
+
+  @media (max-width: 480px) {
+    display: none;
+  }
+}
+
 .errorBanner {
   max-width: 640px;
   margin: 0 auto;

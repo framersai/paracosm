@@ -8,6 +8,27 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  // `min-height: 0` lets nested flex children (TurnGrid, ConstellationView)
+  // shrink below their intrinsic content size so their own internal
+  // scroll regions take effect. Without it the flex layout reports the
+  // child's full content height as the minimum and the outer column
+  // never produces a scrollbar — the parallel-actor view's TurnGrid
+  // already has internal scroll, so this is a no-op there.
+  min-height: 0;
+}
+
+// Digital-twin mode wrapper. The DigitalTwinPanel renders subject card,
+// intervention card, the metric delta strip, and a SVG trajectory chart
+// stacked vertically — total height ~1100-1400px depending on metric
+// count. The parallel-actor SimView .root sits inside a fixed-height
+// tabpanel and clips overflow by default, which the user reported as a
+// non-scrollable trajectory chart at the bottom of the SIM tab. This
+// wrapper restores the natural scroll for the digital-twin path
+// without affecting the other branches.
+.scrollableBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .leadersRow {

@@ -496,7 +496,12 @@ export function QuickstartView({ sse, sessionId, onRunStarted, onInterventionRes
         <>
           <header className={styles.header}>
             <h2>Quickstart</h2>
-            <p>Paste a brief, drop a PDF, or supply a URL. Paracosm compiles a scenario and runs three distinct actors against it.</p>
+            <p>Paste a what-if scenario. Paracosm compiles it into a typed world and runs LLM-driven decision-makers with measurable personalities against it, returning a replayable trajectory you can fork and compare.</p>
+            <ul className={styles.glossary} aria-label="Key terms">
+              <li><strong>Scenario</strong> — the world Paracosm compiles from your prompt: departments, agents, events, starting state.</li>
+              <li><strong>Actor</strong> — an LLM decision-maker driving the scenario, weighted by a HEXACO personality vector.</li>
+              <li><strong>Run</strong> — one actor playing the scenario turn by turn. Paracosm runs N actors in parallel against the same world so you can compare divergent outcomes.</li>
+            </ul>
           </header>
           {errorBanner && <p className={styles.errorBanner} role="alert">{errorBanner}</p>}
           <SeedInput
