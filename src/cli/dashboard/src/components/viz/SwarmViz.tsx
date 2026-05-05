@@ -867,49 +867,10 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
   const narrow = useMediaQuery(NARROW_QUERY);
   const phone = useMediaQuery(PHONE_QUERY);
 
-  if (maxTurn === 0) {
-    // Running but no first-turn snapshot yet: the run starts with
-    // research + commander prompts that take ~10-30s before the first
-    // kernel snapshot lands. Showing the static "Run a simulation"
-    // empty state in that window read as "nothing happened" even though
-    // the SSE stream was carrying status events. Render a live waiting
-    // state instead so the user sees the run is on the way.
-    if (state.isRunning) {
-      return (
-        <div className={`viz-content ${styles.empty}`} role="status" aria-live="polite">
-          <span className={styles.emptySpinner} aria-hidden="true" />
-          <span>Awaiting first turn snapshot — the {scenarioLabels.place} viz will populate once the kernel reports state.</span>
-        </div>
-      );
-    }
-    return (
-      <div className={`viz-content ${styles.empty}`}>
-        Run a simulation to see the {scenarioLabels.place} visualization.
-      </div>
-    );
-  }
-
-  // Leader metadata is now resolved above (pre-early-return) so
-  // dependency arrays in searchMatchesMemo / useSoundCues don't hit TDZ.
-  const diffLine = snapA && snapB
-    ? `A vs B: ${snapB.population - snapA.population >= 0 ? '+' : ''}${snapB.population - snapA.population} pop, ${Math.round((snapB.morale - snapA.morale) * 100)}% morale, ${snapB.foodReserve - snapA.foodReserve > 0 ? '+' : ''}${(snapB.foodReserve - snapA.foodReserve).toFixed(1)}mo food`
-    : '';
-
-  // Phone: force single-panel view. Side-by-side at 380-400px makes
-  // each panel too small to read glyphs and the Conway field; stacked
-  // vertically it doubles scroll length. A/B toggle above gives the
-  // user deliberate control without giving up deliberate design.
-  const effectiveFocusedSide: 'a' | 'b' | null = phone ? (focusedSide ?? 'a') : focusedSide;
-  const prevSnapA = currentTurn > 0
-    ? (snapsA[currentTurn - 1] ?? snapsA[snapsA.length - 2])
-    : undefined;
-  const prevSnapB = currentTurn > 0
-    ? (snapsB[currentTurn - 1] ?? snapsB[snapsB.length - 2])
-    : undefined;
-  // Search matches are recomputed only when the query or snapshots
-  // change, not on every parent re-render (was triggering on every
-  // tickClock bump ~30x/sec before this memo).
-  const searchMatches: SearchMatch[] = searchMatchesMemo;
+  // Highlight + legend + diff-overlay hooks. Same Rules-of-Hooks
+  // constraint as the media-query hooks above: must run on every render
+  // including the maxTurn === 0 empty-state branch, otherwise React
+  // throws #310 on the transition between empty-state and populated.
   // Highlight strip: pure derivation from the current and previous
   // snapshot pair. snapToHighlight converts cumulative deaths/births
   // into per-turn deltas; computeTurnHighlight picks the largest
@@ -989,6 +950,50 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
     const bCells = aggregateByDept(snapsB[currentTurn]);
     return computeCellDiff(aCells, bCells);
   }, [diffOverlayOn, snapsA, snapsB, currentTurn]);
+
+  if (maxTurn === 0) {
+    // Running but no first-turn snapshot yet: the run starts with
+    // research + commander prompts that take ~10-30s before the first
+    // kernel snapshot lands. Showing the static "Run a simulation"
+    // empty state in that window read as "nothing happened" even though
+    // the SSE stream was carrying status events. Render a live waiting
+    // state instead so the user sees the run is on the way.
+    if (state.isRunning) {
+      return (
+        <div className={`viz-content ${styles.empty}`} role="status" aria-live="polite">
+          <span className={styles.emptySpinner} aria-hidden="true" />
+          <span>Awaiting first turn snapshot — the {scenarioLabels.place} viz will populate once the kernel reports state.</span>
+        </div>
+      );
+    }
+    return (
+      <div className={`viz-content ${styles.empty}`}>
+        Run a simulation to see the {scenarioLabels.place} visualization.
+      </div>
+    );
+  }
+
+  // Leader metadata is now resolved above (pre-early-return) so
+  // dependency arrays in searchMatchesMemo / useSoundCues don't hit TDZ.
+  const diffLine = snapA && snapB
+    ? `A vs B: ${snapB.population - snapA.population >= 0 ? '+' : ''}${snapB.population - snapA.population} pop, ${Math.round((snapB.morale - snapA.morale) * 100)}% morale, ${snapB.foodReserve - snapA.foodReserve > 0 ? '+' : ''}${(snapB.foodReserve - snapA.foodReserve).toFixed(1)}mo food`
+    : '';
+
+  // Phone: force single-panel view. Side-by-side at 380-400px makes
+  // each panel too small to read glyphs and the Conway field; stacked
+  // vertically it doubles scroll length. A/B toggle above gives the
+  // user deliberate control without giving up deliberate design.
+  const effectiveFocusedSide: 'a' | 'b' | null = phone ? (focusedSide ?? 'a') : focusedSide;
+  const prevSnapA = currentTurn > 0
+    ? (snapsA[currentTurn - 1] ?? snapsA[snapsA.length - 2])
+    : undefined;
+  const prevSnapB = currentTurn > 0
+    ? (snapsB[currentTurn - 1] ?? snapsB[snapsB.length - 2])
+    : undefined;
+  // Search matches are recomputed only when the query or snapshots
+  // change, not on every parent re-render (was triggering on every
+  // tickClock bump ~30x/sec before this memo).
+  const searchMatches: SearchMatch[] = searchMatchesMemo;
 
   return (
       <div
