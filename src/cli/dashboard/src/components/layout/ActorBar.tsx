@@ -61,7 +61,11 @@ export function ActorBar({ actorIndex, leader, popHistory, moraleHistory, verdic
         {morale !== null && (
           <>
             <span className={styles.compactSep}>·</span>
-            <span className={styles.compactStat}>MORALE {Math.round(morale * 100)}%</span>
+            {/* moraleHistory is already 0-100 (scaled in useGameState
+                so the SparkLine reads it directly). Multiplying by 100
+                again here was producing MORALE 3200% on the live SIM
+                actor bar. Round-display only. */}
+            <span className={styles.compactStat}>MORALE {Math.round(morale)}%</span>
           </>
         )}
       </div>
