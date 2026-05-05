@@ -723,6 +723,108 @@ runIds, `410 artifact_unavailable` if the artifact file was rotated.
 
 ---
 
+## Loading a saved scenario from JSON: `WorldModel.fromJson`
+
+`fromJson` is the file-roundtrip companion to `fromScenario`. It accepts either a parsed JSON object or a raw JSON string and returns a `WorldModel` validated against the same `ScenarioPackage` Zod schema the compiler produces. Useful for shipping scenarios as static assets or letting users upload their own.
+
+### Input
+
+```ts
+import { readFile } from 'node:fs/promises';
+import { WorldModel } from 'paracosm';
+
+const json = await readFile('./scenarios/mars-genesis.scenario.json', 'utf8');
+const wm = await WorldModel.fromJson(json);
+const result = await wm.simulate({
+  actor: {
+    name: 'Aria Chen',
+    archetype: 'The Visionary',
+    hexaco: { openness: 0.95, conscientiousness: 0.35, extraversion: 0.85, agreeableness: 0.55, emotionality: 0.30, honestyHumility: 0.65 },
+    instructions: 'You lead by inspiration.',
+  },
+  maxTurns: 6,
+  seed: 950,
+});
+```
+
+### Output
+
+`fromJson` returns a fully-typed `WorldModel`. The contract is identical to `fromScenario` — the only difference is the input format. Pass a parsed object directly when you have one (e.g. `await fetch(scenarioUrl).then(r => r.json())`) and skip the string round-trip.
+
+### What just happened
+
+The static method validated the JSON against `ScenarioPackageSchema` and rebuilt the in-memory hooks from cached source text on the package. Validation failure throws synchronously with the same Zod error shape as `compileScenario`. Because hooks are restored from text, the model is portable across processes — you can compile on one machine, ship the JSON, and run on another with no behavioral drift.
+
+This is also the path the dashboard's Studio tab uses when a user drops a `.json` save file: parse, hand to `fromJson`, present.
+
+---
+
+## Manual snapshot + fork: `wm.snapshot` + `wm.fork`
+
+`wm.forkFromArtifact` is the high-level "branch a finished run at turn N" entry point and covers most use cases. The lower-level `wm.snapshot()` + `wm.fork(snapshot)` pair gives you direct control over when the kernel state is captured and where the new branch resumes — useful for batch experimentation, custom checkpoint cadence, and tooling that wants to fork mid-run rather than only after completion.
+
+### Input
+
+```ts
+import { WorldModel } from 'paracosm';
+import { marsScenario } from 'paracosm';
+
+const wm = WorldModel.fromScenario(marsScenario);
+
+// Run the trunk for 3 turns.
+const trunk = await wm.simulate({
+  actor: visionaryLeader,
+  maxTurns: 3,
+  seed: 950,
+  captureSnapshots: true,
+});
+
+// Capture the world state snapshot after turn 3. The snapshot is a
+// pure data structure (no live references) so it serializes cleanly
+// for cross-process forking.
+const snapshot = wm.snapshot();
+
+// Fork into a new WorldModel that resumes from the captured state.
+// You can run multiple branches off the same snapshot in parallel.
+const branchA = await wm.fork(snapshot, { branchId: 'engineer-takeover' });
+const branchB = await wm.fork(snapshot, { branchId: 'visionary-doubles-down' });
+
+const aResult = await branchA.simulate({ actor: engineerLeader, maxTurns: 3, seed: 951 });
+const bResult = await branchB.simulate({ actor: visionaryLeader, maxTurns: 3, seed: 952 });
+```
+
+### Output
+
+```jsonc
+// snapshot is a serializable WorldModelSnapshot:
+{
+  "scenarioId": "mars-genesis",
+  "atTurn": 3,
+  "kernelState": { /* full state vector — agents, metrics, timeline */ },
+  "trajectory": { /* truncated through turn 3 */ },
+  "capturedAt": "2026-05-05T14:22:31.418Z"
+}
+
+// Each fork returns its own WorldModel; aResult / bResult are
+// independent RunArtifacts each rooted at the same `forkedFrom`
+// reference (snapshot.scenarioId + atTurn).
+```
+
+### What just happened
+
+`wm.snapshot()` serializes the kernel state at the current turn into a `WorldModelSnapshot`. `wm.fork(snapshot, opts)` rebuilds a fresh `WorldModel` from that snapshot — same scenario, same kernel state, no shared references with the original. Each fork can take a different actor, seed, or run length without affecting the parent or other branches.
+
+Compared to `forkFromArtifact`, the snapshot/fork pair lets you:
+
+- Capture mid-run without finishing the parent simulation
+- Take multiple snapshots at different turns and choose which one to fork from
+- Batch-fork: snapshot once, run N branches in parallel
+- Build custom checkpoint policies (e.g., snapshot only on crisis events)
+
+Use `forkFromArtifact` when you have a completed `RunArtifact` and want to branch from a recorded turn. Use `snapshot/fork` when you control the run loop and need finer control.
+
+---
+
 ## CLI smoke test
 
 Captured output of the new umbrella CLI introduced in `0.7.452`. Files under [`output/cookbook/cli/`](../output/cookbook/cli/).
