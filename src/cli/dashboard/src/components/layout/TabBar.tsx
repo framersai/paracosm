@@ -1,3 +1,7 @@
+// React must be in scope for the JSX transform our test runner uses
+// (node + tsx loader). The dashboard tsconfig sets "jsx": "react-jsx"
+// for production builds, but the loader pipeline goes through esbuild
+// without that override, so the namespace import stays required.
 import * as React from 'react';
 import { useState, useEffect, useRef, type KeyboardEvent } from 'react';
 import type { ScenarioClientPayload } from '../../hooks/useScenario';
@@ -100,8 +104,12 @@ export function TabBar({ active, onTabChange, scenario }: TabBarProps) {
   }, []);
 
   // Arrow-key cycling per ARIA APG tablist pattern: Left/Right (and
-  // Home/End) move focus between tabs and activate them. Without this,
-  // keyboard users can only Tab linearly through the row.
+  // Home/End) move *focus* between tabs. Activation happens via the
+  // native button click on Enter/Space (browsers fire click on those
+  // keys for buttons). This is the "manual activation" pattern, which
+  // ARIA APG recommends for tabs whose content has non-trivial mount
+  // cost — auto-activating on every arrow keystroke would mount/unmount
+  // each tab in sequence as a user holds the arrow key.
   function onKeyDown(e: KeyboardEvent<HTMLButtonElement>, currentIdx: number) {
     let nextIdx: number | null = null;
     if (e.key === 'ArrowRight') nextIdx = (currentIdx + 1) % tabs.length;
@@ -110,9 +118,6 @@ export function TabBar({ active, onTabChange, scenario }: TabBarProps) {
     else if (e.key === 'End') nextIdx = tabs.length - 1;
     if (nextIdx === null) return;
     e.preventDefault();
-    const next = tabs[nextIdx];
-    if (!next) return;
-    onTabChange(next.id);
     tabRefs.current[nextIdx]?.focus();
   }
 

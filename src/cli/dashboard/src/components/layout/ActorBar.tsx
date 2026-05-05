@@ -61,7 +61,7 @@ function topStatuses(
   if (!statuses) return [];
   const entries: Array<{ key: string; label: string; value: string }> = [];
   for (const [key, raw] of Object.entries(statuses)) {
-    if (raw === false || raw === '' || raw == null) continue;
+    if (!key || raw === false || raw === '' || raw == null) continue;
     const value = typeof raw === 'boolean' ? 'on' : String(raw);
     entries.push({ key, label: humanizeKey(key), value });
     if (entries.length >= limit) break;
@@ -312,10 +312,13 @@ function DynamicStateRow({
       className={styles.dynamicRow}
       // Live region so screen readers announce mid-sim state changes
       // (crisis appears, leader enters DECIDING, status flips). Polite
-      // so it doesn't interrupt the user mid-keystroke.
+      // so it doesn't interrupt the user mid-keystroke. `aria-relevant
+      // additions text` scopes announcements to genuinely new content
+      // so chip removals don't trigger announcements on swap.
       role="status"
       aria-live="polite"
       aria-atomic="false"
+      aria-relevant="additions text"
     >
       {mood && (
         <span

@@ -33,14 +33,26 @@
      mouse click (`:focus:not(:focus-visible)`); keep a high-contrast
      amber ring for keyboard-driven focus so SR/keyboard users always
      have a visible target. Per-component SCSS rules can still override
-     with custom outlines — the cascade lets them win. */
+     with custom outlines — the cascade lets them win.
+
+     Form controls keep their click-focus ring because the text caret
+     alone is insufficient signal in dense settings forms. */
   :focus:not(:focus-visible) {
     outline: none;
   }
+  input:focus,
+  textarea:focus,
+  select:focus {
+    outline: 2px solid var(--amber);
+    outline-offset: 1px;
+  }
+  /* No `border-radius` here — modern browsers honor the element's own
+     border-radius for outline shape (Chrome 94+, Firefox 88+), so the
+     ring follows rounded buttons / cards naturally. Forcing 2px would
+     mismatch every 6-8px-radius button in the dashboard. */
   :focus-visible {
     outline: 2px solid var(--amber);
     outline-offset: 2px;
-    border-radius: 2px;
   }
 
   html {

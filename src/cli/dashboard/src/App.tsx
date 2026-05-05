@@ -854,13 +854,28 @@ function AppContent() {
             />
           )}
 
-          <main id="main-content" className={`flex-1 overflow-hidden ${styles.main}`} role="main" aria-label={`${activeTab} view`}>
+          <main
+            id="main-content"
+            // tabIndex={-1} so the skip link's #main-content anchor
+            // actually translates focus into the main region. Without
+            // this, browsers scroll to the target but leave focus on
+            // the <a> itself, defeating the skip-link purpose.
+            tabIndex={-1}
+            className={`flex-1 overflow-hidden ${styles.main}`}
+            role="main"
+            aria-label={`${activeTab} view`}
+          >
             {activeTab === 'quickstart' && (
               <section
                 role="tabpanel"
                 id="tabpanel-quickstart"
                 aria-labelledby="tab-quickstart"
-                tabIndex={0}
+                // tabIndex={-1}: panel contains its own focusable
+                // descendants (buttons, inputs, etc.), so per ARIA APG
+                // we don't insert an extra Tab stop on the panel
+                // itself. -1 keeps it programmatically focusable for
+                // skip-link / future activation handlers.
+                tabIndex={-1}
                 className={styles.tabPanel}
               >
                 <QuickstartView
@@ -878,7 +893,12 @@ function AppContent() {
                 role="tabpanel"
                 id="tabpanel-sim"
                 aria-labelledby="tab-sim"
-                tabIndex={0}
+                // tabIndex={-1}: panel contains its own focusable
+                // descendants (buttons, inputs, etc.), so per ARIA APG
+                // we don't insert an extra Tab stop on the panel
+                // itself. -1 keeps it programmatically focusable for
+                // skip-link / future activation handlers.
+                tabIndex={-1}
                 className={styles.tabPanel}
               >
                 <SimView
@@ -901,7 +921,12 @@ function AppContent() {
                 role="tabpanel"
                 id="tabpanel-viz"
                 aria-labelledby="tab-viz"
-                tabIndex={0}
+                // tabIndex={-1}: panel contains its own focusable
+                // descendants (buttons, inputs, etc.), so per ARIA APG
+                // we don't insert an extra Tab stop on the panel
+                // itself. -1 keeps it programmatically focusable for
+                // skip-link / future activation handlers.
+                tabIndex={-1}
                 className={styles.tabPanel}
               >
                 <SwarmViz state={gameState} onNavigateToChat={navigateToChat} />
@@ -913,7 +938,12 @@ function AppContent() {
                 role="tabpanel"
                 id="tabpanel-settings"
                 aria-labelledby="tab-settings"
-                tabIndex={0}
+                // tabIndex={-1}: panel contains its own focusable
+                // descendants (buttons, inputs, etc.), so per ARIA APG
+                // we don't insert an extra Tab stop on the panel
+                // itself. -1 keeps it programmatically focusable for
+                // skip-link / future activation handlers.
+                tabIndex={-1}
                 className={styles.tabPanel}
               >
                 <SettingsPanel
@@ -928,7 +958,12 @@ function AppContent() {
                 role="tabpanel"
                 id="tabpanel-reports"
                 aria-labelledby="tab-reports"
-                tabIndex={0}
+                // tabIndex={-1}: panel contains its own focusable
+                // descendants (buttons, inputs, etc.), so per ARIA APG
+                // we don't insert an extra Tab stop on the panel
+                // itself. -1 keeps it programmatically focusable for
+                // skip-link / future activation handlers.
+                tabIndex={-1}
                 className={styles.tabPanel}
               >
                 <ReportView state={gameState} verdict={sse.verdict} reportSections={scenario.ui.reportSections} />
@@ -940,7 +975,12 @@ function AppContent() {
                 role="tabpanel"
                 id="tabpanel-library"
                 aria-labelledby="tab-library"
-                tabIndex={0}
+                // tabIndex={-1}: panel contains its own focusable
+                // descendants (buttons, inputs, etc.), so per ARIA APG
+                // we don't insert an extra Tab stop on the panel
+                // itself. -1 keeps it programmatically focusable for
+                // skip-link / future activation handlers.
+                tabIndex={-1}
                 className={styles.tabPanel}
               >
                 <LibraryTab />
@@ -952,7 +992,12 @@ function AppContent() {
                 role="tabpanel"
                 id="tabpanel-studio"
                 aria-labelledby="tab-studio"
-                tabIndex={0}
+                // tabIndex={-1}: panel contains its own focusable
+                // descendants (buttons, inputs, etc.), so per ARIA APG
+                // we don't insert an extra Tab stop on the panel
+                // itself. -1 keeps it programmatically focusable for
+                // skip-link / future activation handlers.
+                tabIndex={-1}
                 className={styles.tabPanel}
               >
                 <StudioTab initialSubTab={studioInitialSubTab} />
@@ -966,14 +1011,17 @@ function AppContent() {
                 conversation the moment the user navigated away. Other tabs
                 (Sim, Viz, Settings, Reports, Log) have no user-generated
                 state at risk and stay on the unmount-on-switch pattern.
-                Wrapped in a tabpanel that toggles aria-hidden so AT
-                respects the visibility flip. */}
+
+                Hide path: `display: none` via .chatSurfaceHidden — that
+                alone removes the subtree from layout, the a11y tree, and
+                tab order. Do NOT switch to visibility/opacity hiding
+                without auditing chat input + send button focus order
+                (would create a hidden-but-focusable trap). */}
             <section
               role="tabpanel"
               id="tabpanel-chat"
               aria-labelledby="tab-chat"
-              aria-hidden={activeTab !== 'chat'}
-              tabIndex={activeTab === 'chat' ? 0 : -1}
+              tabIndex={-1}
               className={activeTab === 'chat' ? styles.chatSurfaceVisible : styles.chatSurfaceHidden}
             >
               <ChatPanel state={gameState} onChatUsage={handleChatUsage} />
