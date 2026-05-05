@@ -131,14 +131,22 @@ export function EventCard({ event, actorIndex }: EventCardProps) {
         <details className={styles.forgeDetails} style={forgeStyle}>
           <summary className={styles.forgeSummary}>
             <span className={styles.forgeRow}>
+              {/* Approved forges read as success ("✦ FORGED TOOL").
+                  Rejected forges are routine — judge runs schema + safety
+                  + correctness checks and rejecting an attempt just
+                  means the agent will re-forge with adjustments. The
+                  prior "✗" prefix and the bare "FAIL" pill made these
+                  read as system errors to first-time viewers; they're
+                  now framed as "RETRYING" so the SIM panel doesn't
+                  look like the run is broken. */}
               <span className={styles.forgeBadge}>
-                {approved ? '✦ FORGED TOOL' : '✗ FORGED TOOL'}
+                {approved ? '✦ FORGED TOOL' : '↻ FORGE RETRY'}
               </span>
               <span className={styles.forgeDept}>{dept}</span>
               <span className={styles.forgeDescription}>{description}</span>
               <span className={styles.forgeName}>{name} ({mode})</span>
               <span className={approved ? styles.forgeVerdictPass : styles.forgeVerdictFail}>
-                {approved ? `PASS ${confidence.toFixed(2)}` : 'FAIL'}
+                {approved ? `PASS ${confidence.toFixed(2)}` : 'RETRY'}
               </span>
             </span>
           </summary>
@@ -365,7 +373,7 @@ export function EventCard({ event, actorIndex }: EventCardProps) {
                   <span className={approved ? styles.toolPassPill : styles.toolFailPill}>
                     {approved
                       ? `PASS ${(typeof t.confidence === 'number' ? t.confidence : 0.85).toFixed(2)}`
-                      : 'FAIL'}
+                      : 'RETRY'}
                   </span>
                 </summary>
                 {/* INSPECT lives OUTSIDE summary so axe doesn't flag it as
@@ -726,7 +734,7 @@ function ToolDetailModal({ entry, fallbackName, onClose }: {
             <>
               <div className={styles.modalPills}>
                 <Pill label={`${entry.mode}`} color="var(--text-3)" />
-                <Pill label={entry.approved ? `PASS ${entry.confidence.toFixed(2)}` : 'FAIL'} color={entry.approved ? 'var(--green)' : 'var(--rust)'} />
+                <Pill label={entry.approved ? `PASS ${entry.confidence.toFixed(2)}` : 'RETRY'} color={entry.approved ? 'var(--green)' : 'var(--amber)'} />
                 <Pill label={`first forged T${entry.firstForgedTurn} · ${entry.firstForgedDepartment}`} color="var(--amber)" />
                 {entry.reuseCount > 0 && <Pill label={`reused ${entry.reuseCount}×`} color="var(--green)" />}
                 {entry.departments.size > 0 && <Pill label={`used by ${[...entry.departments].join(', ')}`} color="var(--teal)" />}

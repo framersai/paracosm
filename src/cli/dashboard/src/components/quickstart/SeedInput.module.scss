@@ -1,5 +1,23 @@
 @use '../../theme/typography' as typo;
 
+// Surfaced above LoadedScenarioCTA when the textarea has enough seed
+// content to compile a new scenario. Shifts the user toward the bottom
+// Submit button instead of the orange loaded-scenario CTA, which would
+// silently discard their input.
+.pendingSeedNotice {
+  margin: 0 auto 12px;
+  max-width: 640px;
+  padding: 10px 14px;
+  background: var(--amber-glow, rgba(232, 180, 74, 0.12));
+  border: 1px solid var(--amber-dim, rgba(232, 180, 74, 0.4));
+  border-radius: var(--radius-sm);
+  color: var(--amber);
+  font-family: var(--sans);
+  font-size: var(--font-sm);
+  line-height: 1.5;
+  text-align: center;
+}
+
 // Visual separator between LoadedScenarioCTA and the paste/URL/PDF tab
 // strip. Renders as a horizontal rule with a centered text label.
 

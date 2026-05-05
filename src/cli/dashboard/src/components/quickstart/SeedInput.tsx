@@ -157,13 +157,27 @@ export function SeedInput({ onSeedReady, onLoadedScenarioRunStart, disabled = fa
   // out as confusing — "Paste" implied the only valid input was
   // pre-existing text from a clipboard.
   const TAB_LABELS: Record<Tab, string> = { paste: 'WRITE', url: 'URL', pdf: 'PDF' };
+  // True once the textarea (or a fetched URL / extracted PDF) has
+  // enough content that submitting it would actually compile a new
+  // scenario. We use this to demote the loaded-scenario CTA so the
+  // user does not click it and silently discard the seed they just
+  // typed — the bug we kept seeing where someone pasted a hurricane
+  // scenario, hit the orange button, and watched the previously
+  // active AI-lab scenario run instead.
+  const hasPendingSeed = seedText.trim().length >= 200;
+
   return (
     <div className={styles.seedInput}>
       {onLoadedScenarioRunStart && (
         <>
+          {hasPendingSeed && (
+            <p className={styles.pendingSeedNotice} role="status" aria-live="polite">
+              You have draft seed text below. Submit it to compile a new scenario, or clear it to run the loaded one.
+            </p>
+          )}
           <LoadedScenarioCTA
             onRunStart={onLoadedScenarioRunStart}
-            disabled={disabled || fetching}
+            disabled={disabled || fetching || hasPendingSeed}
           />
           <div className={styles.dividerWrap}>
             <span className={styles.dividerLine} aria-hidden="true" />

@@ -49,7 +49,33 @@ export interface UseForgeToastsOptions {
   tourActive: boolean;
 }
 
+/**
+ * localStorage flag for power-users who want the per-forge toast
+ * stream. Off by default — every forge_attempt already renders an
+ * inline PASS/FAIL pill on its EventCard in the live SIM panel, and
+ * a parallel toast for every approval + every rejection produced an
+ * overwhelming pop-up cascade that read as "the system is broken"
+ * to first-time viewers.
+ *
+ * Set with: `localStorage.setItem('paracosm:forgeToasts', '1')`.
+ */
+const FORGE_TOASTS_ENABLED_KEY = 'paracosm:forgeToasts';
+
+function forgeToastsEnabled(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.localStorage.getItem(FORGE_TOASTS_ENABLED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 export function useForgeToasts({ events, replayDone, tourActive }: UseForgeToastsOptions): void {
+  // Power-user opt-in. The default-off behavior keeps the SIM panel
+  // legible for first-time viewers; the inline PASS/FAIL pill on each
+  // forge EventCard still surfaces every outcome where forge activity
+  // is actually relevant.
+  const enabled = forgeToastsEnabled();
   const readSeen = useCallback((): Set<string> => {
     try {
       const raw = sessionStorage.getItem(FORGE_SEEN_STORAGE_KEY);
@@ -90,6 +116,7 @@ export function useForgeToasts({ events, replayDone, tourActive }: UseForgeToast
   }, [replayDone, events.length, tourActive]);
 
   useEffect(() => {
+    if (!enabled) return;
     const seen = readSeen();
     const alreadyToasted = toastedForgeKeysRef.current;
     const done = tourActive ? true : replayDone;
@@ -137,5 +164,5 @@ export function useForgeToasts({ events, replayDone, tourActive }: UseForgeToast
       }, delay);
     }
     writeSeen(seen);
-  }, [events, toast, replayDone, tourActive, readSeen, writeSeen]);
+  }, [enabled, events, toast, replayDone, tourActive, readSeen, writeSeen]);
 }
