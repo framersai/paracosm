@@ -80,7 +80,7 @@ export const DEMO_EVENTS: SimEvent[] = [
     data: {
       phase: 'parallel',
       maxTurns: 6,
-      leaders: [
+      actors: [
         {
           name: 'Commander Elena Vasquez',
           archetype: 'The Visionary',

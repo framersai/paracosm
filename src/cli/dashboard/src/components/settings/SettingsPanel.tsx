@@ -119,39 +119,46 @@ export function SettingsPanel({ events = [], initialSubTab = 'config' }: Setting
   const navigateTab = useDashboardNavigation();
 
   const defaultPreset = scenario.presets.find(p => p.id === 'default');
+  // Server's projectScenarioForClient now ships ScenarioPreset.leaders
+  // (engine-side field name); the legacy `actors` alias is preserved on
+  // the type but only older fixtures populate it. Read leaders first so
+  // hosted prod's Mars Genesis preset surfaces "Aria Chen / Dietrich
+  // Voss" instead of the defaultLeader(0/1) placeholder.
+  const presetLeaders = defaultPreset?.leaders ?? defaultPreset?.actors;
   // Spread the hexaco object so the form's per-trait edits don't mutate
   // the preset that lives in the scenario context (which is shared with
   // every other consumer that reads scenario.presets).
-  const initLeaderA = defaultPreset?.actors?.[0]
-    ? { name: defaultPreset.actors[0].name, archetype: defaultPreset.actors[0].archetype, unit: 'Colony Alpha', instructions: defaultPreset.actors[0].instructions, hexaco: { ...defaultPreset.actors[0].hexaco } }
+  const initLeaderA = presetLeaders?.[0]
+    ? { name: presetLeaders[0].name, archetype: presetLeaders[0].archetype, unit: 'Colony Alpha', instructions: presetLeaders[0].instructions, hexaco: { ...presetLeaders[0].hexaco } }
     : defaultLeader(0);
-  const initLeaderB = defaultPreset?.actors?.[1]
-    ? { name: defaultPreset.actors[1].name, archetype: defaultPreset.actors[1].archetype, unit: 'Colony Beta', instructions: defaultPreset.actors[1].instructions, hexaco: { ...defaultPreset.actors[1].hexaco } }
+  const initLeaderB = presetLeaders?.[1]
+    ? { name: presetLeaders[1].name, archetype: presetLeaders[1].archetype, unit: 'Colony Beta', instructions: presetLeaders[1].instructions, hexaco: { ...presetLeaders[1].hexaco } }
     : defaultLeader(1);
 
   const [leaderA, setLeaderA] = useState<ActorFormData>(initLeaderA);
   const [leaderB, setLeaderB] = useState<ActorFormData>(initLeaderB);
 
-  // Re-populate from presets when scenario data loads (async fetch)
-  // Depend on presets length because the fallback has presets:[] but same id
+  // Re-populate from presets when scenario data loads (async fetch).
+  // Depend on presets length because the fallback has presets:[] but same id.
   useEffect(() => {
     const p = scenario.presets.find(p => p.id === 'default');
-    if (p?.actors?.[0]) {
+    const leaders = p?.leaders ?? p?.actors;
+    if (leaders?.[0]) {
       setLeaderA({
-        name: p.actors[0].name,
-        archetype: p.actors[0].archetype,
+        name: leaders[0].name,
+        archetype: leaders[0].archetype,
         unit: 'Colony Alpha',
-        instructions: p.actors[0].instructions,
-        hexaco: { ...p.actors[0].hexaco },
+        instructions: leaders[0].instructions,
+        hexaco: { ...leaders[0].hexaco },
       });
     }
-    if (p?.actors?.[1]) {
+    if (leaders?.[1]) {
       setLeaderB({
-        name: p.actors[1].name,
-        archetype: p.actors[1].archetype,
+        name: leaders[1].name,
+        archetype: leaders[1].archetype,
         unit: 'Colony Beta',
-        instructions: p.actors[1].instructions,
-        hexaco: { ...p.actors[1].hexaco },
+        instructions: leaders[1].instructions,
+        hexaco: { ...leaders[1].hexaco },
       });
     }
   }, [scenario.id, scenario.presets.length]);
@@ -284,7 +291,7 @@ export function SettingsPanel({ events = [], initialSubTab = 'config' }: Setting
     setStatus('Starting...');
     try {
       const config: Record<string, unknown> = {
-        leaders: [
+        actors: [
           { ...leaderA, hexaco: leaderA.hexaco },
           { ...leaderB, hexaco: leaderB.hexaco },
         ],

@@ -469,7 +469,11 @@ export async function runSimulation(leader: ActorConfig, keyPersonnel: KeyPerson
   });
   const provider = resolvedProvider.provider;
   const providerApiKey = apiKeyForProvider(provider, opts);
-  const sid = `${sc.labels.shortName}-v2-${leader.archetype.toLowerCase().replace(/\s+/g, '-')}`;
+  const archetypeSlug = (typeof leader.archetype === 'string' ? leader.archetype : '')
+    .toLowerCase().replace(/\s+/g, '-')
+    || (typeof leader.name === 'string' ? leader.name : '').toLowerCase().replace(/\s+/g, '-')
+    || 'leader';
+  const sid = `${sc.labels.shortName}-v2-${archetypeSlug}`;
   const modelConfig = resolveSimulationModels(provider, opts.models, opts.costPreset);
   // Cost tracking: accumulate token usage and estimated cost across all LLM calls
   // Cost tracker: per-site buckets + cache-aware fallback estimation.
@@ -2066,7 +2070,7 @@ Then set selectedOptionId, decision, and rationale. The rationale compresses the
   const finalCost = costTracker.finalCost();
 
   const output: RunArtifact = buildRunArtifact({
-    runId: `${sc.labels.shortName}-${leader.archetype.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`,
+    runId: `${sc.labels.shortName}-${archetypeSlug}-${Date.now()}`,
     scenarioId: sc.id,
     scenarioName: sc.labels.name,
     seed: opts.seed,

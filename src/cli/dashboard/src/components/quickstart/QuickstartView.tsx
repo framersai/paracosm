@@ -99,6 +99,9 @@ function mapLaunchErrorToMessage(raw: string): string {
   if (/HTTP 429|rate.?limit/i.test(raw)) {
     return 'Hosted demo is rate-limited (3 runs/day). Drop your own API key in Settings to bypass — your saved keys flow into the run automatically.';
   }
+  if (/HTTP 401|HTTP 403|unauthor/i.test(raw)) {
+    return 'Auth error talking to the LLM provider. Check your API key in Settings.';
+  }
   if (/Two actors required|at least 2 actors/i.test(raw)) {
     return 'This scenario needs at least 2 actors. Bump the slider before launching.';
   }
@@ -309,7 +312,12 @@ export function QuickstartView({ sse, sessionId, onRunStarted, onInterventionRes
         const body = await compileRes.json().catch(() => ({} as { error?: string }));
         throw new Error(body.error ?? `Compile failed: HTTP ${compileRes.status}`);
       }
-      const { scenario, scenarioId } = await compileRes.json() as { scenario: ScenarioPackage; scenarioId: string };
+      const compileBody = await compileRes.json().catch(() => null) as { scenario?: ScenarioPackage; scenarioId?: string } | null;
+      const scenario = compileBody?.scenario;
+      const scenarioId = compileBody?.scenarioId;
+      if (!scenario || !scenarioId) {
+        throw new Error('Compile returned no scenario');
+      }
       setPhase({ kind: 'progress', stage: 'research', scenario });
       // Real grounding pass: hits Serper for 3 derived queries, attaches
       // citations to the scenario's metadata server-side. Returns
@@ -345,7 +353,11 @@ export function QuickstartView({ sse, sessionId, onRunStarted, onInterventionRes
         const body = await actorsRes.json().catch(() => ({} as { error?: string }));
         throw new Error(body.error ?? `Actor generation failed: HTTP ${actorsRes.status}`);
       }
-      const { actors } = await actorsRes.json() as { actors: ActorConfig[] };
+      const actorsBody = await actorsRes.json().catch(() => null) as { actors?: ActorConfig[] } | null;
+      const actors = actorsBody?.actors;
+      if (!actors || actors.length === 0) {
+        throw new Error('Actor generation returned no actors');
+      }
       setPhase({ kind: 'progress', stage: 'running', scenario, actors });
 
       sse.reset();
@@ -364,27 +376,26 @@ export function QuickstartView({ sse, sessionId, onRunStarted, onInterventionRes
         const body = await setupRes.json().catch(() => ({} as { error?: string }));
         throw new Error(body.error ?? `Setup failed: HTTP ${setupRes.status}`);
       }
+      // Mirror the loaded-scenario CTA path: /setup returns
+      // { redirect: '/sim', ... } so the dashboard can navigate to the
+      // running simulation. Without this, handleSeedReady left the user
+      // on Quickstart staring at the Progress panel until SSE results
+      // landed; the loaded-scenario CTA already navigates so the two
+      // entry points must behave the same way.
+      const setupData = (await setupRes.json().catch(() => ({}))) as { redirect?: string };
+      if (setupData.redirect) {
+        try { window.localStorage.setItem('paracosm:launchPending', '1'); } catch { /* private mode */ }
+        window.location.href = resolveSetupRedirectHref(window.location.href, setupData.redirect);
+        return;
+      }
     } catch (err) {
       setPhase({ kind: 'input' });
-      // Map raw fetch / setup exceptions to actionable copy. Network
-      // failures ('Failed to fetch'), origin 502/504s, and JSON parse
-      // errors all stringify to noise the viewer can't act on.
       const raw = (err as Error)?.message ?? String(err);
-      let msg: string;
-      if (/Failed to fetch|NetworkError|ERR_CONNECTION|ERR_NETWORK/i.test(raw)) {
-        msg = "Couldn't reach the server. Check your connection and try again.";
-      } else if (/HTTP 502|HTTP 503|HTTP 504/.test(raw)) {
-        msg = 'Server is temporarily unavailable (502/503/504). Try again in a moment.';
-      } else if (/HTTP 429|rate.?limit/i.test(raw)) {
-        msg = 'Hosted demo is rate-limited right now. Drop your own API key in Settings or wait a minute.';
-      } else if (/HTTP 401|HTTP 403|unauthor/i.test(raw)) {
-        msg = 'Auth error talking to the LLM provider. Check your API key in Settings.';
-      } else {
-        msg = `Quickstart failed: ${raw}`;
-      }
-      setErrorBanner(msg);
+      const friendly = mapLaunchErrorToMessage(raw);
+      setErrorBanner(friendly);
+      toast('error', 'Quickstart failed', friendly, 8000);
     }
-  }, [sse, onRunStarted]);
+  }, [sse, onRunStarted, toast]);
 
   // Transition to results when all expected artifacts arrive.
   useEffect(() => {

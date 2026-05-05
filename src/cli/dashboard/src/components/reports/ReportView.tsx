@@ -143,7 +143,7 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            leaders: [payload.leader],
+            actors: [payload.leader],
             turns: parentTurns,
             seed,
             captureSnapshots: true,

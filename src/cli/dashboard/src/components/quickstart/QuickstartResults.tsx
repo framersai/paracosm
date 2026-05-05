@@ -63,7 +63,13 @@ export function QuickstartResults({ actors, artifacts, sessionId, onSwap }: Quic
 
   const handleDownload = (i: number) => {
     const artifact = artifacts[i];
-    const slug = actors[i].archetype.toLowerCase().replace(/\s+/g, '-');
+    const a = actors[i] ?? {};
+    const archetype = typeof a.archetype === 'string' ? a.archetype : '';
+    const name = typeof a.name === 'string' ? a.name : '';
+    const slug =
+      archetype.toLowerCase().replace(/\s+/g, '-') ||
+      name.toLowerCase().replace(/\s+/g, '-') ||
+      `actor-${i}`;
     downloadArtifactJson(artifact, `paracosm-quickstart-${slug}.json`);
   };
 

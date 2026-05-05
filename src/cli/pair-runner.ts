@@ -8,6 +8,26 @@ import type { ResolvedEconomicsProfile } from '../runtime/economics-profile.js';
 
 export type BroadcastFn = (event: string, data: unknown) => void;
 
+/**
+ * Derive a stable kebab-case tag for a leader from archetype, name, and
+ * (last-resort) index. Hardened against missing/non-string fields so a
+ * sparse LLM-generated actor never crashes the runner with a bare
+ * `archetype.toLowerCase()` TypeError. Used for SSE leader tags, runId
+ * prefixes, and per-leader artifact filenames.
+ */
+export function leaderTag(
+  leader: { archetype?: unknown; name?: unknown },
+  index: number,
+): string {
+  const archetype = typeof leader.archetype === 'string' ? leader.archetype : '';
+  const name = typeof leader.name === 'string' ? leader.name : '';
+  const fromArchetype = archetype.toLowerCase().replace(/^the\s+/, '').replace(/\s+/g, '-');
+  if (fromArchetype) return fromArchetype;
+  const fromName = name.toLowerCase().replace(/\s+/g, '-');
+  if (fromName) return fromName;
+  return `leader-${index}`;
+}
+
 function resolveVerdictModel(
   provider: 'openai' | 'anthropic',
   economics: ResolvedEconomicsProfile,
@@ -78,7 +98,7 @@ export async function runPairSimulations(
   console.log(`  Running: ${actors[0].name} vs ${actors[1].name} | ${turns} turns | seed ${seed}\n`);
 
   const results = await Promise.allSettled(actors.map((leader, index) => {
-    const tag = leader.archetype.toLowerCase().replace(/^the\s+/, '').replace(/\s+/g, '-') || `leader-${index}`;
+    const tag = leaderTag(leader, index);
     return runSimulation(leader, simConfig.keyPersonnel ?? DEFAULT_KEY_PERSONNEL, {
       maxTurns: turns,
       seed,
@@ -356,7 +376,7 @@ export async function runForkSimulation(
       cohereKey: simConfig.cohereKey,
     });
     broadcast('result', {
-      leader: leader.archetype.toLowerCase().replace(/\s+/g, '-'),
+      leader: leaderTag(leader, 0),
       summary: {
         population: result.finalState?.metrics?.population,
         morale: result.finalState?.metrics?.morale,
@@ -424,7 +444,7 @@ export async function runBatchSimulations(
 
   const usedTags = new Map<string, number>();
   const actorsWithTags = actors.map((leader, index) => {
-    const base = leader.archetype.toLowerCase().replace(/^the\s+/, '').replace(/\s+/g, '-') || `leader-${index}`;
+    const base = leaderTag(leader, index);
     const count = usedTags.get(base) ?? 0;
     usedTags.set(base, count + 1);
     const tag = count === 0 ? base : `${base}-${count + 1}`;

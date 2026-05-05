@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync, unlinkSync, createReadStream } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { normalizeSimulationConfig, applyDemoCaps, type NormalizedSimulationConfig } from './sim-config.js';
+import { normalizeSimulationConfig, applyDemoCaps, type NormalizedSimulationConfig, type SimulationSetupPayload } from './sim-config.js';
 import { runPairSimulations, runForkSimulation, runBatchSimulations, type BroadcastFn } from './pair-runner.js';
 import {
   handleFetchSeed, handleCompileFromSeed, handleGenerateActors, handleGroundScenario,
@@ -2036,7 +2036,24 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
 
     if (req.url === '/setup' && req.method === 'POST') {
       try {
-        const config = JSON.parse(await readBody(req, maxRequestBodyBytes));
+        const rawConfig = JSON.parse(await readBody(req, maxRequestBodyBytes));
+        // JSON.parse('null') returns null and JSON.parse('"x"') returns
+        // a string; both crash the field reads below with a TypeError
+        // that bubbles out as the unhelpful "Cannot read properties of
+        // null (reading 'apiKey')" the user sees in the launch banner.
+        // Reject non-object bodies up front with a 400 the dashboard's
+        // mapLaunchErrorToMessage already surfaces as a friendly hint.
+        if (!rawConfig || typeof rawConfig !== 'object' || Array.isArray(rawConfig)) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Setup payload must be a JSON object.' }));
+          return;
+        }
+        const config = rawConfig as Record<string, unknown> & {
+          apiKey?: unknown;
+          anthropicKey?: unknown;
+          actors?: unknown;
+          forkFrom?: unknown;
+        };
 
         // Rate limit check: bypass when user provides real API keys.
         const requestCredentials = {
@@ -2070,19 +2087,20 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         // Fork setups take exactly one actor (the override for the
         // forked branch). Regular setups take exactly two. Spec 2B.
         const isForkSetup = !!config.forkFrom;
+        const actorsArray = Array.isArray(config.actors) ? config.actors : null;
         if (isForkSetup) {
-          if (!config.actors || config.actors.length !== 1) {
+          if (!actorsArray || actorsArray.length !== 1) {
             res.writeHead(400, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: 'Fork setup requires exactly one actor.' }));
             return;
           }
-        } else if (!config.actors || config.actors.length < 2) {
+        } else if (!actorsArray || actorsArray.length < 2) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'Two actors required' }));
           return;
         }
 
-        simConfig = normalizeSimulationConfig(config);
+        simConfig = normalizeSimulationConfig(config as SimulationSetupPayload);
 
         // Spec 2B: validate fork preconditions against the supplied
         // parent artifact before spinning up the orchestrator.
