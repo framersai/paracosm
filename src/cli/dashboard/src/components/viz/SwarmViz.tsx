@@ -976,7 +976,7 @@ export function SwarmViz({ state, onNavigateToChat }: SwarmVizProps) {
   // Leader metadata is now resolved above (pre-early-return) so
   // dependency arrays in searchMatchesMemo / useSoundCues don't hit TDZ.
   const diffLine = snapA && snapB
-    ? `A vs B: ${snapB.population - snapA.population >= 0 ? '+' : ''}${snapB.population - snapA.population} pop, ${Math.round((snapB.morale - snapA.morale) * 100)}% morale, ${snapB.foodReserve - snapA.foodReserve > 0 ? '+' : ''}${(snapB.foodReserve - snapA.foodReserve).toFixed(1)}mo food`
+    ? `A vs B: ${snapB.population - snapA.population >= 0 ? '+' : ''}${snapB.population - snapA.population} pop, ${snapB.morale - snapA.morale >= 0 ? '+' : ''}${Math.round((snapB.morale - snapA.morale) * 100)}% morale, ${snapB.foodReserve - snapA.foodReserve > 0 ? '+' : ''}${(snapB.foodReserve - snapA.foodReserve).toFixed(1)}mo food`
     : '';
 
   // Phone: force single-panel view. Side-by-side at 380-400px makes
