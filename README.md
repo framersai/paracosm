@@ -413,83 +413,15 @@ Every structured LLM call (director, departments, commander, reactions, verdict)
 
 ---
 
-## Built-in scenarios
+## Built-in scenarios + APIs
 
-| Scenario      | Description                                                                                                       |
-|---------------|-------------------------------------------------------------------------------------------------------------------|
-| Mars Genesis  | 100 colonists, 6 turns over 48 years. 5 departments, emergent dust storms, water crises, first Marsborn generation. |
-| Lunar Outpost | 50-person crew at the south pole. Mining, life support, comms. Regolith toxicity, 1/6g atrophy.                    |
+`marsScenario` (100 colonists, 6 turns over 48 years; 5 departments) and `lunarScenario` (50-person south-pole crew; regolith + 1/6g) ship from the `paracosm` root as references for custom scenarios.
 
-Both ship as `marsScenario` and `lunarScenario` named exports from the `paracosm` root and serve as references for building custom scenarios.
+Programmatic surfaces: `paracosm` root (`run`, `runMany`, `WorldModel`, `compileScenario`, `createParacosmClient`), plus `paracosm/{compiler,schema,swarm,digital-twin,core}` for deeper paths. Provider / preset / model defaults can be pinned per client or via `PARACOSM_*` env vars. Full reference + every method signature: [`docs/COOKBOOK.md`](docs/COOKBOOK.md).
 
----
+For non-SSE consumers there's `POST /simulate` (gated on `PARACOSM_ENABLE_SIMULATE_ENDPOINT=true`) and nine read-and-replay routes under `/api/v1/*`. Wire-level details: [`docs/HTTP_API.md`](docs/HTTP_API.md).
 
-## Programmatic API
-
-| Import                              | Surface                                                                                                  |
-|-------------------------------------|-----------------------------------------------------------------------------------------------------------|
-| `paracosm` (root)                   | `run`, `runMany`, `WorldModel`, `compileScenario`, `marsScenario`, `lunarScenario`, `ACTOR_PRESETS`, `createParacosmClient`, all public types |
-| `paracosm/compiler`                 | `compileScenario`, `ingestSeed`, `ingestFromUrl`, `CompileOptions` (deep authoring path)                  |
-| `paracosm/schema`                   | Zod runtime validators: `RunArtifactSchema`, `StreamEventSchema`, etc.                                    |
-| `paracosm/swarm`                    | Post-run swarm inspection helpers                                                                         |
-| `paracosm/digital-twin`             | `DigitalTwin` (alias of `WorldModel`) and digital-twin schemas                                            |
-| `paracosm/core`                     | Kernel internals: `SimulationKernel`, `SeededRng`, `generateInitialPopulation`, kernel state types        |
-
-`createParacosmClient` pins `provider`, `costPreset`, per-role `models`, and compile-time options once, then hands back methods that inherit those defaults. Per-call overrides still win, merged at the per-role level. Env vars feed the same defaults; explicit args win over env, env wins over library defaults.
-
-```bash
-PARACOSM_PROVIDER=anthropic \
-PARACOSM_COST_PRESET=economy \
-PARACOSM_MODEL_DEPARTMENTS=claude-sonnet-4-6 \
-  node my-runner.js
-```
-
-`runSimulation` accepts an `AbortSignal` and short-circuits at the next turn boundary on cancel, returning the partial result with `output.aborted === true`. Custom events at fixed turns ride the same options bag (`customEvents: [{ turn: 3, title, description }]`). Provider-key failures throw `ProviderKeyMissingError` once at the top of the run instead of retrying silently per call.
-
----
-
-## HTTP API: `POST /simulate`
-
-For non-SSE consumers (curl, Python integrations, third-party dashboards) a plain request-response endpoint runs a simulation in one call. Gated behind `PARACOSM_ENABLE_SIMULATE_ENDPOINT=true` so the hosted demo's SSE-first path stays the default.
-
-```bash
-export PARACOSM_ENABLE_SIMULATE_ENDPOINT=true
-paracosm dashboard
-
-curl -s -X POST http://localhost:3456/simulate \
-  -H 'Content-Type: application/json' \
-  -H 'X-Anthropic-Key: sk-ant-...' \
-  -d @run.json | jq '.artifact.fingerprint'
-```
-
-The body accepts either a pre-compiled `ScenarioPackage` or a raw scenario draft (auto-compiled server-side with optional `options.seedText` / `options.seedUrl` grounding). The response is `{ artifact, scenario, durationMs }`. Rate limiting and the 5 MiB body cap match `/setup`.
-
-The dashboard server also exposes nine read-and-replay routes under `/api/v1/*` (list runs, fetch artifacts, re-execute, import). Wire-level reference: [`docs/HTTP_API.md`](docs/HTTP_API.md).
-
----
-
-## Storage
-
-Run history (Library tab) and replayable session blobs (Load menu) persist through [`@framers/sql-storage-adapter`](https://github.com/framersai/sql-storage-adapter). The same code paths run unchanged against SQLite, Postgres, sql.js, and IndexedDB; switching backends is one env var.
-
-```bash
-paracosm dashboard                                                 # SQLite, ./data/runs.db
-STORAGE_ADAPTER=postgres DATABASE_URL=... paracosm dashboard       # Postgres in production
-STORAGE_ADAPTER=sqljs paracosm dashboard                           # pure-WASM fallback
-```
-
-`runs` and `sessions` schemas bootstrap idempotently on first boot. Legacy v0.7 databases auto-migrate `leader_*` columns to `actor_*` in place via `ALTER TABLE RENAME COLUMN`.
-
-### Admin endpoints
-
-Two destructive admin routes ship with the dashboard, gated by **two** env vars on the server:
-
-| Env var               | Purpose                                                                                              |
-|-----------------------|------------------------------------------------------------------------------------------------------|
-| `ADMIN_WRITE=true`    | Master switch. Off, every `/admin/*` route returns `403`.                                            |
-| `ADMIN_TOKEN=<secret>`| Per-request bearer token in `X-Admin-Token`. With `ADMIN_WRITE=true` and no token, the server returns `503` (fail-closed).|
-
-`POST /admin/sessions/save` snapshots the current event buffer as a replayable session. `POST /admin/data/wipe` clears `runs.db`, `sessions.db`, on-disk artifact JSONs, and the SSE event buffer. The dashboard's Wipe All control prompts for the token on first use and stores it in `localStorage`.
+Storage: SQLite by default, Postgres / sql.js / IndexedDB via `STORAGE_ADAPTER=` env. Run history (Library) and session blobs (Load menu) share the same schema. Admin write routes (`/admin/sessions/save`, `/admin/data/wipe`) require both `ADMIN_WRITE=true` and an `ADMIN_TOKEN` bearer; off by default.
 
 ---
 
