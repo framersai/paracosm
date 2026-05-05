@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react';
+import * as React from 'react';
+import { useState, useEffect, useRef, type KeyboardEvent } from 'react';
 import type { ScenarioClientPayload } from '../../hooks/useScenario';
+void React;
 
 type Tab = 'quickstart' | 'sim' | 'viz' | 'settings' | 'reports' | 'library' | 'studio' | 'chat' | 'about';
 
@@ -67,12 +69,30 @@ const MOBILE_BREAKPOINT = 900;
 export function TabBar({ active, onTabChange, scenario }: TabBarProps) {
   const tabs = TABS.filter(t => t.id !== 'chat' || scenario.policies.characterChat);
   const [compact, setCompact] = useState(window.innerWidth < MOBILE_BREAKPOINT);
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   useEffect(() => {
     const onResize = () => setCompact(window.innerWidth < MOBILE_BREAKPOINT);
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
+
+  // Arrow-key cycling per ARIA APG tablist pattern: Left/Right (and
+  // Home/End) move focus between tabs and activate them. Without this,
+  // keyboard users can only Tab linearly through the row.
+  function onKeyDown(e: KeyboardEvent<HTMLButtonElement>, currentIdx: number) {
+    let nextIdx: number | null = null;
+    if (e.key === 'ArrowRight') nextIdx = (currentIdx + 1) % tabs.length;
+    else if (e.key === 'ArrowLeft') nextIdx = (currentIdx - 1 + tabs.length) % tabs.length;
+    else if (e.key === 'Home') nextIdx = 0;
+    else if (e.key === 'End') nextIdx = tabs.length - 1;
+    if (nextIdx === null) return;
+    e.preventDefault();
+    const next = tabs[nextIdx];
+    if (!next) return;
+    onTabChange(next.id);
+    tabRefs.current[nextIdx]?.focus();
+  }
 
   return (
     <nav
@@ -81,46 +101,63 @@ export function TabBar({ active, onTabChange, scenario }: TabBarProps) {
       aria-label="Dashboard navigation"
       style={{ background: 'var(--bg-panel)', borderBottom: '1px solid var(--border)' }}
     >
-      {tabs.map((tab, idx) => (
-        <button
-          key={tab.id}
-          onClick={() => onTabChange(tab.id)}
-          role="tab"
-          aria-selected={active === tab.id}
-          aria-label={tab.label}
-          id={`tab-${tab.id}`}
-          className="cursor-pointer transition-colors"
-          style={{
-            padding: compact ? '8px 0' : '8px 0',
-            flex: 1,
-            fontFamily: 'var(--sans)',
-            fontSize: compact ? '10px' : '12px',
-            fontWeight: 700,
-            letterSpacing: compact ? '0' : '0.5px',
-            textTransform: 'uppercase' as const,
-            color: active === tab.id ? 'var(--amber)' : 'var(--text-3)',
-            background: active === tab.id ? 'var(--bg-card)' : 'transparent',
-            border: 'none',
-            // Vertical divider on every tab except the last so the row
-            // reads as separate cells. Without this, eleven labels at
-            // 12px spacing blurred into one fuzzy band. The right-edge
-            // border drops on the active tab so its amber-underline
-            // chip reads cleanly.
-            borderRight: idx < tabs.length - 1 && active !== tab.id
-              ? '1px solid var(--border)'
-              : 'none',
-            borderBottom: active === tab.id ? '2px solid var(--amber)' : '2px solid transparent',
-            marginBottom: '-1px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: compact ? '2px' : '0',
-          }}
-        >
-          {compact && <TabIcon id={tab.id} size={16} />}
-          {!compact && tab.label}
-        </button>
-      ))}
+      {tabs.map((tab, idx) => {
+        const isActive = active === tab.id;
+        return (
+          <button
+            key={tab.id}
+            ref={(el) => { tabRefs.current[idx] = el; }}
+            onClick={() => onTabChange(tab.id)}
+            onKeyDown={(e) => onKeyDown(e, idx)}
+            role="tab"
+            type="button"
+            aria-selected={isActive}
+            // In non-compact mode the visible text already says "QUICKSTART";
+            // re-supplying it as aria-label causes screen readers to read it
+            // twice. Only label-when-icon-only in compact mode.
+            aria-label={compact ? tab.label : undefined}
+            aria-controls={`tabpanel-${tab.id}`}
+            id={`tab-${tab.id}`}
+            // Roving tabindex: only the active tab is in the document tab
+            // order; arrow keys move between the rest. Per ARIA APG.
+            tabIndex={isActive ? 0 : -1}
+            className="cursor-pointer transition-colors"
+            style={{
+              // 44px floor on compact (touch target). Non-compact stays at
+              // the historical 8px padding to preserve density on desktop.
+              minHeight: compact ? 44 : undefined,
+              padding: compact ? '4px 0' : '8px 0',
+              flex: 1,
+              fontFamily: 'var(--sans)',
+              fontSize: compact ? '10px' : '12px',
+              fontWeight: 700,
+              letterSpacing: compact ? '0' : '0.5px',
+              textTransform: 'uppercase' as const,
+              color: isActive ? 'var(--amber)' : 'var(--text-3)',
+              background: isActive ? 'var(--bg-card)' : 'transparent',
+              border: 'none',
+              // Vertical divider on every tab except the last so the row
+              // reads as separate cells. Without this, eleven labels at
+              // 12px spacing blurred into one fuzzy band. The right-edge
+              // border drops on the active tab so its amber-underline
+              // chip reads cleanly.
+              borderRight: idx < tabs.length - 1 && !isActive
+                ? '1px solid var(--border)'
+                : 'none',
+              borderBottom: isActive ? '2px solid var(--amber)' : '2px solid transparent',
+              marginBottom: '-1px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: compact ? '2px' : '0',
+            }}
+          >
+            {compact && <TabIcon id={tab.id} size={18} />}
+            {!compact && tab.label}
+          </button>
+        );
+      })}
     </nav>
   );
 }

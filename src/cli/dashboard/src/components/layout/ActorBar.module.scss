@@ -262,6 +262,14 @@
   50% { opacity: 1; }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .compactDeciding,
+  .chipDeciding {
+    animation: none;
+    opacity: 1;
+  }
+}
+
 .dynamicRow {
   display: flex;
   align-items: center;

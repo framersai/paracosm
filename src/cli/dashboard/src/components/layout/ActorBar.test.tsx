@@ -162,7 +162,7 @@ test('ActorBar non-compact: dynamic row hidden when no event/status/morale', () 
   assert.ok(!/DECIDING/.test(html), 'no DECIDING chip without pendingDecision');
 });
 
-test('ActorBar non-compact: status chips render up to 2 entries', () => {
+test('ActorBar non-compact: status chips render up to 2 entries with humanized keys', () => {
   const html = renderToString(
     <ActorBar
       actorIndex={0}
@@ -178,9 +178,41 @@ test('ActorBar non-compact: status chips render up to 2 entries', () => {
       }}
     />,
   );
-  assert.ok(html.includes('MORALE_STATE') && html.includes('stable'), 'first status renders');
-  assert.ok(html.includes('OXYGEN_PRESSURE') && html.includes('rationed'), 'second status renders');
-  assert.ok(!html.includes('THIRD_STATUS'), 'third status truncated to top-2 limit');
-  assert.ok(!html.includes('EMPTY_STATUS'), 'empty-string status skipped');
-  assert.ok(!html.includes('FALSE_STATUS'), 'false-valued status skipped');
+  assert.ok(html.includes('Morale state') && html.includes('stable'), 'first status renders with humanized key');
+  assert.ok(html.includes('Oxygen pressure') && html.includes('rationed'), 'second status renders with humanized key');
+  assert.ok(!html.includes('Third status'), 'third status truncated to top-2 limit');
+  assert.ok(!html.includes('Empty status'), 'empty-string status skipped');
+  assert.ok(!html.includes('False status'), 'false-valued status skipped');
+  // Underscore form should NOT leak into visible output anymore.
+  assert.ok(!/<span[^>]*>MORALE_STATE<\/span>/.test(html), 'no SHOUT_CASE in visible label');
+});
+
+test('ActorBar non-compact: dynamic state row is a polite live region', () => {
+  const html = renderToString(
+    <ActorBar
+      actorIndex={0}
+      leader={{ name: 'Aria', archetype: 'X', unit: 'A', hexaco: {} }}
+      popHistory={[100]}
+      moraleHistory={[60]}
+      pendingDecision="ration_oxygen"
+    />,
+  );
+  // role + aria-live so screen readers announce mid-sim state flips.
+  assert.match(html, /role="status"/, 'role=status set on dynamic state row');
+  assert.match(html, /aria-live="polite"/, 'aria-live polite so we never interrupt');
+});
+
+test('humanizeKey: snake_case + camelCase + already-spaced all map to Sentence case', () => {
+  const html = renderToString(
+    <ActorBar
+      actorIndex={0}
+      leader={{ name: 'Aria', archetype: 'X', unit: 'A', hexaco: {} }}
+      popHistory={[100]}
+      moraleHistory={[60]}
+      statuses={{
+        moraleState: 'rising', // camelCase
+      }}
+    />,
+  );
+  assert.ok(html.includes('Morale state'), 'camelCase split to "Morale state"');
 });

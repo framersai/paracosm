@@ -48,16 +48,32 @@ function moodFor(morale: number): { label: string; icon: string; tone: 'low' | '
 function topStatuses(
   statuses: Record<string, string | boolean> | undefined,
   limit: number,
-): Array<{ key: string; value: string }> {
+): Array<{ key: string; label: string; value: string }> {
   if (!statuses) return [];
-  const entries: Array<{ key: string; value: string }> = [];
+  const entries: Array<{ key: string; label: string; value: string }> = [];
   for (const [key, raw] of Object.entries(statuses)) {
     if (raw === false || raw === '' || raw == null) continue;
     const value = typeof raw === 'boolean' ? 'on' : String(raw);
-    entries.push({ key, value });
+    entries.push({ key, label: humanizeKey(key), value });
     if (entries.length >= limit) break;
   }
   return entries;
+}
+
+/**
+ * Format a status key for display + screen-reader announcement.
+ * `oxygen_pressure` → `Oxygen pressure`. Camel-case stays cased
+ * (`moraleState` → `Morale state`). Falls back to the original
+ * key when nothing useful can be derived.
+ */
+function humanizeKey(key: string): string {
+  if (!key) return key;
+  const spaced = key
+    .replace(/[_-]+/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .trim()
+    .toLowerCase();
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
 
 /** Render HEXACO bar: "O ████░ .95" */
@@ -275,21 +291,31 @@ function DynamicStateRow({
   if (!hasContent) return null;
 
   return (
-    <div className={styles.dynamicRow}>
+    <div
+      className={styles.dynamicRow}
+      // Live region so screen readers announce mid-sim state changes
+      // (crisis appears, leader enters DECIDING, status flips). Polite
+      // so it doesn't interrupt the user mid-keystroke.
+      role="status"
+      aria-live="polite"
+      aria-atomic="false"
+    >
       {mood && (
         <span
           className={`${styles.chip} ${styles[`mood_${mood.tone}`] ?? ''}`.trim()}
           title={`Mood derived from current morale (${Math.round(lastMorale!)}%)`}
         >
           <span aria-hidden="true">{mood.icon}</span>
-          <span className={styles.chipLabel}>MOOD</span>
+          <span className={styles.chipLabel}>Mood</span>
           <span className={styles.chipValue}>{mood.label}</span>
         </span>
       )}
       {event?.title && (
         <span className={`${styles.chip} ${styles.chipCrisis}`} title={event.description ?? event.title}>
           <span aria-hidden="true">⚠</span>
-          <span className={styles.chipLabel}>{event.category?.toUpperCase() || 'EVENT'}</span>
+          <span className={styles.chipLabel}>
+            {humanizeKey(event.category) || 'Event'}
+          </span>
           <span className={styles.chipValue}>
             {event.title.length > 32 ? `${event.title.slice(0, 32)}…` : event.title}
           </span>
@@ -298,12 +324,12 @@ function DynamicStateRow({
       {pendingDecision && (
         <span className={`${styles.chip} ${styles.chipDeciding}`} title={pendingDecision}>
           <span aria-hidden="true">⏳</span>
-          <span className={styles.chipLabel}>DECIDING</span>
+          <span className={styles.chipLabel}>Deciding</span>
         </span>
       )}
-      {statusChips.map(({ key, value }) => (
-        <span key={key} className={`${styles.chip} ${styles.chipStatus}`} title={`${key}: ${value}`}>
-          <span className={styles.chipLabel}>{key.toUpperCase()}</span>
+      {statusChips.map(({ key, label, value }) => (
+        <span key={key} className={`${styles.chip} ${styles.chipStatus}`} title={`${label}: ${value}`}>
+          <span className={styles.chipLabel}>{label}</span>
           <span className={styles.chipValue}>{value}</span>
         </span>
       ))}
