@@ -2,6 +2,7 @@ import type { CSSProperties } from 'react';
 import type { TurnSnapshot } from '../viz-types.js';
 import { useMediaQuery, NARROW_QUERY } from './useMediaQuery.js';
 import { DeptDonut } from './DeptDonut.js';
+import { VIZ_TOOLTIPS } from '../viz-tooltips';
 import styles from './GridMetricsStrip.module.scss';
 
 /**
@@ -55,7 +56,7 @@ export function GridMetricsStrip({
     <div className={[styles.strip, narrow ? styles.narrow : ''].filter(Boolean).join(' ')}>
       <div className={[styles.col, styles.colNarrow].join(' ')}>
         <div className={styles.rowBaseline}>
-          <span className={styles.label}>MORALE</span>
+          <span className={styles.label} title={VIZ_TOOLTIPS['stat.morale']}>MORALE</span>
           <span
             className={styles.moraleValue}
             style={{ '--morale-color': moraleColor } as CSSProperties}
@@ -83,8 +84,8 @@ export function GridMetricsStrip({
       </div>
       <div className={styles.col}>
         <div className={styles.moodHeader}>
-          <span className={styles.label}>MOOD MIX</span>
-          <span className={styles.value2}>{alive.length} alive</span>
+          <span className={styles.label} title={VIZ_TOOLTIPS['stat.moodMix']}>MOOD MIX</span>
+          <span className={styles.value2} title={VIZ_TOOLTIPS['stat.alive']}>{alive.length} alive</span>
         </div>
         {alive.length === 0 ? (
           <div className={styles.moodEmpty}>no survivors</div>
@@ -119,7 +120,7 @@ export function GridMetricsStrip({
         )}
       </div>
       <div className={styles.col}>
-        <div className={styles.label}>AGE</div>
+        <div className={styles.label} title={VIZ_TOOLTIPS['stat.age']}>AGE</div>
         <div className={styles.ageBars}>
           {ageBuckets.map((n, i) => (
             <div key={i} className={styles.ageBarCol}>
@@ -144,24 +145,28 @@ export function GridMetricsStrip({
       </div>
       <div className={[styles.col, styles.colPaired].join(' ')}>
         <div className={styles.row}>
-          <span className={styles.label}>PAIRED</span>
+          <span className={styles.label} title={VIZ_TOOLTIPS['stat.paired']}>PAIRED</span>
           <span className={styles.value2}>
             {partnered}/{alive.length}
           </span>
         </div>
         <div className={styles.row}>
-          <span>EARTH</span>
+          <span title={VIZ_TOOLTIPS['stat.earth']}>EARTH</span>
           <span className={styles.value2}>{earthBorn}</span>
         </div>
         <div className={styles.row}>
-          <span>NATIVE</span>
+          <span title={VIZ_TOOLTIPS['stat.native']}>NATIVE</span>
           <span className={styles.valueNative} style={sideStyle}>
             {alive.length - earthBorn}
           </span>
         </div>
       </div>
       {!narrow && (
-        <div className={styles.deptBlock} aria-label="Department breakdown">
+        <div
+          className={styles.deptBlock}
+          aria-label="Department breakdown"
+          title={VIZ_TOOLTIPS['stat.depts']}
+        >
           <DeptDonut cells={snapshot.cells} size={44} />
           <span className={styles.deptLabel}>Depts</span>
         </div>
