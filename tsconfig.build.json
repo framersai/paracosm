@@ -9,6 +9,8 @@
     "sourceMap": true
   },
   "include": [
+    "src/index.ts",
+    "src/api/**/*.ts",
     "src/engine/**/*.ts",
     "src/engine/**/*.json",
     "src/runtime/**/*.ts",
