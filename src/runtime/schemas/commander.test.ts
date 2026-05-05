@@ -62,3 +62,42 @@ test('PromotionsSchema rejects promotion missing agentId', () => {
   const bad = { promotions: [{ department: 'medical', role: 'CMO', reason: 'x' }] };
   assert.equal(PromotionsSchema.safeParse(bad).success, false);
 });
+
+test('CommanderDecisionSchema coerces bare-string rejectedPolicies to {policy, reason}', () => {
+  // Production diagnostic at commit 7a3ef1529 caught every model
+  // emitting rejectedPolicies as an array of plain strings, failing
+  // 3 retries per turn. Preprocessor coerces strings to the canonical
+  // {policy, reason: ''} object form.
+  const withStringPolicies = {
+    ...validDecision,
+    rejectedPolicies: ['wait_for_resupply', 'punt_to_earth'],
+  };
+  const result = CommanderDecisionSchema.safeParse(withStringPolicies);
+  assert.equal(result.success, true, 'string-form rejectedPolicies should pass');
+  assert.deepEqual(
+    result.success && result.data.rejectedPolicies,
+    [
+      { policy: 'wait_for_resupply', reason: '' },
+      { policy: 'punt_to_earth', reason: '' },
+    ],
+  );
+});
+
+test('CommanderDecisionSchema accepts mixed string and object rejectedPolicies', () => {
+  const mixed = {
+    ...validDecision,
+    rejectedPolicies: [
+      'wait_for_resupply',
+      { policy: 'evacuate_now', reason: 'crew morale would collapse' },
+    ],
+  };
+  const result = CommanderDecisionSchema.safeParse(mixed);
+  assert.equal(result.success, true);
+  assert.deepEqual(
+    result.success && result.data.rejectedPolicies,
+    [
+      { policy: 'wait_for_resupply', reason: '' },
+      { policy: 'evacuate_now', reason: 'crew morale would collapse' },
+    ],
+  );
+});

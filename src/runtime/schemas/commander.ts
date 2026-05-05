@@ -26,9 +26,29 @@ export const CommanderDecisionSchema = z.object({
   reasoning: z.string().default(''),
   departmentsConsulted: z.array(z.string()).default([]),
   selectedPolicies: z.array(z.string()).default([]),
-  rejectedPolicies: z.array(
-    z.object({ policy: z.string().min(1), reason: z.string().default('') })
-  ).default([]),
+  // Accept BOTH shapes the LLM emits in production:
+  //   1. The schema-canonical { policy, reason } object form, and
+  //   2. Bare strings (the policy name only) — every commander turn on
+  //      every supported model emits this form a non-trivial fraction
+  //      of the time, costing 3 retry calls per turn before falling
+  //      back. Production diagnostic at commit 7a3ef1529 caught it as
+  //      'rejectedPolicies.0:invalid_type=expected object, received
+  //      string'. Coercing strings to { policy, reason: '' } keeps the
+  //      full schema downstream contract intact while skipping the
+  //      retry-and-fallback storm.
+  rejectedPolicies: z.preprocess(
+    (v) => {
+      if (!Array.isArray(v)) return v;
+      return v.map((entry) =>
+        typeof entry === 'string'
+          ? { policy: entry, reason: '' }
+          : entry,
+      );
+    },
+    z.array(
+      z.object({ policy: z.string().min(1), reason: z.string().default('') }),
+    ).default([]),
+  ),
   expectedTradeoffs: z.array(z.string()).default([]),
   watchMetricsNextTurn: z.array(z.string()).default([]),
 });
