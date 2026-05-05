@@ -43,7 +43,7 @@
 
 Paracosm is an agent swarm simulation framework for structured world modeling with LLMs. It compiles a JSON scenario draft (or a prompt, or an extracted document) into a runnable multi-agent world, plays it through a deterministic kernel, and lets agents with HEXACO personality profiles decide turn by turn how the world unfolds. Snapshots persist on disk. Runs replay byte-for-byte. Any past turn can be forked with a different actor, a different seed, or a custom event, and the divergent branch streams alongside the trunk so the contrast is visible in the artifact, not promised in copy.
 
-The product is the contrast. Same compiled world, same crises, same kernel: swap one variable and the trajectory measurably moves.
+The product is the contrast. Same compiled world, same kernel, same seed — but the LLM Event Director reads each leader's HEXACO profile and accumulated state, so the events themselves diverge from turn 1. Swap one variable and the trajectory measurably moves; replay the same leader on the same seed and the run reproduces.
 
 ---
 

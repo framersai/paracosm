@@ -796,7 +796,7 @@ paracosm init my-app --domain <span class="str">"AI lab Q4 release pressure"</sp
   },
 ];
 
-<span class="cm">// 3. Run in parallel: same seed, same crises, different outcomes</span>
+<span class="cm">// 3. Run in parallel: same seed, divergent events, divergent futures</span>
 <span class="kw">const</span> results = <span class="kw">await</span> Promise.<span class="fn">all</span>(
   actors.<span class="fn">map</span>(actor =>
     wm.<span class="fn">simulate</span>({
@@ -1149,7 +1149,7 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
       </article>
       <article class="use-case rv rv-d1">
         <h3>Wargaming and scenario planning</h3>
-        <p>Defense and intelligence: explore how different commander profiles respond to identical crises. The deterministic kernel anchors fair comparison; HEXACO-personality leaders supply the variable.</p>
+        <p>Defense and intelligence: explore how different commander profiles produce divergent crises and divergent responses from identical starting conditions. The deterministic kernel anchors replay; the LLM Event Director reads each leader's HEXACO + accumulated state, so the events themselves diverge from turn 1.</p>
       </article>
       <article class="use-case rv rv-d2">
         <h3>Game design playtesting</h3>
