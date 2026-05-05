@@ -19,6 +19,7 @@ import { useScenarioContext } from '../../App';
 import { readKeyOverrides, readLastLaunchConfig, writeActiveRunActors } from '../../hooks/useLastLaunchConfig';
 import { useToast } from '../shared/Toast';
 import { resolveSetupRedirectHref } from '../../tab-routing';
+import { compileScenarioWithPolling } from './compile-poll';
 import styles from './QuickstartView.module.scss';
 
 /** Shape returned by /api/quickstart/ground-scenario, surfaced to the
@@ -328,21 +329,14 @@ export function QuickstartView({ sse, sessionId, onRunStarted, onInterventionRes
     sse.reset();
     setPhase({ kind: 'progress', stage: 'compile' });
     try {
-      const compileRes = await fetch('/api/quickstart/compile-from-seed', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (!compileRes.ok) {
-        const body = await compileRes.json().catch(() => ({} as { error?: string }));
-        throw new Error(body.error ?? `Compile failed: HTTP ${compileRes.status}`);
-      }
-      const compileBody = await compileRes.json().catch(() => null) as { scenario?: ScenarioPackage; scenarioId?: string } | null;
-      const scenario = compileBody?.scenario;
-      const scenarioId = compileBody?.scenarioId;
-      if (!scenario || !scenarioId) {
-        throw new Error('Compile returned no scenario');
-      }
+      // compileScenarioWithPolling encapsulates the async-job dance:
+      // POST /compile-from-seed returns 202 + jobId, then we poll
+      // /compile-from-seed/status every 2s. Cloudflare's 100s edge
+      // timeout never fires because each individual response is
+      // sub-second. The 5-min timeout in the helper covers the
+      // worst-case slow compile; beyond that the server keeps the
+      // resolved scenario in its 10-min TTL cache for a clean retry.
+      const { scenario, scenarioId } = await compileScenarioWithPolling(payload);
       setPhase({ kind: 'progress', stage: 'research', scenario });
       // Real grounding pass: hits Serper for 3 derived queries, attaches
       // citations to the scenario's metadata server-side. Returns

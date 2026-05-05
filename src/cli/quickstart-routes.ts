@@ -13,6 +13,7 @@
  * @module paracosm/cli/quickstart-routes
  */
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { compileFromSeed } from '../engine/compiler/compile-from-seed.js';
 import { generateQuickstartActors } from '../runtime/world-model/index.js';
@@ -168,6 +169,12 @@ export interface QuickstartDeps {
    * dashboard's gameState while the new intervention is streaming.
    */
   resetEventBuffer?: () => void;
+  /**
+   * Test seam: substitute the actual compile pipeline. Production
+   * uses the real `compileFromSeed`; tests can inject a deterministic
+   * fake to exercise the async-job state machine without LLM calls.
+   */
+  compileFn?: typeof compileFromSeed;
 }
 
 export async function handleFetchSeed(
@@ -208,6 +215,97 @@ export async function handleFetchSeed(
   }
 }
 
+/**
+ * Async-job pattern for compile-from-seed.
+ *
+ * Compile takes 60-120s (LLM draft + grounding + zod validate + hook
+ * compile). Cloudflare's edge tier cuts HTTP responses at 100s with a
+ * 524, so synchronously awaiting the compile in the request handler
+ * means the dashboard sees "Compile failed: HTTP 524" even though the
+ * server-side compile is still running. Retries kick off a NEW compile
+ * that also 524s and the loop never resolves.
+ *
+ * Fix: split the endpoint into start + status:
+ *   - POST /api/quickstart/compile-from-seed              (start)
+ *     Returns 202 + { jobId, status: 'pending' } in <100ms. Compile
+ *     runs in the background. If the same seed is submitted again
+ *     while pending, the second call returns the same jobId — no
+ *     duplicate compile.
+ *   - POST /api/quickstart/compile-from-seed/status       (poll)
+ *     Returns { jobId, status, scenario? } in <50ms. Client polls
+ *     every 2s until status === 'done' or 'error'. The connection
+ *     never stays open past the edge timeout, so 524 cannot fire.
+ *
+ * Job state is in-memory; resolved jobs are kept for 10 minutes so a
+ * slow user retry hits the cached scenario instantly. Beyond that the
+ * compiled scenario is still in customScenarioCatalog (via
+ * setActiveScenario) — the job map is purely the compile-pipeline
+ * deduplicator.
+ */
+const JOB_TTL_MS = 10 * 60 * 1000;
+
+type JobStatus = 'pending' | 'done' | 'error';
+
+interface CompileJob {
+  jobId: string;
+  signature: string;
+  status: JobStatus;
+  scenario?: ScenarioPackage;
+  error?: string;
+  startedAt: number;
+  /** Set when status flips to 'done' or 'error'. Drives TTL eviction. */
+  resolvedAt?: number;
+}
+
+const compileJobs = new Map<string, CompileJob>();
+const jobBySignature = new Map<string, string>();
+
+function compileSignature(input: {
+  seedText: string;
+  sourceUrl?: string;
+  domainHint?: string;
+}): string {
+  // Normalize whitespace + lowercase optional fields so trivially
+  // different submissions share a slot. The seed text is fingerprinted
+  // by length + head + tail; collisions across two 50KB payloads with
+  // the same length are extraordinarily unlikely and the worst case is
+  // one client receives a different scenario than they typed once.
+  const text = input.seedText.trim();
+  return JSON.stringify({
+    len: text.length,
+    head: text.slice(0, 256),
+    tail: text.slice(-128),
+    url: (input.sourceUrl ?? '').toLowerCase(),
+    hint: (input.domainHint ?? '').toLowerCase(),
+  });
+}
+
+function sweepStaleJobs(): void {
+  const now = Date.now();
+  for (const [jobId, job] of compileJobs) {
+    if (job.resolvedAt && now - job.resolvedAt > JOB_TTL_MS) {
+      compileJobs.delete(jobId);
+      if (jobBySignature.get(job.signature) === jobId) {
+        jobBySignature.delete(job.signature);
+      }
+    }
+  }
+}
+
+const CompileFromSeedStatusSchema = z.object({
+  jobId: z.string().min(1).max(80),
+});
+
+/**
+ * Test seam: clears the in-memory job state. Production never calls
+ * this — it's only for the unit tests so each one starts from a clean
+ * slate.
+ */
+export function _resetCompileJobsForTest(): void {
+  compileJobs.clear();
+  jobBySignature.clear();
+}
+
 export async function handleCompileFromSeed(
   _req: IncomingMessage,
   res: ServerResponse,
@@ -223,18 +321,108 @@ export async function handleCompileFromSeed(
     }));
     return;
   }
-  try {
-    const scenario = await compileFromSeed(parsed.data, {
-      draftProvider: deps.defaultProvider,
-      draftModel: deps.defaultModel,
-    });
-    deps.setActiveScenario(scenario);
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ scenario, scenarioId: scenario.id }));
-  } catch (err) {
-    res.writeHead(500, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: `Compile failed: ${String(err)}` }));
+
+  sweepStaleJobs();
+  const signature = compileSignature(parsed.data);
+
+  // Dedupe: an existing job for this signature short-circuits a new
+  // compile. Pending → return the same jobId so the second client
+  // polls the in-flight compile. Done → return the scenario inline so
+  // a fast retry skips polling entirely. Error → clear and start
+  // fresh; users should be able to retry past a transient failure.
+  const existingId = jobBySignature.get(signature);
+  if (existingId) {
+    const existing = compileJobs.get(existingId);
+    if (existing && existing.status === 'pending') {
+      res.writeHead(202, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ jobId: existing.jobId, status: 'pending' }));
+      return;
+    }
+    if (existing && existing.status === 'done' && existing.scenario) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        jobId: existing.jobId,
+        status: 'done',
+        scenario: existing.scenario,
+        scenarioId: existing.scenario.id,
+      }));
+      return;
+    }
+    if (existing && existing.status === 'error') {
+      compileJobs.delete(existing.jobId);
+      jobBySignature.delete(signature);
+    }
   }
+
+  // New compile — store as pending, kick off in background, respond
+  // immediately. We do NOT await the promise here; that's the entire
+  // point of the async pattern. Errors are caught and stored on the
+  // job; the status endpoint surfaces them.
+  const jobId = randomUUID();
+  const job: CompileJob = {
+    jobId,
+    signature,
+    status: 'pending',
+    startedAt: Date.now(),
+  };
+  compileJobs.set(jobId, job);
+  jobBySignature.set(signature, jobId);
+
+  const compile = deps.compileFn ?? compileFromSeed;
+  void compile(parsed.data, {
+    draftProvider: deps.defaultProvider,
+    draftModel: deps.defaultModel,
+  }).then((scenario) => {
+    const stored = compileJobs.get(jobId);
+    if (!stored) return; // Swept out by TTL while still pending — exotic.
+    stored.scenario = scenario;
+    stored.status = 'done';
+    stored.resolvedAt = Date.now();
+    deps.setActiveScenario(scenario);
+  }).catch((err: unknown) => {
+    const stored = compileJobs.get(jobId);
+    if (!stored) return;
+    stored.status = 'error';
+    stored.error = err instanceof Error ? err.message : String(err);
+    stored.resolvedAt = Date.now();
+  });
+
+  res.writeHead(202, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ jobId, status: 'pending' }));
+}
+
+export async function handleCompileFromSeedStatus(
+  _req: IncomingMessage,
+  res: ServerResponse,
+  body: unknown,
+  _deps: QuickstartDeps,
+): Promise<void> {
+  const parsed = CompileFromSeedStatusSchema.safeParse(body);
+  if (!parsed.success) {
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      error: 'Invalid status query',
+      issues: parsed.error.issues.slice(0, 3).map(i => i.message),
+    }));
+    return;
+  }
+  sweepStaleJobs();
+  const job = compileJobs.get(parsed.data.jobId);
+  if (!job) {
+    res.writeHead(404, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      error: 'Compile job not found. It may have expired (10-minute TTL) or never existed.',
+    }));
+    return;
+  }
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({
+    jobId: job.jobId,
+    status: job.status,
+    scenario: job.status === 'done' ? job.scenario : undefined,
+    scenarioId: job.status === 'done' ? job.scenario?.id : undefined,
+    error: job.status === 'error' ? job.error : undefined,
+  }));
 }
 
 export async function handleGenerateActors(

@@ -5,8 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { normalizeSimulationConfig, applyDemoCaps, type NormalizedSimulationConfig, type SimulationSetupPayload } from './sim-config.js';
 import { runPairSimulations, runForkSimulation, runBatchSimulations, type BroadcastFn } from './pair-runner.js';
 import {
-  handleFetchSeed, handleCompileFromSeed, handleGenerateActors, handleGroundScenario,
-  handleSimulateIntervention,
+  handleFetchSeed, handleCompileFromSeed, handleCompileFromSeedStatus,
+  handleGenerateActors, handleGroundScenario, handleSimulateIntervention,
   type QuickstartDeps,
 } from './quickstart-routes.js';
 import { WorldModel } from '../runtime/world-model/index.js';
@@ -1332,6 +1332,9 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         // QuickstartProgress's "Run N simulations" stage card with
         // 100+ stale events from the previous bookstore/AGI/clinical
         // run before the new run had even started simulating).
+        // Status polls are NOT a fresh-launch event so they MUST NOT
+        // clear the buffer — they fire every 2s while a compile is in
+        // flight, and clearing here would wipe in-flight SSE state.
         if (req.url === '/api/quickstart/compile-from-seed') {
           clearEventBuffer();
         }
@@ -1341,6 +1344,10 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         }
         if (req.url === '/api/quickstart/compile-from-seed') {
           await handleCompileFromSeed(req, res, body, quickstartDeps);
+          return;
+        }
+        if (req.url === '/api/quickstart/compile-from-seed/status') {
+          await handleCompileFromSeedStatus(req, res, body, quickstartDeps);
           return;
         }
         if (req.url === '/api/quickstart/generate-actors') {
