@@ -21,6 +21,17 @@
   flex-direction: column;
 }
 
+// Tabpanel wrapper that's layout-neutral but stays in the AT tree
+// (unlike `display: contents`, which had historical AT bugs). The
+// wrapper itself is the flex item the views previously rendered as,
+// so size/layout are unchanged.
+.tabPanel {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+}
+
 .errorBoundary {
   display: flex;
   flex-direction: column;

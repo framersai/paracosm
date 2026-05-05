@@ -99,9 +99,14 @@ test('ConstellationView: 3-actor renders POP/MORALE stat lines for each actor', 
   const a = state.actors['A'] as unknown as { popHistory: number[]; moraleHistory: number[] };
   const b = state.actors['B'] as unknown as { popHistory: number[]; moraleHistory: number[] };
   const c = state.actors['C'] as unknown as { popHistory: number[]; moraleHistory: number[] };
-  a.popHistory = [30]; a.moraleHistory = [0.86];
-  b.popHistory = [28]; b.moraleHistory = [0.79];
-  c.popHistory = [32]; c.moraleHistory = [0.92];
+  // moraleHistory is already 0-100 (scaled by useGameState before reaching
+  // the dashboard). Earlier revisions of this test fed 0-1 values and
+  // expected the renderer to multiply, which was the same double-scale
+  // footgun ActorBar's compact branch had. Fixed by aligning the test
+  // data with the production contract.
+  a.popHistory = [30]; a.moraleHistory = [86];
+  b.popHistory = [28]; b.moraleHistory = [79];
+  c.popHistory = [32]; c.moraleHistory = [92];
   const html = renderToString(withScenario(<ConstellationView state={state} onActorClick={() => {}} />));
   assert.match(html, /POP 30 · MORALE 86%/);
   assert.match(html, /POP 28 · MORALE 79%/);

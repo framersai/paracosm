@@ -791,6 +791,11 @@ function AppContent() {
        <CitationRegistryContext.Provider value={citationRegistry}>
         <ToolRegistryContext.Provider value={toolRegistry}>
         <BranchesSyncer sse={sse} />
+        {/* Skip link: keyboard users land on this first, jumping past
+            the long tab/header chrome to the active tabpanel. The CSS
+            visually hides it until :focus per the .skip-to-content
+            class in theme/tokens.css. */}
+        <a className="skip-to-content" href="#main-content">Skip to main content</a>
         <div className={`flex flex-col h-screen w-screen overflow-hidden scanline-overlay ${styles.shell}`}>
           {sse.providerError && !bannerDismissed ? (
             <ProviderErrorBanner
@@ -856,7 +861,7 @@ function AppContent() {
                 id="tabpanel-quickstart"
                 aria-labelledby="tab-quickstart"
                 tabIndex={0}
-                style={{ display: 'contents' }}
+                className={styles.tabPanel}
               >
                 <QuickstartView
                   sse={sse}
@@ -874,7 +879,7 @@ function AppContent() {
                 id="tabpanel-sim"
                 aria-labelledby="tab-sim"
                 tabIndex={0}
-                style={{ display: 'contents' }}
+                className={styles.tabPanel}
               >
                 <SimView
                   state={gameState}
@@ -897,7 +902,7 @@ function AppContent() {
                 id="tabpanel-viz"
                 aria-labelledby="tab-viz"
                 tabIndex={0}
-                style={{ display: 'contents' }}
+                className={styles.tabPanel}
               >
                 <SwarmViz state={gameState} onNavigateToChat={navigateToChat} />
               </section>
@@ -909,7 +914,7 @@ function AppContent() {
                 id="tabpanel-settings"
                 aria-labelledby="tab-settings"
                 tabIndex={0}
-                style={{ display: 'contents' }}
+                className={styles.tabPanel}
               >
                 <SettingsPanel
                   events={effectiveEvents}
@@ -924,7 +929,7 @@ function AppContent() {
                 id="tabpanel-reports"
                 aria-labelledby="tab-reports"
                 tabIndex={0}
-                style={{ display: 'contents' }}
+                className={styles.tabPanel}
               >
                 <ReportView state={gameState} verdict={sse.verdict} reportSections={scenario.ui.reportSections} />
               </section>
@@ -936,7 +941,7 @@ function AppContent() {
                 id="tabpanel-library"
                 aria-labelledby="tab-library"
                 tabIndex={0}
-                style={{ display: 'contents' }}
+                className={styles.tabPanel}
               >
                 <LibraryTab />
               </section>
@@ -948,7 +953,7 @@ function AppContent() {
                 id="tabpanel-studio"
                 aria-labelledby="tab-studio"
                 tabIndex={0}
-                style={{ display: 'contents' }}
+                className={styles.tabPanel}
               >
                 <StudioTab initialSubTab={studioInitialSubTab} />
               </section>
