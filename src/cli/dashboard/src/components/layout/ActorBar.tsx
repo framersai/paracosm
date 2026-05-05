@@ -93,7 +93,11 @@ export function ActorBar({
     return (
       <div
         className={styles.compact}
-        style={{ ['--actor-color' as string]: sideColor }}
+        style={{
+          ['--actor-color' as string]: sideColor,
+          ['--actor-bg' as string]: sideBg,
+          ['--actor-border' as string]: sideBorder,
+        }}
         aria-label={`${name} compact summary`}
       >
         <span className={styles.compactBand} aria-hidden="true" />

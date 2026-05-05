@@ -164,7 +164,9 @@
 .compact {
   display: flex;
   align-items: center;
-  gap: 6px;
+  flex-wrap: wrap;
+  row-gap: 4px;
+  column-gap: 6px;
   padding: 8px 12px 8px 8px;
   font-family: var(--mono);
   font-size: var(--font-xs);

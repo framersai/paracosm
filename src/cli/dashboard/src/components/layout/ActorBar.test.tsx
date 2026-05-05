@@ -75,7 +75,9 @@ test('ActorBar compact: low morale derives a "low" mood label', () => {
       compact
     />,
   );
-  assert.ok(html.includes('low'), 'mood label "low" present when morale < 25');
+  // Match the visible label inside its <span>, not the className hash or
+  // the title attribute (those would pass even if the visible text changed).
+  assert.match(html, /<span[^>]*>low<\/span>/, 'mood label "low" rendered as visible text');
 });
 
 test('ActorBar compact: high morale derives a "rising" mood label', () => {
@@ -88,7 +90,35 @@ test('ActorBar compact: high morale derives a "rising" mood label', () => {
       compact
     />,
   );
-  assert.ok(html.includes('rising'), 'mood label "rising" present when morale >= 75');
+  assert.match(html, /<span[^>]*>rising<\/span>/, 'mood label "rising" rendered as visible text');
+});
+
+test('ActorBar moodFor boundaries: 25 → tense, 50 → steady, 75 → rising', () => {
+  const cases: Array<{ morale: number; expected: string }> = [
+    { morale: 24.99, expected: 'low' },
+    { morale: 25, expected: 'tense' },
+    { morale: 49.99, expected: 'tense' },
+    { morale: 50, expected: 'steady' },
+    { morale: 74.99, expected: 'steady' },
+    { morale: 75, expected: 'rising' },
+    { morale: 100, expected: 'rising' },
+  ];
+  for (const { morale, expected } of cases) {
+    const html = renderToString(
+      <ActorBar
+        actorIndex={0}
+        leader={{ name: 'Aria', archetype: 'X', unit: 'A', hexaco: {} }}
+        popHistory={[100]}
+        moraleHistory={[morale]}
+        compact
+      />,
+    );
+    assert.match(
+      html,
+      new RegExp(`<span[^>]*>${expected}</span>`),
+      `morale ${morale} should render as "${expected}"`,
+    );
+  }
 });
 
 test('ActorBar compact: surfaces active crisis title (truncated)', () => {
