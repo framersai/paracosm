@@ -32,6 +32,28 @@
   letter-spacing: 0.5px;
 }
 
+/* Slot-letter badge for the non-compact ActorBar. Slightly larger than
+   the compact variant since the non-compact card has more vertical
+   room. Same color palette as .archetypeChip so the chrome stays
+   visually consistent across the two presentations. */
+.slot {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--actor-color);
+  background: var(--actor-bg);
+  border: 1px solid var(--actor-border);
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+
 .verdictChip {
   font-size: var(--font-3xs);
   padding: 2px 8px;
@@ -190,6 +212,30 @@
   background: var(--actor-color, var(--amber));
   border-radius: 2px;
   flex-shrink: 0;
+}
+
+/* Compact slot-letter badge: small monospace "A" / "B" / "C" pill that
+   sits between the color band and the name. Matches the constellation +
+   ActorTable slot ordering so visitors can cross-reference at a glance.
+   Color comes from the actor color custom property; background is a
+   tinted version of that so it reads as the actor's slot, not chrome. */
+.compactSlot {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+  color: var(--actor-color, var(--amber));
+  background: var(--actor-bg, rgba(232, 180, 74, 0.12));
+  border: 1px solid var(--actor-border, var(--amber-dim));
+  border-radius: 3px;
+  text-transform: uppercase;
 }
 
 .compactName {

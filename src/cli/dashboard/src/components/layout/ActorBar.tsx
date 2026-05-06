@@ -121,6 +121,21 @@ export function ActorBar({
   // generic "Leader A/B/C" placeholder keyed off actorIndex.
   const fallbackLabel = `Leader ${String.fromCharCode(65 + actorIndex)}`;
   const name = leader?.name || nameFallback || fallbackLabel;
+  // A/B/C/... slot letter — kept as a small badge alongside the name so
+  // visitors can scan for "which actor is column 3" without reading the
+  // full name. Useful for cross-referencing with the constellation
+  // view + ActorTable, which use the same color-coded slot ordering.
+  // Wraps after Z (slot 26+) to AA, AB, ... — same convention as
+  // spreadsheet column letters.
+  const slotLetter = (() => {
+    let n = actorIndex;
+    let out = '';
+    do {
+      out = String.fromCharCode(65 + (n % 26)) + out;
+      n = Math.floor(n / 26) - 1;
+    } while (n >= 0);
+    return out;
+  })();
 
   if (compact) {
     const pop = popHistory.length > 0 ? popHistory[popHistory.length - 1] : null;
@@ -138,6 +153,13 @@ export function ActorBar({
         aria-label={`${name} compact summary`}
       >
         <span className={styles.compactBand} aria-hidden="true" />
+        <span
+          className={styles.compactSlot}
+          aria-hidden="true"
+          title={`Slot ${slotLetter}`}
+        >
+          {slotLetter}
+        </span>
         <span className={styles.compactName}>{name}</span>
         {archetypeShort && (
           <span className={styles.compactArchetype} title={leader?.archetype}>
@@ -212,6 +234,12 @@ export function ActorBar({
       }}
     >
       <div className={styles.headerRow}>
+        {/* Slot letter badge — same convention as the compact bar so a
+            user can scan "actor C" across the constellation, table, and
+            grid headers regardless of which surface they're on. */}
+        <span className={styles.slot} aria-hidden="true" title={`Slot ${slotLetter}`}>
+          {slotLetter}
+        </span>
         {archetype && (
           <span className={styles.archetypeChip}>
             {archetype.toUpperCase().replace(/^THE\s+/i, '')}

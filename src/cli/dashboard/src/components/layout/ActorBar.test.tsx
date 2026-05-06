@@ -246,6 +246,51 @@ test('ActorBar: nameFallback used when leader is null (status not yet seen)', ()
   assert.ok(!html.includes('Leader C'), 'generic Leader C placeholder should not render when nameFallback is provided');
 });
 
+test('ActorBar: renders A/B/C slot badge alongside the name (compact + non-compact)', () => {
+  // The slot badge gives a stable visual anchor across SIM surfaces
+  // (constellation, table, grid) so a user can match an event card
+  // back to "actor C" without reading the full LLM-generated name.
+  const compactHtml = renderToString(
+    <ActorBar
+      actorIndex={2}
+      leader={{ name: 'Captain Mara Voss', archetype: 'Risk-Averse Operator', unit: 'Bridge', hexaco: { openness: 0.5, conscientiousness: 0.8, extraversion: 0.4, agreeableness: 0.5, emotionality: 0.6, honestyHumility: 0.7 } }}
+      popHistory={[40]}
+      moraleHistory={[69]}
+      compact
+    />,
+  );
+  // Slot badge text 'C' must appear AND the full name must appear.
+  // Match the badge by its title attribute so we don't accidentally
+  // hit the 'C' in "Captain" or "Voss".
+  assert.match(compactHtml, /title="Slot C"/);
+  assert.ok(compactHtml.includes('Captain Mara Voss'));
+
+  const fullHtml = renderToString(
+    <ActorBar
+      actorIndex={0}
+      leader={{ name: 'Aria Chen', archetype: 'The Visionary', unit: 'Colony Alpha', hexaco: { openness: 0.95, conscientiousness: 0.35, extraversion: 0.85, agreeableness: 0.55, emotionality: 0.3, honestyHumility: 0.65 } }}
+      popHistory={[100, 99]}
+      moraleHistory={[80, 75]}
+    />,
+  );
+  assert.match(fullHtml, /title="Slot A"/);
+});
+
+test('ActorBar: slot letters wrap past Z (slot 26 → AA)', () => {
+  // Spreadsheet-style column letters so 30+ actor runs don't show a
+  // confusing "[" or other ASCII-arithmetic artefact.
+  const html = renderToString(
+    <ActorBar
+      actorIndex={26}
+      leader={null}
+      popHistory={[]}
+      moraleHistory={[]}
+      compact
+    />,
+  );
+  assert.match(html, /title="Slot AA"/);
+});
+
 test('ActorBar: generic "Leader N" placeholder still kicks in when both leader and nameFallback are missing', () => {
   // Defensive: keep the legacy fallback for surfaces that have neither
   // a real leader nor an actor id (e.g. brand-new sim-empty render).
