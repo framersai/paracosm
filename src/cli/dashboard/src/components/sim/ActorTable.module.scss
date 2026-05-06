@@ -43,6 +43,7 @@
 
 .sortButton {
   @include typo.field-label;
+
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -125,6 +126,7 @@
 
 .pendingPill {
   @include typo.field-label;
+
   display: inline-block;
   padding: 1px 6px;
   font-size: var(--font-3xs);
