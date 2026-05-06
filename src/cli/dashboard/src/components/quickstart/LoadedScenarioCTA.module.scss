@@ -120,45 +120,6 @@
   overflow-wrap: anywhere;
 }
 
-/* "BETA" warning surfaced when the Loaded-Scenario CTA slider goes
-   past 2. Same palette as SeedInput's notice for visual consistency. */
-.multiActorNotice {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-  padding: 8px 10px;
-  border: 1px solid color-mix(in srgb, var(--amber) 35%, transparent);
-  background: color-mix(in srgb, var(--amber) 8%, var(--bg-elevated));
-  border-radius: 6px;
-  font-size: var(--font-xs);
-  line-height: 1.5;
-  color: var(--text-2);
-  text-align: left;
-
-  strong { color: var(--text-1); }
-}
-
-.multiActorNoticeBadge {
-  flex: 0 0 auto;
-  padding: 1px 6px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  background: var(--amber);
-  color: var(--bg-1);
-  border-radius: 3px;
-  margin-top: 2px;
-}
-
-.multiActorNoticeLink {
-  color: var(--amber);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  white-space: nowrap;
-
-  &:hover { color: var(--text-1); }
-}
-
 @media (max-width: 480px) {
   .card {
     gap: 8px;

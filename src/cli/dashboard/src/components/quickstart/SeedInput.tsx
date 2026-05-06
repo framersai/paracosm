@@ -348,7 +348,6 @@ export function SeedInput({ onSeedReady, onLoadedScenarioRunStart, disabled = fa
           ~${(0.10 + 0.30 * actorCount).toFixed(2)} · {wallTimeEstimate(actorCount)}
         </span>
       </div>
-      {actorCount > 2 && <MultiActorExperimentalNotice actorCount={actorCount} />}
 
       <ViewAsCodePanel
         seedText={seedText}
@@ -366,35 +365,6 @@ export function SeedInput({ onSeedReady, onLoadedScenarioRunStart, disabled = fa
       >
         Generate + Run {actorCount} {actorCount === 1 ? 'Actor' : 'Actors'} (~${(0.10 + 0.30 * actorCount).toFixed(2)})
       </button>
-    </div>
-  );
-}
-
-/**
- * Inline notice that the dashboard's visual surface is built around
- * 2-actor side-by-side comparison and 3+ actor runs work but currently
- * fall back to a roster-table + distribution-band layout instead of the
- * per-actor TurnGrid. The full N-actor cohort dashboard is on the
- * Pro/Enterprise roadmap; the landing page waitlist captures interest.
- */
-function MultiActorExperimentalNotice({ actorCount }: { actorCount: number }) {
-  return (
-    <div className={styles.multiActorNotice} role="note">
-      <strong className={styles.multiActorNoticeBadge}>BETA</strong>
-      <span>
-        Running <strong>{actorCount} actors</strong> through the engine works fine — but this dashboard's
-        side-by-side event view is built for 2-actor comparisons.
-        With 3+ actors you get a roster table + distribution panel instead of per-actor turn cards.
-        The full N-actor cohort dashboard is on the Pro / Enterprise roadmap.{' '}
-        <a
-          href="https://paracosm.agentos.sh/#waitlist"
-          target="_blank"
-          rel="noopener noreferrer"
-          className={styles.multiActorNoticeLink}
-        >
-          Join the waitlist →
-        </a>
-      </span>
     </div>
   );
 }

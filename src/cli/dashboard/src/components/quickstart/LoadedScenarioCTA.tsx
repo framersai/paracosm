@@ -99,23 +99,6 @@ export function LoadedScenarioCTA({
         />
         <span className={styles.actorValue}>{actorCount}</span>
       </div>
-      {actorCount > 2 && (
-        <div className={styles.multiActorNotice} role="note">
-          <strong className={styles.multiActorNoticeBadge}>BETA</strong>
-          <span>
-            <strong>{actorCount} actors</strong> runs through the engine fine, but this dashboard is built around 2-actor side-by-side comparisons.
-            With 3+ you get a roster table + distribution panel — the full N-actor cohort UI is on the Pro/Enterprise roadmap.{' '}
-            <a
-              href="https://paracosm.agentos.sh/#waitlist"
-              target="_blank"
-              rel="noopener noreferrer"
-              className={styles.multiActorNoticeLink}
-            >
-              Join the waitlist →
-            </a>
-          </span>
-        </div>
-      )}
       <button
         type="button"
         className={styles.runButton}

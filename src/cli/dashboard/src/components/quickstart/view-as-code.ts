@@ -81,8 +81,8 @@ export function renderCurlRecipe(state: RecipeInput): string {
     body.domainHint = state.domainHint;
   }
   // Only emit actorCount in the curl body when the user moved off the
-  // dashboard default. 2 is the visual surface's primary mode; 3+ runs
-  // through the engine fine but the dashboard surfaces a BETA notice.
+  // dashboard default. 2 is the slider's starting point; 3+ runs are
+  // first-class on every surface, so the field is optional.
   if (state.actorCount !== 2) {
     body.actorCount = state.actorCount;
   }
