@@ -822,6 +822,35 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       return;
     }
 
+    // Full-completion gate: only cache runs that played every actor
+    // through every scheduled turn. A pair run with `turns: 6` and 2
+    // actors should emit 12 turn_done events; if it emits 10 the run
+    // bailed early (orchestrator timeout, watchdog disconnect, mid-run
+    // crash that did not raise sim_error/sim_aborted) and the cached
+    // session would replay a half-finished trajectory. Skip those so
+    // the LoadMenu / Replay-Last-Run only ever surfaces full plays.
+    //
+    // simConfig is non-null here: autoSaveOnComplete is only invoked
+    // from inside the broadcast pipeline, which is only set up after
+    // /setup wired simConfig. Guard anyway to keep the type checker
+    // and the eventual deletion path (when simConfig gets reset to
+    // null on /clear) honest.
+    const cfg = simConfig;
+    if (cfg) {
+      const expectedTurnDone = cfg.actors.length * cfg.turns;
+      if (expectedTurnDone > 0 && turnDoneCount < expectedTurnDone) {
+        console.log(`[sessions] auto-save skipped: turn_done count ${turnDoneCount} below expected ${expectedTurnDone} (${cfg.actors.length} actors × ${cfg.turns} turns) — partial run`);
+        emitSaveStatus('skipped', {
+          reason: 'partial_completion',
+          turnDoneCount,
+          expectedTurnDone,
+          actors: cfg.actors.length,
+          turns: cfg.turns,
+        });
+        return;
+      }
+    }
+
     // Claim the save BEFORE the first await so a synchronous double
     // `complete` broadcast doesn't race past the `currentRunSaved`
     // guard above. The sync better-sqlite3 implementation got this for

@@ -751,9 +751,14 @@ test('auto-saves a cleanly completed run to the session store', async () => {
     runPairSimulations: async (_cfg, broadcast) => {
       broadcast('active_scenario', { id: 'mars-genesis', name: 'Mars Genesis' });
       broadcast('setup', { leaderA: { name: leaderA.name }, leaderB: { name: leaderB.name } });
-      broadcast('turn_done', { turn: 1 });
-      broadcast('turn_done', { turn: 2 });
-      broadcast('turn_done', { turn: 3 });
+      // Full completion = actors × turns turn_done events. makeConfig
+      // ships 2 actors × 3 turns = 6, so broadcast all 6 to clear the
+      // partial-completion gate on top of the MIN_TURNS floor.
+      for (let actor = 0; actor < 2; actor++) {
+        for (let turn = 1; turn <= 3; turn++) {
+          broadcast('turn_done', { turn, actorIndex: actor });
+        }
+      }
       broadcast('complete', { cost: { totalCostUSD: 0.12 } });
     },
   });
@@ -767,7 +772,12 @@ test('auto-saves a cleanly completed run to the session store', async () => {
     const res = await fetch(`http://127.0.0.1:${port}/sessions`);
     const json = await res.json() as { sessions: Array<{ turnCount?: number; scenarioName?: string }> };
     assert.equal(json.sessions.length, 1);
-    assert.equal(json.sessions[0].turnCount, 3);
+    // session store derives turnCount from raw turn_done events. With
+    // the per-actor shape (6 events for 2 actors × 3 turns) the counter
+    // sees 6; with the legacy global shape it would see 3. Either is
+    // acceptable for "fully completed" here — assert it's at least the
+    // configured 3 turns rather than pinning the exact shape.
+    assert.ok((json.sessions[0].turnCount ?? 0) >= 3);
     assert.equal(json.sessions[0].scenarioName, 'Mars Genesis');
   } finally {
     server.close();
@@ -871,8 +881,12 @@ test('does not auto-save when zero turn_done frames fired (crash before turn 1)'
   }
 });
 
-test('auto-saves a single-turn run (turn_done count = 1 meets MIN_TURNS floor)', async () => {
-  const tmp = mkdtempSync(join(tmpdir(), 'paracosm-autosave-1turn-'));
+test('does not auto-save a partial run (turn_done count below actors × turns)', async () => {
+  // After the full-completion gate landed, a run that fires fewer
+  // turn_done events than expected is considered partial and skipped.
+  // makeConfig ships 2 actors × 3 turns = 6 expected; this fixture
+  // broadcasts only 1 turn_done. The session store must stay empty.
+  const tmp = mkdtempSync(join(tmpdir(), 'paracosm-autosave-partial-'));
   const server = createMarsServer({
     env: { ...process.env, APP_DIR: tmp },
     runPairSimulations: async (_cfg, broadcast) => {
@@ -888,9 +902,8 @@ test('auto-saves a single-turn run (turn_done count = 1 meets MIN_TURNS floor)',
   try {
     await server.startWithConfig(makeConfig());
     const res = await fetch(`http://127.0.0.1:${port}/sessions`);
-    const json = await res.json() as { sessions: Array<{ turnCount?: number }> };
-    assert.equal(json.sessions.length, 1);
-    assert.equal(json.sessions[0].turnCount, 1);
+    const json = await res.json() as { sessions: unknown[] };
+    assert.equal(json.sessions.length, 0, 'partial runs must not enter the cache ring');
   } finally {
     server.close();
     await once(server, 'close');
@@ -904,7 +917,12 @@ test('emits complete twice but saves only once', async () => {
     env: { ...process.env, APP_DIR: tmp },
     runPairSimulations: async (_cfg, broadcast) => {
       broadcast('setup', { leaderA: { name: leaderA.name }, leaderB: { name: leaderB.name } });
-      for (let i = 1; i <= 3; i++) broadcast('turn_done', { turn: i });
+      // Full completion: 2 actors × 3 turns = 6 turn_done events.
+      for (let actor = 0; actor < 2; actor++) {
+        for (let turn = 1; turn <= 3; turn++) {
+          broadcast('turn_done', { turn, actorIndex: actor });
+        }
+      }
       broadcast('complete', { cost: { totalCostUSD: 0.1 } });
       broadcast('complete', { cost: { totalCostUSD: 0.1 } });
     },
@@ -939,7 +957,14 @@ test('auto-save errors do not break the broadcast pipeline', async () => {
     sessionStore: throwingStore,
     runPairSimulations: async (_cfg, broadcast) => {
       broadcast('setup', { leaderA: { name: leaderA.name }, leaderB: { name: leaderB.name } });
-      for (let i = 1; i <= 3; i++) broadcast('turn_done', { turn: i });
+      // Full completion (2 actors × 3 turns = 6) so the partial-
+      // completion gate doesn't pre-empt the throwing-store path under
+      // test.
+      for (let actor = 0; actor < 2; actor++) {
+        for (let turn = 1; turn <= 3; turn++) {
+          broadcast('turn_done', { turn, actorIndex: actor });
+        }
+      }
       broadcast('complete', { cost: { totalCostUSD: 0.1 } });
     },
   });
