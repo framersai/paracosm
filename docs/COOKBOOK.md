@@ -179,7 +179,7 @@ Three structured-output `LeaderConfig` objects with HEXACO bounds enforced via Z
 ]
 ```
 
-Full leaders: [`output/cookbook/02-output-leaders.json`](../output/cookbook/02-output-leaders.json).
+Full actors: [`output/cookbook/02-output-actors.json`](../output/cookbook/02-output-actors.json).
 
 ### Output: artifacts (excerpt for Marin Kade)
 
