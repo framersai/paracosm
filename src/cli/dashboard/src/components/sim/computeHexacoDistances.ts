@@ -28,10 +28,26 @@ export interface DistancePair {
 
 export interface DistanceResult {
   pairs: DistancePair[];
+  /**
+   * True when at least one pair has a non-zero raw distance — i.e.
+   * actors have at least some HEXACO trait variation. False when every
+   * actor has an empty / identical HEXACO vector, which produces a
+   * constellation with "0.00" labels on every edge. Callers should
+   * suppress edge labels in that case so the surface doesn't look
+   * uniformly broken.
+   */
+  hasSpread: boolean;
+  /** True when at least one actor has a non-empty hexaco map. Lets the
+   *  caller distinguish "actors are identical" from "actors haven't
+   *  broadcast HEXACO yet" — both produce hasSpread=false but the
+   *  recovery path differs (wait for status vs accept the truth). */
+  hasAnyData: boolean;
 }
 
 export function computeHexacoDistances(actors: ActorTraitProfile[]): DistanceResult {
-  if (actors.length < 2) return { pairs: [] };
+  if (actors.length < 2) return { pairs: [], hasSpread: false, hasAnyData: false };
+
+  const hasAnyData = actors.some((a) => Object.keys(a.hexaco ?? {}).length > 0);
 
   const raw: DistancePair[] = [];
   for (let i = 0; i < actors.length; i += 1) {
@@ -51,11 +67,12 @@ export function computeHexacoDistances(actors: ActorTraitProfile[]): DistanceRes
 
   // Normalize against the observed max so contrast stays visible even
   // when actors cluster tightly. When max is 0 (all identical), every
-  // normalized value is 0.
+  // normalized value is 0 — caller should suppress labels in that
+  // case via `hasSpread`.
   const max = raw.reduce((m, p) => Math.max(m, p.distance), 0);
   for (const p of raw) {
     p.normalized = max > 0 ? p.distance / max : 0;
   }
 
-  return { pairs: raw };
+  return { pairs: raw, hasSpread: max > 0, hasAnyData };
 }

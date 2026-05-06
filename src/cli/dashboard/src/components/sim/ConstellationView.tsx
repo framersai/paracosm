@@ -136,7 +136,15 @@ export function ConstellationView({ state, onActorClick }: ConstellationViewProp
           const edgeInFocus = isInFocus(idA) && isInFocus(idB);
           const focusMul = focusedArchetype === null ? 1 : (edgeInFocus ? 1 : 0.12);
           const opacity = Math.max(0.06, Math.min(0.95, 1 - norm)) * focusMul;
-          const showLabel = actorIds.length < EDGE_LABEL_CAP && (focusedArchetype === null || edgeInFocus);
+          // Suppress per-edge labels when there's no HEXACO spread —
+          // either every actor has an empty hexaco map (status frame
+          // in flight, or replayed sessions where it was never
+          // recorded) or every actor really has the same trait vector.
+          // Either way, "0.00" on every edge reads as a bug; cleaner
+          // to render the edges plain and let the absence speak.
+          const showLabel = distances.hasSpread
+            && actorIds.length < EDGE_LABEL_CAP
+            && (focusedArchetype === null || edgeInFocus);
           const mx = (pa.cx + pb.cx) / 2;
           const my = (pa.cy + pb.cy) / 2;
           return (

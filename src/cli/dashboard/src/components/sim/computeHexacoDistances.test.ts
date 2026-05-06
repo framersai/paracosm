@@ -74,3 +74,37 @@ test('computeHexacoDistances: missing hexaco field defaults each axis to 0.5', (
   assert.ok(Math.abs(out.pairs[0].distance - Math.sqrt(1.5)) < 1e-9);
   assert.equal(out.pairs[0].normalized, 1);
 });
+
+test('computeHexacoDistances: hasSpread false when every pair distance is 0', () => {
+  // All-empty case: every actor defaults each axis to 0.5, so every
+  // pair distance is exactly 0. ConstellationView uses this flag to
+  // suppress the "0.00" label noise so the surface doesn't read as
+  // a uniform-bug when the cause is just "no HEXACO data yet".
+  const empty = computeHexacoDistances([
+    { name: 'a', hexaco: {} as Record<string, number> },
+    { name: 'b', hexaco: {} as Record<string, number> },
+    { name: 'c', hexaco: {} as Record<string, number> },
+  ]);
+  assert.equal(empty.hasSpread, false);
+  assert.equal(empty.hasAnyData, false);
+  assert.ok(empty.pairs.every((p) => p.distance === 0));
+
+  // Identical-but-populated case: hasSpread is still false, but
+  // hasAnyData is true so callers can distinguish "actors are
+  // genuinely identical" from "still waiting for data".
+  const identical = computeHexacoDistances([
+    { name: 'a', hexaco: flat },
+    { name: 'b', hexaco: { ...flat } },
+  ]);
+  assert.equal(identical.hasSpread, false);
+  assert.equal(identical.hasAnyData, true);
+});
+
+test('computeHexacoDistances: hasSpread true when at least one pair has a non-zero distance', () => {
+  const out = computeHexacoDistances([
+    { name: 'a', hexaco: flat },
+    { name: 'b', hexaco: high },
+  ]);
+  assert.equal(out.hasSpread, true);
+  assert.equal(out.hasAnyData, true);
+});
