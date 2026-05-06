@@ -56,8 +56,12 @@ export function computeHexacoDistances(actors: ActorTraitProfile[]): DistanceRes
       const b = actors[j];
       let sumSq = 0;
       for (const axis of HEXACO_AXES) {
-        const av = typeof a.hexaco[axis] === 'number' ? a.hexaco[axis] : 0.5;
-        const bv = typeof b.hexaco[axis] === 'number' ? b.hexaco[axis] : 0.5;
+        // Optional chain matches the `hasAnyData` guard above: when an
+        // actor's hexaco map is null/undefined (early-stream replay
+        // shapes can drop it), default each axis to 0.5 instead of
+        // throwing on the property read.
+        const av = typeof a.hexaco?.[axis] === 'number' ? a.hexaco[axis] : 0.5;
+        const bv = typeof b.hexaco?.[axis] === 'number' ? b.hexaco[axis] : 0.5;
         const d = av - bv;
         sumSq += d * d;
       }
