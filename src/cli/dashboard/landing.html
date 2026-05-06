@@ -54,13 +54,24 @@
 </script>
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
-{"@type":"Question","name":"What is Paracosm?","acceptedAnswer":{"@type":"Answer","text":"Paracosm is an open-source TypeScript structured world model for AI agents (npm install paracosm). You define or ground a world as a ScenarioPackage with departments, metrics, crisis templates, and progression hooks. The engine populates the world, generates events from live state, and resolves outcomes through a seeded deterministic kernel. LLM-driven stages diverge because every prompt carries the leader's HEXACO profile."}},
-{"@type":"Question","name":"How does runtime tool forging work?","acceptedAnswer":{"@type":"Answer","text":"When a department agent needs a calculation the codebase doesn't provide, it writes one. The code executes in a hardened node:vm sandbox with a wall-clock timeout and observed heap usage. An LLM judge reviews the output for safety and correctness before it enters the decision pipeline. The tool persists for future turns. None of these tools exist in the source code; agents invent them at runtime."}},
-{"@type":"Question","name":"What is the HEXACO personality model?","acceptedAnswer":{"@type":"Answer","text":"HEXACO is a six-factor personality framework: Honesty-Humility, Emotionality, Extraversion, Agreeableness, Conscientiousness, and Openness to Experience. Each agent in Paracosm carries six continuous values between 0 and 1 that shift across turns through three drift mechanisms: leader influence, role activation, and outcome reinforcement (Ashton and Lee, 2007)."}},
-{"@type":"Question","name":"Is the simulation deterministic?","acceptedAnswer":{"@type":"Answer","text":"The kernel is fully deterministic. It uses Mulberry32, a 32-bit seeded PRNG. Given seed 950, the kernel produces identical agent rosters, lifecycle schedules, and resource starting values on every run. The divergence between two parallel worlds comes entirely from the AI commander's decisions. wm.replay(artifact) reproduces this in code with a byte-equal comparison."}},
-{"@type":"Question","name":"What LLM providers work with Paracosm?","acceptedAnswer":{"@type":"Answer","text":"OpenAI (GPT-5.4 family) and Anthropic (Claude Sonnet 4.6, Claude Haiku 4.5). Each role (commander, departments, director, judge, agent reactions) is configurable independently. Cost presets quality and economy bundle sensible defaults; per-role overrides win. Paracosm auto-detects which API key is set and falls back between providers."}},
-{"@type":"Question","name":"Can I build my own scenario?","acceptedAnswer":{"@type":"Answer","text":"Three paths. (1) Write a ScenarioPackage in TypeScript with custom hooks. (2) Write a scenario JSON draft and run it through compileScenario(). (3) Pass a brief or URL to WorldModel.fromPrompt() and let an LLM draft the JSON contract first. All three produce the same canonical ScenarioPackage and route through the same runtime. Compile cost is roughly $0.10 and caches to disk."}},
-{"@type":"Question","name":"Is Paracosm free?","acceptedAnswer":{"@type":"Answer","text":"The engine is open source under Apache-2.0. Use it in commercial products without restriction. You provide LLM API keys; running a 6-turn quality-preset simulation costs roughly $1-3 on OpenAI, $3-7 on Anthropic. A hosted enterprise SaaS dashboard with full analytics suite, fleet orchestration, and team workspaces is in development. No pricing tiers yet; team@frame.dev for early access."}}
+{"@type":"Question","name":"What is Paracosm?","acceptedAnswer":{"@type":"Answer","text":"Paracosm is an open-source TypeScript structured world-model engine for LLM agent swarms (npm install paracosm, Apache-2.0). You define or ground a world as a ScenarioPackage with departments, metrics, crisis templates, and progression hooks. The engine populates the world, generates events from live state, and resolves outcomes through a seeded deterministic kernel. LLM-driven stages diverge because every prompt carries the leader's HEXACO profile. Two scenarios ship in the box (Mars Genesis, Lunar Outpost); new ones compile from a JSON draft, prompt, brief, or URL."}},
+{"@type":"Question","name":"What are the two kinds of world model and which one is Paracosm?","acceptedAnswer":{"@type":"Answer","text":"Visual / generative world models (Sora, Genie 3, World Labs Marble, JEPA-based AMI Labs) generate pixels of how a future looks. Structured / LLM-based world models emit JSON state, decisions, and citations agents can reason inside. Paracosm is the structured kind. The split is formalized in the Tsinghua FIB Lab survey (ACM CSUR 2025), Xing 2025 (arXiv 2507.05169), and given counterfactual semantics by Kirfel et al, AI & Ethics 2025."}},
+{"@type":"Question","name":"How does Paracosm differ from MiroFish, OASIS, and other agent-based modeling stacks?","acceptedAnswer":{"@type":"Answer","text":"MiroFish and OASIS (CAMEL-AI) run open-ended bottom-up social simulations with thousands to one million LLM-driven agents and emit aggregate prediction reports. Paracosm runs a top-down agent swarm: one HEXACO-typed leader, ~5 specialist departments, ~100 personality-typed cells, deterministic per seed. Different scale (~100 vs 1k-1M), direction (top-down vs bottom-up), output (universal forkable RunArtifact vs aggregate forecast). Classical ABM (Mesa, NetLogo, MASON, ABIDES, AnyLogic) is rule-based and largely non-LLM; Paracosm threads LLMs into events while keeping a deterministic kernel for state."}},
+{"@type":"Question","name":"How does a single turn run end-to-end?","acceptedAnswer":{"@type":"Answer","text":"A turn takes 30-90 seconds and runs four phases. (1) Event Director reads world state and prior decisions, generates events that target weak points. (2) Department Analysis: five specialist agents analyze in parallel, can recall research, may forge new computational tools. (3) Commander Decision: the leader weighs department input through their HEXACO profile and emits an action category, parameter set, rationale, and confidence score. (4) Kernel Resolution: the deterministic state machine applies effects, agents react, HEXACO traits drift through leader-pull, role-activation, and outcome-reinforcement. The full per-turn record appends to the RunArtifact."}},
+{"@type":"Question","name":"Is the simulation deterministic? How is replay verified?","acceptedAnswer":{"@type":"Answer","text":"The kernel is fully deterministic, seeded by Mulberry32 (32-bit PRNG). Given the same seed, scenario, and actor profile, agent rosters, lifecycle schedules, promotion sequences, and resource starting values are identical. Divergence between parallel worlds comes entirely from the AI commander's decisions. wm.replay(artifact) re-executes the deterministic between-turn progression hook from each recorded snapshot and compares under canonical JSON: matches=true proves byte-equal-determinism; matches=false names the first divergence path. wm.forkFromArtifact(trunk, atTurn).simulate(altLeader) branches a counterfactual from any captured turn — the CWSM pattern (Kirfel et al, 2025)."}},
+{"@type":"Question","name":"How does runtime tool forging work, and is it safe?","acceptedAnswer":{"@type":"Answer","text":"When a department agent needs a calculation the codebase doesn't provide, it writes one. Specialist proposes a tool with a Zod-validated input/output schema, the LLM authors a TypeScript body, code executes in a hardened node:vm sandbox with 5s wall clock and ~128 MB nominal heap. The sandbox always bans eval, Function, require, dynamic import, process, child_process, destructive fs.*; fetch / fs.readFile / crypto are opt-in via empty-by-default allowlist. An LLM judge reviews output against the specialist's stated intent — match approves, mismatch rejects. Approved tools land in a discoverable registry; reuse via call_forged_tool costs tens of tokens vs full tokens for a fresh forge. After turn three, most decisions invoke a previously-forged tool and total run cost flattens."}},
+{"@type":"Question","name":"What is the HEXACO personality model and why use it?","acceptedAnswer":{"@type":"Answer","text":"HEXACO is a six-factor framework with extensive cross-cultural validation: Honesty-Humility, Emotionality, Extraversion, Agreeableness, Conscientiousness, Openness to Experience — a six-factor extension of the Big Five with Honesty-Humility split out as a separate axis. Each agent carries six continuous values in [0,1]; values drift across turns through three mechanisms encoded in the kernel: leader-pull, role-activation, outcome-reinforcement. Personality biases which specialists are consulted, which decisions are accepted, and which tools get forged. Source: Ashton & Lee, Personality and Social Psychology Review 11(2), 150-166, 2007 (doi:10.1177/1088868306294907)."}},
+{"@type":"Question","name":"Are leaders locked to human personality?","acceptedAnswer":{"@type":"Answer","text":"No. Paracosm ships a pluggable TraitModel registry with two built-ins: hexaco (human personality) and ai-agent (six axes for AI-system leaders: exploration, verification-rigor, deference, risk-tolerance, transparency, instruction-following). Each model declares its axes, drift table, and prompt cues. Custom models register in a single call. The same agent under two different leaders, on the same seed, becomes a measurably different entity by turn 12."}},
+{"@type":"Question","name":"How does grounded compile work? What sources can I feed in?","acceptedAnswer":{"@type":"Answer","text":"Pass a brief, paper, URL, or JSON draft into the compiler. An LLM extracts topics, facts, and search queries; AgentOS WebSearchService fans out to Firecrawl, Tavily, Serper, and Brave in parallel; results pass through semantic dedup, RRF fusion, and Cohere Rerank v3.5. The resulting KnowledgeBundle ingests into an AgentOS sqlite-backed memory store. Every department analysis can recall semantically and cite the same sources. The orchestrator guarantees provenance: when the LLM omits citations, the research packet is auto-attached. Compile cost is roughly $0.10 and caches to disk by seed signature."}},
+{"@type":"Question","name":"How is paracosm architected? Three layers, why?","acceptedAnswer":{"@type":"Answer","text":"Three layers, strict boundaries, no circular dependencies. Engine layer owns types and the deterministic kernel: SimulationKernel, SeededRng, ScenarioPackage types, Effect/Metric registries (~71 source files). Runtime layer orchestrates simulations via 6 scenario hooks: Orchestrator, Director, Departments, Batch Runner (~43 files). CLI layer serves the dashboard, batch runner, HTTP server (~30 files plus the React/Vite/Tailwind dashboard). The engine never imports from runtime; the runtime never imports from CLI. Underneath: @framers/agentos — agent() API, EmergentCapabilityEngine, EmergentJudge, ForgeToolMetaTool, AgentMemory."}},
+{"@type":"Question","name":"Can I model a single subject (digital twin)?","acceptedAnswer":{"@type":"Answer","text":"Yes. The paracosm/digital-twin subpath: supply a SubjectConfig + InterventionConfig, get the same Zod-validated RunArtifact shape with artifact.subject and artifact.intervention populated. artifact.trajectory.timepoints[t].worldSnapshot carries per-timepoint metrics. Same shape applies to medical interventions (subject=patient, intervention=treatment), policy modeling (subject=jurisdiction, intervention=ordinance), and product launches (subject=market, intervention=pricing change). Counterfactual semantics: Kirfel et al, AI & Ethics 2025."}},
+{"@type":"Question","name":"Where can I see real input and output JSON?","acceptedAnswer":{"@type":"Answer","text":"Every method in the public API has its real input JSON and real output JSON captured in docs/COOKBOOK.md. One run threads through seven public surfaces: prompt-to-world, quickstart parallel leaders (runMany), branch at turn N (wm.forkFromArtifact), kernel replay (wm.replay), HTTP /simulate endpoint, digital-twin intervene(), batch dispatch (runBatch). Plus scripts/cookbook-e2e.ts in the repo runs the full pipeline against your scenario / leader profiles / seed."}},
+{"@type":"Question","name":"What LLM providers work with Paracosm?","acceptedAnswer":{"@type":"Answer","text":"OpenAI (GPT-5.4 family) and Anthropic (Claude Sonnet 4.6, Claude Haiku 4.5). Each role (commander, departments, director, judge, agent reactions) is configurable independently. Cost presets quality and economy bundle sensible defaults; per-role overrides win. Paracosm auto-detects which API key is present and falls back between providers."}},
+{"@type":"Question","name":"What does a typical run cost?","acceptedAnswer":{"@type":"Answer","text":"A six-turn run on a small scenario runs roughly tens of cents under economy and a few dollars under quality. Compile-from-seed adds ~$0.10 (cached to disk by seed signature). Tool reuse after turn three is the largest cost lever. Anthropic prompt cache hits the shared system prefix from turn 2 onward (10x input-cost reduction); OpenAI auto-caches any prompt over 1024 tokens. The cost field reports tokens read, tokens created, and USD saved per run."}},
+{"@type":"Question","name":"What verticals does this apply to?","acceptedAnswer":{"@type":"Answer","text":"Digital-twin medicine, corporate strategy (M&A, market entry, leadership replays), policy simulation (tax, regulation, congestion pricing, healthcare reform), defense / wargaming (commander HEXACO under shared starting conditions; replay any past run after a code change), game design playtesting (procedural NPC civilizations, runtime tool forge), AI alignment red-teaming (pressure-test agent behavior under specific HEXACO weights). The engine is domain-agnostic; the scenario contract names the world."}},
+{"@type":"Question","name":"Can I build my own scenario?","acceptedAnswer":{"@type":"Answer","text":"Three paths. (1) Write a ScenarioPackage in TypeScript with custom hooks for progression, crisis generation, milestones, and politics — full control. (2) Write a scenario JSON draft and run it through compileScenario() — zero-code authoring, $0.10 per compile, caches to disk. (3) Pass a brief or URL to WorldModel.fromPrompt() and let an LLM draft the JSON contract first. All three produce the same canonical ScenarioPackage."}},
+{"@type":"Question","name":"Does Paracosm need an internet connection?","acceptedAnswer":{"@type":"Answer","text":"Yes — for research grounding (web search) and the LLM calls themselves. Offline mode falls back to LLM-only event generation without research citations; the artifact records the offline flag so runs are auditable. For air-gapped deployments, the hosted enterprise tier supports a custom inference gateway and pre-ingested research bundles."}},
+{"@type":"Question","name":"Is Paracosm free?","acceptedAnswer":{"@type":"Answer","text":"The engine is open source under Apache-2.0. Use in commercial products without restriction. You provide LLM API keys; running a 6-turn quality-preset run costs roughly $1-3 on OpenAI, $3-7 on Anthropic. A hosted enterprise SaaS dashboard with full analytics, fleet orchestration, team workspaces, and private-deployment options is in development for Q3 2026; team@frame.dev for early access."}}
 ]}
 </script>
 <script type="application/ld+json">
@@ -709,202 +720,6 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
   </div>
 </section>
 
-<!-- FEATURES -->
-<section class="sec sec-alt" id="features">
-  <div class="sec-inner">
-    <h2 class="sec-title rv">What Paracosm Does</h2>
-    <p class="sec-desc rv">Paracosm is a structured world model, not a chat interface. Specialist agents analyze data, write code, cite papers, and forge computational models inside hardened node:vm sandboxes. The Event Director generates events from world state, not from a script. Two runs on the same seed diverge only because their leaders have different HEXACO personalities.</p>
-
-    <div class="feat-grid">
-      <div class="feat rv rv-d1">
-        <img class="feat-icon" src="/brand/feature-icons/forge.svg?v=1" width="48" height="48" loading="lazy" decoding="async" alt="">
-        <h3>Runtime Tool Forging</h3>
-        <p>A medical officer invents a radiation dose calculator. An engineer writes a structural load analyzer. These tools don't exist in the codebase. The agent writes them, they execute in a hardened node:vm sandbox, and an LLM judge reviews output before it enters the decision pipeline.</p>
-        <div class="feat-ref">AgentOS ForgeToolMetaTool, 10s timeout, observed heap usage</div>
-      </div>
-      <div class="feat rv rv-d2">
-        <img class="feat-icon" src="/brand/feature-icons/hexaco.svg?v=1" width="48" height="48" loading="lazy" decoding="async" alt="">
-        <h3>Pluggable Trait Models</h3>
-        <p>Leaders aren't locked to human personality. paracosm ships a TraitModel registry with two built-ins: <code>hexaco</code> (Ashton-Lee six-axis human personality) and <code>ai-agent</code> (six axes for AI-system leaders: exploration, verification-rigor, deference, risk-tolerance, transparency, instruction-following). Each model defines its axes, drift table, and prompt cues. Custom models register in one call. The same agent under two different leaders, on the same seed, becomes a measurably different entity by turn 12.</p>
-        <div class="feat-ref">Ashton &amp; Lee, PSPR 11(2), 2007 (HEXACO) &middot; ai-agent v1 calibrated by Frame.dev, 2026</div>
-      </div>
-      <div class="feat rv rv-d3">
-        <img class="feat-icon" src="/brand/feature-icons/crisis.svg?v=1" width="48" height="48" loading="lazy" decoding="async" alt="">
-        <h3>Emergent Event Director</h3>
-        <p>The Event Director reads world state, resource levels, population health, prior decisions, and the tools agents have built. It generates events that target actual weak points in the simulation: crises, opportunities, disruptions, transitions. If a leader neglected agriculture in turn 3, the food shortage in turn 7 is a consequence, not a coincidence.</p>
-        <div class="feat-ref">cf. Riedl &amp; Bulitko, "Interactive Narrative: An Intelligent Systems Approach," AI Magazine 34(1), 2013</div>
-      </div>
-      <div class="feat rv rv-d1">
-        <img class="feat-icon" src="/brand/feature-icons/kernel.svg?v=1" width="48" height="48" loading="lazy" decoding="async" alt="">
-        <h3>Deterministic Kernel</h3>
-        <p>The simulation kernel uses Mulberry32, a 32-bit seeded PRNG. Given the same seed, the kernel produces identical agent rosters, lifecycle schedules, and promotion sequences. The only source of variation is the AI commander's decisions. Two runs with the same seed and different personalities produce different outcomes from provably identical starting conditions.</p>
-        <div class="feat-ref">cf. Law &amp; Kelton, Simulation Modeling and Analysis, 5th ed., McGraw-Hill, 2015</div>
-      </div>
-      <div class="feat rv rv-d2">
-        <img class="feat-icon" src="/brand/feature-icons/compiler.svg?v=1" width="48" height="48" loading="lazy" decoding="async" alt="">
-        <h3>Scenario Compiler</h3>
-        <p>Write a scenario JSON draft, or ground it with a prompt, brief, or URL. The compiler calls generateText() to produce TypeScript hooks for progression, event generation, milestones, and political dynamics. A Mars colony, a lunar outpost, an Antarctic station, a corporate org, a submarine crew: same compiler, different world contract, different future. Cost is roughly $0.10 per compile. Results cache to disk.</p>
-        <div class="feat-ref">compileScenario() in paracosm/engine/compiler</div>
-      </div>
-      <div class="feat rv rv-d3">
-        <img class="feat-icon" src="/brand/feature-icons/research.svg?v=1" width="48" height="48" loading="lazy" decoding="async" alt="">
-        <h3>Semantic Research Pipeline</h3>
-        <p>Specialist agents search academic literature before making recommendations. The pipeline queries Serper, Tavily, Firecrawl, and Brave in parallel, then applies Cohere Rerank v3.5 for neural relevance scoring. Citations include DOI links. A medical agent recommending radiation shielding cites actual NASA dosimetry guidelines, not a hallucinated source.</p>
-        <div class="feat-ref">Deep research via AgentOS AgentMemory + Cohere Rerank v3.5</div>
-      </div>
-      <div class="feat rv rv-d1">
-        <img class="feat-icon" src="/brand/feature-icons/research.svg?v=1" width="48" height="48" loading="lazy" decoding="async" alt="">
-        <h3>Seed Enrichment &amp; Citation Provenance</h3>
-        <p>Pass a brief, paper, or URL into the compiler. An LLM extracts topics, facts, and search queries; AgentOS WebSearchService fans out to Firecrawl, Tavily, Serper, and Brave; results pass through semantic dedup, RRF fusion, and Cohere neural reranking. The resulting KnowledgeBundle ingests into an AgentOS sqlite-backed memory store. Every department analysis recalls semantically and cites the same sources you fed in. The orchestrator guarantees provenance: when the LLM omits citations, the research packet is auto-attached so the report always carries the sources the agent saw.</p>
-        <div class="feat-ref">paracosm compile --seed-text / --seed-url &middot; KnowledgeBundle &middot; recallResearch()</div>
-      </div>
-      <div class="feat rv rv-d2">
-        <img class="feat-icon" src="/brand/feature-icons/replay.svg?v=1" width="48" height="48" loading="lazy" decoding="async" alt="">
-        <h3>Replay-Verified Determinism</h3>
-        <p><code>wm.replay(stored)</code> re-executes the deterministic between-turn progression hook from each recorded snapshot, captures fresh snapshots, and compares them under canonical JSON. <code>matches=true</code> proves the kernel is byte-equal-deterministic for this artifact's transitions; <code>matches=false</code> names the first divergence path so you can localize the change. Pillar 2 (Reproducible) is now verifiable in code, not just promised in copy.</p>
-        <div class="feat-ref">WorldModel.replay() in paracosm &middot; canonicalJson &middot; firstDivergence</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- HOW IT WORKS -->
-<section class="sec" id="how-it-works">
-  <div class="sec-inner">
-    <h2 class="sec-title rv">Anatomy of a Turn</h2>
-    <p class="sec-desc rv">A turn takes 30 to 90 seconds. The engine runs four phases in sequence. Each phase feeds data forward. By the end of a turn, the world state has changed, agents have reacted, and personality traits have shifted.</p>
-
-    <div class="flow-wrap rv">
-      <div class="flow-line"><div class="flow-line-fill" id="flow-fill"></div></div>
-      <div class="flow">
-        <div class="flow-node">
-          <div class="flow-ring" style="border-color:var(--rust)"><svg style="color:var(--rust)"><use href="#i-eye"/></svg></div>
-          <div class="flow-num" style="color:var(--rust)">01</div>
-          <h3>Event Director</h3>
-          <p>Reads world state, prior decisions, and tool intelligence. Generates events that target actual weaknesses and exploit prior choices.</p>
-        </div>
-        <div class="flow-node">
-          <div class="flow-ring" style="border-color:var(--amber)"><svg style="color:var(--amber)"><use href="#i-layers"/></svg></div>
-          <div class="flow-num" style="color:var(--amber)">02</div>
-          <h3>Department Analysis</h3>
-          <p>Five department agents analyze the crisis in parallel. Each cites research and can forge new computational tools.</p>
-        </div>
-        <div class="flow-node">
-          <div class="flow-ring" style="border-color:var(--teal)"><svg style="color:var(--teal)"><use href="#i-brain"/></svg></div>
-          <div class="flow-num" style="color:var(--teal)">03</div>
-          <h3>Commander Decision</h3>
-          <p>The AI commander weighs department input through the lens of their HEXACO personality profile.</p>
-        </div>
-        <div class="flow-node">
-          <div class="flow-ring" style="border-color:var(--green)"><svg style="color:var(--green)"><use href="#i-cpu"/></svg></div>
-          <div class="flow-num" style="color:var(--green)">04</div>
-          <h3>Kernel Resolution</h3>
-          <p>Deterministic state machine applies effects. Agents react, form opinions, update relationships. HEXACO traits drift.</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- Divergence visualization -->
-    <div class="rv" style="margin-top:64px"></div>
-    <h2 class="sec-title rv">Same seed. Different leader. Different world.</h2>
-    <p class="sec-desc rv">The kernel guarantees identical starting conditions. Seed 950 produces the same agent roster, lifecycle schedule, and resource levels. The only variable is the leader's HEXACO profile. <code>wm.replay(artifact)</code> proves the kernel is byte-equal-deterministic for stored artifacts; <code>wm.forkFromArtifact(trunk, atTurn).simulate(altLeader)</code> branches a new trajectory from any captured turn. Two leaders, one seed, two artifacts: <code>fingerprint</code>, <code>finalState.metrics</code>, and <code>decisions[].choice</code> are the diff surface.</p>
-
-    <div class="diverge rv">
-      <div class="diverge-side" style="border-left:3px solid var(--amber)">
-        <h3 style="color:var(--amber)">Leader A: high-openness profile</h3>
-        <p class="l-body-md">HEXACO openness 0.95, conscientiousness 0.35. The director picks unconventional candidates at promotion and weights risk-tolerant department reports more heavily. Decisions push experimental options; outcomes have higher variance.</p>
-        <div class="l-mono-meta">
-          <div>Higher variance on metrics under this profile</div>
-          <div class="diverge-bar"><div class="diverge-fill" style="width:78%;background:var(--amber)"></div></div>
-          <div style="margin-top:6px">Higher forge attempts, higher veto rate</div>
-          <div class="diverge-bar"><div class="diverge-fill" style="width:92%;background:var(--amber)"></div></div>
-        </div>
-      </div>
-      <div class="diverge-side" style="border-left:3px solid var(--teal)">
-        <h3 style="color:var(--teal)">Leader B: high-conscientiousness profile</h3>
-        <p class="l-body-md">HEXACO openness 0.25, conscientiousness 0.97. The director picks by-the-book candidates and weights margin-of-safety reports. Decisions favor conservative options; outcomes have lower variance and longer time-to-resolution.</p>
-        <div class="l-mono-meta">
-          <div>Lower variance on metrics under this profile</div>
-          <div class="diverge-bar"><div class="diverge-fill" style="width:88%;background:var(--teal)"></div></div>
-          <div style="margin-top:6px">Lower forge attempts, higher acceptance rate</div>
-          <div class="diverge-bar"><div class="diverge-fill" style="width:45%;background:var(--teal)"></div></div>
-        </div>
-      </div>
-    </div>
-    <p class="sec-desc rv" style="margin-top:18px;font-size: var(--font-md);color:var(--t3)">Bars are illustrative of the qualitative pattern. Run <a href="https://github.com/framersai/paracosm/blob/master/scripts/cookbook-e2e.ts" target="_blank" rel="noopener" style="color:var(--amber)">scripts/cookbook-e2e.ts</a> to capture real fingerprints + per-metric deltas for your scenario, leader profiles, and seed.</p>
-  </div>
-</section>
-
-<!-- DIGITAL TWIN -->
-<section class="sec" id="digital-twin">
-  <div class="sec-inner">
-    <h2 class="sec-title rv">Digital twins are a first-class import path</h2>
-    <p class="sec-desc rv">The same kernel that runs a 100-person Mars colony also models a single person under a single intervention. <code>paracosm/digital-twin</code> is the curated subpath: supply a <code>SubjectConfig</code> + <code>InterventionConfig</code>, get a typed trajectory back. Same Zod-validated <code>RunArtifact</code> shape, just with <code>artifact.subject</code> and <code>artifact.intervention</code> populated for traceability.</p>
-
-    <!-- Full-width recorded demo. The recording IS the proof, so it gets
-         the whole sec-inner width (1280×720 source plays at the viewer's
-         viewport width, ~1100px on desktop, full container on mobile). -->
-    <div class="rv" style="margin-top:32px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:14px">
-      <div style="font-family:var(--mono);font-size: var(--font-xs);color:var(--rust);letter-spacing:1.5px;text-transform:uppercase">Live · /sim?tab=quickstart</div>
-
-      <video class="demo-video" autoplay muted loop playsinline controls preload="metadata"
-        poster="/demo/digital-twin-maria-2-poster.jpg?v=dt-11"
-        style="width:100%;height:auto;border-radius:8px;display:block;background:#000"
-        aria-label="Digital twin run recorded against paracosm.agentos.sh: filling in the Subject and Intervention forms with a Maria Chen + 12-week semaglutide example, then clicking 'Run digital twin' fires twin.intervene({ subject, intervention, actor }) and returns the trajectory inline in the SIM tab.">
-        <source src="/demo/digital-twin-maria-2-hero.mp4?v=dt-11" type="video/mp4">
-      </video>
-
-      <p style="font-size: var(--font-sm);color:var(--t3);line-height:1.6;margin:4px 0 0">Recorded end-to-end against <code>paracosm.agentos.sh</code>. The click hits <code>POST /api/quickstart/simulate-intervention</code>, the server runs <code>twin.intervene({ subject, intervention, actor })</code>, and the SIM tab renders the returned <code>RunArtifact</code>: HbA1c trajectory, weight loss, exercise adherence climb, side-effect burden, quality-of-life shifts. Real LLM-driven decisions across endocrinology, nutrition, behavioral health, cardiology, and lifestyle coaching.</p>
-    </div>
-
-    <div class="code-block rv" style="margin:20px 0 0">
-      <div class="code-header"><span>Worked example · Maria Chen, T2D, 12-week GLP-1 + lifestyle protocol</span></div>
-      <div tabindex="0" class="code-body"><span class="kw">import</span> { DigitalTwin } <span class="kw">from</span> <span class="str">'paracosm/digital-twin'</span>;
-
-<span class="kw">const</span> twin = <span class="kw">await</span> DigitalTwin.fromJson(scenarioJson);
-
-<span class="kw">const</span> subject = {
-  id: <span class="str">'patient-maria-2026'</span>,
-  name: <span class="str">'Maria Chen'</span>,
-  profile: {
-    age: 58,
-    yearsWithT2D: 4,
-    bmi: 31,
-    a1cBaseline: 7.8,
-    weightLb: 178,
-    comorbidities: <span class="str">'hypertension, dyslipidemia'</span>,
-  },
-  signals: [
-    { label: <span class="str">'HbA1c'</span>,           value: 7.8, unit: <span class="str">'%'</span> },
-    { label: <span class="str">'Fasting glucose'</span>, value: 156, unit: <span class="str">'mg/dL'</span> },
-    { label: <span class="str">'Weight'</span>,          value: 178, unit: <span class="str">'lb'</span> },
-  ],
-};
-
-<span class="kw">const</span> intervention = {
-  id: <span class="str">'glp1-12wk-protocol'</span>,
-  name: <span class="str">'12-week semaglutide + lifestyle protocol'</span>,
-  description: <span class="str">'Initiate semaglutide 0.25mg weekly,'</span>
-    + <span class="str">' titrate to 1.0mg by week 4. Pair with'</span>
-    + <span class="str">' dietitian-led nutrition + 150min/wk exercise.'</span>,
-  duration: { value: 84, unit: <span class="str">'days'</span> },
-  adherenceProfile: { expected: 0.85 },
-};
-
-<span class="kw">const</span> artifact = <span class="kw">await</span> twin.<span class="fn">intervene</span>({
-  subject, intervention, actor: endocrinologist,
-  maxTurns: <span class="num">6</span>, seed: <span class="num">11</span>,
-});
-
-<span class="cm">// artifact.subject + artifact.intervention preserved</span>
-<span class="cm">// artifact.trajectory.timepoints[t].worldSnapshot</span>
-<span class="cm">//   carries per-week HbA1c, weight, BMI, exercise,</span>
-<span class="cm">//   sleep, QoL, mortality risk, side-effect load</span></div>
-    </div>
-
-    <p class="sec-desc rv l-sec-trailer">The same shape applies to medical interventions (subject = patient, intervention = treatment), policy modeling (subject = jurisdiction, intervention = ordinance), and product launches (subject = market, intervention = pricing change). The kernel is domain-agnostic — the scenario contract names the world.</p>
-  </div>
-</section>
 
 <!-- SCENARIOS -->
 <section class="sec sec-alt" id="scenarios">
@@ -924,41 +739,6 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
         <h3>Lunar Outpost</h3>
         <p>50-person crew at the lunar south pole. Four departments handle mining, life-support, communications, and research. The scenario models regolith toxicity, 1/6g bone atrophy, Earth-relay communication delays, and crew rotation logistics. Proves the engine works across scenario boundaries without engine code changes.</p>
         <div class="sc-stats"><span><b>50</b> crew</span><span><b>4</b> depts</span><span><b>8</b> turns</span><span><b>10</b> years</span></div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ARCHITECTURE -->
-<section class="sec" id="architecture">
-  <div class="sec-inner">
-    <h2 class="sec-title rv">Three layers, strict boundaries</h2>
-    <p class="sec-desc rv">The engine layer owns types and the deterministic kernel (71 source files). The runtime layer orchestrates simulations via 6 scenario hooks (43 files). The CLI layer serves the dashboard, batch runner, and HTTP server (30 files plus the React dashboard). No circular dependencies. The engine never imports from runtime.</p>
-
-    <div class="arch rv">
-      <div class="arch-row" style="border-left:3px solid var(--amber)">
-        <svg style="color:var(--amber)" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3 9h18M9 3v18" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
-        <div class="arch-label" style="color:var(--amber)">Dashboard</div>
-        <div class="arch-desc">React + Vite. Live SSE streaming. Dual-column divergence view, HEXACO sparklines, agent chat, save/load.</div>
-        <div class="arch-tech">React 19 / Vite 6 / Tailwind 4</div>
-      </div>
-      <div class="arch-row" style="border-left:3px solid var(--teal)">
-        <svg style="color:var(--teal)"><use href="#i-layers"/></svg>
-        <div class="arch-label" style="color:var(--teal)">Runtime</div>
-        <div class="arch-desc">Orchestrator, Director, Departments, Batch Runner. Scenario-agnostic via 6 progression and prompt hooks. Parallel leader execution.</div>
-        <div class="arch-tech">AgentOS / generateText() / SSE</div>
-      </div>
-      <div class="arch-row" style="border-left:3px solid var(--rust)">
-        <svg style="color:var(--rust)"><use href="#i-cpu"/></svg>
-        <div class="arch-label" style="color:var(--rust)">Engine</div>
-        <div class="arch-desc">SimulationKernel, SeededRng, ScenarioPackage types, Effect/Metric registries. Fully deterministic state machine.</div>
-        <div class="arch-tech">TypeScript / Mulberry32 / Apache-2.0</div>
-      </div>
-      <div class="arch-row" style="border-left:3px solid var(--green)">
-        <svg style="color:var(--green)"><use href="#i-code"/></svg>
-        <div class="arch-label" style="color:var(--green)">AgentOS</div>
-        <div class="arch-desc">agent() API, EmergentCapabilityEngine, EmergentJudge, ForgeToolMetaTool, AgentMemory. The runtime that powers everything.</div>
-        <div class="arch-tech">@framers/agentos / npm</div>
       </div>
     </div>
   </div>
@@ -998,51 +778,105 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
   </div>
 </section>
 
-<!-- WIRE-LEVEL COOKBOOK (deep capture) -->
-<section class="sec sec-alt" id="wire-cookbook">
-  <div class="sec-inner">
-    <h2 class="sec-title rv">Real input JSON, real output JSON</h2>
-    <p class="sec-desc rv">Every method in the public API has its real input JSON and real output JSON captured at <a href="https://github.com/framersai/paracosm/blob/master/docs/COOKBOOK.md" target="_blank" rel="noopener" style="color:var(--amber)">docs/COOKBOOK.md</a>. Run an AI lab director scenario through prompt-to-world, quickstart parallel leaders, branch at turn 1, replay the kernel, hit the HTTP endpoint, model an intervention on a digital twin, and dispatch a batch. One run, seven public surfaces, every JSON committed.</p>
-
-    <div class="code-sec">
-      <div class="code-block">
-        <div class="code-header"><span>Prompt to running simulation, three lines</span><button class="code-copy" onclick="copyCode(this, document.getElementById('cb-quickstart').textContent)">Copy</button></div>
-        <div tabindex="0" class="code-body" id="cb-quickstart"><span class="kw">import</span> { runMany } <span class="kw">from</span> <span class="str">'paracosm'</span>;
-
-<span class="kw">const</span> { runs } = <span class="kw">await</span> <span class="fn">runMany</span>(seedText, { count: <span class="num">3</span> });
-runs.<span class="fn">forEach</span>(({ actor, artifact }) =&gt; console.<span class="fn">log</span>(actor.name, artifact.fingerprint));</div>
-      </div>
-      <div class="code-block">
-        <div class="code-header"><span>Branch at turn 1 with a different leader</span><button class="code-copy" onclick="copyCode(this, document.getElementById('cb-fork').textContent)">Copy</button></div>
-        <div tabindex="0" class="code-body" id="cb-fork"><span class="kw">const</span> branchWm = <span class="kw">await</span> wm.<span class="fn">forkFromArtifact</span>(artifacts[<span class="num">0</span>], <span class="num">1</span>);
-<span class="kw">const</span> branch = <span class="kw">await</span> branchWm.<span class="fn">simulate</span>(leaders[<span class="num">1</span>], { maxTurns: <span class="num">3</span>, seed: <span class="num">42</span> });
-<span class="cm">// branch.metadata.forkedFrom = { parentRunId, atTurn: 1 }</span></div>
-      </div>
-      <div class="code-block">
-        <div class="code-header"><span>One-shot HTTP endpoint with curl</span><button class="code-copy" onclick="copyCode(this, document.getElementById('cb-curl').textContent)">Copy</button></div>
-        <div tabindex="0" class="code-body" id="cb-curl"><span class="cm"># PARACOSM_ENABLE_SIMULATE_ENDPOINT=true paracosm dashboard</span>
-curl -X POST http://localhost:3456/simulate \
-  -H <span class="str">'Content-Type: application/json'</span> \
-  -H <span class="str">'X-OpenAI-Key: sk-...'</span> \
-  -d <span class="str">'{"scenario": {...}, "leader": {...}, "options": {"maxTurns": 4, "seed": 42}}'</span></div>
-      </div>
-    </div>
-  </div>
-</section>
-
 <!-- FAQ -->
 <section class="sec" id="faq">
   <div class="sec-inner">
     <h2 class="sec-title rv">Frequently asked questions</h2>
+    <p class="sec-desc rv">Everything you'd want to know about the engine, the kernel, the trait models, and the research it builds on. Click any question to expand.</p>
+
     <div class="faq-list rv">
-      <details class="faq-item"><summary>What is Paracosm?</summary><div class="faq-body">An open-source TypeScript structured world model for AI agents, available on npm (<code>npm install paracosm</code>). You define or ground a world as a ScenarioPackage: departments, metrics, crisis templates, progression hooks. The engine populates the world, generates events from live state, and resolves outcomes through a seeded deterministic kernel. LLM-driven stages diverge because every prompt carries the leader's HEXACO profile. Two scenarios ship with the package (Mars Genesis, Lunar Outpost). You can compile new ones from a JSON draft with optional prompt, brief, or URL grounding. Paracosm fits the "structured / LLM-based / counterfactual" branch of the world-model taxonomy (Xing 2025, ACM CSUR 2025, Kirfel 2025).<div class="faq-cite">Positioning map: <a href="https://github.com/framersai/paracosm/blob/master/docs/positioning/world-model-mapping.md" target="_blank" rel="noopener">docs/positioning/world-model-mapping.md</a></div></div></details>
-      <details class="faq-item"><summary>How does tool forging work?</summary><div class="faq-body">When a department agent needs a calculation the codebase doesn't provide, it writes one. A medical officer facing a radiation crisis writes a dose calculator. An engineer writes a structural load model. The code executes in a hardened node:vm sandbox with a wall-clock timeout and observed heap usage. An LLM judge reviews the output for safety and correctness before it enters the decision pipeline. The tool persists for future turns. None of these tools exist in the source code. The agents invent them at runtime.<div class="faq-cite">Implementation: AgentOS EmergentCapabilityEngine + EmergentJudge + CodeSandbox</div></div></details>
-      <details class="faq-item"><summary>What is the HEXACO personality model?</summary><div class="faq-body">HEXACO is a six-factor personality framework from personality psychology: Honesty-Humility, Emotionality, Extraversion, Agreeableness, Conscientiousness, and Openness to Experience. Each agent in Paracosm carries six continuous values between 0 and 1. These values shift across turns through three drift mechanisms: leader influence (agents' traits pull toward their commander's profile), role activation (a chief engineer's conscientiousness trends upward), and outcome reinforcement (surviving a crisis through bold action increases openness).<div class="faq-cite">Ashton, M.C. &amp; Lee, K. (2007). "Empirical, Theoretical, and Practical Advantages of the HEXACO Model of Personality Structure." Personality and Social Psychology Review, 11(2), 150-166. doi:10.1177/1088868306294907</div></div></details>
-      <details class="faq-item"><summary>Is the simulation deterministic?</summary><div class="faq-body">The kernel is fully deterministic. It uses Mulberry32, a 32-bit seeded PRNG. Given seed 950, the kernel produces identical agent rosters, lifecycle schedules, promotion sequences, and resource starting values on every run. The divergence between two parallel worlds comes entirely from the AI commander's decisions. Fix the seed, vary the personality, measure the outcome. This is the counterfactual world simulation model (CWSM) pattern.<div class="faq-cite">PRNG methodology follows Law, A.M. &amp; Kelton, W.D. Simulation Modeling and Analysis, 5th ed., McGraw-Hill, 2015. CWSM framing per Kirfel et al, 2025.</div></div></details>
-      <details class="faq-item"><summary>What LLM providers work with Paracosm?</summary><div class="faq-body">OpenAI (GPT-5.4) and Anthropic (Claude Sonnet 4.6). All roles (commander, departments, crisis director, tool judge) default to the full model for reliable structured output and tool forging. You can override per-role in the setup panel or via the API. Mini models (GPT-5.4-mini, Claude Haiku) are available for cost optimization but produce lower quality results.</div></details>
-      <details class="faq-item"><summary>Can I build my own scenario?</summary><div class="faq-body">Two paths. If you want full control, write a ScenarioPackage in TypeScript with custom hooks for progression, crisis generation, milestones, and politics. If you want zero-code authoring today, write a scenario JSON draft and optionally add seed text or a seed URL for grounding, then run it through the Scenario Compiler. A prompt-only wrapper should generate the same JSON contract before simulation. Compilation costs about $0.10 in API calls and caches results to disk. An Antarctic station, a submarine crew, a corporate org, a generation ship: different world contract, same engine, different future.</div></details>
-      <details class="faq-item"><summary>What verticals does this apply to?</summary><div class="faq-body">Defense and intelligence use it for wargaming and scenario planning. Corporate strategy teams model acquisition outcomes and leadership dynamics. Game studios generate procedural NPC civilizations and emergent narratives. Academic researchers run controlled experiments in multi-agent decision-making. Government agencies simulate policy impacts before implementation. The common thread: any domain where testing decisions before making them reduces risk.</div></details>
-      <details class="faq-item"><summary>Is Paracosm free?</summary><div class="faq-body">The engine is open source under Apache-2.0. You can use it in commercial products without restriction. Install from npm, fork the repo, build on it. A hosted enterprise SaaS dashboard with full analytics, fleet orchestration, and team workspaces is in development. No pricing yet; <a href="mailto:team@frame.dev">team@frame.dev</a> for early access and custom engagements.</div></details>
+
+      <!-- ============== WHAT IT IS ============== -->
+      <details class="faq-item"><summary>What is Paracosm?</summary><div class="faq-body">
+        An open-source TypeScript structured world-model engine for LLM agent swarms (<code>npm install paracosm</code>, Apache-2.0). You define or ground a world as a <code>ScenarioPackage</code>: departments, metrics, crisis templates, progression hooks. The engine populates the world, generates events from live state, and resolves outcomes through a seeded deterministic kernel. LLM-driven stages diverge because every prompt carries the leader's HEXACO profile. Two scenarios ship in the box (Mars Genesis, Lunar Outpost); you can compile new ones from a JSON draft, prompt, brief, or URL.
+        <div class="faq-cite">Positioning map: <a href="https://github.com/framersai/paracosm/blob/master/docs/positioning/world-model-mapping.md" target="_blank" rel="noopener">docs/positioning/world-model-mapping.md</a></div>
+      </div></details>
+
+      <details class="faq-item"><summary>What are the two kinds of "world model" and which one is Paracosm?</summary><div class="faq-body">
+        Two distinct categories share one name. <strong>Visual / generative:</strong> <a href="https://openai.com/sora" target="_blank" rel="noopener">Sora</a>, <a href="https://deepmind.google/discover/blog/genie-3/" target="_blank" rel="noopener">Genie 3</a>, <a href="https://www.worldlabs.ai/" target="_blank" rel="noopener">World Labs Marble</a>, and Yann LeCun's <a href="https://www.technologyreview.com/2026/01/22/1131661/yann-lecuns-new-venture-ami-labs/" target="_blank" rel="noopener">JEPA-based AMI Labs</a> generate pixels of how a future <em>looks</em>. <strong>Structured / LLM-based:</strong> typed scenario contracts plus deterministic kernels emit JSON state, decisions, and citations that agents can <em>reason inside</em>. Paracosm is the second kind. The split is formalized in the Tsinghua FIB Lab survey of world models and Xing 2025; counterfactual semantics for the structured branch are given in Kirfel et al, 2025.
+        <div class="faq-cite">Tsinghua FIB Lab. <a href="https://dl.acm.org/doi/full/10.1145/3746449" target="_blank" rel="noopener">Understanding World or Predicting Future? A Comprehensive Survey of World Models</a> (ACM CSUR 2025) · Xing E. P. <a href="https://arxiv.org/abs/2507.05169" target="_blank" rel="noopener">Critiques of World Models</a> (arXiv 2507.05169, 2025) · Kirfel L. et al. <a href="https://link.springer.com/article/10.1007/s43681-025-00718-4" target="_blank" rel="noopener">Counterfactual World Simulation Models</a> (AI &amp; Ethics 2025) · Ha &amp; Schmidhuber. <a href="https://arxiv.org/abs/1803.10122" target="_blank" rel="noopener">World Models</a> (arXiv 1803.10122, 2018)</div>
+      </div></details>
+
+      <details class="faq-item"><summary>How does Paracosm differ from MiroFish, OASIS, and other agent-based modeling stacks?</summary><div class="faq-body">
+        <a href="https://github.com/666ghj/MiroFish" target="_blank" rel="noopener">MiroFish</a> and <a href="https://openreview.net/forum?id=JBzTculaVV" target="_blank" rel="noopener">OASIS</a> (CAMEL-AI) run open-ended social simulations with thousands to one million LLM-driven agents on social-media-shaped substrates and emit aggregate prediction reports. Paracosm runs a top-down agent swarm: one HEXACO-typed leader, ~5 specialist departments, ~100 personality-typed cells, deterministic per seed. Different scale (~100 vs 1k-1M), different direction (top-down vs bottom-up emergent), different output (universal forkable RunArtifact vs aggregate forecast). Both are valid agent-swarm shapes; Paracosm's lane is replayable decision support and counterfactual analysis. Classical ABM (Mesa, NetLogo, MASON, ABIDES, AnyLogic) is rule-based and largely non-LLM; Paracosm threads LLMs into events and reasoning while keeping a deterministic kernel for state.
+        <div class="faq-cite">CAMEL-AI / OASIS · agiresearch/MiroFish · classical ABM stacks (Mesa, NetLogo) · the bridge survey is the <a href="https://www.nature.com/articles/s41599-024-03611-3" target="_blank" rel="noopener">Nature HSSC LLM-empowered ABM survey</a> (2024) and MIT Media Lab's <a href="https://arxiv.org/abs/2409.10568" target="_blank" rel="noopener">On the Limits of Agency in Agent-Based Models</a> (arXiv 2409.10568, 2024).</div>
+      </div></details>
+
+      <!-- ============== HOW IT WORKS ============== -->
+      <details class="faq-item"><summary>How does a single turn run end-to-end?</summary><div class="faq-body">
+        A turn takes 30-90 seconds and runs four phases in sequence. <strong>(1) Event Director</strong> reads world state, prior decisions, and tool intelligence; generates events that target weak points. <strong>(2) Department Analysis</strong> — five specialist agents (medical, engineering, agriculture, psychology, governance for Mars; configurable per scenario) analyze the events in parallel, can recall research, and may forge new computational tools. <strong>(3) Commander Decision</strong> — the leader weighs department input through their HEXACO profile and emits an action category, parameter set, rationale, and confidence score. <strong>(4) Kernel Resolution</strong> — the deterministic state machine applies the decision's effects: resources move, statuses change, agents are promoted or lost, HEXACO traits drift through leader-pull, role-activation, and outcome-reinforcement. The full per-turn record is appended to the <code>RunArtifact</code>.
+        <div class="faq-cite">Inspired by interactive-narrative directors (Riedl &amp; Bulitko, <a href="https://ojs.aaai.org/aimagazine/index.php/aimagazine/article/view/2449" target="_blank" rel="noopener">Interactive Narrative: An Intelligent Systems Approach</a>, AI Magazine 34(1), 2013).</div>
+      </div></details>
+
+      <details class="faq-item"><summary>Is the simulation deterministic? How is replay verified?</summary><div class="faq-body">
+        The kernel is fully deterministic, seeded by <a href="https://en.wikipedia.org/wiki/Multiply-with-carry_pseudorandom_number_generator" target="_blank" rel="noopener">Mulberry32</a> (32-bit PRNG). Given the same seed, scenario, and actor profile, the kernel produces identical agent rosters, lifecycle schedules, promotion sequences, and resource starting values on every run. Divergence between parallel worlds comes entirely from the AI commander's decisions. <code>wm.replay(artifact)</code> re-executes the deterministic between-turn progression hook from each recorded snapshot, captures fresh snapshots, and compares under canonical JSON: <code>matches=true</code> proves byte-equal-determinism for that artifact's transitions; <code>matches=false</code> names the first divergence path so changes can be localized. <code>wm.forkFromArtifact(trunk, atTurn).simulate(altLeader)</code> branches a counterfactual from any captured turn — the <a href="https://link.springer.com/article/10.1007/s43681-025-00718-4" target="_blank" rel="noopener">CWSM pattern</a>.
+        <div class="faq-cite">PRNG methodology: Law &amp; Kelton, <em>Simulation Modeling and Analysis</em> (5th ed., McGraw-Hill, 2015) · CWSM framing: Kirfel L. et al. (2025) · API surface: <code>WorldModel.replay()</code>, <code>canonicalJson</code>, <code>firstDivergence</code> in <code>paracosm/runtime/world-model</code>.</div>
+      </div></details>
+
+      <details class="faq-item"><summary>How does runtime tool forging work, and is it safe?</summary><div class="faq-body">
+        When a department agent needs a calculation the codebase doesn't provide, it writes one. A medical officer facing a radiation crisis writes a dose calculator. An engineer writes a structural load analyzer. The pipeline: specialist proposes a tool → Zod-validated input/output schema → TypeScript body authored by the LLM → executed in a hardened <a href="https://nodejs.org/api/vm.html" target="_blank" rel="noopener"><code>node:vm</code> sandbox</a> with a 5s wall-clock default and ~128 MB nominal heap budget. The sandbox always bans <code>eval</code>, <code>Function</code>, <code>require</code>, dynamic <code>import</code>, <code>process</code>, <code>child_process</code>, and destructive <code>fs.*</code>; <code>fetch</code>, <code>fs.readFile</code>, and <code>crypto</code> are opt-in via empty-by-default allowlist. An LLM judge reviews the output against the specialist's stated intent — match approves, mismatch rejects. Approved tools land in a discoverable registry that subsequent turns and other actors pull from. Reuse via <code>call_forged_tool</code> costs tens of tokens; fresh forges cost full LLM tokens for proposal + body + scaffolding + judge. After turn three, most decisions invoke a previously-forged tool and total run cost flattens.
+        <div class="faq-cite">Implementation: AgentOS <code>EmergentCapabilityEngine</code> + <code>EmergentJudge</code> + <code>ForgeToolMetaTool</code> + <code>CodeSandbox</code>. Preemptive limits via <code>isolated-vm</code> are queued for the hosted multi-tenant tier.</div>
+      </div></details>
+
+      <details class="faq-item"><summary>What is the HEXACO personality model and why use it?</summary><div class="faq-body">
+        HEXACO is a six-factor framework with extensive cross-cultural validation: <strong>H</strong>onesty-Humility, <strong>E</strong>motionality, e<strong>X</strong>traversion, <strong>A</strong>greeableness, <strong>C</strong>onscientiousness, <strong>O</strong>penness to Experience. It is a six-factor extension of the Big Five with Honesty-Humility split out as a separate axis. Each agent carries six continuous values in [0,1]; values drift across turns through three mechanisms encoded in the kernel (not in prompts): <strong>leader-pull</strong> (subordinate traits trend toward the commander's profile), <strong>role-activation</strong> (a chief engineer's conscientiousness creeps up), and <strong>outcome-reinforcement</strong> (a successful bold call reinforces openness). Personality biases which specialists are consulted, which decisions are accepted, and which tools get forged. Prompt-only personality dissolves under context pressure; kernel-encoded personality survives. The microbench is open at <a href="https://github.com/framersai/agentos-bench/blob/master/src/micro/HexacoEncodingBias.ts" target="_blank" rel="noopener">agentos-bench/HexacoEncodingBias</a>.
+        <div class="faq-cite">Ashton, M. C. &amp; Lee, K. <a href="https://doi.org/10.1177/1088868306294907" target="_blank" rel="noopener">Empirical, Theoretical, and Practical Advantages of the HEXACO Model of Personality Structure</a>. <em>Personality and Social Psychology Review</em>, 11(2), 150-166 (2007). doi:10.1177/1088868306294907</div>
+      </div></details>
+
+      <details class="faq-item"><summary>Are leaders locked to human personality?</summary><div class="faq-body">
+        No. Paracosm ships a pluggable <code>TraitModel</code> registry with two built-ins: <code>hexaco</code> (Ashton-Lee six-axis human personality) and <code>ai-agent</code> (six axes for AI-system leaders: <em>exploration</em>, <em>verification-rigor</em>, <em>deference</em>, <em>risk-tolerance</em>, <em>transparency</em>, <em>instruction-following</em>). Each model declares its axes, drift table, and prompt cues. Custom models register in a single call: <code>traitModelRegistry.register({...})</code>. The same agent under two different leaders, on the same seed, becomes a measurably different entity by turn 12.
+        <div class="faq-cite">Ashton &amp; Lee, PSPR 11(2), 2007 (HEXACO) · ai-agent v1 calibrated by Frame.dev, 2026 · Registry source: <code>paracosm/engine/trait-models</code></div>
+      </div></details>
+
+      <details class="faq-item"><summary>How does grounded compile work? What sources can I feed in?</summary><div class="faq-body">
+        Pass a brief, paper, URL, or JSON draft into the compiler. An LLM extracts topics, facts, and search queries; AgentOS <code>WebSearchService</code> fans out to <a href="https://www.firecrawl.dev/" target="_blank" rel="noopener">Firecrawl</a>, <a href="https://tavily.com/" target="_blank" rel="noopener">Tavily</a>, <a href="https://serper.dev/" target="_blank" rel="noopener">Serper</a>, and Brave in parallel; results pass through semantic dedup, RRF fusion, and Cohere Rerank v3.5 for neural relevance scoring. The resulting <code>KnowledgeBundle</code> ingests into an AgentOS sqlite-backed memory store. Every department analysis can recall semantically and cite the same sources you fed in. The orchestrator guarantees provenance: when the LLM omits citations, the research packet is auto-attached so the report always carries the sources the agent saw. Compile cost is roughly $0.10 and caches to disk by seed signature.
+        <div class="faq-cite">CLI: <code>paracosm compile --seed-text</code> / <code>--seed-url</code> · Library: <code>compileScenario()</code> / <code>WorldModel.fromPrompt()</code> in <code>paracosm/engine/compiler</code> · Reranker: <a href="https://docs.cohere.com/docs/rerank" target="_blank" rel="noopener">Cohere Rerank v3.5</a></div>
+      </div></details>
+
+      <details class="faq-item"><summary>How is paracosm architected? Three layers, why?</summary><div class="faq-body">
+        Three layers, strict boundaries, no circular dependencies. <strong>Engine layer</strong> owns types and the deterministic kernel: <code>SimulationKernel</code>, <code>SeededRng</code>, <code>ScenarioPackage</code> types, Effect/Metric registries (~71 source files, TypeScript, Mulberry32, Apache-2.0). <strong>Runtime layer</strong> orchestrates simulations via 6 scenario hooks: Orchestrator, Director, Departments, Batch Runner, scenario-agnostic via progression and prompt hooks (~43 files, AgentOS, generateText(), SSE). <strong>CLI layer</strong> serves the dashboard, batch runner, and HTTP server (~30 files plus the React/Vite/Tailwind dashboard). The engine never imports from runtime; the runtime never imports from CLI. Underlying it all: <code>@framers/agentos</code> — agent() API, <code>EmergentCapabilityEngine</code>, <code>EmergentJudge</code>, <code>ForgeToolMetaTool</code>, <code>AgentMemory</code>.
+        <div class="faq-cite">Source layout: <a href="https://github.com/framersai/paracosm/tree/master/src" target="_blank" rel="noopener">github.com/framersai/paracosm/src</a> · AgentOS: <a href="https://github.com/framersai/agentos" target="_blank" rel="noopener">github.com/framersai/agentos</a></div>
+      </div></details>
+
+      <details class="faq-item"><summary>Can I model a single subject (digital twin)?</summary><div class="faq-body">
+        Yes. The <code>paracosm/digital-twin</code> subpath is the curated entry: supply a <code>SubjectConfig</code> + <code>InterventionConfig</code>, get the same Zod-validated <code>RunArtifact</code> shape with <code>artifact.subject</code> and <code>artifact.intervention</code> populated for traceability. <code>artifact.trajectory.timepoints[t].worldSnapshot</code> carries per-timepoint metrics (e.g. HbA1c, weight, BMI for a clinical scenario; engagement, churn, ARPU for a product scenario). The kernel is domain-agnostic — the scenario contract names the world. Worked examples: <em>Maria Chen, T2D, 12-week semaglutide protocol</em> for clinical, <em>SaaS mid-tier pricing introduction</em> for product, <em>Coastal congestion-pricing pilot</em> for policy.
+        <div class="faq-cite">API: <code>DigitalTwin.fromJson(scenarioJson).intervene({ subject, intervention, actor })</code> · Live route: <code>POST /api/quickstart/simulate-intervention</code> · Counterfactual semantics: Kirfel et al, <em>AI &amp; Ethics</em> (2025); AXIS interrogation framework: <a href="https://arxiv.org/abs/2505.17801" target="_blank" rel="noopener">arXiv 2505.17801</a> (May 2025).</div>
+      </div></details>
+
+      <details class="faq-item"><summary>Where can I see real input and output JSON?</summary><div class="faq-body">
+        Every method in the public API has its real input JSON and real output JSON captured in <a href="https://github.com/framersai/paracosm/blob/master/docs/COOKBOOK.md" target="_blank" rel="noopener"><code>docs/COOKBOOK.md</code></a>. One run threads through seven public surfaces: prompt-to-world, quickstart parallel leaders (<code>runMany</code>), branch at turn N (<code>wm.forkFromArtifact</code>), kernel replay (<code>wm.replay</code>), HTTP <code>/simulate</code> endpoint, digital-twin <code>intervene()</code>, batch dispatch (<code>runBatch</code>). Every JSON committed. Plus <code>scripts/cookbook-e2e.ts</code> in the repo runs the full pipeline against your scenario / leader profiles / seed and captures live fingerprints + per-metric deltas.
+        <div class="faq-cite">Cookbook: <a href="https://github.com/framersai/paracosm/blob/master/docs/COOKBOOK.md" target="_blank" rel="noopener">docs/COOKBOOK.md</a> · End-to-end: <a href="https://github.com/framersai/paracosm/blob/master/scripts/cookbook-e2e.ts" target="_blank" rel="noopener">scripts/cookbook-e2e.ts</a></div>
+      </div></details>
+
+      <!-- ============== USE / INTEGRATION ============== -->
+      <details class="faq-item"><summary>What LLM providers work with Paracosm?</summary><div class="faq-body">
+        OpenAI (GPT-5.4 family) and Anthropic (Claude Sonnet 4.6, Claude Haiku 4.5). Each role (commander, departments, director, judge, agent reactions) is configurable independently. Cost presets <code>quality</code> and <code>economy</code> bundle sensible defaults; per-role overrides win. Paracosm auto-detects which API key is present in env and falls back between providers. Mini models are available for cost iteration but produce lower-quality structured output and trip the judge more often.
+      </div></details>
+
+      <details class="faq-item"><summary>What does a typical run cost?</summary><div class="faq-body">
+        A six-turn run on a small scenario with default settings costs roughly tens of cents under <code>economy</code> and a few dollars under <code>quality</code>. Compile-from-seed adds ~$0.10 (cached to disk by seed signature). Tool reuse after turn three is the largest cost lever; the artifact records every token spend with cache-hit accounting. Anthropic's prompt cache TTL hits the shared system prefix from turn 2 onward (10× input-cost reduction); OpenAI auto-caches any prompt over 1024 tokens. The <code>cost</code> field reports tokens read, tokens created, and USD saved per run.
+      </div></details>
+
+      <details class="faq-item"><summary>What verticals does this apply to?</summary><div class="faq-body">
+        Any domain where testing decisions before making them reduces risk. <strong>Digital-twin medicine</strong> (model a patient under interventions, vary the physician HEXACO profile). <strong>Corporate strategy</strong> (M&amp;A, market entry, RIF contingencies, leadership-style replays). <strong>Policy simulation</strong> (tax change, regulatory rollout, congestion pricing, healthcare reform). <strong>Defense / wargaming</strong> (commander HEXACO under shared starting conditions; replay any past run after a code change). <strong>Game design playtesting</strong> (procedural NPC civilizations, emergent narratives, runtime forge inside the sandbox). <strong>AI alignment red-teaming</strong> (pressure-test agent behavior under specific HEXACO weights; reproducible by construction). The engine is domain-agnostic; the scenario contract names the world.
+      </div></details>
+
+      <details class="faq-item"><summary>Can I build my own scenario?</summary><div class="faq-body">
+        Three paths. (1) Write a <code>ScenarioPackage</code> in TypeScript with custom hooks for progression, crisis generation, milestones, and politics — full control. (2) Write a scenario JSON draft and run it through <code>compileScenario()</code> — zero-code authoring, $0.10 per compile, caches to disk. (3) Pass a brief, paper, or URL to <code>WorldModel.fromPrompt()</code> and let an LLM draft the JSON contract first — the path the live demo uses. All three produce the same canonical <code>ScenarioPackage</code> and route through the same runtime. An Antarctic station, a submarine crew, a corporate org, a generation ship: different world contract, same engine, different future.
+      </div></details>
+
+      <details class="faq-item"><summary>Does Paracosm need an internet connection?</summary><div class="faq-body">
+        Yes — for research grounding (web search) and the LLM calls themselves. Offline mode falls back to LLM-only event generation without research citations; the artifact records the offline flag so runs are auditable for whether they were grounded. For air-gapped deployments, the hosted enterprise tier supports a custom inference gateway and pre-ingested research bundles.
+      </div></details>
+
+      <details class="faq-item"><summary>Is Paracosm free?</summary><div class="faq-body">
+        The engine is open source under <a href="https://opensource.org/licenses/Apache-2.0" target="_blank" rel="noopener">Apache-2.0</a>. Use it in commercial products without restriction: install from npm, fork the repo, build on it. You provide LLM API keys; running a 6-turn quality-preset run costs roughly $1-3 on OpenAI, $3-7 on Anthropic. A hosted enterprise SaaS dashboard with full analytics, fleet orchestration, team workspaces, and private-deployment options is in development for Q3 2026 — request early access at the bottom of this page.
+      </div></details>
+
+      <details class="faq-item"><summary>Where can I read more or contribute?</summary><div class="faq-body">
+        Source: <a href="https://github.com/framersai/paracosm" target="_blank" rel="noopener">github.com/framersai/paracosm</a>. Cookbook: <a href="https://github.com/framersai/paracosm/blob/master/docs/COOKBOOK.md" target="_blank" rel="noopener">docs/COOKBOOK.md</a>. Architecture write-up: <a href="https://github.com/framersai/paracosm/blob/master/docs/ARCHITECTURE.md" target="_blank" rel="noopener">docs/ARCHITECTURE.md</a>. Long-form launch post (the wilds.ai vault story + engine reference, Johnny Dunn): <a href="https://agentos.sh/blog/paracosm-launch" target="_blank" rel="noopener">agentos.sh/blog/paracosm-launch</a>. AgentOS runtime: <a href="https://github.com/framersai/agentos" target="_blank" rel="noopener">github.com/framersai/agentos</a>. Benchmarks: <a href="https://github.com/framersai/agentos-bench" target="_blank" rel="noopener">github.com/framersai/agentos-bench</a>. Reading lists: <a href="https://github.com/AGI-Edgerunners/LLM-Agents-Papers" target="_blank" rel="noopener">LLM-Agents-Papers</a>, <a href="https://github.com/leofan90/Awesome-World-Models" target="_blank" rel="noopener">Awesome World Models</a>. Issues, PRs, and waitlist signups all welcome.
+      </div></details>
+
     </div>
   </div>
 </section>
