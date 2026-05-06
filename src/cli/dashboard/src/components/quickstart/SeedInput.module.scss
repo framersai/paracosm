@@ -260,8 +260,71 @@
 }
 
 .actorCountSlider {
+  // Custom track + thumb. The default browser rendering of a range
+  // input on a dark background is a near-invisible 1-2px hairline; only
+  // the thumb shows. `accent-color` alone fixes the thumb but leaves
+  // the track unreadable. Override both surfaces explicitly per
+  // vendor selector so the bar reads on dark themes.
+  -webkit-appearance: none;
+  appearance: none;
   width: 100%;
+  height: 6px;
+  margin: 8px 0;
+  background: transparent;
+  cursor: pointer;
   accent-color: var(--amber);
+
+  &::-webkit-slider-runnable-track {
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+  }
+
+  &::-moz-range-track {
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    border: none;
+  }
+
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    margin-top: -5px;
+    background: var(--amber);
+    border: 2px solid var(--bg-deep);
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 0 1px var(--border);
+  }
+
+  &::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    background: var(--amber);
+    border: 2px solid var(--bg-deep);
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 0 1px var(--border);
+  }
+
+  &:focus-visible {
+    outline: none;
+
+    &::-webkit-slider-thumb {
+      box-shadow: 0 0 0 2px var(--amber);
+    }
+    &::-moz-range-thumb {
+      box-shadow: 0 0 0 2px var(--amber);
+    }
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
 }
 
 .actorCountPreview {
