@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync, unlinkSync, createReadStream } from 'node:fs';
-import { resolve, dirname } from 'node:path';
+import { resolve, dirname, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { normalizeSimulationConfig, applyDemoCaps, type NormalizedSimulationConfig, type SimulationSetupPayload } from './sim-config.js';
 import { runPairSimulations, runForkSimulation, runBatchSimulations, type BroadcastFn } from './pair-runner.js';
@@ -2355,8 +2355,14 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
     // of crashing the request handler. Server logs were full of these.
     if (req.url?.split('?')[0].startsWith('/brand/')) {
       try {
-        const brandPath = resolve(__dirname, '..', '..', 'assets', req.url.split('?')[0].replace('/brand/', ''));
-        if (existsSync(brandPath) && statSync(brandPath).isFile()) {
+        const assetsRoot = resolve(__dirname, '..', '..', 'assets');
+        const brandPath = resolve(assetsRoot, req.url.split('?')[0].replace('/brand/', ''));
+        // Path-traversal guard: bot probes like `/brand/../../etc/passwd`
+        // resolve outside `assetsRoot`. Only serve when the resolved
+        // path stays inside the allowed root. Without this, a crafted
+        // suffix could read any file the server process can.
+        const insideRoot = brandPath === assetsRoot || brandPath.startsWith(assetsRoot + sep);
+        if (insideRoot && existsSync(brandPath) && statSync(brandPath).isFile()) {
           const ext = brandPath.split('.').pop() || '';
           const types: Record<string,string> = { svg:'image/svg+xml', png:'image/png', jpg:'image/jpeg', css:'text/css', js:'application/javascript', woff2:'font/woff2' };
           res.writeHead(200, { 'Content-Type': types[ext] || 'application/octet-stream', 'Cache-Control': 'public, max-age=300, s-maxage=60' });
@@ -2381,8 +2387,12 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
     // front) so the browser only needs the byte range it asked for to
     // render any timestamp.
     if (req.url?.split('?')[0].startsWith('/demo/')) {
-      const demoPath = resolve(__dirname, '..', '..', 'assets', 'demo', req.url.split('?')[0].replace('/demo/', ''));
-      if (existsSync(demoPath)) {
+      const demoRoot = resolve(__dirname, '..', '..', 'assets', 'demo');
+      const demoPath = resolve(demoRoot, req.url.split('?')[0].replace('/demo/', ''));
+      // Path-traversal guard: same vulnerability as the /brand/ route.
+      // Reject anything that resolves outside the demo asset root.
+      const insideDemo = demoPath === demoRoot || demoPath.startsWith(demoRoot + sep);
+      if (insideDemo && existsSync(demoPath)) {
         const ext = demoPath.split('.').pop() || '';
         const types: Record<string, string> = { mp4: 'video/mp4', webm: 'video/webm', png: 'image/png', jpg: 'image/jpeg' };
         const contentType = types[ext] || 'application/octet-stream';
@@ -2747,7 +2757,10 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
     // Vite assets (CSS, JS, fonts)
     if (req.url?.startsWith('/assets/')) {
       const assetPath = resolve(distDir, req.url.slice(1));
-      if (existsSync(assetPath)) {
+      // Path-traversal guard: same vulnerability as the /brand/ and
+      // /demo/ routes. Reject anything that resolves outside distDir.
+      const insideDist = assetPath === distDir || assetPath.startsWith(distDir + sep);
+      if (insideDist && existsSync(assetPath)) {
         const ext = assetPath.split('.').pop();
         const mimeTypes: Record<string, string> = {
           js: 'application/javascript', css: 'text/css', svg: 'image/svg+xml',
