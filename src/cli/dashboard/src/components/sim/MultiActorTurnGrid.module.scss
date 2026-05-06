@@ -1,0 +1,64 @@
+// N-actor TurnGrid: sticky header of compact ActorBars, then per-turn
+// rows with N cells. The whole thing scrolls horizontally when the
+// total cell-track width exceeds the viewport.
+
+.grid {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  background: var(--bg-deep);
+  overflow: hidden;
+}
+
+// Outer horizontal scroll wrapper. Both the sticky header and the
+// scroll-y body live inside so they share the same horizontal scroll
+// position — the columns stay aligned while the user scrolls right
+// to see the 5th, 6th, ... actor.
+.scrollX {
+  flex: 1;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  display: flex;
+  flex-direction: column;
+  // Total minimum width = N cells × min-width; CSS resolves this from
+  // the inline custom properties set by the React component.
+  // calc() needs the unit-less cell-count, so the min-width var also
+  // ships its `px` suffix.
+  --track-min-width: calc(var(--cell-min-width) * var(--cell-count));
+  // -webkit-overflow-scrolling left out intentionally — we want the
+  // scrollbar visible so users discover the horizontal track.
+}
+
+.stickyHeader {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: repeat(var(--cell-count), minmax(var(--cell-min-width), 1fr));
+  gap: 1px;
+  background: var(--border);
+  border-bottom: 1px solid var(--border);
+  min-width: var(--track-min-width);
+}
+
+.headerCell {
+  background: var(--bg-deep);
+  min-width: 0;
+}
+
+.scrollY {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  min-width: var(--track-min-width);
+}
+
+.empty {
+  padding: 40px 24px;
+  text-align: center;
+  color: var(--text-3);
+  font-size: var(--font-md);
+}

@@ -12,6 +12,8 @@ import { StatsBar } from '../layout/StatsBar';
 import { DivergenceRail } from './DivergenceRail';
 import { Timeline } from './Timeline';
 import { TurnGrid } from './TurnGrid';
+import { MultiActorTurnGrid } from './MultiActorTurnGrid';
+import { MultiActorLeadersRow } from './MultiActorLeadersRow';
 import { SimFooterBar } from './SimFooterBar';
 import { RerunPanel } from './RerunPanel';
 import { LoadPriorRunsCTA } from '../settings/LoadPriorRunsCTA';
@@ -148,24 +150,18 @@ export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: l
   const [localLaunching, setLocalLaunching] = useState(false);
   const launching = launchingProp ?? localLaunching;
 
-  // Constellation layout state. Default constellation when N>=3 (because
-  // the existing 2-column layout literally won't fit). User can toggle
-  // manually; userPickedLayoutRef sticks the manual choice through
-  // mid-run actor count changes.
-  const [layoutState, setLayoutState] = useState<SimLayout>(
-    () => state.actorIds.length >= 3 ? 'constellation' : 'side-by-side',
-  );
+  // Layout state. Default to side-by-side regardless of actor count —
+  // the N-actor surface (`MultiActorTurnGrid`) renders feature parity
+  // with the 2-actor TurnGrid via a horizontally-scrolling track of
+  // per-actor cells, so the constellation no longer needs to be the
+  // default for 3+. Constellation is still available as a manual
+  // toggle for users who prefer the radial overview.
+  const [layoutState, setLayoutState] = useState<SimLayout>('side-by-side');
   const userPickedLayoutRef = useRef(false);
   const setLayoutWithOverride = useCallback((next: SimLayout) => {
     userPickedLayoutRef.current = true;
     setLayoutState(next);
   }, []);
-  useEffect(() => {
-    if (userPickedLayoutRef.current) return;
-    if (state.actorIds.length >= 3 && layoutState === 'side-by-side') {
-      setLayoutState('constellation');
-    }
-  }, [state.actorIds.length, layoutState]);
   const layout: SimLayout = forceLayout ?? layoutState;
 
   const [drillInActor, setDrillInActor] = useState<string | null>(null);
@@ -278,6 +274,28 @@ export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: l
 
   return (
     <div className={styles.root}>
+      {/* Top header strip: surfaces the layout toggle prominently so
+          users can flip between Side-by-side and Constellation without
+          scrolling all the way to the SimFooterBar. The footer copy
+          stays for end-of-run navigation but the top one is the
+          discoverable surface during a live run. Only renders when the
+          SIM has something to show — empty state hides this so it
+          doesn't compete with the empty-state CTAs. */}
+      {columnsVisible && state.actorIds.length >= 1 && (
+        <div className={styles.topHeader}>
+          <span className={styles.topHeaderLabel}>LAYOUT</span>
+          <SimLayoutToggle
+            layout={layout}
+            actorCount={state.actorIds.length}
+            onChange={setLayoutWithOverride}
+          />
+          {state.actorIds.length >= 3 && (
+            <span className={styles.topHeaderHint}>
+              {state.actorIds.length} actors · scroll horizontally in side-by-side
+            </span>
+          )}
+        </div>
+      )}
       {layout === 'constellation' ? (
         <>
           <ConstellationView
@@ -296,6 +314,20 @@ export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: l
           <ActorTable
             state={state}
             onActorClick={(id) => setDrillInActor(id)}
+          />
+        </>
+      ) : state.actorIds.length >= 3 ? (
+        <>
+          {/* N-actor leaders row: horizontally scrolling track of compact
+              ActorBars so every actor's live morale, current event, and
+              pending-decision pill stay visible at a glance. The Mars
+              Genesis 2-actor surface renders an inline grid; for N>=3
+              the same pattern just gets a wider track. */}
+          <MultiActorLeadersRow state={state} />
+          <StatsBar
+            actors={state.actorIds.map(id => ({ id, state: state.actors[id] }))}
+            crisisText={crisisText}
+            toolRegistry={toolRegistry}
           />
         </>
       ) : (
@@ -441,14 +473,22 @@ export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: l
         </div>
       )}
 
-      {/* Turn-aligned grid with sticky compact-ActorBar header.
-          Replaces the previous per-leader scrolling columns. The grid
-          is hardcoded to two leaders (sideA / sideB) — for 3+ actor
-          runs the constellation view above is the canonical surface,
-          and rendering a 2-actor TurnGrid below it silently dropped
-          the third actor. Gate on actorIds.length === 2 so the grid
-          only appears in pair runs. */}
-      {columnsVisible && state.actorIds.length === 2 && <TurnGrid state={state} />}
+      {/* Turn-aligned grid. The pair-mode `TurnGrid` carries the diff
+          classification (different-event / different-outcome) which is
+          only meaningful for two columns, so we keep it for actorIds=2.
+          For N>=3 we render `MultiActorTurnGrid`, which generalises
+          the same shape (sticky compact-ActorBar header + per-turn
+          rows of N cells) and adds a horizontal scroll track so every
+          actor's events stay visible side-by-side. Both gate on
+          `columnsVisible` so the grid doesn't render in the empty /
+          launching state. Side-by-side layout only — constellation
+          mode handles its own surface above. */}
+      {columnsVisible && layout === 'side-by-side' && state.actorIds.length === 2 && (
+        <TurnGrid state={state} />
+      )}
+      {columnsVisible && layout === 'side-by-side' && state.actorIds.length >= 3 && (
+        <MultiActorTurnGrid state={state} />
+      )}
 
       {/* Verdict surfaces as a global top banner (App.tsx) and inline
           on the Reports tab. */}

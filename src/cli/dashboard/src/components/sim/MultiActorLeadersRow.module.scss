@@ -1,0 +1,23 @@
+// Horizontally scrolling leaders row for N>=3 actor runs. Mirrors the
+// existing 2-actor `.leaders-row` (inline grid of two ActorBars) but
+// makes the track wide enough that every actor gets a readable pane
+// and the user can scroll right to reveal the rest.
+
+.row {
+  --track-min-width: calc(var(--cell-min-width) * var(--cell-count));
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.track {
+  display: grid;
+  grid-template-columns: repeat(var(--cell-count), minmax(var(--cell-min-width), 1fr));
+  gap: 1px;
+  background: var(--border);
+  min-width: var(--track-min-width);
+}
+
+.cell {
+  background: var(--bg-deep);
+  min-width: 0;
+}

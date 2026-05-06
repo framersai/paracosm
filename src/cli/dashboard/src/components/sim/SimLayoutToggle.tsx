@@ -1,8 +1,9 @@
 /**
  * Sim header toggle between Side-by-side and Constellation layouts.
- * Side-by-side is hard-disabled when actorCount > 2 because the
- * existing 2-column layout literally can't render more than two
- * actors. Tooltip on the disabled state explains why.
+ * Both options work for any actor count: side-by-side is the default
+ * surface and renders feature parity for N>=3 via `MultiActorTurnGrid`
+ * (a horizontally scrolling track of per-actor cells); constellation
+ * is the radial cohort view.
  *
  * @module paracosm/dashboard/sim/SimLayoutToggle
  */
@@ -12,6 +13,8 @@ export type SimLayout = 'side-by-side' | 'constellation';
 
 export interface SimLayoutToggleProps {
   layout: SimLayout;
+  /** Surfaced for analytics + future actor-aware copy; currently both
+   *  toggle options are enabled at every count. */
   actorCount: number;
   onChange: (next: SimLayout) => void;
 }
@@ -36,30 +39,20 @@ const activeStyle: React.CSSProperties = {
   borderColor: 'var(--amber)',
 };
 
-const disabledStyle: React.CSSProperties = {
-  ...buttonStyle,
-  opacity: 0.45,
-  cursor: 'not-allowed',
-};
-
 export function SimLayoutToggle({ layout, actorCount, onChange }: SimLayoutToggleProps): JSX.Element {
-  const sideDisabled = actorCount > 2;
+  void actorCount;
   return (
     <div role="group" aria-label="Sim layout" style={{ display: 'inline-flex', gap: 0 }}>
       <button
         type="button"
         data-layout="side-by-side"
         aria-pressed={layout === 'side-by-side'}
-        disabled={sideDisabled}
-        onClick={() => !sideDisabled && onChange('side-by-side')}
-        style={
-          sideDisabled
-            ? { ...disabledStyle, borderRadius: '3px 0 0 3px' }
-            : layout === 'side-by-side'
-              ? { ...activeStyle, borderRadius: '3px 0 0 3px' }
-              : { ...buttonStyle, borderRadius: '3px 0 0 3px' }
-        }
-        title={sideDisabled ? 'Side-by-side caps at 2 actors' : 'Side-by-side: A/B columns'}
+        onClick={() => onChange('side-by-side')}
+        style={{
+          ...(layout === 'side-by-side' ? activeStyle : buttonStyle),
+          borderRadius: '3px 0 0 3px',
+        }}
+        title="Side-by-side: per-actor columns with horizontal scroll for 3+"
       >
         Side-by-side
       </button>
@@ -73,10 +66,11 @@ export function SimLayoutToggle({ layout, actorCount, onChange }: SimLayoutToggl
           borderRadius: '0 3px 3px 0',
           borderLeft: 'none',
         }}
-        title="Constellation: radial layout for any actor count"
+        title="Constellation: radial cohort layout"
       >
         Constellation
       </button>
     </div>
   );
 }
+

@@ -319,3 +319,37 @@
     box-shadow: 0 0 0 2px var(--amber, #e8b44a);
   }
 }
+
+// Slim top header strip surfaces the SimLayoutToggle above the
+// constellation / side-by-side branches so users discover the layout
+// switch without scrolling to the SimFooterBar. Sticky-ish in spirit
+// (always at the top of the SIM tab content) but not position:sticky
+// so it doesn't compete with the existing TurnGrid sticky header.
+.topHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
+
+.topHeaderLabel {
+  font-size: var(--font-3xs);
+  font-family: var(--mono);
+  font-weight: 800;
+  color: var(--text-3);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.topHeaderHint {
+  font-size: var(--font-3xs);
+  font-family: var(--mono);
+  color: var(--text-3);
+  letter-spacing: 0.04em;
+  margin-left: auto;
+}

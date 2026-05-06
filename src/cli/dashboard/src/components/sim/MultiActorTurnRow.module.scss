@@ -1,0 +1,114 @@
+// One per-turn row in MultiActorTurnGrid. Header strip with the turn
+// number + (per-actor or shared) event title, followed by a row of N
+// cells laid out on the same grid as the sticky header so columns
+// stay aligned across the whole grid when the user scrolls right.
+
+.row {
+  position: relative;
+  scroll-margin-top: 64px;
+  border-bottom: 1px solid var(--border);
+  padding: 10px 12px;
+  background: var(--bg-deep);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 0 8px;
+  font-family: var(--mono);
+  font-size: var(--font-sm);
+  color: var(--text-1);
+  flex-wrap: wrap;
+  row-gap: 4px;
+  margin: 0;
+}
+
+.headerTurn {
+  font-weight: 800;
+  color: var(--text-1);
+  letter-spacing: 0.06em;
+}
+
+.headerTitle {
+  color: var(--text-2);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// Per-actor title strip when actors diverge on this turn. Uses the
+// same grid template as `.cells` so each title sits directly above
+// its cell column.
+.headerTitleSplit {
+  display: grid;
+  grid-template-columns: repeat(var(--cell-count), minmax(var(--cell-min-width), 1fr));
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.headerTitlePerActor {
+  color: var(--cell-color, var(--text-2));
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// Cell strip — one cell per actor, columns matched to the sticky
+// header above. Min-width keeps each cell readable when there are
+// many actors; the parent .scrollX provides the horizontal scroll.
+.cells {
+  display: grid;
+  grid-template-columns: repeat(var(--cell-count), minmax(var(--cell-min-width), 1fr));
+  gap: 8px;
+  align-items: stretch;
+}
+
+.cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding-left: 8px;
+}
+
+// Vertical color band on the left of each cell so visitors can map
+// a card back to its actor at a glance even when they've scrolled
+// past the sticky header.
+.cellBand {
+  position: absolute;
+  top: 2px;
+  left: 0;
+  bottom: 2px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--cell-color, var(--text-3));
+}
+
+.cellEmpty {
+  font-family: var(--mono);
+  font-size: var(--font-xs);
+  color: var(--text-3);
+  font-style: italic;
+  padding: 8px 0;
+}
+
+.cellPending {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: var(--font-xs);
+  color: var(--text-2);
+  padding: 8px 0;
+}
+
+.cellPendingSpinner {
+  width: 10px;
+  height: 10px;
+}
