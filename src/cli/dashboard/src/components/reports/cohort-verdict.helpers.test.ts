@@ -166,3 +166,38 @@ test('formatDelta: respects decimals override', () => {
   assert.equal(formatDelta(2.345, 2), '+2.35');
   assert.equal(formatDelta(-0.1, 1), '-0.1');
 });
+
+test('quartileRanking: no-spread cohort (all equal) → everyone in middle, none in top/bottom', () => {
+  // CodeRabbit flagged this edge case: with inclusive comparators
+  // q1 === q3 would put every actor in BOTH top AND bottom, which
+  // is meaningless. The fix degrades to "no ranking" — all middle.
+  const rows = [
+    row({ id: 'a', morale: 50 }),
+    row({ id: 'b', morale: 50 }),
+    row({ id: 'c', morale: 50 }),
+  ];
+  const r = quartileRanking(rows, 'morale');
+  assert.equal(r.top.length, 0);
+  assert.equal(r.bottom.length, 0);
+  assert.equal(r.middle.length, 3);
+});
+
+test('quartileRanking: boundary values (== q1 or == q3) land in middle, not top/bottom', () => {
+  // Strict comparators on the boundary: only values strictly beyond
+  // q3 land in top. Ties at the threshold sit in middle so two
+  // actors with the same value never split into different buckets.
+  // [10, 50, 60, 90, 95] → q1=50, q3=90, median=60.
+  const rows = [
+    row({ id: 'a', morale: 10 }),
+    row({ id: 'b', morale: 50 }), // exactly at q1
+    row({ id: 'c', morale: 60 }), // exactly at median
+    row({ id: 'd', morale: 90 }), // exactly at q3
+    row({ id: 'e', morale: 95 }),
+  ];
+  const r = quartileRanking(rows, 'morale');
+  // Only the strictly-extremal actors land in top/bottom.
+  assert.deepEqual(r.top.map(x => x.id), ['e']);
+  assert.deepEqual(r.bottom.map(x => x.id), ['a']);
+  // Boundary values (b, c, d) all land in middle.
+  assert.deepEqual(r.middle.map(x => x.id).sort(), ['b', 'c', 'd']);
+});

@@ -91,16 +91,27 @@ export function quartileRanking(rows: ActorRow[], metric: Metric, direction?: Di
   const top: ActorRow[] = [];
   const middle: ActorRow[] = [];
   const bottom: ActorRow[] = [];
+  // Degenerate case: q1 === q3 means there's no spread (every actor
+  // tied, or only 1 distinct value above/below the median). Without
+  // this guard the inclusive comparisons below would put every
+  // actor in BOTH top AND bottom — meaningless. Treat as no clear
+  // ranking and bucket everyone into middle.
+  const noSpread = q1 === q3;
   for (const r of rows) {
+    if (noSpread) { middle.push(r); continue; }
     const v = metricValue(r, metric);
     if (dir === 'higher') {
-      if (v >= q3)      top.push(r);
-      else if (v <= q1) bottom.push(r);
-      else              middle.push(r);
+      // Strict comparators on the boundaries: only values STRICTLY
+      // beyond q3 land in top, STRICTLY below q1 in bottom. Boundary
+      // values (v === q3 or v === q1) sit in middle. This avoids
+      // double-counting when multiple actors tie at the threshold.
+      if (v > q3)      top.push(r);
+      else if (v < q1) bottom.push(r);
+      else             middle.push(r);
     } else {
-      if (v <= q1)      top.push(r);
-      else if (v >= q3) bottom.push(r);
-      else              middle.push(r);
+      if (v < q1)      top.push(r);
+      else if (v > q3) bottom.push(r);
+      else             middle.push(r);
     }
   }
   return { metric, direction: dir, top, middle, bottom, median };
