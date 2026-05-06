@@ -99,10 +99,13 @@ export function MultiActorTurnRow({ turn, actorIds, eventsByActor }: MultiActorT
           const cellEvents = eventsByActor[idx] ?? [];
           const renderable = cellEvents.filter((e) => !PENDING_TYPES.has(e.type));
           const allPending = cellEvents.length > 0 && renderable.length === 0;
-          // No diff classification for N actors so "catching up" reduces
-          // to "this actor doesn't have events for this turn yet". Still
-          // worth showing because parallel runs drift turn-to-turn.
-          const isCatchingUp = cellEvents.length === 0;
+          // For N actors there's no diff classification (that's pair-
+          // only), so an empty cell is always treated as "catching up"
+          // because parallel runs drift turn-to-turn — the other
+          // actor(s) reached this turn first while this one is still
+          // mid-LLM-call. The 2-actor TurnRow has both branches
+          // because it can distinguish "one-sided" from "neither side
+          // started", which only matters when comparing two columns.
           return (
             <div
               key={id}
@@ -112,14 +115,10 @@ export function MultiActorTurnRow({ turn, actorIds, eventsByActor }: MultiActorT
             >
               <span className={styles.cellBand} aria-hidden="true" />
               {cellEvents.length === 0 ? (
-                isCatchingUp ? (
-                  <div className={styles.cellPending} aria-live="polite" title="Parallel runs can drift turn-to-turn — events arrive whenever this actor's LLM calls finish.">
-                    <span className={`spinner ${styles.cellPendingSpinner}`} aria-hidden="true" />
-                    Catching up to turn {turn}…
-                  </div>
-                ) : (
-                  <div className={styles.cellEmpty}>(no events yet)</div>
-                )
+                <div className={styles.cellPending} aria-live="polite" title="Parallel runs can drift turn-to-turn — events arrive whenever this actor's LLM calls finish.">
+                  <span className={`spinner ${styles.cellPendingSpinner}`} aria-hidden="true" />
+                  Catching up to turn {turn}…
+                </div>
               ) : allPending ? (
                 <div className={styles.cellPending} aria-live="polite">
                   <span className={`spinner ${styles.cellPendingSpinner}`} />

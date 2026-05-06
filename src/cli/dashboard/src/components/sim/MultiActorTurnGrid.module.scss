@@ -22,11 +22,13 @@
   overflow-y: hidden;
   display: flex;
   flex-direction: column;
+
   // Total minimum width = N cells × min-width; CSS resolves this from
   // the inline custom properties set by the React component.
   // calc() needs the unit-less cell-count, so the min-width var also
   // ships its `px` suffix.
   --track-min-width: calc(var(--cell-min-width) * var(--cell-count));
+
   // -webkit-overflow-scrolling left out intentionally — we want the
   // scrollbar visible so users discover the horizontal track.
 }

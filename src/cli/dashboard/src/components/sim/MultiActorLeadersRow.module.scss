@@ -5,6 +5,7 @@
 
 .row {
   --track-min-width: calc(var(--cell-min-width) * var(--cell-count));
+
   overflow-x: auto;
   overflow-y: hidden;
 }
