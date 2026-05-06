@@ -2,11 +2,11 @@
 
 .card {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  align-items: center;
+  gap: 12px;
   max-width: 600px;
   margin: 0 auto 14px;
-  padding: 10px 14px;
+  padding: 6px 12px;
   background: var(--bg-panel);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -14,6 +14,8 @@
   font-family: var(--sans);
   color: var(--text-2);
   transition: border-color 120ms, background 120ms;
+  white-space: nowrap;
+  overflow: hidden;
 
   &:hover {
     border-color: var(--text-3);
@@ -32,28 +34,38 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-3);
+  flex-shrink: 0;
 }
 
 .row {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .actor {
-  font-size: var(--font-md);
+  font-size: var(--font-sm);
   font-weight: 600;
   color: var(--text-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .arrow {
-  font-size: var(--font-md);
+  font-size: var(--font-sm);
   color: var(--amber);
+  flex-shrink: 0;
 }
 
 .meta {
   font-family: var(--mono);
   font-size: var(--font-3xs);
   color: var(--text-3);
+  flex-shrink: 0;
 }
