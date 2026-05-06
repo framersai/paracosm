@@ -475,13 +475,17 @@ export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: l
           batch 2 to satisfy audit finding F8 (modular concerns). */}
       <RerunPanel enabled={state.isComplete && !state.isRunning} />
 
-      {/* Drill-in modal for Constellation node clicks. Renders nothing
-          when actorName is null. */}
+      {/* Drill-in surface for constellation / actor-table clicks. For
+          5+ actor runs the dock keeps the report open while the user
+          clicks around the SIM tab; for smaller runs the modal-style
+          overlay matches the existing UX. Renders nothing when
+          actorName is null. */}
       <ActorDrillInModal
         actorName={drillInActor}
         actorIndex={drillInIndex >= 0 ? drillInIndex : 0}
         state={state}
         onClose={() => setDrillInActor(null)}
+        mode={state.actorIds.length >= 5 ? 'dock' : 'modal'}
       />
     </div>
   );

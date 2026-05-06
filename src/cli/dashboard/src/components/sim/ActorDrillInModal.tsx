@@ -22,6 +22,16 @@ export interface ActorDrillInModalProps {
   actorIndex: number;
   state: GameState;
   onClose: () => void;
+  /**
+   * Render mode. `'modal'` (default) is the overlay-style dialog
+   * with focus trap and click-outside-to-close — the right shape
+   * for pair runs where the user expects a temporary lightbox.
+   * `'dock'` is a fixed right-side panel that stays open while the
+   * user clicks around the SIM tab — the right shape for 5+ actor
+   * runs where the user wants to compare drill-ins quickly without
+   * a remount each time. SimView picks based on actor count.
+   */
+  mode?: 'modal' | 'dock';
 }
 
 function eventTitle(e: ProcessedEvent): string {
@@ -30,10 +40,12 @@ function eventTitle(e: ProcessedEvent): string {
   return title ?? e.type;
 }
 
-export function ActorDrillInModal({ actorName, actorIndex, state, onClose }: ActorDrillInModalProps): JSX.Element | null {
-  // Trap Tab cycling inside the dialog while open. Restores focus to
-  // the constellation node that triggered the open on close.
-  const dialogRef = useFocusTrap<HTMLDivElement>(actorName !== null);
+export function ActorDrillInModal({ actorName, actorIndex, state, onClose, mode = 'modal' }: ActorDrillInModalProps): JSX.Element | null {
+  // Focus trap only applies in modal mode. The dock is part of the
+  // page flow conceptually — users still need to click around the
+  // SIM tab while the dock is open, so trapping Tab inside it would
+  // break expected scroll/click behavior.
+  const dialogRef = useFocusTrap<HTMLDivElement>(mode === 'modal' && actorName !== null);
 
   React.useEffect(() => {
     if (actorName === null) return;
@@ -62,16 +74,26 @@ export function ActorDrillInModal({ actorName, actorIndex, state, onClose }: Act
   }
   const turnNumbers = [...grouped.keys()].sort((a, b) => a - b);
 
+  // Modal: overlay+click-outside-to-close. Dock: fixed right rail
+  // that stays open while the user clicks around the SIM tab. Both
+  // share the same dialog body — only the wrapper changes.
+  const isDock = mode === 'dock';
+  const wrapperClass = isDock ? styles.dockOverlay : styles.overlay;
+  const innerClass = isDock ? styles.dock : styles.modal;
+  const wrapperOnClick = isDock ? undefined : onClose;
+  const innerOnClick = isDock ? undefined : (e: React.MouseEvent) => e.stopPropagation();
+  const ariaModal = isDock ? undefined : true;
+
   return (
-    <div className={styles.overlay} role="presentation" onClick={onClose}>
+    <div className={wrapperClass} role="presentation" onClick={wrapperOnClick}>
       <div
         ref={dialogRef}
-        className={styles.modal}
+        className={innerClass}
         role="dialog"
-        aria-modal="true"
+        aria-modal={ariaModal}
         aria-label={`Report for ${actorName}`}
         tabIndex={-1}
-        onClick={(e) => e.stopPropagation()}
+        onClick={innerOnClick}
       >
         <header className={styles.head}>
           <div className={styles.actorName}>{actorName}</div>

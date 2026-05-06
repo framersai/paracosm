@@ -83,3 +83,34 @@ test('ActorDrillInModal: derives a Decisions section from decision_made events',
   );
   assert.match(html, /Conserve power/);
 });
+
+test('ActorDrillInModal: dock mode renders dock wrapper class, not modal overlay', () => {
+  const state = makeState({ Aria: makeActor('Aria', []) });
+  const html = renderToString(
+    <ActorDrillInModal actorName="Aria" state={state} actorIndex={0} onClose={() => {}} mode="dock" />,
+  );
+  // Generated class names are hashed in the test stub but contain the
+  // source class name as a substring. dockOverlay should appear
+  // (fixed right rail), and the standard centered overlay should not.
+  assert.match(html, /dockOverlay/, 'dock mode should render dockOverlay wrapper');
+});
+
+test('ActorDrillInModal: default mode is modal (centered overlay)', () => {
+  const state = makeState({ Aria: makeActor('Aria', []) });
+  const html = renderToString(
+    <ActorDrillInModal actorName="Aria" state={state} actorIndex={0} onClose={() => {}} />,
+  );
+  assert.match(html, /class="[^"]*overlay/, 'default render should use the centered overlay class, not the dock');
+  assert.ok(!/dockOverlay/.test(html), 'default render must not include the dock wrapper');
+});
+
+test('ActorDrillInModal: dock mode omits aria-modal=true (dock is not modal)', () => {
+  const state = makeState({ Aria: makeActor('Aria', []) });
+  const html = renderToString(
+    <ActorDrillInModal actorName="Aria" state={state} actorIndex={0} onClose={() => {}} mode="dock" />,
+  );
+  // aria-modal="true" forces SR users into the dialog; in dock mode
+  // the user must still be able to interact with the SIM tab around
+  // it, so the attribute is omitted.
+  assert.ok(!/aria-modal="true"/.test(html), 'dock mode must not emit aria-modal=true');
+});
