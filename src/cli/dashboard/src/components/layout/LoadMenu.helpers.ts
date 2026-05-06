@@ -38,9 +38,18 @@ export function cacheExpandedBody(
   return 'cards';
 }
 
-/** Build a replay href that preserves the current origin + path. */
+/**
+ * Build a replay href that preserves the current origin + path and
+ * forces the SIM tab. Without `tab=sim`, clicking "Replay last run"
+ * from the QUICKSTART tab kept the user on QUICKSTART with `?replay=`
+ * dangling — the replay SSE stream connected and the top banner
+ * showed REPLAYING, but the page content was still the seed-input
+ * form and nothing visibly happened. Forcing tab=sim lands the user
+ * on the surface that actually renders the replay (SimView).
+ */
 export function buildReplayHref(base: string, id: string): string {
   const url = new URL(base);
   url.searchParams.set('replay', id);
+  url.searchParams.set('tab', 'sim');
   return url.toString();
 }

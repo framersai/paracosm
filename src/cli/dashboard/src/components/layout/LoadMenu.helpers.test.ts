@@ -35,3 +35,21 @@ test('buildReplayHref appends ?replay=<id> and preserves host', () => {
   assert.equal(url.searchParams.get('replay'), 'abc');
   assert.equal(url.searchParams.get('foo'), '1');
 });
+
+test('buildReplayHref forces tab=sim so replay always lands on SimView', () => {
+  // Regression: clicking the Quickstart "Replay last run" CTA built
+  // a href that preserved the existing tab (?tab=quickstart), so the
+  // user landed back on the seed-input form with ?replay=<id>
+  // dangling. The top REPLAYING banner showed but the page itself
+  // looked dead — nothing visibly happened. buildReplayHref now
+  // ALWAYS sets tab=sim regardless of the source tab so the replay
+  // surface is always reachable in one click.
+  const fromQuickstart = buildReplayHref('https://paracosm.example/sim?tab=quickstart', 'sess-1');
+  assert.equal(new URL(fromQuickstart).searchParams.get('tab'), 'sim');
+
+  const fromReports = buildReplayHref('https://paracosm.example/sim?tab=reports', 'sess-2');
+  assert.equal(new URL(fromReports).searchParams.get('tab'), 'sim');
+
+  const fromBare = buildReplayHref('https://paracosm.example/', 'sess-3');
+  assert.equal(new URL(fromBare).searchParams.get('tab'), 'sim');
+});
