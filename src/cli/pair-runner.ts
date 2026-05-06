@@ -419,7 +419,11 @@ export async function runForkSimulation(
       }
     }
   } catch (err) {
-    broadcast('sim_error', { leader: leader.archetype, error: String(err) }, leader.name);
+    // Align fork-runner's sim_error payload + routing with the other
+    // two paths (lines 167 + 526) — leaderTag is the kebab-cased
+    // identifier the dashboard's useGameState reads as evt.leader.
+    const errTag = leaderTag(leader, 0);
+    broadcast('sim_error', { leader: errTag, error: String(err) }, errTag);
     throw err;
   }
 
