@@ -1,0 +1,255 @@
+@use '../../theme/typography' as typo;
+
+.panel {
+  margin: 24px 0;
+  padding: 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.heading {
+  font-family: var(--sans);
+  font-size: var(--font-xl);
+  font-weight: 700;
+  margin: 0;
+  color: var(--text-1);
+}
+
+.subhead {
+  font-family: var(--sans);
+  font-size: var(--font-sm);
+  color: var(--text-3);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sectionTitle {
+  @include typo.field-label;
+
+  margin: 0;
+  color: var(--amber);
+  font-weight: 700;
+}
+
+.sectionHint {
+  font-family: var(--sans);
+  font-size: var(--font-sm);
+  color: var(--text-3);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.quartileGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.quartileBlock {
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.metricHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.metricLabel {
+  font-family: var(--sans);
+  font-size: var(--font-md);
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.metricMedian {
+  font-family: var(--mono);
+  font-size: var(--font-3xs);
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.quartileRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.quartileTag {
+  @include typo.field-label;
+
+  flex-shrink: 0;
+  width: 78px;
+  color: var(--text-3);
+  padding-top: 4px;
+}
+
+.actorList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1 1 auto;
+}
+
+.actorPill {
+  font-family: var(--mono);
+  font-size: var(--font-xs);
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+.actorPillTop {
+  background: var(--amber-glow, rgba(232, 180, 74, 0.18));
+  border-color: var(--amber);
+  color: var(--amber);
+}
+
+.actorPillBottom {
+  background: var(--rust-glow, rgba(196, 74, 30, 0.15));
+  border-color: var(--rust);
+  color: var(--rust);
+}
+
+.actorListEmpty {
+  font-family: var(--mono);
+  font-size: var(--font-xs);
+  color: var(--text-3);
+  list-style: none;
+}
+
+.paretoList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.paretoItem {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--amber);
+  border-radius: var(--radius-sm);
+  font-family: var(--mono);
+  font-size: var(--font-sm);
+  flex-wrap: wrap;
+}
+
+.paretoName {
+  color: var(--text-1);
+  font-weight: 700;
+}
+
+.paretoArchetype {
+  color: var(--text-2);
+}
+
+.paretoDominates {
+  margin-left: auto;
+  color: var(--text-3);
+  font-size: var(--font-3xs);
+}
+
+.medianTable {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 0;
+}
+
+.medianHeaderRow,
+.medianBodyRow {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.5fr) repeat(auto-fit, minmax(80px, 1fr));
+  gap: 8px;
+  padding: 6px 12px;
+  align-items: center;
+}
+
+.medianHeaderRow {
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+
+.medianActorCol {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: var(--sans);
+  font-size: var(--font-sm);
+}
+
+.medianActorName {
+  color: var(--text-1);
+  font-weight: 600;
+}
+
+.medianActorArchetype {
+  font-size: var(--font-3xs);
+  color: var(--text-3);
+}
+
+.medianMetricCol {
+  font-family: var(--mono);
+  font-size: var(--font-sm);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.medianHeaderRow .medianMetricCol,
+.medianHeaderRow .medianActorCol {
+  @include typo.field-label;
+
+  color: var(--text-3);
+  font-size: var(--font-3xs);
+  font-weight: 700;
+}
+
+.deltaPositive {
+  color: var(--success, var(--amber));
+}
+
+.deltaNegative {
+  color: var(--rust);
+}
+
+.deltaNeutral {
+  color: var(--text-3);
+}

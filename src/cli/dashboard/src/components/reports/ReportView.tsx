@@ -21,6 +21,7 @@ import {
   type EventReportSection,
 } from './reportSections';
 import { HeroScoreboard } from './HeroScoreboard';
+import { CohortVerdict } from './CohortVerdict';
 import { RunStrip } from './RunStrip';
 import { MetricSparklines } from './MetricSparklines';
 import { ReportSideNav, type SideNavItem } from './ReportSideNav';
@@ -630,6 +631,13 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
           leaderAName={nameA}
           leaderBName={nameB}
         />
+        {/* Cohort-aware verdict for 3+ actor runs. The HeroScoreboard
+            above is the A-vs-B story; CohortVerdict adds quartile
+            rankings, the pareto front across morale × population ×
+            deaths × tools, and per-actor delta-from-median. Renders
+            nothing for ≤2 actor runs (the scoreboard is the right
+            shape there). */}
+        <CohortVerdict state={state} />
         {verdict && (
           <div className={styles.summaryVerdictWrap}>
             <VerdictPanel verdict={verdict} />
