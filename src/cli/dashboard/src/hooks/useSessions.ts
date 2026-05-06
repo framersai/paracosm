@@ -34,6 +34,10 @@ export interface StoredSessionMeta {
    *  Truncated to 1000 chars server-side. Absent on preset/Mars-Genesis
    *  runs and on rows saved before the seed-text plumbing landed. */
   seedText?: string;
+  /** Full actor roster for 3+ actor runs. Absent on pair runs (n=2)
+   *  and on rows saved before the multi-actor leaders column landed —
+   *  consumers should fall back to leaderA / leaderB in that case. */
+  leaders?: string[];
 }
 
 export type SessionsStatus = 'loading' | 'ready' | 'unavailable' | 'error';

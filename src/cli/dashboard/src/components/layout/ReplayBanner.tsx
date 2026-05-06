@@ -22,6 +22,33 @@ function formatTimestamp(ts: number): string {
   });
 }
 
+/**
+ * Render the actor roster as a compact label.
+ * - 3+ actors → first `headLimit` names + "+N more" (e.g. "Aria, Maria,
+ *   Atlas, Reyes, +5 more"). Keeps the banner one-line on big runs.
+ * - Pair runs → "Aria vs Maria" (legacy leaderA / leaderB only).
+ * - Solo or unknown → empty string (caller skips the slot).
+ *
+ * Exported for unit tests; also used inside ReplayBanner.
+ */
+export function formatRoster(
+  meta: Pick<StoredSessionMeta, 'leaders' | 'leaderA' | 'leaderB'> | null | undefined,
+  headLimit = 4,
+): string {
+  if (!meta) return '';
+  const roster = meta.leaders;
+  if (Array.isArray(roster) && roster.length >= 3) {
+    if (roster.length <= headLimit) return roster.join(', ');
+    const head = roster.slice(0, headLimit).join(', ');
+    const rest = roster.length - headLimit;
+    return `${head}, +${rest} more`;
+  }
+  if (meta.leaderA && meta.leaderB) return `${meta.leaderA} vs ${meta.leaderB}`;
+  if (meta.leaderA) return meta.leaderA;
+  if (meta.leaderB) return meta.leaderB;
+  return '';
+}
+
 /** Shown when the replay session was resolved and the stored event
  *  stream is playing back. Fetches /sessions/:id on mount so the
  *  banner can name which run is replaying instead of just saying
@@ -48,7 +75,11 @@ export function ReplayBanner({ replaySessionId }: ReplayBannerProps) {
   const subline: string[] = [];
   if (meta) {
     if (meta.scenarioName) subline.push(meta.scenarioName);
-    if (meta.leaderA && meta.leaderB) subline.push(`${meta.leaderA} vs ${meta.leaderB}`);
+    // Roster slot: "Aria, Maria, Atlas, Reyes, +5 more" for n>=3,
+    // "Aria vs Maria" for pair runs, nothing when neither is known.
+    // The +N-more cap keeps the banner one-line on a 30-actor run.
+    const rosterLabel = formatRoster(meta);
+    if (rosterLabel) subline.push(rosterLabel);
     if (typeof meta.turnCount === 'number' && meta.turnCount > 0) subline.push(`${meta.turnCount} turns`);
     if (typeof meta.totalCostUSD === 'number' && meta.totalCostUSD > 0) subline.push(`$${meta.totalCostUSD.toFixed(2)}`);
     if (typeof meta.eventCount === 'number' && meta.eventCount > 0) subline.push(`${meta.eventCount} events`);

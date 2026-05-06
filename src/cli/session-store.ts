@@ -70,6 +70,14 @@ export interface SessionMeta {
    * preset/Mars-Genesis runs leave this undefined.
    */
   seedText?: string;
+  /**
+   * Full actor roster for runs with 3+ actors. The legacy leaderA /
+   * leaderB columns only carry the first two — this array preserves
+   * every actor's name so replay-tab UI can show "Aria, Maria, Atlas,
+   * Reyes, +5 more" on a 9-actor run instead of just the first pair.
+   * Empty / absent on pair runs (the legacy fields cover them).
+   */
+  leaders?: string[];
 }
 
 /** A full session record, including the event payload for replay. */
@@ -87,6 +95,8 @@ export interface SessionMetaOverride {
   turnCount?: number;
   totalCostUSD?: number;
   seedText?: string;
+  /** Full actor roster — see {@link SessionMeta.leaders}. */
+  leaders?: string[];
 }
 
 /**
@@ -160,7 +170,8 @@ async function bootstrapSchema(adapter: StorageAdapter): Promise<void> {
       totalCostUSD REAL,
       events TEXT NOT NULL,
       title TEXT,
-      seedText TEXT
+      seedText TEXT,
+      leaders TEXT
     );
   `);
   await adapter.exec(`CREATE INDEX IF NOT EXISTS idx_sessions_createdAt ON sessions(createdAt);`);
@@ -182,6 +193,7 @@ async function bootstrapSchema(adapter: StorageAdapter): Promise<void> {
     };
     await addColumnIfMissing('title', 'ALTER TABLE sessions ADD COLUMN title TEXT');
     await addColumnIfMissing('seedText', 'ALTER TABLE sessions ADD COLUMN seedText TEXT');
+    await addColumnIfMissing('leaders', 'ALTER TABLE sessions ADD COLUMN leaders TEXT');
   }
 }
 
@@ -239,11 +251,20 @@ export function openSessionStore(
         ? events[events.length - 1].ts - events[0].ts
         : 0;
 
+      // Persist `leaders` as a JSON-encoded string array. Only stamp it
+      // when there's something to stamp — pair runs (n=2) leave it null
+      // because leaderA/leaderB already cover that case and nothing in
+      // the UI needs the array for n<3.
+      const resolvedLeaders = override?.leaders ?? derived.leaders;
+      const leadersJSON = resolvedLeaders && resolvedLeaders.length >= 3
+        ? JSON.stringify(resolvedLeaders)
+        : null;
+
       await adapter.run(
         `INSERT INTO sessions
-           (id, createdAt, scenarioId, scenarioName, leaderA, leaderB, turnCount, eventCount, durationMs, totalCostUSD, events, seedText)
+           (id, createdAt, scenarioId, scenarioName, leaderA, leaderB, turnCount, eventCount, durationMs, totalCostUSD, events, seedText, leaders)
          VALUES
-           (@id, @createdAt, @scenarioId, @scenarioName, @leaderA, @leaderB, @turnCount, @eventCount, @durationMs, @totalCostUSD, @events, @seedText)`,
+           (@id, @createdAt, @scenarioId, @scenarioName, @leaderA, @leaderB, @turnCount, @eventCount, @durationMs, @totalCostUSD, @events, @seedText, @leaders)`,
         {
           id,
           createdAt,
@@ -257,6 +278,7 @@ export function openSessionStore(
           totalCostUSD: override?.totalCostUSD ?? derived.totalCostUSD ?? null,
           events: JSON.stringify(events),
           seedText: override?.seedText ?? derived.seedText ?? null,
+          leaders: leadersJSON,
         },
       );
 
@@ -279,7 +301,7 @@ export function openSessionStore(
     async listSessions() {
       const adapter = await getAdapter();
       const rows = await adapter.all<SessionMetaRow>(
-        `SELECT id, createdAt, scenarioId, scenarioName, leaderA, leaderB, turnCount, eventCount, durationMs, totalCostUSD, title, seedText
+        `SELECT id, createdAt, scenarioId, scenarioName, leaderA, leaderB, turnCount, eventCount, durationMs, totalCostUSD, title, seedText, leaders
          FROM sessions ORDER BY createdAt DESC`,
       );
       return rows.map(rowToMeta);
@@ -340,6 +362,8 @@ interface SessionMetaRow {
   totalCostUSD: number | null;
   title: string | null;
   seedText: string | null;
+  /** JSON-encoded `string[]` (or null on legacy rows / pair runs). */
+  leaders: string | null;
 }
 
 interface SessionRow extends SessionMetaRow {
@@ -361,6 +385,19 @@ function rowToMeta(row: SessionMetaRow): SessionMeta {
   if (row.totalCostUSD != null) meta.totalCostUSD = row.totalCostUSD;
   if (row.title) meta.title = row.title;
   if (row.seedText) meta.seedText = row.seedText;
+  if (row.leaders) {
+    // Defensive: a corrupted row (manual edit, partial migration) should
+    // not blow up the whole listing. Drop the field instead and let the
+    // legacy leaderA/leaderB carry the run.
+    try {
+      const parsed = JSON.parse(row.leaders);
+      if (Array.isArray(parsed) && parsed.every((x) => typeof x === 'string')) {
+        meta.leaders = parsed;
+      }
+    } catch {
+      void 0;
+    }
+  }
   return meta;
 }
 
@@ -426,6 +463,17 @@ function deriveMetadata(events: TimestampedEvent[]): SessionMetaOverride {
         : [];
       if (typeof actors[0]?.name === 'string') out.leaderA = actors[0].name;
       if (typeof actors[1]?.name === 'string') out.leaderB = actors[1].name;
+      // Capture the full roster for 3+ actor runs so the replay UI can
+      // render "Aria, Maria, Atlas, Reyes, +5 more" instead of falling
+      // back to "Aria vs Maria" on a 9-actor run. Only stamp it when
+      // actually >=3 actors — pair runs leave it absent and rely on
+      // leaderA/leaderB.
+      if (actors.length >= 3) {
+        const names = actors
+          .map((a) => (typeof a?.name === 'string' ? a.name : null))
+          .filter((n): n is string => n != null && n.length > 0);
+        if (names.length >= 3) out.leaders = names;
+      }
     }
     // Count the highest `turn` observed. innerType covers both the
     // wrapped prod shape (`event: sim` + data.type=turn_done) and the

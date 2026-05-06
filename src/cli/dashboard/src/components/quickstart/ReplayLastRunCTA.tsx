@@ -22,6 +22,7 @@
 import * as React from 'react';
 import { useEffect, useState } from 'react';
 import { buildReplayHref } from '../layout/LoadMenu.helpers';
+import { formatRoster } from '../layout/ReplayBanner';
 import styles from './ReplayLastRunCTA.module.scss';
 
 void React;
@@ -32,6 +33,8 @@ interface SessionRecord {
   scenarioName?: string;
   leaderA?: string;
   leaderB?: string;
+  /** Full roster for 3+ actor runs; undefined on pair runs. */
+  leaders?: string[];
   eventCount?: number;
   durationMs?: number;
   createdAt?: number;
@@ -75,10 +78,16 @@ export function ReplayLastRunCTA() {
       ? `${session.seedText.slice(0, 70).trim()}…`
       : session.seedText.trim()
     : null;
+  // Roster fallback: for 3+ actor runs we want "Aria, Maria, Atlas, +5
+  // more" instead of "Aria vs Maria" (which silently dropped the other
+  // 7 actors on a 9-leader run). formatRoster handles both shapes plus
+  // the +N-more cap. Empty string when neither leaders nor leaderA/B
+  // are populated, in which case we fall through to seedTeaser/id.
+  const rosterLabel = formatRoster(session, 3);
   const subtitle =
     session.title ||
     session.scenarioName ||
-    [session.leaderA, session.leaderB].filter((v): v is string => typeof v === 'string' && v.length > 0).join(' vs ') ||
+    rosterLabel ||
     seedTeaser ||
     session.id;
   const meta = [

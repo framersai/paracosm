@@ -149,3 +149,69 @@ test('saveSession derives metadata from wrapped sim + status events', async () =
   // but the cumulative value in the last turn_done is authoritative.
   assert.equal(stored.meta.totalCostUSD, 0.18);
 });
+
+// 3+ actor runs: deriveMetadata must persist the FULL roster array, not
+// just the first two leaders. The replay UI uses meta.leaders to render
+// "Aria, Maria, Atlas, +5 more" instead of "Aria vs Maria" on a 9-actor
+// run. Pair runs (n=2) intentionally leave meta.leaders absent — the
+// legacy leaderA / leaderB columns already cover them.
+test('saveSession persists full leaders array for 3+ actor runs', async () => {
+  const store = openSessionStore(':memory:');
+  const fiveActor: TimestampedEvent[] = [
+    makeEvent('active_scenario', { id: 'mars', name: 'Mars Genesis' }, 1000),
+    makeEvent('status', {
+      phase: 'parallel',
+      actors: [
+        { name: 'Aria' },
+        { name: 'Maria' },
+        { name: 'Atlas' },
+        { name: 'Reyes' },
+        { name: 'Sato' },
+      ],
+    }, 1200),
+    makeEvent('complete', {}, 9000),
+  ];
+  const { id } = await store.saveSession(fiveActor);
+  const stored = await store.getSession(id);
+  assert.ok(stored);
+  // Legacy fields keep working for the first two slots.
+  assert.equal(stored.meta.leaderA, 'Aria');
+  assert.equal(stored.meta.leaderB, 'Maria');
+  // Full roster preserved for the multi-actor UI surface.
+  assert.deepEqual(stored.meta.leaders, ['Aria', 'Maria', 'Atlas', 'Reyes', 'Sato']);
+  // Round-trips through listSessions too (separate SELECT projection).
+  const list = await store.listSessions();
+  assert.deepEqual(list[0].leaders, ['Aria', 'Maria', 'Atlas', 'Reyes', 'Sato']);
+  await store.close();
+});
+
+test('saveSession leaves leaders unset on pair runs (n=2)', async () => {
+  const store = openSessionStore(':memory:');
+  const pair: TimestampedEvent[] = [
+    makeEvent('active_scenario', { id: 'mars', name: 'Mars Genesis' }, 1000),
+    makeEvent('status', {
+      phase: 'parallel',
+      actors: [{ name: 'Aria' }, { name: 'Maria' }],
+    }, 1200),
+    makeEvent('complete', {}, 9000),
+  ];
+  const { id } = await store.saveSession(pair);
+  const stored = await store.getSession(id);
+  assert.ok(stored);
+  assert.equal(stored.meta.leaderA, 'Aria');
+  assert.equal(stored.meta.leaderB, 'Maria');
+  // No leaders array — pair runs rely on the legacy columns.
+  assert.equal(stored.meta.leaders, undefined);
+  await store.close();
+});
+
+test('saveSession explicit leaders override wins over derived', async () => {
+  const store = openSessionStore(':memory:');
+  const { id } = await store.saveSession(baseEvents, {
+    leaders: ['Custom1', 'Custom2', 'Custom3'],
+  });
+  const stored = await store.getSession(id);
+  assert.ok(stored);
+  assert.deepEqual(stored.meta.leaders, ['Custom1', 'Custom2', 'Custom3']);
+  await store.close();
+});
