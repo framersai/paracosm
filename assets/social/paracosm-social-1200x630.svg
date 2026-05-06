@@ -1,1 +1,176 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630"><rect width="1200" height="630" fill="#0a0806"/><defs><pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="#f5f0e4" stroke-width="0.3" opacity="0.04"/></pattern></defs><rect width="1200" height="630" fill="url(#grid)"/><g transform="translate(180,255)"><line x1="60" y1="60" x2="70.55981704018285" y2="20.59022628740601" stroke="#f5f0e4" stroke-width="3" opacity="0.55"/><line x1="60" y1="60" x2="99.40977371259399" y2="49.44018295981715" stroke="#f5f0e4" stroke-width="3" opacity="0.55"/><line x1="60" y1="60" x2="88.84995667241114" y2="88.84995667241114" stroke="#f5f0e4" stroke-width="3" opacity="0.55"/><line x1="60" y1="60" x2="49.44018295981715" y2="99.40977371259399" stroke="#f5f0e4" stroke-width="3" opacity="0.55"/><line x1="60" y1="60" x2="20.59022628740601" y2="70.55981704018286" stroke="#f5f0e4" stroke-width="3" opacity="0.55"/><line x1="60" y1="60" x2="31.15004332758885" y2="31.15004332758886" stroke="#f5f0e4" stroke-width="3" opacity="0.55"/><line x1="70.55981704018285" y1="20.59022628740601" x2="88.84995667241114" y2="88.84995667241114" stroke="#f5f0e4" stroke-width="2.0999999999999996" opacity="0.24750000000000003"/><line x1="99.40977371259399" y1="49.44018295981715" x2="49.44018295981715" y2="99.40977371259399" stroke="#f5f0e4" stroke-width="2.0999999999999996" opacity="0.24750000000000003"/><line x1="88.84995667241114" y1="88.84995667241114" x2="20.59022628740601" y2="70.55981704018286" stroke="#f5f0e4" stroke-width="2.0999999999999996" opacity="0.24750000000000003"/><line x1="49.44018295981715" y1="99.40977371259399" x2="31.15004332758885" y2="31.15004332758886" stroke="#f5f0e4" stroke-width="2.0999999999999996" opacity="0.24750000000000003"/><line x1="20.59022628740601" y1="70.55981704018286" x2="70.55981704018285" y2="20.59022628740601" stroke="#f5f0e4" stroke-width="2.0999999999999996" opacity="0.24750000000000003"/><line x1="31.15004332758885" y1="31.15004332758886" x2="99.40977371259399" y2="49.44018295981715" stroke="#f5f0e4" stroke-width="2.0999999999999996" opacity="0.24750000000000003"/><circle cx="60" cy="60" r="17.28" fill="#e8b44a" opacity=".08"/><circle cx="60" cy="60" r="9.6" fill="#e8b44a"/><circle cx="70.55981704018285" cy="20.59022628740601" r="6.6" fill="#e06530"/><circle cx="99.40977371259399" cy="49.44018295981715" r="6.6" fill="#e8b44a"/><circle cx="88.84995667241114" cy="88.84995667241114" r="6.6" fill="#4ca8a8"/><circle cx="49.44018295981715" cy="99.40977371259399" r="6.6" fill="#e06530"/><circle cx="20.59022628740601" cy="70.55981704018286" r="6.6" fill="#4ca8a8"/><circle cx="31.15004332758885" cy="31.15004332758886" r="6.6" fill="#e8b44a"/></g><text x="380" y="270" font-family="'SF Mono',Menlo,monospace" font-weight="700" font-size="56" letter-spacing="6.7" fill="#f5f0e4">PARACOSM</text><text x="380" y="320" font-family="'SF Mono',Menlo,monospace" font-weight="400" font-size="18" letter-spacing="1" fill="#6b6356">AI Agent Swarm Simulation Engine</text><text x="380" y="400" font-family="'SF Mono',Menlo,monospace" font-size="14" fill="#3d3730">$</text><text x="400" y="400" font-family="'SF Mono',Menlo,monospace" font-size="14" fill="#e8b44a">npm install</text><text x="540" y="400" font-family="'SF Mono',Menlo,monospace" font-size="14" fill="#f5f0e4">paracosm</text><rect x="380" y="340" width="60" height="3" rx="1.5" fill="#e06530"/><rect x="450" y="340" width="40" height="3" rx="1.5" fill="#e8b44a"/><rect x="500" y="340" width="50" height="3" rx="1.5" fill="#4ca8a8"/><text x="380" y="560" font-family="'SF Mono',Menlo,monospace" font-size="11" fill="#3d3730">Apache-2.0 . TypeScript . Built on AgentOS</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <!--
+    paracosm OG social card — 1200x630, matches AgentOS family
+    treatment (cosmic backdrop, centered identity, warm amber accent
+    for the paracosm palette). Render to PNG with:
+      rsvg-convert -w 1200 -h 630 paracosm-social-1200x630.svg \
+        -o paracosm-social-1200x630.png
+    The 2x retina variant uses the same source at 2400x1260.
+  -->
+  <defs>
+    <!-- Deep cosmic gradient — slightly warmer than pure black so the
+         amber wordmark + icon read as part of the same temperature. -->
+    <radialGradient id="bg" cx="35%" cy="45%" r="85%">
+      <stop offset="0%" stop-color="#1a1330"/>
+      <stop offset="35%" stop-color="#0e0a1f"/>
+      <stop offset="100%" stop-color="#03020a"/>
+    </radialGradient>
+
+    <!-- Soft amber glow behind the icon — anchors the visual weight. -->
+    <radialGradient id="iconGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#e8b44a" stop-opacity="0.32"/>
+      <stop offset="60%" stop-color="#e8b44a" stop-opacity="0.05"/>
+      <stop offset="100%" stop-color="#e8b44a" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Wordmark gradient — warm cream into a hint of amber so the
+         letterforms feel temperature-matched to the icon nodes. -->
+    <linearGradient id="wordmark" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f8f1dc"/>
+      <stop offset="100%" stop-color="#e8d29a"/>
+    </linearGradient>
+
+    <!-- Right-edge accent bar (the paracosm node colors stacked). -->
+    <linearGradient id="accentBar" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#e06530"/>
+      <stop offset="50%" stop-color="#e8b44a"/>
+      <stop offset="100%" stop-color="#4ca8a8"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- Subtle constellation dots — sparse, low-opacity, creates depth
+       without competing with the wordmark. Hand-placed; randomized
+       fields look like noise and read as texture, not stars. -->
+  <g fill="#f5f0e4" opacity="0.12">
+    <circle cx="80" cy="60" r="1.2"/>
+    <circle cx="160" cy="120" r="0.8"/>
+    <circle cx="240" cy="40" r="1.5"/>
+    <circle cx="380" cy="90" r="1"/>
+    <circle cx="510" cy="50" r="0.9"/>
+    <circle cx="650" cy="110" r="1.4"/>
+    <circle cx="780" cy="55" r="1"/>
+    <circle cx="900" cy="100" r="1.6"/>
+    <circle cx="1040" cy="65" r="0.9"/>
+    <circle cx="1130" cy="125" r="1.2"/>
+    <circle cx="55" cy="220" r="1.1"/>
+    <circle cx="170" cy="320" r="0.8"/>
+    <circle cx="100" cy="480" r="1.3"/>
+    <circle cx="60" cy="560" r="0.9"/>
+    <circle cx="930" cy="460" r="1.1"/>
+    <circle cx="1080" cy="380" r="1.5"/>
+    <circle cx="1140" cy="500" r="0.8"/>
+    <circle cx="1020" cy="570" r="1"/>
+    <circle cx="850" cy="540" r="0.9"/>
+    <circle cx="720" cy="595" r="1.3"/>
+    <circle cx="590" cy="570" r="0.8"/>
+    <circle cx="470" cy="595" r="1.1"/>
+  </g>
+  <g fill="#e8b44a" opacity="0.18">
+    <circle cx="220" cy="150" r="1.8"/>
+    <circle cx="900" cy="180" r="1.5"/>
+    <circle cx="1100" cy="240" r="2"/>
+    <circle cx="80" cy="380" r="1.6"/>
+    <circle cx="1000" cy="500" r="1.7"/>
+  </g>
+
+  <!-- Icon glow + the paracosm node-graph icon, embedded inline so the
+       PNG render has zero external file dependency. Position: left
+       column, vertically centered. -->
+  <g transform="translate(180, 145)">
+    <circle cx="160" cy="160" r="220" fill="url(#iconGlow)"/>
+    <g transform="scale(0.625)">
+      <!-- Connecting lines (primary spokes from center) -->
+      <g stroke="#f5f0e4" stroke-width="12.8" opacity="0.55">
+        <line x1="256" y1="256" x2="301.06" y2="87.85"/>
+        <line x1="256" y1="256" x2="424.15" y2="210.94"/>
+        <line x1="256" y1="256" x2="379.09" y2="379.09"/>
+        <line x1="256" y1="256" x2="210.94" y2="424.15"/>
+        <line x1="256" y1="256" x2="87.85" y2="301.06"/>
+        <line x1="256" y1="256" x2="132.91" y2="132.91"/>
+      </g>
+      <!-- Secondary lines (perimeter triangulation) -->
+      <g stroke="#f5f0e4" stroke-width="8.96" opacity="0.247">
+        <line x1="301.06" y1="87.85" x2="379.09" y2="379.09"/>
+        <line x1="424.15" y1="210.94" x2="210.94" y2="424.15"/>
+        <line x1="379.09" y1="379.09" x2="87.85" y2="301.06"/>
+        <line x1="210.94" y1="424.15" x2="132.91" y2="132.91"/>
+        <line x1="87.85" y1="301.06" x2="301.06" y2="87.85"/>
+        <line x1="132.91" y1="132.91" x2="424.15" y2="210.94"/>
+      </g>
+      <!-- Center node -->
+      <circle cx="256" cy="256" r="73.73" fill="#e8b44a" opacity="0.08"/>
+      <circle cx="256" cy="256" r="40.96" fill="#e8b44a"/>
+      <!-- Outer nodes — the paracosm warm/cool palette -->
+      <circle cx="301.06" cy="87.85" r="28.16" fill="#e06530"/>
+      <circle cx="424.15" cy="210.94" r="28.16" fill="#e8b44a"/>
+      <circle cx="379.09" cy="379.09" r="28.16" fill="#4ca8a8"/>
+      <circle cx="210.94" cy="424.15" r="28.16" fill="#e06530"/>
+      <circle cx="87.85" cy="301.06" r="28.16" fill="#4ca8a8"/>
+      <circle cx="132.91" cy="132.91" r="28.16" fill="#e8b44a"/>
+    </g>
+  </g>
+
+  <!-- Right column: wordmark + taglines + footer.
+       Vertical rhythm: wordmark baseline at 290, primary tagline at
+       350, sub-tagline at 388, footer at 555. Numbers chosen so the
+       right block sits at the same optical center as the icon on
+       the left. -->
+
+  <!-- PARACOSM wordmark — large bold sans, slight letter-spacing to
+       feel monumental without going stencilly. -->
+  <text x="555" y="295"
+        font-family="Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="106"
+        font-weight="800"
+        letter-spacing="-2"
+        fill="url(#wordmark)">PARACOSM</text>
+
+  <!-- Primary tagline — sets the product category in 5 words so the
+       right edge stays clear of the accent bar at typeface widths. -->
+  <text x="557" y="355"
+        font-family="Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="32"
+        font-weight="500"
+        fill="#e8b44a">Agent Swarms for Structured Worlds</text>
+
+  <!-- Sub-tagline — the differentiators (mechanism, not category). -->
+  <text x="557" y="400"
+        font-family="Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="20"
+        font-weight="400"
+        fill="#a8b2c8">HEXACO personalities · deterministic kernels · forkable runs</text>
+
+  <!-- Terminal-style install hint — communicates "this is a real npm
+       package you can install in 10 seconds" without taking visual
+       weight from the wordmark. -->
+  <g transform="translate(557, 445)">
+    <rect x="0" y="0" width="320" height="50" rx="8"
+          fill="#0a0612" stroke="#2a2030" stroke-width="1"/>
+    <text x="18" y="32"
+          font-family="ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace"
+          font-size="18"
+          fill="#5a657d">$</text>
+    <text x="40" y="32"
+          font-family="ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace"
+          font-size="18"
+          fill="#e8b44a">npm</text>
+    <text x="80" y="32"
+          font-family="ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace"
+          font-size="18"
+          fill="#a8b2c8">install paracosm</text>
+  </g>
+
+  <!-- Footer band — sibling cue to the AgentOS family + license + tech. -->
+  <text x="600" y="585"
+        font-family="ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace"
+        font-size="15"
+        fill="#5a657d"
+        text-anchor="middle">Built on AgentOS  ·  Apache-2.0  ·  TypeScript</text>
+
+  <!-- Right-edge accent bar — vertical color slice in the paracosm
+       palette so the card has a chromatic anchor on the right side. -->
+  <rect x="1188" y="0" width="12" height="630" fill="url(#accentBar)" opacity="0.65"/>
+</svg>
