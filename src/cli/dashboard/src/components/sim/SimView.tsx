@@ -335,7 +335,12 @@ export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: l
 
       {showIntro && (sideA?.events.length ?? 0) > 0 && <IntroBar onDismiss={dismissIntro} />}
 
-      <DivergenceRail state={state} />
+      {/* DivergenceRail is a pairwise A-vs-B per-turn diff — only
+          renders when exactly 2 actors are running. For 3+ actors the
+          constellation view above already shows the full N-way
+          divergence, and a 2-actor rail would be misleading (it would
+          silently drop the third actor). */}
+      {state.actorIds.length === 2 && <DivergenceRail state={state} />}
 
       {/* Loading state: connected but no events after 2s grace period.
           role="status" + aria-live polite so SR users hear the heading
@@ -420,8 +425,13 @@ export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: l
       )}
 
       {/* Turn-aligned grid with sticky compact-ActorBar header.
-          Replaces the previous per-leader scrolling columns. */}
-      {columnsVisible && <TurnGrid state={state} />}
+          Replaces the previous per-leader scrolling columns. The grid
+          is hardcoded to two leaders (sideA / sideB) — for 3+ actor
+          runs the constellation view above is the canonical surface,
+          and rendering a 2-actor TurnGrid below it silently dropped
+          the third actor. Gate on actorIds.length === 2 so the grid
+          only appears in pair runs. */}
+      {columnsVisible && state.actorIds.length === 2 && <TurnGrid state={state} />}
 
       {/* Verdict surfaces as a global top banner (App.tsx) and inline
           on the Reports tab. */}
