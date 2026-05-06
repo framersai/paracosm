@@ -29,7 +29,10 @@ export default defineConfig({
   projects: [
     { name: 'chromium-desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } } },
     { name: 'chromium-tablet',  use: { ...devices['Desktop Chrome'], viewport: { width: 768, height: 1024 } } },
-    { name: 'chromium-mobile',  use: { ...devices['iPhone 13'] } },
+    // Pixel 5 ships with the Chromium engine in Playwright's device
+    // catalogue. iPhone 13 would force the webkit channel, which we
+    // don't bundle (only chromium is installed via test:e2e:install).
+    { name: 'chromium-mobile',  use: { ...devices['Pixel 5'] } },
   ],
   webServer: process.env.PARACOSM_E2E_BASE_URL
     ? undefined
