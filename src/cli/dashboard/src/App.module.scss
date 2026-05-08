@@ -37,6 +37,12 @@
   flex-direction: column;
 }
 
+// Quickstart stays mounted across tab switches so its in-flight
+// compile/research/actors progress survives navigation. Hidden tabs
+// remove themselves from layout (and the a11y tree via `hidden`) but
+// keep their React state, async fetch loops, and SSE listeners alive.
+.tabPanelHidden { display: none; }
+
 .errorBoundary {
   display: flex;
   flex-direction: column;

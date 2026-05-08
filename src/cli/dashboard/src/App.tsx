@@ -289,46 +289,45 @@ function AppContent() {
   });
 
   const handleClear = useCallback(async () => {
+    // End-user wipe path: clears every browser-side cache the dashboard
+    // owns (localStorage event cache, SSE in-memory state, the
+    // user-triggered-run gate). The server-side /admin/data/wipe call is
+    // ONLY attempted when the operator has previously stored an admin
+    // token in this browser — because /admin/data/wipe requires
+    // X-Admin-Token, prompting an end user for a value they cannot
+    // possibly have was both confusing and a security smell (it surfaced
+    // the exact env-var name + .env path inside a window.prompt).
+    //
+    // Token-bearing operators still get the full server wipe with no
+    // prompt: paste the token once into Settings (or via the dev-tools
+    // localStorage key `paracosm:adminToken`), and every subsequent
+    // Wipe All click does both the local + server pass automatically.
     if (!confirm(
-      'Clear ALL data? This wipes:\n' +
-      '  • Current simulation buffer (this browser)\n' +
-      '  • Library runs (server)\n' +
-      '  • Saved sessions / replays (server)\n' +
-      '  • On-disk artifact JSON files\n\n' +
+      'Clear local data? This wipes the in-browser simulation buffer + cached events for this dashboard.\n\n' +
+      'Server-stored runs, sessions, and on-disk artifact files are kept.\n\n' +
       'Cannot be undone.',
     )) return;
     persistence.clearCache();
     sse.reset();
     setUserTriggeredRun(false);
 
-    // Server-side wipe. /admin/data/wipe requires X-Admin-Token (per-
-    // request auth gate added in the security pass). Token is stored
-    // in localStorage; if it's missing we prompt for it once. The token
-    // lives in /opt/paracosm/.env on the operator's server.
     let adminToken = '';
     try {
       adminToken = localStorage.getItem('paracosm:adminToken') ?? '';
     } catch {
       /* localStorage may be disabled (SSR / private window); treat as missing. */
     }
+
     if (!adminToken) {
-      const entered = window.prompt(
-        'Server wipe needs the admin token (set on the server as ADMIN_TOKEN in .env).\n' +
-        'Paste it once and the dashboard will remember it for this browser:',
-      );
-      if (entered === null) {
-        toast('info', 'Cleared', 'Local buffer cleared. Server wipe canceled (no admin token).');
-        setActiveTab('settings');
-        return;
-      }
-      adminToken = entered.trim();
-      try {
-        if (adminToken) localStorage.setItem('paracosm:adminToken', adminToken);
-      } catch {
-        /* silent — fall through; the request below carries the token in-memory either way. */
-      }
+      // No admin context. Tell the user what we did + did NOT do, and
+      // route them to Settings where the rest of the cleanup options
+      // live (per-scenario reset, key-only wipe, etc.).
+      toast('info', 'Local data cleared', 'In-browser caches wiped. Server-stored runs are unchanged.');
+      setActiveTab('settings');
+      return;
     }
 
+    // Operator path: token already stored, attempt the full server wipe.
     try {
       const res = await fetch('/admin/data/wipe', {
         method: 'POST',
@@ -339,24 +338,26 @@ function AppContent() {
         const body = await res.json() as { wiped: { runs: number; sessions: number; outputFiles: number } };
         toast(
           'info',
-          'Cleared',
-          `Local buffer + ${body.wiped.runs} runs + ${body.wiped.sessions} sessions + ${body.wiped.outputFiles} files wiped.`,
+          'Wiped',
+          `Local + ${body.wiped.runs} runs + ${body.wiped.sessions} sessions + ${body.wiped.outputFiles} files cleared.`,
         );
       } else if (res.status === 401) {
-        // Wrong / expired token. Drop the saved value so the next click
-        // re-prompts cleanly.
+        // Stored token no longer matches the server's ADMIN_TOKEN.
+        // Drop it so a future operator paste isn't fighting a stale
+        // entry, then surface the failure as info (local already cleared).
         try { localStorage.removeItem('paracosm:adminToken'); } catch { /* silent */ }
-        toast('error', 'Partial clear', 'Local cleared; server rejected the admin token. Click Wipe All again to re-enter.');
+        toast('info', 'Local data cleared', 'Server-side wipe skipped: stored admin token rejected. Re-paste it via dev-tools localStorage if needed.');
       } else if (res.status === 403) {
-        toast('info', 'Cleared', 'Local buffer cleared. Server wipe disabled (ADMIN_WRITE off).');
+        // Server has admin-write disabled. Local clear stands.
+        toast('info', 'Local data cleared', 'Server-side wipe disabled on this deployment.');
       } else if (res.status === 503) {
-        toast('error', 'Partial clear', 'Local cleared; server has ADMIN_WRITE on but no ADMIN_TOKEN configured. Set ADMIN_TOKEN in /opt/paracosm/.env.');
+        toast('info', 'Local data cleared', 'Server-side wipe configured but no ADMIN_TOKEN set on the server.');
       } else {
         const err = await res.json().catch(() => ({} as { error?: string }));
-        toast('error', 'Partial clear', `Local cleared; server wipe failed: ${err.error ?? `HTTP ${res.status}`}`);
+        toast('info', 'Local data cleared', `Server-side wipe failed: ${err.error ?? `HTTP ${res.status}`}`);
       }
     } catch (err) {
-      toast('error', 'Partial clear', `Local cleared; server wipe failed: ${err instanceof Error ? err.message : String(err)}`);
+      toast('info', 'Local data cleared', `Server-side wipe failed: ${err instanceof Error ? err.message : String(err)}`);
     }
     setActiveTab('settings');
   }, [persistence, sse, toast]);
@@ -891,28 +892,39 @@ function AppContent() {
                 Per-tab views can still emit their own h2/h3 for
                 section structure. */}
             <h1 className="sr-only">{tabHeadingFor(activeTab)}</h1>
-            {activeTab === 'quickstart' && (
-              <section
-                role="tabpanel"
-                id="tabpanel-quickstart"
-                aria-labelledby="tab-quickstart"
-                // tabIndex={-1}: panel contains its own focusable
-                // descendants (buttons, inputs, etc.), so per ARIA APG
-                // we don't insert an extra Tab stop on the panel
-                // itself. -1 keeps it programmatically focusable for
-                // skip-link / future activation handlers.
-                tabIndex={-1}
-                className={styles.tabPanel}
-              >
-                <QuickstartView
-                  sse={sse}
-                  sessionId={replaySessionId ?? undefined}
-                  onRunStarted={() => setUserTriggeredRun(true)}
-                  onInterventionStart={handleInterventionStart}
-                  onInterventionResult={handleInterventionResult}
-                />
-              </section>
-            )}
+            {/* QuickstartView stays mounted across tab switches so an in-
+                flight compile/research/actors run survives navigation. The
+                handleSeedReady pipeline is a chain of long fetches (compile
+                up to 5 min on first-paste, ground-scenario, generate-actors,
+                /setup) that drive local Phase state via setState — unmount
+                during any of those would silently drop the user back on the
+                input form when they returned, even though the server-side
+                work was still in progress. Hidden via display:none + the
+                `hidden` attribute so the panel exits layout AND the a11y
+                tree on inactive tabs while preserving every promise + state
+                slot. ChatPanel uses the same pattern to keep per-agent
+                threads alive. */}
+            <section
+              role="tabpanel"
+              id="tabpanel-quickstart"
+              aria-labelledby="tab-quickstart"
+              hidden={activeTab !== 'quickstart'}
+              // tabIndex={-1}: panel contains its own focusable
+              // descendants (buttons, inputs, etc.), so per ARIA APG
+              // we don't insert an extra Tab stop on the panel
+              // itself. -1 keeps it programmatically focusable for
+              // skip-link / future activation handlers.
+              tabIndex={-1}
+              className={activeTab === 'quickstart' ? styles.tabPanel : styles.tabPanelHidden}
+            >
+              <QuickstartView
+                sse={sse}
+                sessionId={replaySessionId ?? undefined}
+                onRunStarted={() => setUserTriggeredRun(true)}
+                onInterventionStart={handleInterventionStart}
+                onInterventionResult={handleInterventionResult}
+              />
+            </section>
 
             {activeTab === 'sim' && (
               <section
