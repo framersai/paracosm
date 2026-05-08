@@ -153,22 +153,62 @@
   box-shadow: 0 2px 10px rgba(232, 180, 74, 0.25);
 }
 
-// N-actor disclosure banner. Surfaces above the turn-by-turn report
-// when the current run has 3+ actors but only 2 are wired into the
-// pair-mode report layout. Sits between headerRow and the strip
-// section. Tone-down amber to read as informational rather than the
-// warning red of provider errors.
-.actorSubsetNotice {
+// Actor-pair picker for 3+ actor runs. Sits between the header row
+// and the strip section, gives the user two dropdowns + a hint about
+// the cohort view at the bottom. Mirrors the JetBrains-Mono / amber
+// look the rest of the report uses; the disabled <option> keeps the
+// user from selecting the same actor on both sides.
+.actorPairPicker {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
   border: 1px solid rgba(232, 180, 74, 0.4);
   background: rgba(232, 180, 74, 0.06);
-  color: var(--text-1);
   padding: 10px 14px;
   border-radius: 6px;
   margin-bottom: 16px;
   font-size: var(--font-sm);
   line-height: 1.5;
+  color: var(--text-1);
+}
 
-  strong { color: var(--amber); }
+.actorPairPickerLabel {
+  font-family: var(--mono);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+
+.actorPairPickerSelect {
+  font-family: var(--mono);
+  font-size: var(--font-sm);
+  padding: 4px 8px;
+  background: var(--bg-deep);
+  color: var(--text-1);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  min-width: 160px;
+}
+
+.actorPairPickerVs {
+  font-family: var(--mono);
+  color: var(--text-3);
+  font-size: var(--font-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.actorPairPickerHint {
+  font-size: var(--font-xs);
+  color: var(--text-2);
+  flex-basis: 100%;
+
+  // On wide viewports the hint can sit on the same line as the picker
+  // when there's room; it falls to its own row only when the
+  // dropdowns wrap. flex-basis:100% gives the rest of the row to the
+  // picker controls and the hint flows below them naturally.
 }
 
 .jumpInlineBtn {

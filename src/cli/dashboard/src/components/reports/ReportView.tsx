@@ -176,15 +176,36 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
     },
     [branchesDispatch, navigate],
   );
+  // Actor pair selection. For 2-actor runs the picker is hidden and the
+  // canonical actorIds[0]/[1] pair is used. For 3+ actor runs the user
+  // can swap either side via a dropdown so they can browse the cohort
+  // pairwise without ever feeling like the report is locked to the
+  // first two leaders. The selected ids feed every memo below — the
+  // turn map, the strip cells, the sparklines, the trajectory cards,
+  // and the cost breakdown — so the whole report rotates as one.
+  const defaultAId = state.actorIds[0] ?? null;
+  const defaultBId = state.actorIds[1] ?? null;
+  const [pickedAId, setPickedAId] = useState<string | null>(defaultAId);
+  const [pickedBId, setPickedBId] = useState<string | null>(defaultBId);
+  // Reset selection if the run just rotated to a different cohort.
+  // Without this, switching scenarios mid-session leaves a stale id
+  // that maps to nothing and the view goes blank.
+  useEffect(() => {
+    if (pickedAId && !state.actorIds.includes(pickedAId)) setPickedAId(defaultAId);
+    if (pickedBId && !state.actorIds.includes(pickedBId)) setPickedBId(defaultBId);
+  }, [state.actorIds, pickedAId, pickedBId, defaultAId, defaultBId]);
+  const aId = pickedAId ?? defaultAId;
+  const bId = pickedBId ?? defaultBId;
   const turns = useMemo(() => {
     const map: Record<number, { a: TurnData; b: TurnData }> = {};
 
-    // Iterate the first two leaders and bind each to the local 'a'/'b'
-    // slot in the per-turn map. F1 preserves the 2-slot map shape in
-    // this file; F2/F3 will generalize `TurnData` into an array.
+    // Bind the user-selected pair into the local 'a'/'b' slots. For
+    // 2-actor runs aId/bId fall through to actorIds[0]/[1]; for 3+
+    // actor runs the picker drives which two columns the turn-by-turn
+    // grid renders.
     const actorSlots: Array<{ side: 'a' | 'b'; actorName: string }> = [];
-    if (state.actorIds[0]) actorSlots.push({ side: 'a', actorName: state.actorIds[0] });
-    if (state.actorIds[1]) actorSlots.push({ side: 'b', actorName: state.actorIds[1] });
+    if (aId) actorSlots.push({ side: 'a', actorName: aId });
+    if (bId) actorSlots.push({ side: 'b', actorName: bId });
 
     for (const { side, actorName } of actorSlots) {
       const sideState = state.actors[actorName];
@@ -276,10 +297,10 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
     return Object.entries(map)
       .map(([k, v]) => [Number(k), v] as [number, { a: TurnData; b: TurnData }])
       .sort((a, b) => a[0] - b[0]);
-  }, [state]);
+  }, [state, aId, bId]);
 
-  const firstId = state.actorIds[0];
-  const secondId = state.actorIds[1];
+  const firstId = aId;
+  const secondId = bId;
   const sideA = firstId ? state.actors[firstId] : null;
   const sideB = secondId ? state.actors[secondId] : null;
   const nameA = sideA?.leader?.name || 'Leader A';
@@ -311,8 +332,10 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
 
   // Derivations for the new top-of-report surfaces. All memoized on the
   // same inputs the existing turn map uses so they update in sync.
+  // Strip + sparklines respect the picker so swapping actors rotates
+  // every panel that mentions A/B in lockstep.
   const stripCells = useMemo(() => collectRunStripData(turns), [turns]);
-  const metricSeries = useMemo(() => collectMetricSeries(state), [state]);
+  const metricSeries = useMemo(() => collectMetricSeries(state, aId, bId), [state, aId, bId]);
   const sideNavItems = useMemo<SideNavItem[]>(() => {
     // Order now matches the new section layout: turn-by-turn content
     // at the top (Strip → Metrics → Trajectory → individual turns →
@@ -474,29 +497,54 @@ export function ReportView({ state, verdict, reportSections }: ReportViewProps) 
         </button>
       </div>
 
-      {/* N-actor disclosure: the turn-by-turn report renders the first
-          two actors only because the side-by-side EventSide layout is
-          pair-shaped. For 3+ actor runs that would silently hide the
-          rest of the cohort under a "previous simulation" misread —
-          the user sees only Leader A/B in Reports while the SIM tab
-          showed all N actors and concludes the report is from a
-          different run. Surfacing the count + the pointer to the SIM
-          tab's full cohort + the CohortVerdict block at the bottom
-          closes that perception gap until the report supports N
-          actors natively. */}
+      {/* Actor-pair picker for 3+ actor runs. The turn-by-turn layout
+          stays pair-shaped because EventSide blocks render two columns
+          per event; rather than rebuild the entire report into an
+          N-column responsive grid we let the user rotate the pair in
+          place. Defaults to actorIds[0] vs actorIds[1] for parity with
+          the previous behaviour; the dropdown reveals the rest of the
+          cohort. The full N-actor view (cohort verdict, pareto front,
+          per-actor deltas) lives in the Run Summary block at the
+          bottom of this page. */}
       {state.actorIds.length > 2 && (
-        <div className={styles.actorSubsetNotice} role="status">
-          <strong>Showing first 2 of {state.actorIds.length} actors.</strong>{' '}
-          The pair-mode turn-by-turn view renders {nameA} vs {nameB}; the
-          full cohort comparison (rankings, pareto front, deltas) lives
-          in the <button
-            type="button"
-            onClick={() => {
-              const el = document.getElementById('summary');
-              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }}
-            className={styles.jumpInlineBtn}
-          >Run Summary block</button> below.
+        <div className={styles.actorPairPicker} role="region" aria-label="Compare actors">
+          <span className={styles.actorPairPickerLabel}>Compare</span>
+          <select
+            aria-label="Left side actor"
+            className={styles.actorPairPickerSelect}
+            value={aId ?? ''}
+            onChange={(e) => setPickedAId(e.target.value || null)}
+          >
+            {state.actorIds.map(id => (
+              <option key={id} value={id} disabled={id === bId}>
+                {state.actors[id]?.leader?.name ?? id}
+              </option>
+            ))}
+          </select>
+          <span className={styles.actorPairPickerVs}>vs</span>
+          <select
+            aria-label="Right side actor"
+            className={styles.actorPairPickerSelect}
+            value={bId ?? ''}
+            onChange={(e) => setPickedBId(e.target.value || null)}
+          >
+            {state.actorIds.map(id => (
+              <option key={id} value={id} disabled={id === aId}>
+                {state.actors[id]?.leader?.name ?? id}
+              </option>
+            ))}
+          </select>
+          <span className={styles.actorPairPickerHint}>
+            of {state.actorIds.length} actors · full cohort in the{' '}
+            <button
+              type="button"
+              onClick={() => {
+                const el = document.getElementById('summary');
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+              className={styles.jumpInlineBtn}
+            >Run Summary</button> below
+          </span>
         </div>
       )}
 

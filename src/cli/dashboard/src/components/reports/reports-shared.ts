@@ -74,10 +74,19 @@ function seriesForSide(
   return out;
 }
 
-/** Build the six-metric series for both sides from the game state. */
-export function collectMetricSeries(state: GameState): MetricSeries[] {
-  const firstId = state.actorIds[0];
-  const secondId = state.actorIds[1];
+/**
+ * Build the six-metric series for the chosen pair of actors. The
+ * ReportView pair-picker (3+ actor runs) drives `aId` / `bId`; for
+ * 2-actor runs the caller passes actorIds[0] / actorIds[1] directly so
+ * the legacy callsite shape doesn't change.
+ */
+export function collectMetricSeries(
+  state: GameState,
+  aId?: string | null,
+  bId?: string | null,
+): MetricSeries[] {
+  const firstId = aId ?? state.actorIds[0];
+  const secondId = bId ?? state.actorIds[1];
   const aEvents = (firstId ? state.actors[firstId]?.events : undefined) as Array<{ turn?: number; data: Record<string, unknown> }> | undefined;
   const bEvents = (secondId ? state.actors[secondId]?.events : undefined) as Array<{ turn?: number; data: Record<string, unknown> }> | undefined;
   return METRIC_DEFS.map(def => ({
