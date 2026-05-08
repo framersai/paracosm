@@ -25,7 +25,7 @@ import { EmptyState } from './EmptyState.js';
 export function LibraryTab(): JSX.Element {
   const searchRef = React.useRef<HTMLInputElement>(null);
   const { filters, setFilters, runs, total, hasMore, loading, error } = useRunsList();
-  const { records: recentRecords, push: pushRecent } = useRecentlyViewed();
+  const { records: recentRecords, push: pushRecent, remove: removeRecent } = useRecentlyViewed();
 
   const [view, setView] = React.useState<'gallery' | 'table'>(() => {
     const params = new URLSearchParams(window.location.search);
@@ -165,6 +165,10 @@ export function LibraryTab(): JSX.Element {
         open={selectedRunId !== null}
         onClose={() => setSelectedRunId(null)}
         onArtifactLoaded={pushRecent}
+        // Server says this run is gone (Wipe All / TTL / manual delete).
+        // Drop it from the recently-viewed cache so the ghost card stops
+        // surfacing on the next load.
+        onRunMissing={removeRecent}
       />
 
       {/* CompareModal mounts above the LibraryTab when a bundle is

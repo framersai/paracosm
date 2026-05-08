@@ -13,10 +13,14 @@ export interface RunDetailDrawerProps {
   open: boolean;
   onClose: () => void;
   onArtifactLoaded?: (record: RunRecord) => void;
+  /** Fires when the backing run came back as not_found (404). Lets the
+   *  parent prune the id from the recently-viewed strip / any other
+   *  cached id list so the ghost card doesn't show up again on reload. */
+  onRunMissing?: (runId: string) => void;
 }
 
 export function RunDetailDrawer(props: RunDetailDrawerProps): JSX.Element {
-  const { runId, open, onClose, onArtifactLoaded } = props;
+  const { runId, open, onClose, onArtifactLoaded, onRunMissing } = props;
   const { record, artifact, loading, error, status } = useRunArtifact(open ? runId : null);
   const drawerRef = React.useRef<HTMLDivElement | null>(null);
   const lastFocusedRef = React.useRef<HTMLElement | null>(null);
@@ -24,6 +28,16 @@ export function RunDetailDrawer(props: RunDetailDrawerProps): JSX.Element {
   React.useEffect(() => {
     if (record) onArtifactLoaded?.(record);
   }, [record, onArtifactLoaded]);
+
+  // Prune the id from any cached strip the moment we know the run is
+  // gone server-side. The drawer's own "Run not found" UI still renders
+  // for the click that surfaced the 404; this just ensures the next
+  // page load doesn't show the same ghost card.
+  React.useEffect(() => {
+    if (status === 'not_found' && runId) {
+      onRunMissing?.(runId);
+    }
+  }, [status, runId, onRunMissing]);
 
   React.useEffect(() => {
     if (open) {

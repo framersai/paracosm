@@ -256,8 +256,30 @@ export async function handlePlatformApiRoute(
       }
     }
 
-    // GET /api/v1/runs/:runId — load full RunArtifact via record.artifactPath
+    // HEAD /api/v1/runs/:runId — lightweight existence check without
+    // pulling the artifact file off disk. Used by the dashboard's
+    // recently-viewed strip to prune ghost cards left behind by Wipe All
+    // / TTL / manual deletion. Returns the same 404 / 410 / 200 shape
+    // as the GET variant so callers can branch on status alone.
     const detailMatch = url.pathname.match(/^\/api\/v1\/runs\/([^/]+)$/);
+    if (detailMatch && req.method === 'HEAD') {
+      const runId = decodeURIComponent(detailMatch[1]);
+      const record = await options.runHistoryStore.getRun(runId);
+      if (!record) {
+        res.writeHead(404, { ...options.corsHeaders });
+        res.end();
+        return true;
+      }
+      if (!record.artifactPath) {
+        res.writeHead(410, { ...options.corsHeaders });
+        res.end();
+        return true;
+      }
+      res.writeHead(200, { ...options.corsHeaders });
+      res.end();
+      return true;
+    }
+    // GET /api/v1/runs/:runId — load full RunArtifact via record.artifactPath
     if (detailMatch && req.method === 'GET') {
       const runId = decodeURIComponent(detailMatch[1]);
       const record = await options.runHistoryStore.getRun(runId);
