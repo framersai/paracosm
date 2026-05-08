@@ -25,6 +25,11 @@ import {
   isRunnableScenarioPackage,
   loadDiskCustomScenarios,
 } from './custom-scenarios.js';
+import {
+  loadPersistedCompiledDrafts,
+  persistCompiledScenario,
+  type PersistedCompiledMeta,
+} from './persisted-compiled-scenarios.js';
 import { IpRateLimiter } from './rate-limiter.js';
 import {
   aggregateSchemaRetries,
@@ -454,6 +459,49 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
   const customScenarioCatalog = loadDiskCustomScenarios(scenarioDir);
   customScenarioCatalog.set(marsScenario.id, { scenario: marsScenario, source: 'builtin' });
   customScenarioCatalog.set(lunarScenario.id, { scenario: lunarScenario, source: 'builtin' });
+
+  // Persistence metadata for compile-from-seed scenarios — keyed by
+  // scenario id. Carries `compiledAt` + truncated `seedText` so the
+  // /scenarios endpoint can render "compiled 3 days ago from a brief
+  // about ..." without re-deriving from the scenario body. Populated
+  // both at boot (from on-disk persisted drafts) and at runtime (when
+  // a fresh compile-from-seed completes). Plain Map<id, meta> rather
+  // than a CustomScenarioEntry extension so the existing entry shape
+  // and every consumer of `customScenarioCatalog` stays unchanged.
+  const compiledScenarioMeta = new Map<string, PersistedCompiledMeta>();
+
+  // Boot-time hydration of persisted compile-from-seed scenarios.
+  // Drafts on disk get lazy-compiled in the background — server boot
+  // doesn't await this so a cold cache (50 drafts × 30s LLM each)
+  // never blocks the listen() port. As each compile resolves the
+  // scenario lands in the catalog and shows up in subsequent
+  // /scenarios responses; the picker is eventually-consistent within
+  // a few seconds on warm cache, a few minutes on cold.
+  void (async () => {
+    let drafts;
+    try {
+      drafts = loadPersistedCompiledDrafts(scenarioDir);
+    } catch (err) {
+      console.warn('[scenarios] loadPersistedCompiledDrafts failed:', err);
+      return;
+    }
+    if (drafts.length === 0) return;
+    console.log(`[scenarios] re-compiling ${drafts.length} persisted compiled draft(s) from disk…`);
+    const { compileScenario } = await import('../engine/compiler/index.js');
+    for (const { id, draft, meta } of drafts) {
+      try {
+        // Cache: true means we hit the local hook-source cache. With
+        // a warm cache this is ~10ms per draft; with a cold cache the
+        // hooks regenerate via LLM at the going rate.
+        const compiled = await compileScenario(draft as Record<string, unknown>, { cache: true });
+        customScenarioCatalog.set(compiled.id, { scenario: compiled, source: 'compiled' });
+        compiledScenarioMeta.set(compiled.id, meta);
+        console.log(`[scenarios] hydrated ${compiled.id} (${meta.compiledAt})`);
+      } catch (err) {
+        console.warn(`[scenarios] failed to re-compile persisted draft ${id}:`, err);
+      }
+    }
+  })();
 
   // Side-channel for ground-scenario citations keyed by scenario id.
   // ScenarioPackage has no free-form metadata slot today; this Map
@@ -1261,31 +1309,67 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
     // in-memory runnable customs, and any currently-active compiled
     // scenario all live in the same catalog — this endpoint is a
     // uniform iteration over it. No hardcoded IDs.
+    //
+    // Each entry now carries persistence metadata + a run-count from
+    // the run-history store so the dashboard's scenario picker can
+    // render "compiled 3 days ago · 12 runs" alongside the name.
+    // Counts come from `aggregateStats({scenarioId})`; missing store /
+    // missing aggregate impl falls through to a 0 count rather than
+    // failing the whole list.
     if (req.url === '/scenarios' && req.method === 'GET') {
-      const scenarios: Array<{ id: string; name: string; description: string; departments: number; source: string }> = [];
+      type ScenarioListEntry = {
+        id: string;
+        name: string;
+        description: string;
+        departments: number;
+        source: string;
+        compiledAt?: string;
+        seedText?: string | null;
+        runCount?: number;
+      };
+      const entries: ScenarioListEntry[] = [];
       for (const [id, entry] of customScenarioCatalog) {
         const sc = entry.scenario;
-        scenarios.push({
+        const meta = compiledScenarioMeta.get(id);
+        entries.push({
           id,
           name: sc.labels?.name || id,
           description: describeCustomScenarioSource(entry.source),
           departments: sc.departments?.length || 0,
           source: entry.source,
+          compiledAt: meta?.compiledAt,
+          seedText: meta?.seedText,
         });
       }
-      // Active scenario might not be in the catalog yet (freshly
-      // compiled but we haven't written it back — belt-and-suspenders).
       if (!customScenarioCatalog.has(activeScenario.id)) {
-        scenarios.push({
+        const meta = compiledScenarioMeta.get(activeScenario.id);
+        entries.push({
           id: activeScenario.id,
           name: activeScenario.labels?.name || activeScenario.id,
           description: 'Custom compiled scenario',
           departments: activeScenario.departments?.length || 0,
           source: 'compiled',
+          compiledAt: meta?.compiledAt,
+          seedText: meta?.seedText,
         });
       }
+      // Best-effort run-count enrichment. Aggregate one query per
+      // scenario id rather than one bulk because aggregateStats
+      // already accepts a scenarioId filter; the cost is bounded by
+      // catalog size (≤50 + a couple builtins) so the fan-out stays
+      // reasonable.
+      if (runHistoryStore?.aggregateStats) {
+        await Promise.all(entries.map(async (entry) => {
+          try {
+            const agg = await runHistoryStore.aggregateStats!({ scenarioId: entry.id });
+            entry.runCount = agg.totalRuns;
+          } catch {
+            entry.runCount = 0;
+          }
+        }));
+      }
       res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-      res.end(JSON.stringify({ scenarios, active: activeScenario.id }));
+      res.end(JSON.stringify({ scenarios: entries, active: activeScenario.id }));
       return;
     }
 
@@ -1438,6 +1522,21 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
             // tag; same post-compile semantics, no new source state
             // required.
             customScenarioCatalog.set(sc.id, { scenario: sc, source: 'compiled' });
+            // Auto-persist to disk so the catalog survives server
+            // restarts. The hooks themselves are excluded (functions
+            // don't serialize) but compileScenario regenerates them
+            // from the local hook-source cache for free at boot.
+            // Persistence metadata (compiledAt, truncated seedText)
+            // travels alongside the scenario for catalog rendering.
+            // Best-effort: filesystem failures stay silent so a read-
+            // only volume doesn't break the in-memory run.
+            const persistMeta = compiledScenarioMeta.get(sc.id);
+            const persistAt = persistMeta?.compiledAt ?? new Date().toISOString();
+            persistCompiledScenario(scenarioDir, sc, activeScenarioSeedText);
+            compiledScenarioMeta.set(sc.id, {
+              compiledAt: persistAt,
+              seedText: activeScenarioSeedText,
+            });
           },
           getScenarioById: (id) => {
             if (id === activeScenario.id) return activeScenario;

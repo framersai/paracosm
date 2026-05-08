@@ -20,6 +20,34 @@ interface CatalogScenario {
   description?: string;
   departments?: number;
   source?: string;
+  compiledAt?: string;
+  seedText?: string | null;
+  runCount?: number;
+}
+
+/**
+ * Render an ISO-8601 compiledAt timestamp as a coarse "X days ago"
+ * affix for the picker option label. Tight (3-char minutes / hours
+ * / days / weeks suffix) so the dropdown stays scannable. Older than
+ * 365 days falls back to the year ("compiled 2024").
+ */
+function formatCompiledAge(iso: string): string {
+  const then = Date.parse(iso);
+  if (!Number.isFinite(then)) return '';
+  const diffMs = Date.now() - then;
+  if (diffMs < 0) return 'just now';
+  const minutes = Math.floor(diffMs / 60_000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  const weeks = Math.floor(days / 7);
+  if (weeks < 5) return `${weeks}w ago`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months}mo ago`;
+  return new Date(iso).getFullYear().toString();
 }
 
 interface LoadedScenarioCTAProps {
@@ -194,14 +222,28 @@ export function LoadedScenarioCTA({
               aria-label="Switch active scenario"
             >
               {renderedScenarios.map(s => {
-                const tag = s.source === 'builtin' ? ' [builtin]'
-                  : s.source === 'disk' ? ' [disk]'
-                  : s.source === 'compiled' ? ' [compiled]'
-                  : s.source === 'active' ? ' [active]'
+                const tag = s.source === 'builtin' ? '[builtin]'
+                  : s.source === 'disk' ? '[disk]'
+                  : s.source === 'compiled' ? '[compiled]'
+                  : s.source === 'active' ? '[active]'
                   : '';
+                // Suffix shape: "[source] · 12 runs · 3d ago" — only
+                // the parts with real values render so a fresh-install
+                // builtin reads as "Mars Genesis [builtin]" without
+                // empty " · " gaps.
+                const parts: string[] = [];
+                if (tag) parts.push(tag);
+                if (typeof s.runCount === 'number' && s.runCount > 0) {
+                  parts.push(`${s.runCount} run${s.runCount === 1 ? '' : 's'}`);
+                }
+                if (s.compiledAt) {
+                  const age = formatCompiledAge(s.compiledAt);
+                  if (age) parts.push(age);
+                }
+                const suffix = parts.length > 0 ? ` · ${parts.join(' · ')}` : '';
                 return (
                   <option key={s.id} value={s.id}>
-                    {s.name}{tag}
+                    {s.name}{suffix}
                   </option>
                 );
               })}
