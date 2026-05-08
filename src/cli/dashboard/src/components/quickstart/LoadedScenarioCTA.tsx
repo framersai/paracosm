@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useScenarioContext } from '../../App';
 import styles from './LoadedScenarioCTA.module.scss';
 
@@ -58,6 +58,13 @@ export function LoadedScenarioCTA({
   // show a redundant single-option dropdown).
   const [scenarios, setScenarios] = useState<CatalogScenario[]>([]);
   const [switchingScenario, setSwitchingScenario] = useState<boolean>(false);
+  // Mounted-guard ref. handleSwitchScenario success path triggers
+  // window.location.reload() which unmounts every component before any
+  // setState lands, but the failure path can race the user navigating
+  // away (Quickstart tab is now mounted across tab switches per the
+  // dashboard fix). Without the guard we'd hit the React "set state
+  // on unmounted component" warning on the failure branch.
+  const mountedRef = useRef(true);
   useEffect(() => {
     let cancelled = false;
     fetch('/scenarios')
@@ -67,7 +74,10 @@ export function LoadedScenarioCTA({
         setScenarios(body?.scenarios ?? []);
       })
       .catch(() => { /* picker hides on fetch failure; CTA still works for the active scenario */ });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      mountedRef.current = false;
+    };
   }, []);
 
   const handleSwitchScenario = async (id: string) => {
@@ -86,11 +96,13 @@ export function LoadedScenarioCTA({
         // (CTA copy, leaders row, scenario titles) stays consistent.
         // Same pattern SettingsPanel uses for its own switcher.
         window.location.reload();
-      } else {
+      } else if (mountedRef.current) {
         setSwitchingScenario(false);
       }
     } catch {
-      setSwitchingScenario(false);
+      if (mountedRef.current) {
+        setSwitchingScenario(false);
+      }
     }
   };
 
@@ -152,37 +164,54 @@ export function LoadedScenarioCTA({
           entries (a single-option dropdown is just chrome). The active
           scenario stays selected; picking another fires
           /scenario/switch and reloads the page so every downstream
-          surface re-binds against the new active scenario. */}
-      {scenarios.length >= 2 && (
-        <div className={styles.scenarioPickerRow}>
-          <label className={styles.scenarioPickerLabel} htmlFor={scenarioPickerId}>
-            Scenario
-          </label>
-          <select
-            id={scenarioPickerId}
-            className={styles.scenarioPickerSelect}
-            value={scenario.id}
-            onChange={(e) => handleSwitchScenario(e.target.value)}
-            disabled={disabled || launching || switchingScenario}
-            aria-label="Switch active scenario"
-          >
-            {scenarios.map(s => {
-              const tag = s.source === 'builtin' ? ' [builtin]'
-                : s.source === 'disk' ? ' [disk]'
-                : s.source === 'compiled' ? ' [compiled]'
-                : '';
-              return (
-                <option key={s.id} value={s.id}>
-                  {s.name}{tag}
-                </option>
-              );
-            })}
-          </select>
-          {switchingScenario && (
-            <span className={styles.scenarioPickerHint}>Switching…</span>
-          )}
-        </div>
-      )}
+          surface re-binds against the new active scenario.
+          Defensive: append the active scenario as a fallback option
+          when /scenarios returns a list that doesn't include it. The
+          server's /scenarios handler already guards this case (line
+          1278 of server-app.ts), but a stale fetch or future reorder
+          could still produce a select whose `value` doesn't match any
+          option — which would silently fall through to the first
+          option and read as a wrong-scenario selection on screen. */}
+      {scenarios.length >= 2 && (() => {
+        const activeInCatalog = scenarios.some(s => s.id === scenario.id);
+        const renderedScenarios = activeInCatalog
+          ? scenarios
+          : [
+              ...scenarios,
+              { id: scenario.id, name: scenario.labels.name || scenario.id, source: 'active' as const },
+            ];
+        return (
+          <div className={styles.scenarioPickerRow}>
+            <label className={styles.scenarioPickerLabel} htmlFor={scenarioPickerId}>
+              Scenario
+            </label>
+            <select
+              id={scenarioPickerId}
+              className={styles.scenarioPickerSelect}
+              value={scenario.id}
+              onChange={(e) => handleSwitchScenario(e.target.value)}
+              disabled={disabled || launching || switchingScenario}
+              aria-label="Switch active scenario"
+            >
+              {renderedScenarios.map(s => {
+                const tag = s.source === 'builtin' ? ' [builtin]'
+                  : s.source === 'disk' ? ' [disk]'
+                  : s.source === 'compiled' ? ' [compiled]'
+                  : s.source === 'active' ? ' [active]'
+                  : '';
+                return (
+                  <option key={s.id} value={s.id}>
+                    {s.name}{tag}
+                  </option>
+                );
+              })}
+            </select>
+            {switchingScenario && (
+              <span className={styles.scenarioPickerHint}>Switching…</span>
+            )}
+          </div>
+        );
+      })()}
       <div className={styles.actorRow}>
         <label className={styles.actorLabel} htmlFor={sliderId}>Actors</label>
         <input
