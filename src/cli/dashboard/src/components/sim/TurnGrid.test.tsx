@@ -62,11 +62,15 @@ test('TurnGrid: renders one row per past turn', () => {
   // EventCard render path (EventCard transitively imports many
   // shared components whose React-imports differ per-file). The
   // resulting classification is `pending` for both turns.
+  //
+  // Leader names used to be asserted here too because TurnGrid carried
+  // its own compact-ActorBar sticky header. That header was a duplicate
+  // of SimView's `leadersRow` directly above it, so we removed it and
+  // SimView now owns the leader strip exclusively. Test asserts only
+  // on what TurnGrid still renders: turn rows.
   const a = [evt(1, 'turn_start')];
   const b = [evt(1, 'turn_start')];
   const html = renderToString(withScenario(<TurnGrid state={baseState(a, b)} />));
-  assert.match(html, /Mayor A/);
-  assert.match(html, /Mayor B/);
   assert.match(html, /id="turn-row-1"/);
   assert.ok(!html.includes('id="turn-row-2"'), 'no row for a turn that does not exist yet');
 });

@@ -1,5 +1,7 @@
-// Top-level grid for the SIM tab's side-by-side mode. Sticky compact-
-// ActorBar header above a scrollable list of TurnRow per turn.
+// Top-level grid for the SIM tab's side-by-side mode. The compact-
+// ActorBar sticky header that used to live here was a duplicate of
+// SimView's leadersRow; SimView now owns the leader strip and TurnGrid
+// is just the scrollable list of TurnRow per turn.
 
 .grid {
   display: flex;
@@ -8,17 +10,6 @@
   min-height: 0;
   background: var(--bg-deep);
   overflow: hidden;
-}
-
-.stickyHeader {
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1px;
-  background: var(--border);
-  border-bottom: 1px solid var(--border);
 }
 
 .scroll {
@@ -32,11 +23,4 @@
   text-align: center;
   color: var(--text-3);
   font-size: var(--font-md);
-}
-
-@media (max-width: 768px) {
-  .stickyHeader {
-    grid-template-columns: 1fr;
-    gap: 0;
-  }
 }

@@ -1,6 +1,5 @@
 import * as React from 'react';
 import { useEffect, useMemo, useRef } from 'react';
-import { ActorBar } from '../layout/ActorBar.js';
 import { TurnRow } from './TurnRow.js';
 import { computeTurnDiff } from './turn-diff.js';
 import type { GameState, ProcessedEvent } from '../../hooks/useGameState.js';
@@ -48,29 +47,16 @@ export function TurnGrid({ state }: TurnGridProps) {
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
   }, [eventsA.length, eventsB.length]);
 
+  // The compact-ActorBar sticky header that used to live here was a
+  // visible duplicate of the full ActorBars rendered by SimView's
+  // `leadersRow` directly above the grid — both rendered immediately,
+  // not lazily on scroll, so the user saw "name + POP + morale + event"
+  // twice in a row. SimView owns the leader strip; TurnGrid is just the
+  // per-turn rows now. (The N-actor MultiActorTurnGrid keeps its own
+  // sticky header because SimView intentionally skips leadersRow at 3+
+  // actors — there's no duplicate to remove there.)
   return (
     <div className={`sim-columns ${styles.grid}`}>
-      <header className={styles.stickyHeader}>
-        <ActorBar
-          compact
-          actorIndex={0}
-          leader={sideA?.leader ?? null}
-          popHistory={sideA?.popHistory ?? []}
-          moraleHistory={sideA?.moraleHistory ?? []}
-          event={sideA?.event}
-          pendingDecision={sideA?.pendingDecision}
-        />
-        <ActorBar
-          compact
-          actorIndex={1}
-          leader={sideB?.leader ?? null}
-          popHistory={sideB?.popHistory ?? []}
-          moraleHistory={sideB?.moraleHistory ?? []}
-          event={sideB?.event}
-          pendingDecision={sideB?.pendingDecision}
-        />
-      </header>
-
       <div ref={scrollRef} onScroll={onScroll} className={styles.scroll}>
         {turns.length === 0 ? (
           <div className={styles.empty}>No turns yet — events will appear as the run progresses.</div>

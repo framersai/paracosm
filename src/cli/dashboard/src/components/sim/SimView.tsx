@@ -9,7 +9,6 @@ import { useCitationContext } from '../../hooks/useCitationRegistry';
 import { useToolContext } from '../../hooks/useToolRegistry';
 import { ActorBar } from '../layout/ActorBar';
 import { StatsBar } from '../layout/StatsBar';
-import { DivergenceRail } from './DivergenceRail';
 import { Timeline } from './Timeline';
 import { TurnGrid } from './TurnGrid';
 import { MultiActorTurnGrid } from './MultiActorTurnGrid';
@@ -285,28 +284,13 @@ export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: l
 
   return (
     <div className={styles.root}>
-      {/* Top header strip: surfaces the layout toggle prominently so
-          users can flip between Side-by-side and Constellation without
-          scrolling all the way to the SimFooterBar. The footer copy
-          stays for end-of-run navigation but the top one is the
-          discoverable surface during a live run. Only renders when the
-          SIM has something to show — empty state hides this so it
-          doesn't compete with the empty-state CTAs. */}
-      {columnsVisible && state.actorIds.length >= 1 && (
-        <div className={styles.topHeader}>
-          <span className={styles.topHeaderLabel}>LAYOUT</span>
-          <SimLayoutToggle
-            layout={layout}
-            actorCount={state.actorIds.length}
-            onChange={setLayoutWithOverride}
-          />
-          {state.actorIds.length >= 3 && (
-            <span className={styles.topHeaderHint}>
-              {state.actorIds.length} actors · scroll horizontally in side-by-side
-            </span>
-          )}
-        </div>
-      )}
+      {/* Layout toggle lives in the SimFooterBar only. The top header
+          strip used to render its own copy here for "discoverability,"
+          but stacking it above the leadersRow + StatsBar + DivergenceRail
+          + TurnGrid sticky header pushed actual run content below the
+          fold and read as repetitive chrome. The footer toggle stays
+          visible without scrolling because SimFooterBar is pinned at
+          the bottom of the SIM panel. */}
       {layout === 'constellation' ? (
         <>
           <ConstellationView
@@ -395,12 +379,13 @@ export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: l
 
       {showIntro && (sideA?.events.length ?? 0) > 0 && <IntroBar onDismiss={dismissIntro} />}
 
-      {/* DivergenceRail is a pairwise A-vs-B per-turn diff — only
-          renders when exactly 2 actors are running. For 3+ actors the
-          constellation view above already shows the full N-way
-          divergence, and a 2-actor rail would be misleading (it would
-          silently drop the third actor). */}
-      {state.actorIds.length === 2 && <DivergenceRail state={state} />}
+      {/* DivergenceRail used to render here as its own full-width row.
+          Per-turn divergence is already badged on each TurnRow header
+          (the DiffBadge inline pill), so the dedicated rail just ate
+          a row of vertical space repeating the same signal. The
+          constellation layout has its own divergence story via
+          DistributionPanel; the side-by-side flow now relies on the
+          per-turn DiffBadges alone. */}
 
       {/* Loading state: connected but no events after 2s grace period.
           role="status" + aria-live polite so SR users hear the heading
