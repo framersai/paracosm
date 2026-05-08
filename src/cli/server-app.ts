@@ -1428,7 +1428,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       // 100 chars. Empty after sanitize → 400 — we never persist a
       // blank labels.name field.
       const sanitized = rawName
-        .replace(/[\x00-\x1F<>]/g, '')
+        .replace(/[\x00-\x1F\x7F<>]/g, '')
         .replace(/\s+/g, ' ')
         .trim()
         .slice(0, 100);

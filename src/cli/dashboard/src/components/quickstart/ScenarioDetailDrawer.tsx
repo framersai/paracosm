@@ -432,7 +432,12 @@ export function ScenarioDetailDrawer(props: ScenarioDetailDrawerProps): JSX.Elem
                 onChange={(e) => setEditingName(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Escape') {
+                    // stopPropagation: the drawer-level keydown
+                    // listener also handles Esc and would otherwise
+                    // close the whole drawer when the user just
+                    // wanted to cancel the rename. Local-first wins.
                     e.preventDefault();
+                    e.stopPropagation();
                     handleCancelRename();
                   }
                 }}
