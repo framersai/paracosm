@@ -79,6 +79,104 @@
   text-align: right;
 }
 
+// Search + chips row. Sits between the section header (counts +
+// actor slider) and the grid itself, so the user can narrow what
+// they're browsing without losing the run controls. Wraps to a
+// second line on narrow viewports.
+.filterRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.searchLabel {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+}
+
+.searchInput {
+  width: 100%;
+  background: var(--bg-deep);
+  color: var(--text-1);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-family: var(--mono);
+  font-size: var(--font-sm);
+
+  &::placeholder {
+    color: var(--text-3);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: var(--amber);
+  }
+}
+
+.chipGroup {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  background: var(--bg-deep);
+  color: var(--text-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-family: var(--mono);
+  font-size: var(--font-3xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+
+  &:hover {
+    border-color: var(--amber);
+    color: var(--text-1);
+  }
+}
+
+.chipActive {
+  background: var(--amber);
+  border-color: var(--amber);
+  color: var(--bg-deep);
+}
+
+.chipCount {
+  font-weight: 400;
+  margin-left: 4px;
+  opacity: 0.75;
+}
+
+.emptyMatches {
+  font-family: var(--mono);
+  font-size: var(--font-sm);
+  color: var(--text-3);
+  padding: 24px;
+  background: var(--bg-panel);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.clearFiltersBtn {
+  background: none;
+  border: none;
+  color: var(--amber);
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  margin: 0;
+}
+
 // Auto-fit grid: cards take their natural minimum width, the row
 // flows to fit. On narrow viewports it collapses to one column.
 .grid {

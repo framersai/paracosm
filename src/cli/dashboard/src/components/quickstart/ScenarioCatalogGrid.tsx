@@ -93,6 +93,11 @@ function sourceLabel(source?: string): string {
   return source ?? 'Unknown';
 }
 
+/** Source filter chip values. `all` is the no-filter default; the
+ *  rest mirror the source-tone slugs used on the cards so the chip
+ *  semantics stay 1:1 with the badges. */
+type SourceFilter = 'all' | 'builtin' | 'disk' | 'compiled';
+
 export function ScenarioCatalogGrid(props: ScenarioCatalogGridProps): JSX.Element | null {
   const { disabled = false, onRunScenario } = props;
   const scenario = useScenarioContext();
@@ -101,6 +106,17 @@ export function ScenarioCatalogGrid(props: ScenarioCatalogGridProps): JSX.Elemen
   const [actorCount, setActorCount] = useState<number>(2);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  // Search query is debounced via a delayed setter below so a fast
+  // typist doesn't re-filter the grid on every keystroke. The raw
+  // input value drives the controlled <input>; the debounced value
+  // drives the actual filter. Trims + lowercases at compare time.
+  const [queryInput, setQueryInput] = useState<string>('');
+  const [debouncedQuery, setDebouncedQuery] = useState<string>('');
+  useEffect(() => {
+    const handle = setTimeout(() => setDebouncedQuery(queryInput), 120);
+    return () => clearTimeout(handle);
+  }, [queryInput]);
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
 
   // Catalog refresh on mount + a soft 30s poll so a freshly-compiled
   // scenario from another browser tab (or a friend on the same hosted
@@ -155,11 +171,30 @@ export function ScenarioCatalogGrid(props: ScenarioCatalogGridProps): JSX.Elemen
   if (scenarios.length < 2) return null;
 
   const sliderId = 'scenario-catalog-actor-count';
+  const searchInputId = 'scenario-catalog-search';
+  const filtersActive = debouncedQuery.trim().length > 0 || sourceFilter !== 'all';
+
+  // Filter pipeline: source-chip → free-text → sort. The active
+  // scenario stays pinned to position 0 regardless of filter so users
+  // never lose track of it; filtering it OUT of the list mid-search
+  // would be a reasonable behavior too, but pinning matches the
+  // LoadedScenarioCTA's "this one is loaded" framing above the grid.
+  const queryNeedle = debouncedQuery.trim().toLowerCase();
+  const filtered = scenarios.filter((s) => {
+    if (s.id === activeId) return true; // always show active
+    if (sourceFilter !== 'all' && s.source !== sourceFilter) return false;
+    if (queryNeedle.length === 0) return true;
+    const haystack = [
+      s.name,
+      s.id,
+      s.seedText ?? '',
+      s.description ?? '',
+    ].join(' ').toLowerCase();
+    return haystack.includes(queryNeedle);
+  });
+
   // Sort: active first, then most-run, then newest, then alphabetical.
-  // Anchors the user's currently-loaded scenario as a visual reference
-  // before the rest of the catalog so they can compare it to others
-  // without scrolling.
-  const sorted = [...scenarios].sort((a, b) => {
+  const sorted = [...filtered].sort((a, b) => {
     if (a.id === activeId) return -1;
     if (b.id === activeId) return 1;
     const runDiff = (b.runCount ?? 0) - (a.runCount ?? 0);
@@ -174,11 +209,31 @@ export function ScenarioCatalogGrid(props: ScenarioCatalogGridProps): JSX.Elemen
     return a.name.localeCompare(b.name);
   });
 
+  // Per-chip count for the filter row. Surfacing them as suffixes
+  // (`Built-in 2`) tells the user how many entries they'll see before
+  // they click — reduces the "filter to nothing then back out" cycle
+  // when e.g. there are no Saved scenarios on a fresh install.
+  const sourceCounts = scenarios.reduce<Record<string, number>>((acc, s) => {
+    const key = s.source ?? 'other';
+    acc[key] = (acc[key] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  const chipDefs: Array<{ key: SourceFilter; label: string }> = [
+    { key: 'all', label: 'All' },
+    { key: 'builtin', label: 'Built-in' },
+    { key: 'disk', label: 'Saved' },
+    { key: 'compiled', label: 'Custom' },
+  ];
+
   return (
     <section className={styles.section} aria-labelledby="scenario-catalog-heading">
       <header className={styles.header}>
         <h3 className={styles.heading} id="scenario-catalog-heading">
-          All scenarios <span className={styles.count}>· {scenarios.length}</span>
+          All scenarios{' '}
+          <span className={styles.count}>
+            · {filtersActive ? `${sorted.length} of ${scenarios.length}` : scenarios.length}
+          </span>
         </h3>
         <div className={styles.actorRow}>
           <label className={styles.actorLabel} htmlFor={sliderId}>Actors</label>
@@ -196,6 +251,54 @@ export function ScenarioCatalogGrid(props: ScenarioCatalogGridProps): JSX.Elemen
           <span className={styles.actorValue}>{actorCount}</span>
         </div>
       </header>
+      <div className={styles.filterRow}>
+        <label className={styles.searchLabel} htmlFor={searchInputId}>
+          <span className="sr-only">Search scenarios</span>
+          <input
+            id={searchInputId}
+            type="search"
+            value={queryInput}
+            onChange={(e) => setQueryInput(e.target.value)}
+            placeholder="Search by name or seed text…"
+            className={styles.searchInput}
+            aria-label="Filter catalog by name or seed text"
+          />
+        </label>
+        <div className={styles.chipGroup} role="group" aria-label="Filter by scenario source">
+          {chipDefs.map((c) => {
+            const total = c.key === 'all'
+              ? scenarios.length
+              : (sourceCounts[c.key] ?? 0);
+            const active = sourceFilter === c.key;
+            // Hide chips with no entries so a fresh-install single-
+            // builtin user doesn't see four empty filter buttons.
+            if (c.key !== 'all' && total === 0) return null;
+            return (
+              <button
+                key={c.key}
+                type="button"
+                onClick={() => setSourceFilter(c.key)}
+                className={`${styles.chip} ${active ? styles.chipActive : ''}`}
+                aria-pressed={active}
+              >
+                {c.label} <span className={styles.chipCount}>{total}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      {sorted.length === 0 ? (
+        <div className={styles.emptyMatches} role="status" aria-live="polite">
+          No scenarios match your filter.{' '}
+          <button
+            type="button"
+            className={styles.clearFiltersBtn}
+            onClick={() => { setQueryInput(''); setSourceFilter('all'); }}
+          >
+            Clear filters
+          </button>
+        </div>
+      ) : (
       <ul className={styles.grid} role="list">
         {sorted.map((s) => {
           const tone = sourceTone(s.source);
@@ -247,6 +350,7 @@ export function ScenarioCatalogGrid(props: ScenarioCatalogGridProps): JSX.Elemen
           );
         })}
       </ul>
+      )}
     </section>
   );
 }
