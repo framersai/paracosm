@@ -1457,7 +1457,12 @@ test('eventBuffer is bounded by PARACOSM_EVENT_BUFFER_MAX (FIFO drop on overflow
     // Asserting on turn 49 (the very last broadcast) confirms FIFO
     // direction: oldest dropped, newest kept.
     assert.ok(buf.includes('"turn":49'), `last-broadcast event missing from replay\nbuf head: ${buf.slice(0, 400)}`);
-    assert.ok(!buf.includes('"turn":0,'), `oldest event should have been trimmed\nbuf head: ${buf.slice(0, 400)}`);
+    // Regex with a word-boundary so we match "turn":0 regardless of
+    // what follows ("turn":0,, "turn":0}, "turn":0\n) while still
+    // rejecting "turn":0 as a prefix of larger numbers (e.g. "turn":01
+    // would never match — JSON.stringify of integers has no leading
+    // zeros, but the boundary keeps the assertion robust).
+    assert.ok(!/\"turn\":0\b/.test(buf), `oldest event should have been trimmed\nbuf head: ${buf.slice(0, 400)}`);
   } finally {
     server.close();
     await once(server, 'close');
