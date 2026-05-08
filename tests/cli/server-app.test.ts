@@ -1079,6 +1079,69 @@ test('POST /admin/data/wipe: 200 when X-Admin-Token header matches', async () =>
   }
 });
 
+// -- DELETE /admin/scenarios/:id ---------------------------------------------
+
+test('DELETE /admin/scenarios/:id: 401 without X-Admin-Token', async () => {
+  const server = createMarsServer({
+    env: { ...process.env, ADMIN_WRITE: 'true', ADMIN_TOKEN: 'secret-test-token' },
+    runPairSimulations: async () => {},
+  });
+  server.listen(0);
+  await once(server, 'listening');
+  const port = (server.address() as { port: number }).port;
+  try {
+    const res = await fetch(`http://127.0.0.1:${port}/admin/scenarios/some-id`, { method: 'DELETE' });
+    assert.equal(res.status, 401);
+  } finally {
+    server.close();
+    await once(server, 'close');
+  }
+});
+
+test('DELETE /admin/scenarios/:id: 404 when scenario does not exist', async () => {
+  const server = createMarsServer({
+    env: { ...process.env, ADMIN_WRITE: 'true', ADMIN_TOKEN: 'secret-test-token' },
+    runPairSimulations: async () => {},
+  });
+  server.listen(0);
+  await once(server, 'listening');
+  const port = (server.address() as { port: number }).port;
+  try {
+    const res = await fetch(`http://127.0.0.1:${port}/admin/scenarios/never-existed`, {
+      method: 'DELETE',
+      headers: { 'X-Admin-Token': 'secret-test-token' },
+    });
+    assert.equal(res.status, 404);
+    const json = await res.json() as { error: string };
+    assert.equal(json.error, 'scenario_not_found');
+  } finally {
+    server.close();
+    await once(server, 'close');
+  }
+});
+
+test('DELETE /admin/scenarios/:id: 400 when target is a builtin (mars-genesis is protected)', async () => {
+  const server = createMarsServer({
+    env: { ...process.env, ADMIN_WRITE: 'true', ADMIN_TOKEN: 'secret-test-token' },
+    runPairSimulations: async () => {},
+  });
+  server.listen(0);
+  await once(server, 'listening');
+  const port = (server.address() as { port: number }).port;
+  try {
+    const res = await fetch(`http://127.0.0.1:${port}/admin/scenarios/mars-genesis`, {
+      method: 'DELETE',
+      headers: { 'X-Admin-Token': 'secret-test-token' },
+    });
+    assert.equal(res.status, 400);
+    const json = await res.json() as { error: string };
+    assert.equal(json.error, 'cannot_delete_builtin');
+  } finally {
+    server.close();
+    await once(server, 'close');
+  }
+});
+
 test('skips rehydration of stale .event-buffer.json (older than STALE_BUFFER_MS)', async () => {
   const appDir = mkdtempSync(join(tmpdir(), 'paracosm-stale-buffer-'));
   const bufferPath = join(appDir, '.event-buffer.json');

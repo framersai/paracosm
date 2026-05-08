@@ -51,6 +51,10 @@ export interface ScenarioDetailDrawerProps {
   onRunScenario: (id: string, actorCount: number) => void;
   /** Fired on Esc, backdrop click, or close-button click. */
   onClose: () => void;
+  /** Optional: fires after a successful admin delete so the parent
+   *  can remove the scenario from its in-memory catalog list and
+   *  close the drawer without a full /scenarios refetch. */
+  onDeleted?: (id: string) => void;
 }
 
 function formatAge(iso: string): string {
@@ -97,12 +101,31 @@ function getFocusableElements(root: HTMLElement | null): HTMLElement[] {
 }
 
 export function ScenarioDetailDrawer(props: ScenarioDetailDrawerProps): JSX.Element | null {
-  const { scenario, disabled = false, initialActorCount = 2, onRunScenario, onClose } = props;
+  const { scenario, disabled = false, initialActorCount = 2, onRunScenario, onClose, onDeleted } = props;
   const open = scenario !== null;
   const [actorCount, setActorCount] = useState<number>(initialActorCount);
   const [recentRuns, setRecentRuns] = useState<RecentRunRow[]>([]);
   const [recentLoading, setRecentLoading] = useState<boolean>(false);
   const [recentError, setRecentError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<boolean>(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  // Admin delete affordance. Visible only when the operator has an
+  // admin token in localStorage AND the scenario is a 'compiled'
+  // source (auto-persisted from compile-from-seed). Builtins + disk-
+  // tracked scenarios are protected server-side too, but hiding the
+  // button up front keeps the drawer chrome clean for anonymous
+  // public visitors who'd never have a working delete path anyway.
+  const [adminToken, setAdminToken] = useState<string | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    try {
+      const t = localStorage.getItem('paracosm:adminToken');
+      setAdminToken(t && t.length > 0 ? t : null);
+    } catch {
+      setAdminToken(null);
+    }
+  }, [open]);
+  const canDelete = !!adminToken && scenario?.source === 'compiled';
   const drawerRef = useRef<HTMLDivElement | null>(null);
   const lastFocusedRef = useRef<HTMLElement | null>(null);
 
@@ -188,6 +211,43 @@ export function ScenarioDetailDrawer(props: ScenarioDetailDrawerProps): JSX.Elem
   if (!scenario) return null;
 
   const sliderId = 'scenario-detail-actor-count';
+
+  const handleDelete = async () => {
+    if (!scenario || !adminToken || deleting) return;
+    const confirmed = typeof window !== 'undefined'
+      ? window.confirm(
+          `Delete this scenario?\n\n"${scenario.name}"\n\n` +
+          'Removes the scenario from disk + the live catalog. Past runs ' +
+          'are kept (they live in run-history). Cannot be undone.',
+        )
+      : false;
+    if (!confirmed) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch(`/admin/scenarios/${encodeURIComponent(scenario.id)}`, {
+        method: 'DELETE',
+        headers: { 'X-Admin-Token': adminToken },
+      });
+      if (res.status === 401) {
+        try { localStorage.removeItem('paracosm:adminToken'); } catch { /* silent */ }
+        setDeleteError('Admin token rejected. The stored token has been cleared; re-paste it via dev-tools localStorage to retry.');
+        setAdminToken(null);
+        return;
+      }
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({} as { error?: string; message?: string }));
+        setDeleteError(body.message ?? body.error ?? `Delete failed: HTTP ${res.status}`);
+        return;
+      }
+      onDeleted?.(scenario.id);
+      onClose();
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
     <>
@@ -311,11 +371,27 @@ export function ScenarioDetailDrawer(props: ScenarioDetailDrawerProps): JSX.Elem
             type="button"
             className={styles.runButton}
             onClick={() => onRunScenario(scenario.id, actorCount)}
-            disabled={disabled}
+            disabled={disabled || deleting}
             aria-label={`Run ${actorCount} actor${actorCount === 1 ? '' : 's'} against ${scenario.name}`}
           >
             Run {actorCount} {actorCount === 1 ? 'actor' : 'actors'} →
           </button>
+          {canDelete && (
+            <>
+              <button
+                type="button"
+                className={styles.deleteButton}
+                onClick={handleDelete}
+                disabled={deleting || disabled}
+                aria-label={`Delete scenario ${scenario.name}`}
+              >
+                {deleting ? 'Deleting…' : 'Delete (admin)'}
+              </button>
+              {deleteError && (
+                <p className={styles.deleteError} role="alert">{deleteError}</p>
+              )}
+            </>
+          )}
         </footer>
       </aside>
     </>

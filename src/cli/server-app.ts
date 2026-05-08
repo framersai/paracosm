@@ -26,6 +26,7 @@ import {
   loadDiskCustomScenarios,
 } from './custom-scenarios.js';
 import {
+  deletePersistedCompiledScenario,
   loadPersistedCompiledDrafts,
   persistCompiledScenario,
   type PersistedCompiledMeta,
@@ -2126,6 +2127,68 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
         res.writeHead(500, { 'Content-Type': 'application/json', ...corsHeaders });
         res.end(JSON.stringify({ error: String(err) }));
       }
+      return;
+    }
+
+    // Admin scenario delete: drops a single auto-persisted compiled
+    // scenario from disk + the in-memory catalog. Builtins (mars,
+    // lunar) are protected — those ship with the engine and can't be
+    // removed via API. Disk-loaded scenarios from the hand-curated
+    // /scenarios directory are also protected so an admin click on a
+    // catalog card never wipes a tracked draft. Effectively the
+    // catalog gain a per-card delete affordance for compiled
+    // scenarios only.
+    const adminScenarioMatch = req.url
+      ? req.url.match(/^\/admin\/scenarios\/([^/?#]+)$/)
+      : null;
+    if (adminScenarioMatch && req.method === 'DELETE') {
+      if (!requireAdminToken(req, res)) return;
+      const id = decodeURIComponent(adminScenarioMatch[1]);
+      const entry = customScenarioCatalog.get(id);
+      if (!entry) {
+        res.writeHead(404, { 'Content-Type': 'application/json', ...corsHeaders });
+        res.end(JSON.stringify({ error: 'scenario_not_found', id }));
+        return;
+      }
+      if (entry.source === 'builtin') {
+        res.writeHead(400, { 'Content-Type': 'application/json', ...corsHeaders });
+        res.end(JSON.stringify({ error: 'cannot_delete_builtin', id }));
+        return;
+      }
+      if (entry.source === 'disk') {
+        // Hand-curated drafts in scenarios/ are tracked in git for the
+        // operator's deployment. Admin delete from the dashboard would
+        // bypass that workflow. Refuse and tell the user to remove the
+        // file via their normal repo flow.
+        res.writeHead(400, { 'Content-Type': 'application/json', ...corsHeaders });
+        res.end(JSON.stringify({
+          error: 'cannot_delete_curated_disk_scenario',
+          id,
+          message: 'Disk-loaded scenarios are tracked in scenarios/. Remove the file via your repo to delete.',
+        }));
+        return;
+      }
+      // Compiled-from-seed scenarios: drop disk file (best-effort) +
+      // in-memory catalog + meta map. If the active scenario was the
+      // one we just deleted, fall back to marsScenario so /scenario
+      // and /setup keep returning a valid runnable. Same fallback as
+      // the legacy non-existent-scenario path.
+      const fileDeleted = deletePersistedCompiledScenario(scenarioDir, id);
+      const catalogDeleted = customScenarioCatalog.delete(id);
+      const metaDeleted = compiledScenarioMeta.delete(id);
+      if (activeScenario.id === id) {
+        activeScenario = marsScenario;
+        activeScenarioSeedText = null;
+      }
+      console.log(`[scenarios] admin deleted ${id} (file=${fileDeleted} catalog=${catalogDeleted} meta=${metaDeleted})`);
+      res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders });
+      res.end(JSON.stringify({
+        deleted: true,
+        id,
+        fileDeleted,
+        catalogDeleted,
+        metaDeleted,
+      }));
       return;
     }
 

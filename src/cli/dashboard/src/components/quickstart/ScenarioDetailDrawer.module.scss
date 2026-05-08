@@ -288,6 +288,43 @@
   }
 }
 
+// Admin-only delete button. Visually distinct (rust-tinted, smaller,
+// outlined) so it never reads as a primary affordance — operators see
+// it because they have an admin token in localStorage; public visitors
+// don't render it at all.
+.deleteButton {
+  background: transparent;
+  color: var(--rust);
+  border: 1px solid var(--rust);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-family: var(--mono);
+  font-size: var(--font-2xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+
+  &:hover:not(:disabled) {
+    background: var(--rust);
+    color: var(--bg-deep);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.deleteError {
+  font-family: var(--mono);
+  font-size: var(--font-2xs);
+  color: var(--rust);
+  margin: 0;
+  line-height: 1.4;
+}
+
 @media (max-width: 600px) {
   .drawer {
     width: 100vw;

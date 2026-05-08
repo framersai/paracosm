@@ -386,6 +386,13 @@ export function ScenarioCatalogGrid(props: ScenarioCatalogGridProps): JSX.Elemen
           onRunScenario(id, count);
         }}
         onClose={() => setDetailScenario(null)}
+        onDeleted={(id) => {
+          // Drop the deleted entry from the local catalog without
+          // waiting for the next 30s poll. The drawer closes itself
+          // on its own callback path; we just reflect the removal in
+          // the grid.
+          setScenarios((prev) => prev.filter((s) => s.id !== id));
+        }}
       />
     </section>
   );
