@@ -26,7 +26,7 @@ import {
   unlinkSync,
   statSync,
 } from 'node:fs';
-import { resolve } from 'node:path';
+import { resolve, sep } from 'node:path';
 import type { ScenarioPackage } from '../engine/types.js';
 
 /**
@@ -89,11 +89,36 @@ function stripHooks(scenario: ScenarioPackage): Record<string, unknown> {
 }
 
 /**
+ * Strict id validator. Scenario ids in this codebase are kebab-case
+ * slugs produced by the compile-from-seed pipeline; values containing
+ * path separators or `..` segments are not legitimate ids and would
+ * let a caller write/read outside the compiled/ directory. The
+ * persist + delete paths run this gate before touching the filesystem.
+ */
+function isSafeScenarioId(id: string): boolean {
+  return /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/.test(id);
+}
+
+/**
+ * Result of a successful persist. The on-disk value of `compiledAt`
+ * is the canonical source of truth; in-memory callers reflect it back
+ * into their own state via this return value rather than re-deriving
+ * from `Date.now()` (which would drift between the disk record and
+ * the runtime metadata map by however long the writeFileSync took).
+ */
+export interface PersistResult {
+  filePath: string;
+  meta: PersistedCompiledMeta;
+}
+
+/**
  * Save a compile-from-seed scenario to disk. Caller passes the fully-
  * compiled scenario; we persist a hook-stripped copy plus metadata.
  * Idempotent on the same id (overwrites the previous file).
  *
- * @returns Absolute path written, or `null` on filesystem failure (we
+ * @returns A {@link PersistResult} carrying the path written + the
+ *   exact meta block stored on disk so callers can mirror it into
+ *   their own state, or `null` on validation/filesystem failure (we
  *   swallow the error, log via console.warn, and let the in-memory
  *   catalog continue to serve the live run; persistence is a best-
  *   effort enhancement, not a critical path).
@@ -102,7 +127,11 @@ export function persistCompiledScenario(
   scenarioDir: string,
   scenario: ScenarioPackage,
   seedText: string | null,
-): string | null {
+): PersistResult | null {
+  if (!isSafeScenarioId(scenario.id)) {
+    console.warn(`[scenarios] refusing to persist scenario with unsafe id: ${JSON.stringify(scenario.id)}`);
+    return null;
+  }
   try {
     const dir = compiledDir(scenarioDir);
     mkdirSync(dir, { recursive: true });
@@ -117,7 +146,7 @@ export function persistCompiledScenario(
     const filePath = resolve(dir, `${scenario.id}.json`);
     writeFileSync(filePath, JSON.stringify(payload, null, 2));
     enforceCompiledCap(dir, COMPILED_SCENARIOS_CAP);
-    return filePath;
+    return { filePath, meta };
   } catch (err) {
     console.warn(`[scenarios] persistCompiledScenario failed for ${scenario.id}:`, err);
     return null;
@@ -191,13 +220,26 @@ function enforceCompiledCap(dir: string, cap: number): void {
 
 /**
  * Remove a persisted draft by id. Returns true when a file was actually
- * deleted, false when no matching file existed (idempotent for callers
- * that don't pre-check). Used by the future `/scenario/delete` admin
- * surface and by tests; production server-app does not call this on
- * the active path.
+ * deleted, false when no matching file existed or the id failed
+ * validation (idempotent for callers that don't pre-check). Used by
+ * the future `/scenario/delete` admin surface and by tests; production
+ * server-app does not call this on the active path.
+ *
+ * Path-traversal guard: rejects any id that doesn't match the strict
+ * kebab-slug shape AND verifies the resolved file path stays inside
+ * the compiled subdir before unlinking. Belt-and-suspenders against
+ * future callers that might wire user input through this surface.
  */
 export function deletePersistedCompiledScenario(scenarioDir: string, id: string): boolean {
-  const filePath = resolve(compiledDir(scenarioDir), `${id}.json`);
+  if (!isSafeScenarioId(id)) return false;
+  const dir = compiledDir(scenarioDir);
+  const filePath = resolve(dir, `${id}.json`);
+  // Resolve-then-prefix-check defends against any future relaxation
+  // of isSafeScenarioId. If the resolved file isn't inside dir, the
+  // id was crafted to escape — refuse to delete.
+  if (filePath !== resolve(dir, `${id}.json`) || !filePath.startsWith(`${dir}${sep}`)) {
+    return false;
+  }
   if (!existsSync(filePath)) return false;
   try {
     unlinkSync(filePath);

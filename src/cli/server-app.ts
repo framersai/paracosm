@@ -1530,13 +1530,16 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
             // travels alongside the scenario for catalog rendering.
             // Best-effort: filesystem failures stay silent so a read-
             // only volume doesn't break the in-memory run.
-            const persistMeta = compiledScenarioMeta.get(sc.id);
-            const persistAt = persistMeta?.compiledAt ?? new Date().toISOString();
-            persistCompiledScenario(scenarioDir, sc, activeScenarioSeedText);
-            compiledScenarioMeta.set(sc.id, {
-              compiledAt: persistAt,
-              seedText: activeScenarioSeedText,
-            });
+            //
+            // Mirror the EXACT meta block written to disk into the
+            // in-memory map so subsequent /scenarios responses agree
+            // with what a fresh restart would re-load. Re-deriving the
+            // timestamp here would drift by however long writeFileSync
+            // took to flush.
+            const persistResult = persistCompiledScenario(scenarioDir, sc, activeScenarioSeedText);
+            if (persistResult) {
+              compiledScenarioMeta.set(sc.id, persistResult.meta);
+            }
           },
           getScenarioById: (id) => {
             if (id === activeScenario.id) return activeScenario;
