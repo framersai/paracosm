@@ -1383,6 +1383,83 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       return;
     }
 
+    // POST /scenarios/:id/rename — let users replace the auto-
+    // generated `labels.name` from a compile-from-seed run with a
+    // friendlier display name ("Pandemic Sim" instead of
+    // `dual-superintelligence-council-x9k2`). The id (and on-disk
+    // filename) never change — only the display label flips, so
+    // every existing run record + URL keeps resolving. Restricted
+    // to `compiled` source: builtins and curated disk drafts are
+    // tracked outside the dashboard and shouldn't drift via API.
+    const scenarioRenameMatch = req.url
+      ? req.url.match(/^\/scenarios\/([^/?#]+)\/rename$/)
+      : null;
+    if (scenarioRenameMatch && req.method === 'POST') {
+      const id = decodeURIComponent(scenarioRenameMatch[1]);
+      const entry = customScenarioCatalog.get(id);
+      if (!entry) {
+        res.writeHead(404, { 'Content-Type': 'application/json', ...corsHeaders });
+        res.end(JSON.stringify({ error: 'scenario_not_found', id }));
+        return;
+      }
+      if (entry.source !== 'compiled') {
+        res.writeHead(400, { 'Content-Type': 'application/json', ...corsHeaders });
+        res.end(JSON.stringify({
+          error: 'cannot_rename_non_compiled',
+          id,
+          source: entry.source,
+          message: 'Only compile-from-seed scenarios can be renamed. Builtins and curated disk drafts are tracked in source and read-only via API.',
+        }));
+        return;
+      }
+      let body: { name?: unknown } = {};
+      try {
+        const raw = await readBody(req, maxRequestBodyBytes);
+        if (raw) body = JSON.parse(raw);
+      } catch {
+        res.writeHead(400, { 'Content-Type': 'application/json', ...corsHeaders });
+        res.end(JSON.stringify({ error: 'invalid_json_body' }));
+        return;
+      }
+      const rawName = typeof body.name === 'string' ? body.name : '';
+      // Sanitize: strip control chars (0x00-0x1F + DEL) + HTML
+      // angle-brackets so a crafted name never sneaks markup into
+      // the dashboard. Collapse repeated whitespace and hard cap at
+      // 100 chars. Empty after sanitize → 400 — we never persist a
+      // blank labels.name field.
+      const sanitized = rawName
+        .replace(/[\x00-\x1F<>]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 100);
+      if (sanitized.length === 0) {
+        res.writeHead(400, { 'Content-Type': 'application/json', ...corsHeaders });
+        res.end(JSON.stringify({ error: 'name_required' }));
+        return;
+      }
+      // Mutate the scenario's labels.name in place. Same object lives
+      // in customScenarioCatalog + activeScenario (when active), so
+      // every reader (TopBar, /scenario, /scenarios listing) sees the
+      // new name on the next request without an explicit fan-out.
+      // Clone the labels record so we don't pin a mutable reference
+      // back into the engine's frozen scenario builtins by accident.
+      const sc = entry.scenario;
+      sc.labels = { ...sc.labels, name: sanitized };
+      // Re-persist so the rename survives a server restart. The
+      // existing seedText metadata is preserved across the write —
+      // we re-read the meta map so the on-disk file never loses the
+      // original seed prompt the user submitted.
+      const existingMeta = compiledScenarioMeta.get(id);
+      const persistResult = persistCompiledScenario(scenarioDir, sc, existingMeta?.seedText ?? null);
+      if (persistResult) {
+        compiledScenarioMeta.set(id, persistResult.meta);
+      }
+      console.log(`[scenarios] renamed ${id} → "${sanitized}"`);
+      res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders });
+      res.end(JSON.stringify({ id, name: sanitized }));
+      return;
+    }
+
     // GET /scenarios/:id — single-scenario detail for the dashboard's
     // ScenarioDetailDrawer. Mirrors /scenarios but returns the full
     // scenario shape (presets, departments, world summary) for one

@@ -91,6 +91,10 @@ export interface ScenarioDetailDrawerProps {
    *  can remove the scenario from its in-memory catalog list and
    *  close the drawer without a full /scenarios refetch. */
   onDeleted?: (id: string) => void;
+  /** Optional: fires after a successful rename so the parent can
+   *  patch the in-memory catalog list with the new label.name and
+   *  every card / dropdown immediately reflects the change. */
+  onRenamed?: (id: string, newName: string) => void;
 }
 
 function formatAge(iso: string): string {
@@ -137,7 +141,7 @@ function getFocusableElements(root: HTMLElement | null): HTMLElement[] {
 }
 
 export function ScenarioDetailDrawer(props: ScenarioDetailDrawerProps): JSX.Element | null {
-  const { scenario, disabled = false, initialActorCount = 2, onRunScenario, onClose, onDeleted } = props;
+  const { scenario, disabled = false, initialActorCount = 2, onRunScenario, onClose, onDeleted, onRenamed } = props;
   const open = scenario !== null;
   const [actorCount, setActorCount] = useState<number>(initialActorCount);
   const [recentRuns, setRecentRuns] = useState<RecentRunRow[]>([]);
@@ -152,6 +156,28 @@ export function ScenarioDetailDrawer(props: ScenarioDetailDrawerProps): JSX.Elem
   const [detailLoading, setDetailLoading] = useState<boolean>(false);
   const [deleting, setDeleting] = useState<boolean>(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  // Inline rename state. Shows the editable form on the name row
+  // when the user clicks the pencil affordance. `editingName` holds
+  // the in-progress text; commit on Enter / Save, revert on Esc /
+  // Cancel. `renaming` covers the in-flight POST so the UI can
+  // gate Save during the round-trip.
+  const [isEditingName, setIsEditingName] = useState<boolean>(false);
+  const [editingName, setEditingName] = useState<string>('');
+  const [renaming, setRenaming] = useState<boolean>(false);
+  const [renameError, setRenameError] = useState<string | null>(null);
+  // Local override of the displayed name so the rename is reflected
+  // immediately, before the catalog 30s poll refreshes upstream
+  // state. Resets when the drawer reopens against a different id.
+  const [displayName, setDisplayName] = useState<string | null>(null);
+  useEffect(() => {
+    setDisplayName(null);
+    setIsEditingName(false);
+    setRenameError(null);
+  }, [scenario?.id]);
+  // Rename is only allowed for compile-from-seed scenarios server-
+  // side; reflect that in the UI so users don't see a broken pencil
+  // affordance on builtins / curated drafts.
+  const canRename = scenario?.source === 'compiled';
   // Admin delete affordance. Visible only when the operator has an
   // admin token in localStorage AND the scenario is a 'compiled'
   // source (auto-persisted from compile-from-seed). Builtins + disk-
@@ -279,6 +305,57 @@ export function ScenarioDetailDrawer(props: ScenarioDetailDrawerProps): JSX.Elem
 
   const sliderId = 'scenario-detail-actor-count';
 
+  const handleStartRename = () => {
+    if (!scenario || !canRename) return;
+    setEditingName(displayName ?? scenario.name);
+    setIsEditingName(true);
+    setRenameError(null);
+  };
+
+  const handleCancelRename = () => {
+    setIsEditingName(false);
+    setEditingName('');
+    setRenameError(null);
+  };
+
+  const handleSaveRename = async () => {
+    if (!scenario || renaming) return;
+    const trimmed = editingName.trim();
+    if (trimmed.length === 0) {
+      setRenameError('Name cannot be empty.');
+      return;
+    }
+    if (trimmed === (displayName ?? scenario.name)) {
+      // No-op rename — collapse to a successful close.
+      setIsEditingName(false);
+      return;
+    }
+    setRenaming(true);
+    setRenameError(null);
+    try {
+      const res = await fetch(`/scenarios/${encodeURIComponent(scenario.id)}/rename`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: trimmed }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({} as { error?: string; message?: string }));
+        setRenameError(body.message ?? body.error ?? `Rename failed: HTTP ${res.status}`);
+        return;
+      }
+      const body = await res.json() as { id?: string; name?: string };
+      const newName = body.name ?? trimmed;
+      setDisplayName(newName);
+      setIsEditingName(false);
+      setEditingName('');
+      onRenamed?.(scenario.id, newName);
+    } catch (err) {
+      setRenameError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setRenaming(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (!scenario || !adminToken || deleting) return;
     const confirmed = typeof window !== 'undefined'
@@ -341,7 +418,67 @@ export function ScenarioDetailDrawer(props: ScenarioDetailDrawerProps): JSX.Elem
         </header>
 
         <section className={styles.summary}>
-          <h2 className={styles.name}>{scenario.name}</h2>
+          {isEditingName ? (
+            <form
+              className={styles.nameEditForm}
+              onSubmit={(e) => {
+                e.preventDefault();
+                void handleSaveRename();
+              }}
+            >
+              <input
+                type="text"
+                value={editingName}
+                onChange={(e) => setEditingName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    e.preventDefault();
+                    handleCancelRename();
+                  }
+                }}
+                disabled={renaming}
+                maxLength={100}
+                autoFocus
+                className={styles.nameEditInput}
+                aria-label="New scenario name"
+              />
+              <div className={styles.nameEditActions}>
+                <button
+                  type="submit"
+                  className={styles.nameEditSave}
+                  disabled={renaming || editingName.trim().length === 0}
+                >
+                  {renaming ? 'Saving…' : 'Save'}
+                </button>
+                <button
+                  type="button"
+                  className={styles.nameEditCancel}
+                  onClick={handleCancelRename}
+                  disabled={renaming}
+                >
+                  Cancel
+                </button>
+              </div>
+              {renameError && (
+                <p className={styles.nameEditError} role="alert">{renameError}</p>
+              )}
+            </form>
+          ) : (
+            <div className={styles.nameRow}>
+              <h2 className={styles.name}>{displayName ?? scenario.name}</h2>
+              {canRename && (
+                <button
+                  type="button"
+                  className={styles.nameEditBtn}
+                  onClick={handleStartRename}
+                  aria-label={`Rename ${displayName ?? scenario.name}`}
+                  title="Rename scenario"
+                >
+                  ✎
+                </button>
+              )}
+            </div>
+          )}
           {scenario.description && (
             <p className={styles.description}>{scenario.description}</p>
           )}

@@ -86,6 +86,13 @@
   gap: 12px;
 }
 
+.nameRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .name {
   font-family: var(--sans);
   font-size: var(--font-xl);
@@ -93,6 +100,103 @@
   color: var(--text-1);
   margin: 0;
   line-height: 1.25;
+}
+
+.nameEditBtn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-3);
+  font-size: var(--font-sm);
+  transition: color 120ms ease, border-color 120ms ease;
+
+  &:hover {
+    color: var(--amber);
+    border-color: var(--amber);
+  }
+}
+
+.nameEditForm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nameEditInput {
+  background: var(--bg-deep);
+  color: var(--text-1);
+  border: 1px solid var(--amber);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-family: var(--sans);
+  font-size: var(--font-lg);
+  font-weight: 700;
+
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 1px var(--amber);
+  }
+}
+
+.nameEditActions {
+  display: flex;
+  gap: 8px;
+}
+
+.nameEditSave {
+  background: linear-gradient(135deg, var(--amber), #c8952e);
+  color: var(--bg-deep);
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: var(--font-2xs);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.nameEditCancel {
+  background: transparent;
+  color: var(--text-2);
+  border: 1px solid var(--border);
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: var(--font-2xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    color: var(--text-1);
+    border-color: var(--text-2);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.nameEditError {
+  font-family: var(--mono);
+  font-size: var(--font-2xs);
+  color: var(--rust);
+  margin: 0;
 }
 
 .description {

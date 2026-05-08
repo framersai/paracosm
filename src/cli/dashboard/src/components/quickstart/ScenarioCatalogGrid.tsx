@@ -432,6 +432,17 @@ export function ScenarioCatalogGrid(props: ScenarioCatalogGridProps): JSX.Elemen
           // the grid.
           setScenarios((prev) => prev.filter((s) => s.id !== id));
         }}
+        onRenamed={(id, newName) => {
+          // Patch the catalog list with the new name immediately so
+          // the underlying card + any other places that render
+          // scenario.name reflect the rename without a 30s poll.
+          // detailScenario is also patched so the drawer's own
+          // header stays consistent if the user keeps it open.
+          setScenarios((prev) => prev.map((s) =>
+            s.id === id ? { ...s, name: newName } : s,
+          ));
+          setDetailScenario((prev) => prev && prev.id === id ? { ...prev, name: newName } : prev);
+        }}
       />
     </section>
   );
