@@ -7,7 +7,7 @@
  * `register` throws on duplicate, so this file imports exactly
  * once via the engine barrel).
  *
- * @module paracosm/engine/trait-models/builtins
+ * @module paracosm/engine/traits/builtins
  */
 
 import { traitModelRegistry } from './index.js';

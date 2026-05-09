@@ -1,5 +1,5 @@
 import type { HexacoProfile } from '../engine/core/state.js';
-import type { TraitProfile } from '../engine/trait-models/index.js';
+import type { TraitProfile } from '../engine/traits/index.js';
 export type { HexacoProfile };
 
 export interface ActorConfig {

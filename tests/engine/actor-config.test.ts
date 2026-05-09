@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeActorConfig } from '../../src/engine/trait-models/normalize-leader.js';
+import { normalizeActorConfig } from '../../src/engine/traits/normalize-leader.js';
 import type { ActorConfig } from '../../src/engine/types.js';
 
 test('actor with traitProfile but no hexaco normalizes to ai-agent', () => {

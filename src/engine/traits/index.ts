@@ -9,7 +9,7 @@
  * Adding a third model post-hoc is a single `traitModelRegistry.register(...)`
  * call.
  *
- * @module paracosm/engine/trait-models
+ * @module paracosm/engine/traits
  */
 
 import type { LlmProvider } from '../types.js';
@@ -138,7 +138,7 @@ export class UnknownTraitModelError extends Error {
       `Unknown trait model id: '${modelId}'. ` +
       `Registered models: ${list}. ` +
       `If this artifact was created by a newer paracosm version, upgrade. ` +
-      `If you registered a custom model, ensure paracosm/engine/trait-models loads first.`,
+      `If you registered a custom model, ensure paracosm/engine/traits loads first.`,
     );
     this.modelId = modelId;
     this.registered = registered;
@@ -236,9 +236,9 @@ export class TraitModelRegistry {
 
 /**
  * Process-wide singleton registry. The hexaco + ai-agent built-ins
- * register on import via `engine/trait-models/builtins.ts` (which is
+ * register on import via `engine/traits/builtins.ts` (which is
  * imported by `engine/index.ts`). External consumers should `import
- * { traitModelRegistry } from 'paracosm/engine/trait-models'`.
+ * { traitModelRegistry } from 'paracosm/engine/traits'`.
  */
 export const traitModelRegistry = new TraitModelRegistry();
 

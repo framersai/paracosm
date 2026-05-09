@@ -1,9 +1,9 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { aiAgentModel } from '../../../src/engine/trait-models/ai-agent.js';
-import { TraitModelRegistry } from '../../../src/engine/trait-models/index.js';
-import { buildCueLine, pickCues } from '../../../src/engine/trait-models/cue-translator.js';
-import { applyOutcomeDrift } from '../../../src/engine/trait-models/drift.js';
+import { aiAgentModel } from '../../../src/engine/traits/ai-agent.js';
+import { TraitModelRegistry } from '../../../src/engine/traits/index.js';
+import { buildCueLine, pickCues } from '../../../src/engine/traits/cue-translator.js';
+import { applyOutcomeDrift } from '../../../src/engine/traits/drift.js';
 
 describe('aiAgentModel', () => {
   it('has six canonical axes', () => {

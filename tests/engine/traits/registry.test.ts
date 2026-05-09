@@ -4,7 +4,7 @@ import {
   TraitModelRegistry,
   UnknownTraitModelError,
   type TraitModel,
-} from '../../../src/engine/trait-models/index.js';
+} from '../../../src/engine/traits/index.js';
 
 const minimalModel: TraitModel = {
   id: 'minimal',

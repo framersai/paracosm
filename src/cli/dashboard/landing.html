@@ -334,7 +334,7 @@ npm install -g paracosm</div>
         <button class="tab-btn" role="tab" aria-selected="false" data-tab="manual">JSON contract</button>
         <button class="tab-btn" role="tab" aria-selected="false" data-tab="granular">Granular API</button>
         <button class="tab-btn" role="tab" aria-selected="false" data-tab="counterfactuals">Counterfactuals</button>
-        <button class="tab-btn" role="tab" aria-selected="false" data-tab="trait-models">Trait Models</button>
+        <button class="tab-btn" role="tab" aria-selected="false" data-tab="traits">Trait Models</button>
         <button class="tab-btn" role="tab" aria-selected="false" data-tab="http">HTTP</button>
         <button class="tab-btn" role="tab" aria-selected="false" data-tab="cli">CLI</button>
       </div>
@@ -481,10 +481,10 @@ console.<span class="fn">log</span>(<span class="str">'twin under disruption:'</
       </div>
 
       <!-- TRAIT MODELS -->
-      <div class="tab-panel" role="tabpanel" data-panel="trait-models" style="display:none">
+      <div class="tab-panel" role="tabpanel" data-panel="traits" style="display:none">
         <div class="code-block" style="border:none;border-radius:0;margin:0;border-bottom:1px solid var(--border)">
-          <div class="code-header"><span>Pluggable trait models: HEXACO for humans, ai-agent for AI systems, custom for anything</span><button class="code-copy" onclick="copyCode(this, document.getElementById('trait-models-code').textContent)">Copy</button></div>
-          <div tabindex="0" class="code-body" id="trait-models-code"><span class="cm">// Actors aren't just people. Same engine, different decision-maker shapes.</span>
+          <div class="code-header"><span>Pluggable trait models: HEXACO for humans, ai-agent for AI systems, custom for anything</span><button class="code-copy" onclick="copyCode(this, document.getElementById('traits-code').textContent)">Copy</button></div>
+          <div tabindex="0" class="code-body" id="traits-code"><span class="cm">// Actors aren't just people. Same engine, different decision-maker shapes.</span>
 <span class="kw">import</span> { WorldModel } <span class="kw">from</span> <span class="str">'paracosm'</span>;
 <span class="kw">const</span> wm = WorldModel.<span class="fn">fromScenario</span>(scenario);
 
@@ -530,8 +530,8 @@ console.<span class="fn">log</span>(<span class="str">'twin under disruption:'</
 <span class="kw">const</span> aiRun    = <span class="kw">await</span> wm.<span class="fn">simulate</span>({ actor: aiLeader,    maxTurns: <span class="num">6</span>, seed: <span class="num">42</span> });</div>
         </div>
         <div class="code-block" style="border:none;border-radius:0;margin:0">
-          <div class="code-header"><span>Or register your own model. Any axis ids, any drift table.</span><button class="code-copy" onclick="copyCode(this, document.getElementById('trait-models-custom-code').textContent)">Copy</button></div>
-          <div tabindex="0" class="code-body" id="trait-models-custom-code"><span class="kw">import</span> { traitModelRegistry } <span class="kw">from</span> <span class="str">'paracosm'</span>;
+          <div class="code-header"><span>Or register your own model. Any axis ids, any drift table.</span><button class="code-copy" onclick="copyCode(this, document.getElementById('traits-custom-code').textContent)">Copy</button></div>
+          <div tabindex="0" class="code-body" id="traits-custom-code"><span class="kw">import</span> { traitModelRegistry } <span class="kw">from</span> <span class="str">'paracosm'</span>;
 
 traitModelRegistry.<span class="fn">register</span>({
   id: <span class="str">'governing-council'</span>,
@@ -1234,7 +1234,7 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
 
       <details class="faq-item"><summary>Are leaders locked to human personality?</summary><div class="faq-body">
         No. Paracosm ships a pluggable <code>TraitModel</code> registry with two built-ins: <code>hexaco</code> (Ashton-Lee six-axis human personality) and <code>ai-agent</code> (six axes for AI-system leaders: <em>exploration</em>, <em>verification-rigor</em>, <em>deference</em>, <em>risk-tolerance</em>, <em>transparency</em>, <em>instruction-following</em>). Each model declares its axes, drift table, and prompt cues. Custom models register in a single call: <code>traitModelRegistry.register({...})</code>. The same agent under two different leaders, on the same seed, becomes a measurably different entity by turn 12.
-        <div class="faq-cite">Ashton &amp; Lee, PSPR 11(2), 2007 (HEXACO) · ai-agent v1 calibrated by Frame.dev, 2026 · Registry source: <code>paracosm/engine/trait-models</code></div>
+        <div class="faq-cite">Ashton &amp; Lee, PSPR 11(2), 2007 (HEXACO) · ai-agent v1 calibrated by Frame.dev, 2026 · Registry source: <code>paracosm/engine/traits</code></div>
       </div></details>
 
       <details class="faq-item"><summary>How does grounded compile work? What sources can I feed in?</summary><div class="faq-body">

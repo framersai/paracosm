@@ -17,7 +17,7 @@
  *   transparency           terse outputs vs show reasoning + cite sources
  *   instruction-following  interpolate intent vs obey verbatim
  *
- * @module paracosm/engine/trait-models/ai-agent
+ * @module paracosm/engine/traits/ai-agent
  */
 
 import type { TraitModel } from './index.js';

@@ -1,8 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { hexacoModel } from '../../../src/engine/trait-models/hexaco.js';
-import { TraitModelRegistry } from '../../../src/engine/trait-models/index.js';
-import { buildCueLine } from '../../../src/engine/trait-models/cue-translator.js';
+import { hexacoModel } from '../../../src/engine/traits/hexaco.js';
+import { TraitModelRegistry } from '../../../src/engine/traits/index.js';
+import { buildCueLine } from '../../../src/engine/traits/cue-translator.js';
 
 describe('hexacoModel', () => {
   it('has six canonical axes', () => {

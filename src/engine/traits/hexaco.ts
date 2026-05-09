@@ -11,7 +11,7 @@
  *   Structure." Personality and Social Psychology Review, 11(2),
  *   150-166. doi:10.1177/1088868306294907
  *
- * @module paracosm/engine/trait-models/hexaco
+ * @module paracosm/engine/traits/hexaco
  */
 
 import type { TraitModel } from './index.js';

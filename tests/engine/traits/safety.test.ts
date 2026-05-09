@@ -20,12 +20,12 @@ import {
   TraitModelRegistry,
   UnknownTraitModelError,
   type TraitModel,
-} from '../../../src/engine/trait-models/index.js';
-import { hexacoModel } from '../../../src/engine/trait-models/hexaco.js';
-import { aiAgentModel } from '../../../src/engine/trait-models/ai-agent.js';
-import { buildCueLine, pickCues } from '../../../src/engine/trait-models/cue-translator.js';
-import { applyOutcomeDrift, driftLeaderProfile } from '../../../src/engine/trait-models/drift.js';
-import { normalizeActorConfig } from '../../../src/engine/trait-models/normalize-leader.js';
+} from '../../../src/engine/traits/index.js';
+import { hexacoModel } from '../../../src/engine/traits/hexaco.js';
+import { aiAgentModel } from '../../../src/engine/traits/ai-agent.js';
+import { buildCueLine, pickCues } from '../../../src/engine/traits/cue-translator.js';
+import { applyOutcomeDrift, driftLeaderProfile } from '../../../src/engine/traits/drift.js';
+import { normalizeActorConfig } from '../../../src/engine/traits/normalize-leader.js';
 import type { ActorConfig } from '../../../src/engine/types.js';
 
 /**

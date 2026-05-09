@@ -4,13 +4,13 @@ import {
   normalizeActorConfig,
   hexacoToTraits,
   traitsToHexaco,
-} from '../../../src/engine/trait-models/normalize-leader.js';
-import { hexacoModel } from '../../../src/engine/trait-models/hexaco.js';
-import { aiAgentModel } from '../../../src/engine/trait-models/ai-agent.js';
+} from '../../../src/engine/traits/normalize-leader.js';
+import { hexacoModel } from '../../../src/engine/traits/hexaco.js';
+import { aiAgentModel } from '../../../src/engine/traits/ai-agent.js';
 import {
   TraitModelRegistry,
   UnknownTraitModelError,
-} from '../../../src/engine/trait-models/index.js';
+} from '../../../src/engine/traits/index.js';
 import type { ActorConfig } from '../../../src/engine/types.js';
 
 const baseLegacyLeader: ActorConfig = {

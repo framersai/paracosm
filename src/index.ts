@@ -41,12 +41,12 @@ export {
   traitModelRegistry,
   TraitModelRegistry, UnknownTraitModelError,
   withDefaults,
-} from './engine/trait-models/index.js';
-export { hexacoModel } from './engine/trait-models/hexaco.js';
-export { aiAgentModel } from './engine/trait-models/ai-agent.js';
+} from './engine/traits/index.js';
+export { hexacoModel } from './engine/traits/hexaco.js';
+export { aiAgentModel } from './engine/traits/ai-agent.js';
 export {
   normalizeActorConfig, hexacoToTraits, traitsToHexaco,
-} from './engine/trait-models/normalize-leader.js';
+} from './engine/traits/normalize-leader.js';
 export { createParacosmClient } from './runtime/client.js';
 export type { ParacosmClient, ParacosmClientOptions } from './runtime/client.js';
 export { ProviderKeyMissingError, resolveProviderWithFallback } from './engine/provider-resolver.js';
@@ -58,7 +58,7 @@ export type {
 } from './engine/types.js';
 export type { Citation, ForgedToolRecord } from './cli/types.js';
 export type { HexacoProfile } from './engine/core/state.js';
-export type { TraitProfile } from './engine/trait-models/index.js';
+export type { TraitProfile } from './engine/traits/index.js';
 export type { KeyPersonnel } from './engine/core/agent-generator.js';
 export type { RunArtifact } from './engine/schema/types.js';
 export type { SubjectConfig, InterventionConfig } from './engine/digital-twin/index.js';

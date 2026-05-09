@@ -15,9 +15,9 @@ import type { HexacoProfile, HexacoSnapshot } from '../../engine/core/state.js';
 import type {
   TraitModel,
   TraitProfile,
-} from '../../engine/trait-models/index.js';
-import { traitModelRegistry, withDefaults } from '../../engine/trait-models/index.js';
-import { hexacoToTraits } from '../../engine/trait-models/normalize-leader.js';
+} from '../../engine/traits/index.js';
+import { traitModelRegistry, withDefaults } from '../../engine/traits/index.js';
+import { hexacoToTraits } from '../../engine/traits/normalize-leader.js';
 
 const MIN_DRIFT = 0.05;
 const SUBSTANTIAL_DRIFT = 0.15;

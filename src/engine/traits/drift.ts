@@ -13,7 +13,7 @@
  *
  * Each call clamps the resulting trait values to [0, 1].
  *
- * @module paracosm/engine/trait-models/drift
+ * @module paracosm/engine/traits/drift
  */
 
 import type { Outcome, TraitModel, TraitProfile } from './index.js';

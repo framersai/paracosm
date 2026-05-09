@@ -11,10 +11,10 @@
  */
 
 import type { HexacoProfile } from '../../engine/core/state.js';
-import type { TraitProfile } from '../../engine/trait-models/index.js';
-import { traitModelRegistry } from '../../engine/trait-models/index.js';
-import { buildCueLine } from '../../engine/trait-models/cue-translator.js';
-import { hexacoToTraits } from '../../engine/trait-models/normalize-leader.js';
+import type { TraitProfile } from '../../engine/traits/index.js';
+import { traitModelRegistry } from '../../engine/traits/index.js';
+import { buildCueLine } from '../../engine/traits/cue-translator.js';
+import { hexacoToTraits } from '../../engine/traits/normalize-leader.js';
 
 /**
  * Generic reaction cue line. Reads the leader's trait model from the

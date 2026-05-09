@@ -1,15 +1,15 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { hexacoModel } from '../../../src/engine/trait-models/hexaco.js';
-import { aiAgentModel } from '../../../src/engine/trait-models/ai-agent.js';
+import { hexacoModel } from '../../../src/engine/traits/hexaco.js';
+import { aiAgentModel } from '../../../src/engine/traits/ai-agent.js';
 import {
   applyOutcomeDrift,
   applyLeaderPull,
   applyRoleActivation,
   driftLeaderProfile,
-} from '../../../src/engine/trait-models/drift.js';
+} from '../../../src/engine/traits/drift.js';
 import { driftCommanderHexaco } from '../../../src/engine/core/progression.js';
-import { hexacoToTraits } from '../../../src/engine/trait-models/normalize-leader.js';
+import { hexacoToTraits } from '../../../src/engine/traits/normalize-leader.js';
 import type { HexacoProfile } from '../../../src/engine/core/state.js';
 
 describe('applyOutcomeDrift', () => {

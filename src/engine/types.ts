@@ -5,7 +5,7 @@
  */
 
 import type { HexacoProfile, Agent, SimulationState } from './core/state.js';
-import type { TraitProfile } from './trait-models/index.js';
+import type { TraitProfile } from './traits/index.js';
 
 // ---------------------------------------------------------------------------
 // Primitive value types

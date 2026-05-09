@@ -17,7 +17,7 @@
  * on the artifact for back-compat artifact consumers but is
  * informational, not load-bearing.
  *
- * @module paracosm/engine/trait-models/normalize-leader
+ * @module paracosm/engine/traits/normalize-leader
  */
 
 import type { ActorConfig } from '../types.js';

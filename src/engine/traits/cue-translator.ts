@@ -8,7 +8,7 @@
  * has access to a registered TraitModel; the runtime barrel still
  * re-exports a HEXACO-only convenience for legacy call sites.
  *
- * @module paracosm/engine/trait-models/cue-translator
+ * @module paracosm/engine/traits/cue-translator
  */
 
 import type { TraitModel, TraitProfile } from './index.js';

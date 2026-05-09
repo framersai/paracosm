@@ -1,12 +1,12 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { hexacoModel } from '../../../src/engine/trait-models/hexaco.js';
-import { aiAgentModel } from '../../../src/engine/trait-models/ai-agent.js';
+import { hexacoModel } from '../../../src/engine/traits/hexaco.js';
+import { aiAgentModel } from '../../../src/engine/traits/ai-agent.js';
 import {
   buildCueLine,
   pickCues,
   axisIntensities,
-} from '../../../src/engine/trait-models/cue-translator.js';
+} from '../../../src/engine/traits/cue-translator.js';
 
 describe('cue-translator', () => {
   it('caps cue count at maxCues option', () => {
