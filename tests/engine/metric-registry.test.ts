@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { MetricRegistry } from '../../src/engine/metric-registry.js';
+import { MetricRegistry } from '../../src/engine/registries/metrics.js';
 import { marsScenario } from '../../src/engine/scenarios/index.js';
 
 // Pull Mars world metrics out of the loaded scenario as a fixture.

@@ -11,7 +11,7 @@
  * Header-metric selection (which metrics show in the dashboard top
  * bar) lives in `scenario.ui.headerMetrics`, NOT on this registry.
  */
-import type { WorldMetricSchema } from './types.js';
+import type { WorldMetricSchema } from '../types.js';
 
 /**
  * Backwards-compatible alias. Earlier versions called this type

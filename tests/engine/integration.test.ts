@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { marsScenario } from '../../src/engine/scenarios/index.js';
-import { EffectRegistry } from '../../src/engine/effect-registry.js';
-import { MetricRegistry } from '../../src/engine/metric-registry.js';
-import { EventTaxonomy } from '../../src/engine/event-taxonomy.js';
+import { EffectRegistry } from '../../src/engine/registries/effects.js';
+import { MetricRegistry } from '../../src/engine/registries/metrics.js';
+import { EventTaxonomy } from '../../src/engine/registries/events.js';
 
 test('EffectRegistry initialized from marsScenario.effects produces correct output', () => {
   const categoryDefaults = marsScenario.effects[0].categoryDefaults;

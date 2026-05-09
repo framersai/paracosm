@@ -4,7 +4,7 @@
  * by their string id, exposing O(1) `get(id)` for the dashboard's
  * EventChronicle and report renderers.
  */
-import type { EventDefinition } from './types.js';
+import type { EventDefinition } from '../types.js';
 
 /**
  * Backwards-compatible alias. Earlier versions called this type

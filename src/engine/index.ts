@@ -73,9 +73,9 @@ export type {
 } from './types.js';
 
 // Registries
-export { EffectRegistry } from './effect-registry.js';
-export { MetricRegistry } from './metric-registry.js';
-export { EventTaxonomy } from './event-taxonomy.js';
+export { EffectRegistry } from './registries/effects.js';
+export { MetricRegistry } from './registries/metrics.js';
+export { EventTaxonomy } from './registries/events.js';
 
 // Core kernel
 export { SimulationKernel } from './core/kernel.js';
@@ -107,9 +107,9 @@ export type {
 // Registry types — re-exported from the registries (which alias the
 // canonical types from types.ts) so existing consumers can keep
 // importing them by their original names.
-export type { ScenarioMetric } from './metric-registry.js';
-export type { ScenarioEventDef } from './event-taxonomy.js';
-export type { OutcomeModifiers } from './effect-registry.js';
+export type { ScenarioMetric } from './registries/metrics.js';
+export type { ScenarioEventDef } from './registries/events.js';
+export type { OutcomeModifiers } from './registries/effects.js';
 
 // Scenario packages — assembled from scenarios/*.json + the engine's
 // physics registry by the scenarios loader.

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { EffectRegistry } from '../../src/engine/effect-registry.js';
+import { EffectRegistry } from '../../src/engine/registries/effects.js';
 import { marsScenario } from '../../src/engine/scenarios/index.js';
 
 // Pull Mars category effects out of the loaded scenario as a fixture

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { EventTaxonomy } from '../../src/engine/event-taxonomy.js';
+import { EventTaxonomy } from '../../src/engine/registries/events.js';
 import { marsScenario } from '../../src/engine/scenarios/index.js';
 
 // Mars events shipped from scenarios/mars.json — used as a fixture
