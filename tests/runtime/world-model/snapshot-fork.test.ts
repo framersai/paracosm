@@ -10,8 +10,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { WorldModel } from '../../../src/runtime/world-model/index.js';
-import { marsScenario } from '../../../src/engine/mars/index.js';
-import { lunarScenario } from '../../../src/engine/lunar/index.js';
+import { marsScenario } from '../../../src/engine/builtin-scenarios/index.js';
+import { lunarScenario } from '../../../src/engine/builtin-scenarios/index.js';
 import type { KernelSnapshot } from '../../../src/engine/core/snapshot.js';
 import type { RunArtifact } from '../../../src/engine/schema/index.js';
 import type { ActorConfig } from '../../../src/runtime/orchestrator.js';

@@ -11,7 +11,7 @@ import { resolve } from 'node:path';
 import { runSimulation } from '../runtime/orchestrator.js';
 import { parseCliRunOptions } from './cli-run-options.js';
 import { DEFAULT_KEY_PERSONNEL } from './sim-config.js';
-import { marsScenario } from '../engine/mars/index.js';
+import { marsScenario } from '../engine/builtin-scenarios/index.js';
 import { resolveActors, parseActorsFlag } from './actors-resolver.js';
 import type { ActorConfig } from './types.js';
 

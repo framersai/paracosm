@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SeededRng } from '../../../src/engine/core/rng.js';
 import { progressBetweenTurns } from '../../../src/engine/core/progression.js';
-import { marsProgressionHook } from '../../../src/engine/mars/progression-hooks.js';
+import { marsRadiationBoneProgression } from '../../../src/engine/physics-modules/index.js';
 
 const makeState = (overrides: any = {}) => ({
   metadata: {
@@ -31,7 +31,7 @@ const makeState = (overrides: any = {}) => ({
 });
 
 test('progressBetweenTurns with Mars hook applies radiation and bone density', () => {
-  const { state } = progressBetweenTurns(makeState() as any, 1, new SeededRng(950), marsProgressionHook);
+  const { state } = progressBetweenTurns(makeState() as any, 1, new SeededRng(950), marsRadiationBoneProgression);
   assert.equal(state.agents[0].health.boneDensityPct, 99.5);
   assert.ok((state.agents[0]!.health.cumulativeRadiationMsv ?? 0) > 200);
 });

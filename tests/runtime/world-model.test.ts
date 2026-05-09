@@ -13,8 +13,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { WorldModel } from '../../src/runtime/world-model/index.js';
-import { marsScenario } from '../../src/engine/mars/index.js';
-import { lunarScenario } from '../../src/engine/lunar/index.js';
+import { marsScenario } from '../../src/engine/builtin-scenarios/index.js';
+import { lunarScenario } from '../../src/engine/builtin-scenarios/index.js';
 
 test('WorldModel.fromScenario wraps a pre-compiled scenario', () => {
   const wm = WorldModel.fromScenario(marsScenario);

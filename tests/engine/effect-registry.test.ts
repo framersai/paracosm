@@ -1,7 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EffectRegistry } from '../../src/engine/effect-registry.js';
-import { MARS_CATEGORY_EFFECTS } from '../../src/engine/mars/effects.js';
+import { marsScenario } from '../../src/engine/builtin-scenarios/index.js';
+
+// Pull Mars category effects out of the loaded scenario as a fixture
+// — the wrapped effects array carries them under categoryDefaults.
+const MARS_CATEGORY_EFFECTS = marsScenario.effects[0].categoryDefaults;
 
 test('EffectRegistry returns base deltas for a known category', () => {
   const registry = new EffectRegistry(MARS_CATEGORY_EFFECTS);

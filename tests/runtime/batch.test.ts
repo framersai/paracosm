@@ -5,8 +5,8 @@ import {
   type BatchConfig,
   type BatchManifest,
 } from '../../src/runtime/batch.js';
-import { marsScenario } from '../../src/engine/mars/index.js';
-import { lunarScenario } from '../../src/engine/lunar/index.js';
+import { marsScenario } from '../../src/engine/builtin-scenarios/index.js';
+import { lunarScenario } from '../../src/engine/builtin-scenarios/index.js';
 
 test('BatchConfig accepts both mars and lunar scenarios', () => {
   const config: BatchConfig = {

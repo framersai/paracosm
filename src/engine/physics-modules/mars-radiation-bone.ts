@@ -1,0 +1,43 @@
+/**
+ * Mars per-agent progression physics.
+ *
+ * Walks the agent population each between-turn tick and applies two
+ * cumulative health changes that the data-driven-hooks DSL cannot
+ * express in pure JSON: cumulative radiation dose (annualized, scaled
+ * by the turn's time delta) and bone-density decay with an
+ * archetype-conditional rate that asymptotes after ~20 years.
+ *
+ * This module is **generic and reusable** — any scenario set on Mars
+ * (or any radiation-exposed surface with similar parameters) can opt
+ * into it from JSON via `dataDrivenHooks.progressionPhysics:
+ * 'mars-radiation-bone'`. It is NOT a scenario.
+ *
+ * @module paracosm/engine/physics-modules/mars-radiation-bone
+ */
+import type { ProgressionHookContext } from '../types.js';
+
+/** Mars surface radiation: 0.67 mSv/day per Curiosity RAD measurements. */
+const MARS_RADIATION_MSV_PER_YEAR = 0.67 * 365;
+
+/**
+ * Walk the agent roster, accumulate radiation dose, and apply bone-
+ * density decay. Mars-born agents decay slower (0.003/yr) than
+ * Earth-born transferees (0.005/yr); both saturate at 20 years on
+ * Mars and floor at 50% so the kernel never produces non-physical
+ * negative bone density.
+ */
+export function marsRadiationBoneProgression(ctx: ProgressionHookContext): void {
+  const { agents, timeDelta, time, startTime } = ctx;
+
+  for (const c of agents) {
+    if (!c.health.alive) continue;
+
+    c.health.cumulativeRadiationMsv =
+      (c.health.cumulativeRadiationMsv ?? 0) + MARS_RADIATION_MSV_PER_YEAR * timeDelta;
+
+    const lossRate = c.core.marsborn ? 0.003 : 0.005;
+    const yearsOnMars = time - (c.core.marsborn ? c.core.birthTime : startTime);
+    const decayFactor = Math.max(0.5, 1 - lossRate * Math.min(yearsOnMars, 20));
+    c.health.boneDensityPct = Math.max(50, (c.health.boneDensityPct ?? 0) * decayFactor);
+  }
+}

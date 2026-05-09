@@ -8,7 +8,7 @@ import { createSqliteRunHistoryStore } from '../../src/cli/server/sqlite-run-his
 import type { RunRecord } from '../../src/cli/server/run-record.js';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { SimulationKernel } from '../../src/engine/core/kernel.js';
-import { marsScenario } from '../../src/engine/mars/index.js';
+import { marsScenario } from '../../src/engine/builtin-scenarios/index.js';
 import type { RunArtifact } from '../../src/engine/schema/index.js';
 import type { KernelSnapshot } from '../../src/engine/core/snapshot.js';
 import type { ScenarioPackage } from '../../src/engine/types.js';

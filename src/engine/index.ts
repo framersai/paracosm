@@ -104,14 +104,16 @@ export type {
   TurnOutcomeType,
 } from './types.js';
 
-// Registry types
-export type { ScenarioMetric } from './mars/metrics.js';
-export type { ScenarioEventDef } from './mars/events.js';
+// Registry types — re-exported from the registries (which alias the
+// canonical types from types.ts) so existing consumers can keep
+// importing them by their original names.
+export type { ScenarioMetric } from './metric-registry.js';
+export type { ScenarioEventDef } from './event-taxonomy.js';
 export type { OutcomeModifiers } from './effect-registry.js';
 
-// Scenario packages
-export { marsScenario } from './mars/index.js';
-export { lunarScenario } from './lunar/index.js';
+// Scenario packages — assembled from scenarios/*.json + the engine's
+// physics-modules registry by the builtin-scenarios loader.
+export { marsScenario, lunarScenario } from './builtin-scenarios/index.js';
 
 // Provider resolution — lets programmatic consumers catch the
 // missing-key failure mode by class instead of string-matching, and

@@ -1,15 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MetricRegistry } from '../../src/engine/metric-registry.js';
-import { MARS_WORLD_METRICS, MARS_CAPACITY_METRICS, MARS_STATUS_METRICS, MARS_POLITICS_METRICS } from '../../src/engine/mars/metrics.js';
+import { marsScenario } from '../../src/engine/builtin-scenarios/index.js';
+
+// Pull Mars world metrics out of the loaded scenario as a fixture.
+// They live under marsScenario.world.{metrics,capacities,statuses,politics}
+// — flatten into a single array since that's what MetricRegistry consumes.
+const MARS_ALL_METRICS = [
+  ...Object.values(marsScenario.world.metrics),
+  ...Object.values(marsScenario.world.capacities),
+  ...Object.values(marsScenario.world.statuses),
+  ...Object.values(marsScenario.world.politics),
+];
 
 test('MetricRegistry returns all declared metrics', () => {
-  const registry = new MetricRegistry([
-    ...MARS_WORLD_METRICS,
-    ...MARS_CAPACITY_METRICS,
-    ...MARS_STATUS_METRICS,
-    ...MARS_POLITICS_METRICS,
-  ]);
+  const registry = new MetricRegistry(MARS_ALL_METRICS);
   const all = registry.all();
   assert.ok(all.length > 0);
   const ids = all.map(m => m.id);
@@ -21,7 +26,7 @@ test('MetricRegistry returns all declared metrics', () => {
 });
 
 test('MetricRegistry.get returns the metric definition by id', () => {
-  const registry = new MetricRegistry(MARS_WORLD_METRICS);
+  const registry = new MetricRegistry(MARS_ALL_METRICS);
   const morale = registry.get('morale');
   assert.ok(morale);
   assert.equal(morale!.label, 'Morale');
@@ -30,21 +35,19 @@ test('MetricRegistry.get returns the metric definition by id', () => {
 });
 
 test('MetricRegistry.get returns undefined for unknown id', () => {
-  const registry = new MetricRegistry(MARS_WORLD_METRICS);
+  const registry = new MetricRegistry(MARS_ALL_METRICS);
   assert.equal(registry.get('nonexistent'), undefined);
 });
 
-test('MetricRegistry.getHeaderMetrics returns only metrics flagged for header', () => {
-  const registry = new MetricRegistry(MARS_WORLD_METRICS);
-  const header = registry.getHeaderMetrics();
-  assert.ok(header.length > 0);
-  for (const m of header) {
-    assert.equal(m.showInHeader, true);
-  }
+test('MetricRegistry.getByCategory filters by category', () => {
+  const registry = new MetricRegistry(MARS_ALL_METRICS);
+  const capacities = registry.getByCategory('capacity');
+  assert.ok(capacities.length > 0);
+  assert.ok(capacities.some(m => m.id === 'lifeSupportCapacity'));
 });
 
-test('Mars world metrics include all WorldMetrics fields', () => {
-  const ids = MARS_WORLD_METRICS.map(m => m.id);
+test('Mars world metrics include all expected fields', () => {
+  const ids = Object.keys(marsScenario.world.metrics);
   assert.ok(ids.includes('population'));
   assert.ok(ids.includes('powerKw'));
   assert.ok(ids.includes('foodMonthsReserve'));

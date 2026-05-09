@@ -1,5 +1,5 @@
 import { DEFAULT_KEY_PERSONNEL, type NormalizedSimulationConfig } from './sim-config.js';
-import { marsScenario } from '../engine/mars/index.js';
+import { marsScenario } from '../engine/builtin-scenarios/index.js';
 import { apiKeyForProvider } from '../engine/provider-credentials.js';
 import { generateValidatedObject } from '../runtime/llm-invocations/generateValidatedObject.js';
 import { VerdictSchema } from '../runtime/schemas/verdict.js';

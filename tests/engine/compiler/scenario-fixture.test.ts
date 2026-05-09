@@ -5,8 +5,8 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { buildScenarioFixture } from '../../../src/engine/compiler/scenario-fixture.js';
-import { marsScenario } from '../../../src/engine/mars/index.js';
-import { lunarScenario } from '../../../src/engine/lunar/index.js';
+import { marsScenario } from '../../../src/engine/builtin-scenarios/index.js';
+import { lunarScenario } from '../../../src/engine/builtin-scenarios/index.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, '..', '..', '..');

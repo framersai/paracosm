@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { marsProgressionHook } from '../../../src/engine/mars/progression-hooks.js';
+import { marsRadiationBoneProgression } from '../../../src/engine/physics-modules/index.js';
 
 function makeAgent(overrides: Partial<{
   alive: boolean; marsborn: boolean; boneDensityPct: number;
@@ -18,33 +18,33 @@ function makeAgent(overrides: Partial<{
   } as any;
 }
 
-test('marsProgressionHook accumulates radiation per timeDelta', () => {
+test('marsRadiationBoneProgression accumulates radiation per timeDelta', () => {
   const c = makeAgent();
-  marsProgressionHook({ agents: [c], timeDelta: 1, time: 2036, turn: 1, startTime: 2035, rng: { chance: () => false } as any });
+  marsRadiationBoneProgression({ agents: [c], timeDelta: 1, time: 2036, turn: 1, startTime: 2035, rng: { chance: () => false } as any });
   // MARS_RADIATION_MSV_PER_YEAR = 0.67 * 365 = 244.55
   assert.ok(c.health.cumulativeRadiationMsv > 244 && c.health.cumulativeRadiationMsv < 245);
 });
 
-test('marsProgressionHook degrades bone density', () => {
+test('marsRadiationBoneProgression degrades bone density', () => {
   const c = makeAgent({ boneDensityPct: 100, birthTime: 2000 });
-  marsProgressionHook({ agents: [c], timeDelta: 1, time: 2036, turn: 1, startTime: 2035, rng: { chance: () => false } as any });
+  marsRadiationBoneProgression({ agents: [c], timeDelta: 1, time: 2036, turn: 1, startTime: 2035, rng: { chance: () => false } as any });
   assert.ok(c.health.boneDensityPct < 100);
   assert.ok(c.health.boneDensityPct >= 50);
 });
 
-test('marsProgressionHook uses slower bone loss rate for Mars-born', () => {
+test('marsRadiationBoneProgression uses slower bone loss rate for Mars-born', () => {
   // Both colonists have same yearsOnMars (1 time) to isolate the lossRate difference
   const earthBorn = makeAgent({ boneDensityPct: 100, birthTime: 2000, marsborn: false });
   const marsBorn = makeAgent({ boneDensityPct: 100, birthTime: 2035, marsborn: true });
   const rng = { chance: () => false } as any;
-  marsProgressionHook({ agents: [earthBorn], timeDelta: 1, time: 2036, turn: 1, startTime: 2035, rng });
-  marsProgressionHook({ agents: [marsBorn], timeDelta: 1, time: 2036, turn: 1, startTime: 2035, rng });
+  marsRadiationBoneProgression({ agents: [earthBorn], timeDelta: 1, time: 2036, turn: 1, startTime: 2035, rng });
+  marsRadiationBoneProgression({ agents: [marsBorn], timeDelta: 1, time: 2036, turn: 1, startTime: 2035, rng });
   // Mars-born has slower loss rate (0.003 vs 0.005), both at 1 time on Mars
   assert.ok(marsBorn.health.boneDensityPct > earthBorn.health.boneDensityPct);
 });
 
-test('marsProgressionHook skips dead colonists', () => {
+test('marsRadiationBoneProgression skips dead colonists', () => {
   const c = makeAgent({ alive: false, cumulativeRadiationMsv: 100 });
-  marsProgressionHook({ agents: [c], timeDelta: 1, time: 2036, turn: 1, startTime: 2035, rng: { chance: () => false } as any });
+  marsRadiationBoneProgression({ agents: [c], timeDelta: 1, time: 2036, turn: 1, startTime: 2035, rng: { chance: () => false } as any });
   assert.equal(c.health.cumulativeRadiationMsv, 100);
 });

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { lunarScenario } from '../../../src/engine/lunar/index.js';
+import { lunarScenario } from '../../../src/engine/builtin-scenarios/index.js';
 import type { ScenarioPackage } from '../../../src/engine/types.js';
 
 test('lunarScenario satisfies ScenarioPackage interface', () => {

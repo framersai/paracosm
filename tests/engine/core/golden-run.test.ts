@@ -8,7 +8,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SimulationKernel } from '../../../src/engine/core/kernel.js';
-import { marsProgressionHook } from '../../../src/engine/mars/progression-hooks.js';
+import { marsRadiationBoneProgression } from '../../../src/engine/physics-modules/index.js';
 
 const SEED = 950;
 const KEY_PERSONNEL = [
@@ -28,17 +28,17 @@ test('golden-run: 3-turn kernel produces deterministic population and state', ()
   assert.equal(initial.metadata.startTime, 2035);
 
   // Turn 1: advance to time 2037
-  const t1 = kernel.advanceTurn(1, 2037, marsProgressionHook);
+  const t1 = kernel.advanceTurn(1, 2037, marsRadiationBoneProgression);
   assert.equal(t1.metadata.currentTurn, 1);
   assert.equal(t1.metadata.currentTime, 2037);
 
   // Turn 2: advance to time 2040
-  const t2 = kernel.advanceTurn(2, 2040, marsProgressionHook);
+  const t2 = kernel.advanceTurn(2, 2040, marsRadiationBoneProgression);
   assert.equal(t2.metadata.currentTurn, 2);
   assert.equal(t2.metadata.currentTime, 2040);
 
   // Turn 3: advance to time 2043
-  const t3 = kernel.advanceTurn(3, 2043, marsProgressionHook);
+  const t3 = kernel.advanceTurn(3, 2043, marsRadiationBoneProgression);
   assert.equal(t3.metadata.currentTurn, 3);
   assert.equal(t3.metadata.currentTime, 2043);
 

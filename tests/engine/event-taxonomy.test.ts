@@ -1,7 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EventTaxonomy } from '../../src/engine/event-taxonomy.js';
-import { MARS_EVENT_DEFINITIONS } from '../../src/engine/mars/events.js';
+import { marsScenario } from '../../src/engine/builtin-scenarios/index.js';
+
+// Mars events shipped from scenarios/mars.json — used as a fixture
+// here for taxonomy tests since Mars covers every standard event id.
+const MARS_EVENT_DEFINITIONS = marsScenario.events;
 
 test('EventTaxonomy returns render metadata for a known event type', () => {
   const taxonomy = new EventTaxonomy(MARS_EVENT_DEFINITIONS);

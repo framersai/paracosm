@@ -1,35 +1,39 @@
 /**
  * Data-driven scenario hook factory.
  *
- * Mars Genesis and Lunar Outpost ship as separate engine modules
- * because their hooks have genuine domain logic (bone density decay,
- * regolith exposure curves, lunar gravity multipliers). The newer
- * AI/SaaS/governance scenarios — Atlas Lab, Dual Superintelligence
- * Council, future frontier-lab variants — don't have that. Their
- * hooks are 90% data wearing a function costume:
+ * Every paracosm scenario lives as JSON in `scenarios/*.json` and
+ * compiles to runnable hooks through this module. The DSL covers
+ * five hook shapes:
  *
- *   - `directorInstructions` is a string literal
- *   - `departmentPromptHook` is a switch over dept ids that emits
- *     formatted metric lines — pure mapping
- *   - `fingerprintHook` is threshold checks against named metrics
- *     and an outcome-trichotomy lookup
- *   - `politicsHook` is a `category → Record<string, number>` table
- *   - `reactionContextHook` is a string template per agent
+ *   - `directorInstructions` — string literal
+ *   - `departmentPromptHook` — metric chips + per-agent aggregations
+ *     + featured roster lines
+ *   - `fingerprintHook` — threshold rules and band classifications
+ *     (reads metrics, politics, environment, leader HEXACO, outcome
+ *      counts, and tool counts)
+ *   - `politicsHook` — per-category success / failure delta tables
+ *   - `reactionContextHook` — line-array template with per-agent
+ *     conditional branches
  *
- * Without a factory, every new AI-shaped scenario gets a 200-line
- * `hooks.ts` that's near-identical to the previous one. With this
- * factory, the same scenarios become **scenario.json + 5-line
- * wrapper** — config in, function values out. The factory translates
- * the config into the function shapes the engine expects.
+ * Two domain-physics shapes can't be expressed as JSON:
  *
- * Mars / Lunar keep their hand-written modules — the factory doesn't
- * fit their domain. But every scenario that's "metrics + dept context
- * + fingerprint thresholds + politics map" should route through here.
+ *   - per-agent progression (Mars radiation accumulation, Lunar
+ *     regolith atrophy) — declared in JSON via
+ *     `progressionPhysics: '<id>'` and resolved against the registry
+ *     at `engine/physics-modules`
+ *   - narrative-anchor milestones (turn 1 + final turn fixed events)
+ *     — declared as a `milestones` array in JSON and synthesized into
+ *     `getMilestoneEvent` here
+ *
+ * Net effect: a scenario.json carries its full hook config as data;
+ * the loader compiles it once at module init and the runtime gets
+ * the same shape it would from a hand-written wrapper.
  *
  * @module paracosm/engine/data-driven-hooks
  */
 import type { Agent, SimulationState } from '../core/state.js';
-import type { ActorConfig, ScenarioHooks } from '../types.js';
+import type { ActorConfig, MilestoneEventDef, ScenarioHooks } from '../types.js';
+import { physicsModules, type ProgressionPhysics } from '../physics-modules/index.js';
 
 /**
  * Per-department row of metric chips that get formatted into the
@@ -58,9 +62,54 @@ export interface DataDrivenDepartmentSpec {
   /** Heading printed above the chips: `ALIGNMENT METRICS:`. */
   heading: string;
   /** Chips formatted left-to-right and joined with ` | `. */
-  chips: DataDrivenChip[];
+  chips: (DataDrivenChip | DataDrivenAggChip)[];
+  /** Optional roster-style line listing top-N agents that match
+   *  `featuredRoster.filter`, formatted via the per-agent template. */
+  featuredRoster?: DataDrivenFeaturedRoster;
   /** Optional trailing line for free-form context. */
   footer?: string;
+}
+
+/**
+ * Aggregation chip — computes a value over the agent population
+ * (filtered, optionally) and renders it like a normal chip. Used for
+ * per-dept metrics that aren't on `state.metrics` (e.g., `avg bone
+ * density across alive colonists`, `count of marsborn agents`). The
+ * `where` predicate filters the agent pool before the aggregation.
+ */
+export interface DataDrivenAggChip {
+  label: string;
+  agg: {
+    /** Aggregation function — `count` ignores `field`; the rest read
+     *  it as a numeric per-agent value (skipping non-numeric). */
+    fn: 'avg' | 'sum' | 'count' | 'min' | 'max';
+    /** Path within an Agent (e.g., `health.boneDensityPct`,
+     *  `health.cumulativeRadiationMsv`, `health.psychScore`).
+     *  Required for avg/sum/min/max; omitted for `count`. */
+    field?: string;
+    /** Optional agent-level predicate filtering the pool. Defaults to
+     *  `health.alive == true` — the most common case. */
+    where?: JsonAgentPredicateNode;
+  };
+  format: 'number' | 'percent' | 'string';
+}
+
+/**
+ * Featured-roster line: pulls the top-N agents matching `filter`
+ * (default: alive + featured) and renders each via the `template`
+ * with `{{name}}`, `{{age}}`, `{{health.X}}`, `{{core.X}}` etc.
+ * substitutions. Output is a header line followed by one line per
+ * agent.
+ */
+export interface DataDrivenFeaturedRoster {
+  /** Header line printed above the roster (e.g. `FEATURED:`). */
+  header: string;
+  /** Predicate filtering the agent pool. Defaults to alive + featured. */
+  filter?: JsonAgentPredicateNode;
+  /** Max agents to render. */
+  limit: number;
+  /** Per-agent template with `{{path}}` substitutions. */
+  template: string;
 }
 
 /**
@@ -128,6 +177,28 @@ export interface DataDrivenScenarioConfig {
    *  and turn context; the template should anchor the agent voice to
    *  their role + department + the scenario domain. */
   reactionTemplate: (agent: Agent, ctx: { time: number; turn: number }) => string;
+
+  /** Optional ID of a registered progression-physics module (see
+   *  `engine/physics-modules`). When set, the factory wires the
+   *  module into `progressionHook` so per-agent physics (radiation,
+   *  bone decay, etc.) run between turns. Unknown IDs no-op + warn. */
+  progressionPhysics?: string;
+
+  /** Optional milestone events anchored to specific turns. The factory
+   *  synthesizes a `getMilestoneEvent(turn, maxTurns)` that returns
+   *  the matching event for turn 1, the final turn, or any explicit
+   *  turn number. */
+  milestones?: ResolvedMilestone[];
+}
+
+/**
+ * A milestone event resolved to a specific turn. `turn` is either a
+ * concrete turn number or the literal string `'final'` which the
+ * factory expands to `maxTurns` at runtime.
+ */
+export interface ResolvedMilestone {
+  turn: number | 'final';
+  event: MilestoneEventDef;
 }
 
 /**
@@ -184,21 +255,21 @@ function formatChip(chip: DataDrivenChip, raw: unknown): string {
  */
 function flattenState(state: SimulationState): Record<string, number | string | boolean> {
   const out: Record<string, number | string | boolean> = {};
-  for (const [k, v] of Object.entries(state.metrics)) {
-    if (typeof v === 'number' || typeof v === 'string' || typeof v === 'boolean') out[k] = v;
-  }
-  for (const [k, v] of Object.entries(state.politics)) {
-    if (typeof v === 'number' || typeof v === 'string' || typeof v === 'boolean') out[k] = v;
-  }
-  for (const [k, v] of Object.entries(state.environment)) {
-    if (typeof v === 'number' || typeof v === 'string' || typeof v === 'boolean') out[k] = v;
-  }
-  for (const [k, v] of Object.entries(state.statuses)) {
-    // Same primitive-only filter as the other bags. SimulationState
-    // types statuses as `Record<string, string | boolean>` so this
-    // is defense-in-depth against future scenario configs adding
-    // exotic state values that the rule lambdas can't reason about.
-    if (typeof v === 'number' || typeof v === 'string' || typeof v === 'boolean') out[k] = v;
+  // Each bag is structurally optional in test fixtures and partial
+  // SimulationState mocks; guard each Object.entries against
+  // undefined/null so the predicate evaluator stays robust under
+  // partial state. The flat record stays empty for any missing bag.
+  const bags: Array<Record<string, unknown> | undefined> = [
+    state.metrics as Record<string, unknown> | undefined,
+    state.politics as Record<string, unknown> | undefined,
+    state.environment as Record<string, unknown> | undefined,
+    state.statuses as Record<string, unknown> | undefined,
+  ];
+  for (const bag of bags) {
+    if (!bag || typeof bag !== 'object') continue;
+    for (const [k, v] of Object.entries(bag)) {
+      if (typeof v === 'number' || typeof v === 'string' || typeof v === 'boolean') out[k] = v;
+    }
   }
   return out;
 }
@@ -249,12 +320,61 @@ export interface JsonFingerprintAxis {
   bands: JsonFingerprintBand[];
 }
 
+/**
+ * Agent-level predicate. Reads from a path inside an `Agent` object
+ * (e.g., `health.alive`, `core.marsborn`, `health.boneDensityPct`,
+ * `narrative.featured`). Same compound shape as `JsonPredicate` but
+ * the field bag is the agent itself, not the flattened state.
+ */
+export interface JsonAgentPredicate {
+  agent: string;
+  op: '==' | '!=' | '>=' | '>' | '<=' | '<';
+  value: number | string | boolean;
+}
+
+export interface JsonAgentAllPredicate { all: JsonAgentPredicateNode[] }
+export interface JsonAgentAnyPredicate { any: JsonAgentPredicateNode[] }
+
+export type JsonAgentPredicateNode =
+  | JsonAgentPredicate
+  | JsonAgentAllPredicate
+  | JsonAgentAnyPredicate;
+
+/**
+ * Reaction template — line array with optional per-line predicates.
+ * Each entry's `template` is rendered with `{{role}}`, `{{department}}`,
+ * `{{name}}`, `{{age}}`, `{{years}}` (= time - startTime when supplied),
+ * plus any `agent.<path>` substitution under a flat key
+ * (e.g., `{{health.boneDensityPct}}`).
+ *
+ * Lines whose `when` predicate evaluates false are skipped. The final
+ * output joins surviving lines with `join` (default ` `).
+ *
+ * The legacy `string` form remains supported for back-compat (e.g.
+ * existing atlas-lab / DSC scenarios pass a single template string).
+ */
+export interface JsonReactionTemplate {
+  lines: JsonReactionLine[];
+  /** Separator between rendered lines. Defaults to a single space. */
+  join?: string;
+}
+
+export interface JsonReactionLine {
+  template: string;
+  when?: JsonAgentPredicateNode;
+}
+
+/** A milestone event as carried in JSON. Same shape as
+ *  `ResolvedMilestone`, kept as an alias for clarity at the JSON
+ *  boundary. */
+export type JsonMilestone = ResolvedMilestone;
+
 /** Full JSON-DSL config, equivalent to {@link DataDrivenScenarioConfig}
  *  but with all function values replaced by JSON-shaped DSL.
  *
- * `reactionTemplate` is a plain string with `{{role}}` and `{{department}}`
- * placeholders the factory substitutes at runtime — no JS eval, no
- * arbitrary template language.
+ * `reactionTemplate` accepts either a plain string (legacy short
+ * form, substitutes `{{role}}` and `{{department}}`) or a structured
+ * `JsonReactionTemplate` with conditional lines.
  */
 export interface JsonDataDrivenScenarioConfig {
   directorInstructions: string;
@@ -262,7 +382,133 @@ export interface JsonDataDrivenScenarioConfig {
   postureRules: JsonPostureRule[];
   fingerprintAxes: JsonFingerprintAxis[];
   politics: Record<string, DataDrivenCategoryPolitics>;
-  reactionTemplate: string;
+  reactionTemplate: string | JsonReactionTemplate;
+  /** Optional progression-physics module ID. See
+   *  {@link DataDrivenScenarioConfig.progressionPhysics}. */
+  progressionPhysics?: string;
+  /** Optional milestone events (turn 1, final turn, or any
+   *  explicit turn number). */
+  milestones?: JsonMilestone[];
+}
+
+/**
+ * Read a dotted `bag.leaf.deeper` path off an arbitrary object. Returns
+ * undefined for any missing intermediate. Used by agent predicates,
+ * aggregation chips, and roster templates so configs can read deep
+ * fields like `health.boneDensityPct` without per-call boilerplate.
+ */
+function readDeepPath(obj: unknown, path: string): unknown {
+  const parts = path.split('.');
+  let cur: unknown = obj;
+  for (const part of parts) {
+    if (cur == null || typeof cur !== 'object') return undefined;
+    cur = (cur as Record<string, unknown>)[part];
+  }
+  return cur;
+}
+
+/**
+ * Compile a single agent-level predicate node into a
+ * `(agent) => boolean`. Mirrors `compilePredicate` but reads from the
+ * agent object via `readDeepPath` so configs can match against any
+ * field (`core.marsborn`, `health.alive`, `health.boneDensityPct < 70`,
+ * `narrative.featured`).
+ */
+function compileAgentPredicate(node: JsonAgentPredicateNode): (agent: Agent) => boolean {
+  if ('all' in node) {
+    const subs = node.all.map(compileAgentPredicate);
+    return (agent) => subs.every((s) => s(agent));
+  }
+  if ('any' in node) {
+    const subs = node.any.map(compileAgentPredicate);
+    return (agent) => subs.some((s) => s(agent));
+  }
+  const { agent: path, op, value } = node;
+  return (agent) => {
+    const left = readDeepPath(agent, path);
+    switch (op) {
+      case '==': return left === value;
+      case '!=': return left !== value;
+      case '>=': return Number(left ?? 0) >= Number(value);
+      case '>':  return Number(left ?? 0) >  Number(value);
+      case '<=': return Number(left ?? 0) <= Number(value);
+      case '<':  return Number(left ?? 0) <  Number(value);
+      default: return false;
+    }
+  };
+}
+
+/**
+ * Evaluate an aggregation chip against the agent population. The
+ * `where` predicate filters the pool; the `fn` aggregator either
+ * counts the pool (`count`) or reads `field` as a numeric per-agent
+ * value (skipping non-numeric) and reduces accordingly.
+ */
+function evaluateAggChip(
+  chip: DataDrivenAggChip,
+  agents: readonly Agent[],
+): number {
+  const filter = chip.agg.where ? compileAgentPredicate(chip.agg.where) : null;
+  const pool = filter ? agents.filter(filter) : agents;
+  if (chip.agg.fn === 'count') return pool.length;
+
+  const field = chip.agg.field;
+  if (!field) return 0;
+  const values: number[] = [];
+  for (const agent of pool) {
+    const raw = readDeepPath(agent, field);
+    if (typeof raw === 'number' && Number.isFinite(raw)) values.push(raw);
+  }
+  if (values.length === 0) return 0;
+  switch (chip.agg.fn) {
+    case 'sum': return values.reduce((a, b) => a + b, 0);
+    case 'avg': return values.reduce((a, b) => a + b, 0) / values.length;
+    case 'min': return Math.min(...values);
+    case 'max': return Math.max(...values);
+    default: return 0;
+  }
+}
+
+/**
+ * Render a featured-roster line. Walks the agent pool, applies the
+ * filter (defaulting to alive + featured), sorts (featured first),
+ * caps at `limit`, and renders each via the `template` with
+ * `{{path}}` substitutions against the agent.
+ */
+function renderFeaturedRoster(
+  spec: DataDrivenFeaturedRoster,
+  agents: readonly Agent[],
+  state: SimulationState,
+): string[] {
+  const filter = spec.filter
+    ? compileAgentPredicate(spec.filter)
+    : (a: Agent) => Boolean(a.health.alive && a.narrative?.featured);
+  const filtered = agents.filter(filter).slice(0, spec.limit);
+  if (filtered.length === 0) return [];
+  const lines = [spec.header];
+  for (const agent of filtered) {
+    lines.push(spec.template.replace(/\{\{([\w.]+)\}\}/g, (_, key: string) => {
+      // Special-case shortcuts: {{name}}, {{age}}, {{years}} (years
+      // since birthTime when present, else 0).
+      if (key === 'name') return agent.core?.name ?? '?';
+      if (key === 'age') {
+        const t = state.metadata?.currentTime;
+        const b = agent.core?.birthTime;
+        return typeof t === 'number' && typeof b === 'number' ? String(t - b) : '?';
+      }
+      const raw = readDeepPath(agent, key);
+      if (typeof raw === 'number' && Number.isFinite(raw)) {
+        // Default rendering: bare integer for whole numbers, two-decimal
+        // for fractions. Templates that need different formatting can
+        // pre-compute and embed inline.
+        return Math.abs(raw) > 0 && Math.abs(raw) < 1
+          ? raw.toFixed(2)
+          : Math.round(raw).toString();
+      }
+      return raw == null ? '?' : String(raw);
+    }));
+  }
+  return lines;
 }
 
 /** Compile a single JSON-DSL predicate node to a `(state) => boolean`. */
@@ -332,17 +578,69 @@ export function compileJsonDataDrivenConfig(json: JsonDataDrivenScenarioConfig):
     };
   });
 
+  // Reaction template: short-form string (legacy) substitutes only
+  // {{role}} and {{department}}; structured form supports per-line
+  // predicates and per-agent path substitutions.
+  const reactionTemplate: DataDrivenScenarioConfig['reactionTemplate'] =
+    typeof json.reactionTemplate === 'string'
+      ? (agent) => {
+          const role = agent.core?.role || 'researcher';
+          const dept = agent.core?.department || 'engineering';
+          return substituteTemplate(json.reactionTemplate as string, { role, department: dept });
+        }
+      : compileStructuredReactionTemplate(json.reactionTemplate);
+
   return {
     directorInstructions: json.directorInstructions,
     departments: json.departments,
     postureRules: compiledPostureRules,
     fingerprintAxes: compiledAxes,
     politics: json.politics,
-    reactionTemplate: (agent) => {
-      const role = agent.core?.role || 'researcher';
-      const dept = agent.core?.department || 'engineering';
-      return substituteTemplate(json.reactionTemplate, { role, department: dept });
-    },
+    reactionTemplate,
+    progressionPhysics: json.progressionPhysics,
+    milestones: json.milestones,
+  };
+}
+
+/**
+ * Compile a structured reaction template (line array with optional
+ * per-line predicates) into the `(agent, ctx) => string` shape the
+ * engine consumes. Supported `{{key}}` substitutions:
+ *   - `{{role}}`, `{{department}}`, `{{name}}`
+ *   - `{{years}}` — `ctx.time - agent.core.birthTime` if both numeric
+ *   - any agent path (e.g., `{{health.boneDensityPct}}`,
+ *     `{{core.marsborn}}`)
+ */
+function compileStructuredReactionTemplate(
+  spec: JsonReactionTemplate,
+): (agent: Agent, ctx: { time: number; turn: number }) => string {
+  const compiled = spec.lines.map((line) => ({
+    template: line.template,
+    when: line.when ? compileAgentPredicate(line.when) : null,
+  }));
+  const join = spec.join ?? ' ';
+  return (agent, ctx) => {
+    const out: string[] = [];
+    for (const line of compiled) {
+      if (line.when && !line.when(agent)) continue;
+      out.push(line.template.replace(/\{\{([\w.]+)\}\}/g, (_, key: string) => {
+        if (key === 'role') return agent.core?.role ?? 'researcher';
+        if (key === 'department') return agent.core?.department ?? 'engineering';
+        if (key === 'name') return agent.core?.name ?? '?';
+        if (key === 'years') {
+          const b = agent.core?.birthTime;
+          return typeof ctx.time === 'number' && typeof b === 'number' ? String(ctx.time - b) : '?';
+        }
+        const raw = readDeepPath(agent, key);
+        if (typeof raw === 'number' && Number.isFinite(raw)) {
+          return Math.abs(raw) > 0 && Math.abs(raw) < 1
+            ? raw.toFixed(2)
+            : Math.round(raw).toString();
+        }
+        return raw == null ? '?' : String(raw);
+      }));
+    }
+    return out.join(join);
   };
 }
 
@@ -357,22 +655,69 @@ export function buildDataDrivenHooksFromJson(json: JsonDataDrivenScenarioConfig)
 }
 
 /**
+ * Render a single chip — either a state-path chip or an aggregation
+ * chip computed against the agent population. Discriminates by the
+ * presence of `agg` on the input shape.
+ */
+function renderChip(
+  chip: DataDrivenChip | DataDrivenAggChip,
+  state: SimulationState,
+): string {
+  if ('agg' in chip) {
+    const value = evaluateAggChip(chip, state.agents);
+    return formatChip({ label: chip.label, source: '', format: chip.format }, value);
+  }
+  return formatChip(chip, readPath(state, chip.source));
+}
+
+/**
  * Build a {@link ScenarioHooks} record from a {@link DataDrivenScenarioConfig}.
- * Wrappers like atlas-lab/index.ts and dual-superintelligence-council/
- * index.ts call this once at module init and spread the result into
- * the {@link ScenarioPackage}'s `hooks` field. Mars/Lunar bypass this
- * because their domain hooks (bone density, regolith exposure) don't
- * fit the data-driven shape.
+ * Every paracosm scenario routes through here — the JSON-DSL compiler
+ * produces the function-typed config, and this factory turns it into
+ * the runtime hook record.
  */
 export function buildDataDrivenHooks(config: DataDrivenScenarioConfig): ScenarioHooks {
-  return {
+  // Resolve the physics module up front. Unknown IDs log a warning
+  // and the progressionHook is omitted entirely so the engine falls
+  // through to its built-in no-op path.
+  let progressionHook: ProgressionPhysics | undefined;
+  if (config.progressionPhysics) {
+    const fn = physicsModules[config.progressionPhysics];
+    if (fn) {
+      progressionHook = fn;
+    } else {
+      console.warn(
+        `[data-driven-hooks] Unknown progressionPhysics id: ${config.progressionPhysics}. ` +
+        `Available: ${Object.keys(physicsModules).join(', ')}.`,
+      );
+    }
+  }
+
+  // Compile milestones once so the runtime callback is just a turn
+  // lookup. `'final'` resolves to maxTurns at call time — the
+  // wrapper closure reads the maxTurns argument the engine passes.
+  const milestones = config.milestones ?? [];
+  const getMilestoneEvent = milestones.length > 0
+    ? (turn: number, maxTurns: number) => {
+        for (const m of milestones) {
+          const targetTurn = m.turn === 'final' ? maxTurns : m.turn;
+          if (turn === targetTurn) return m.event;
+        }
+        return null;
+      }
+    : undefined;
+
+  const hooks: ScenarioHooks = {
     departmentPromptHook: (ctx) => {
       const spec = config.departments[ctx.department];
       if (!spec) return [];
       const chips = spec.chips
-        .map((chip) => formatChip(chip, readPath(ctx.state, chip.source)))
+        .map((chip) => renderChip(chip, ctx.state))
         .join(' | ');
-      const lines = [spec.heading, chips];
+      const lines: string[] = [spec.heading, chips];
+      if (spec.featuredRoster) {
+        lines.push(...renderFeaturedRoster(spec.featuredRoster, ctx.state.agents, ctx.state));
+      }
       if (spec.footer) lines.push(spec.footer);
       lines.push('');
       return lines;
@@ -382,12 +727,12 @@ export function buildDataDrivenHooks(config: DataDrivenScenarioConfig): Scenario
 
     fingerprintHook: (
       finalState: SimulationState,
-      _outcomeLog: Array<{ turn: number; time: number; outcome: string }>,
-      _leader: ActorConfig,
-      _toolRegs: Record<string, string[]>,
-      _maxTurns: number,
+      outcomeLog: Array<{ turn: number; time: number; outcome: string }>,
+      leader: ActorConfig,
+      toolRegs: Record<string, string[]>,
+      maxTurns: number,
     ) => {
-      const flat = flattenState(finalState);
+      const flat = flattenStateForFingerprint(finalState, outcomeLog, leader, toolRegs, maxTurns);
       const out: Record<string, string> = {};
       const matched = config.postureRules.find((rule) => {
         try {
@@ -396,13 +741,27 @@ export function buildDataDrivenHooks(config: DataDrivenScenarioConfig): Scenario
           return false;
         }
       });
-      out.posture = matched ? matched.posture : 'mixed-posture';
+      if (matched) out.posture = matched.posture;
+      // Only synthesize the catch-all `mixed-posture` when the scenario
+      // actually defined posture rules. Scenarios that rely solely on
+      // fingerprint axes (Mars + Lunar in particular) shouldn't carry
+      // an artificial `posture` field they never asked for.
+      else if (config.postureRules.length > 0) out.posture = 'mixed-posture';
       for (const axis of config.fingerprintAxes) {
         try {
           out[axis.name] = axis.when(flat);
         } catch {
           out[axis.name] = 'unknown';
         }
+      }
+      // Convention: scenarios that emit a `summary` axis get it
+      // re-anchored as a final ` · `-joined line built from the other
+      // axes. If the scenario explicitly defined a summary axis, that
+      // wins; otherwise we synthesize one so every fingerprint has a
+      // human-readable headline.
+      if (!('summary' in out)) {
+        const parts = config.fingerprintAxes.map((a) => out[a.name]).filter(Boolean);
+        if (parts.length > 0) out.summary = parts.join(' · ');
       }
       return out;
     },
@@ -422,4 +781,78 @@ export function buildDataDrivenHooks(config: DataDrivenScenarioConfig): Scenario
 
     reactionContextHook: (agent, ctx) => config.reactionTemplate(agent, ctx),
   };
+
+  if (progressionHook) hooks.progressionHook = progressionHook;
+  if (getMilestoneEvent) hooks.getMilestoneEvent = getMilestoneEvent;
+  return hooks;
+}
+
+/**
+ * Extended fingerprint state bag — adds leader HEXACO axes (prefixed
+ * `leader.`), outcome counts (`outcomes.<key>` + `outcomes.total`),
+ * tool count (`tools.total`), maxTurns, and per-population aggregates
+ * (`agents.alive`, `agents.marsborn`, `agents.featured`) so band
+ * predicates can classify scenarios on leadership style + run trajectory
+ * + roster composition without bespoke code.
+ */
+function flattenStateForFingerprint(
+  state: SimulationState,
+  outcomeLog: Array<{ turn: number; time: number; outcome: string }>,
+  leader: ActorConfig,
+  toolRegs: Record<string, string[]>,
+  maxTurns: number,
+): Record<string, number | string | boolean> {
+  const out = flattenState(state);
+
+  if (leader && typeof leader === 'object' && leader.hexaco) {
+    for (const [k, v] of Object.entries(leader.hexaco)) {
+      if (typeof v === 'number') out[`leader.${k}`] = v;
+    }
+  }
+
+  const outcomeCounts: Record<string, number> = {
+    risky_success: 0,
+    risky_failure: 0,
+    conservative_success: 0,
+    conservative_failure: 0,
+  };
+  for (const o of outcomeLog) {
+    if (typeof o.outcome === 'string' && o.outcome in outcomeCounts) {
+      outcomeCounts[o.outcome] += 1;
+    }
+  }
+  for (const [k, v] of Object.entries(outcomeCounts)) {
+    out[`outcomes.${k}`] = v;
+  }
+  out['outcomes.total'] = outcomeLog.length;
+  out['outcomes.risky'] = outcomeCounts.risky_success + outcomeCounts.risky_failure;
+  out['outcomes.conservative'] = outcomeCounts.conservative_success + outcomeCounts.conservative_failure;
+
+  const totalTools = Object.values(toolRegs).flat().length;
+  out['tools.total'] = totalTools;
+
+  out.maxTurns = maxTurns;
+
+  // Roster aggregates — the most common ones bands ask for. Mars
+  // identity classification needs alive vs marsborn; cleaner to hand
+  // them in as primitives than force every band predicate to compile
+  // its own agent-pool walk.
+  let alive = 0;
+  let marsborn = 0;
+  let featured = 0;
+  // Defensive against partial fixtures (test mocks pass {} or omit
+  // .agents entirely). Real runs always supply the array.
+  const agents = Array.isArray(state.agents) ? state.agents : [];
+  for (const a of agents) {
+    if (a.health?.alive) {
+      alive += 1;
+      if (a.core?.marsborn) marsborn += 1;
+      if (a.narrative?.featured) featured += 1;
+    }
+  }
+  out['agents.alive'] = alive;
+  out['agents.marsborn'] = marsborn;
+  out['agents.featured'] = featured;
+
+  return out;
 }

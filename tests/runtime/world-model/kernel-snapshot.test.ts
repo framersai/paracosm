@@ -7,7 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { SimulationKernel } from '../../../src/engine/core/kernel.js';
-import { marsScenario } from '../../../src/engine/mars/index.js';
+import { marsScenario } from '../../../src/engine/builtin-scenarios/index.js';
 
 function freshKernel(seed = 42): SimulationKernel {
   return new SimulationKernel(seed, 'leader-a', [], {

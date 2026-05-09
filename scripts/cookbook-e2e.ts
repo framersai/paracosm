@@ -28,7 +28,7 @@ import { fileURLToPath } from 'node:url';
 import { WorldModel } from '../src/runtime/world-model/index.js';
 import { runBatch } from '../src/runtime/batch.js';
 import { compileScenario } from '../src/engine/compiler/index.js';
-import { marsScenario } from '../src/engine/mars/index.js';
+import { marsScenario } from '../src/engine/builtin-scenarios/index.js';
 import type { ActorConfig } from '../src/engine/types.js';
 import type { RunArtifact, SubjectConfig, InterventionConfig } from '../src/engine/schema/index.js';
 import { createMarsServer } from '../src/cli/server-app.js';

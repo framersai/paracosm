@@ -1,24 +1,25 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { marsScenario } from '../../src/engine/mars/index.js';
+import { marsScenario } from '../../src/engine/builtin-scenarios/index.js';
 import { EffectRegistry } from '../../src/engine/effect-registry.js';
 import { MetricRegistry } from '../../src/engine/metric-registry.js';
 import { EventTaxonomy } from '../../src/engine/event-taxonomy.js';
-import { MARS_CATEGORY_EFFECTS, MARS_FALLBACK_EFFECT } from '../../src/engine/mars/effects.js';
-import { MARS_WORLD_METRICS, MARS_CAPACITY_METRICS } from '../../src/engine/mars/metrics.js';
-import { MARS_EVENT_DEFINITIONS } from '../../src/engine/mars/events.js';
-import { getMarsMilestoneCrisis } from '../../src/engine/mars/milestones.js';
 
 test('EffectRegistry initialized from marsScenario.effects produces correct output', () => {
   const categoryDefaults = marsScenario.effects[0].categoryDefaults;
-  const registry = new EffectRegistry(categoryDefaults, MARS_FALLBACK_EFFECT);
+  const registry = new EffectRegistry(categoryDefaults);
   const deltas = registry.applyOutcome('environmental', 'conservative_success', { personalityBonus: 0, noise: 0 });
   assert.equal(deltas.powerKw, 50);
   assert.equal(deltas.morale, 0.08);
 });
 
 test('MetricRegistry initialized from marsScenario.world covers all header metrics', () => {
-  const allMetrics = [...MARS_WORLD_METRICS, ...MARS_CAPACITY_METRICS];
+  // Build the metric list from the scenario's world schema directly
+  // — the canonical source is now scenarios/mars.json, not a TS export.
+  const allMetrics = [
+    ...Object.values(marsScenario.world.metrics),
+    ...Object.values(marsScenario.world.capacities),
+  ];
   const registry = new MetricRegistry(allMetrics);
   const headerIds = marsScenario.ui.headerMetrics.map(h => h.id);
   for (const id of headerIds) {
@@ -27,18 +28,19 @@ test('MetricRegistry initialized from marsScenario.world covers all header metri
 });
 
 test('EventTaxonomy initialized from marsScenario.events covers all event renderers', () => {
-  const taxonomy = new EventTaxonomy(MARS_EVENT_DEFINITIONS);
+  const taxonomy = new EventTaxonomy(marsScenario.events);
   for (const eventId of Object.keys(marsScenario.ui.eventRenderers)) {
     assert.ok(taxonomy.get(eventId), `Event renderer ${eventId} not in EventTaxonomy`);
   }
 });
 
 test('Mars milestones align with scenario setup defaults', () => {
-  const landfall = getMarsMilestoneCrisis(1, marsScenario.setup.defaultTurns);
+  const getMilestone = marsScenario.hooks.getMilestoneEvent!;
+  const landfall = getMilestone(1, marsScenario.setup.defaultTurns);
   assert.ok(landfall);
   assert.equal(landfall!.title, 'Landfall');
 
-  const legacy = getMarsMilestoneCrisis(marsScenario.setup.defaultTurns, marsScenario.setup.defaultTurns);
+  const legacy = getMilestone(marsScenario.setup.defaultTurns, marsScenario.setup.defaultTurns);
   assert.ok(legacy);
   assert.equal(legacy!.title, 'Legacy Assessment');
 });

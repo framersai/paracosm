@@ -11,8 +11,8 @@ import assert from 'node:assert/strict';
 
 import { WorldModel, WorldModelReplayError } from '../../../src/runtime/world-model/index.js';
 import { SimulationKernel } from '../../../src/engine/core/kernel.js';
-import { marsScenario } from '../../../src/engine/mars/index.js';
-import { lunarScenario } from '../../../src/engine/lunar/index.js';
+import { marsScenario } from '../../../src/engine/builtin-scenarios/index.js';
+import { lunarScenario } from '../../../src/engine/builtin-scenarios/index.js';
 import type { RunArtifact } from '../../../src/engine/schema/index.js';
 import type { KernelSnapshot } from '../../../src/engine/core/snapshot.js';
 
