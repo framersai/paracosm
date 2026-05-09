@@ -36,7 +36,7 @@ import { DEFAULT_EXECUTION, type SimulationExecutionConfig } from '../cli/sim-co
 import {
   searchCredential,
   type SearchCredentialOptions,
-} from '../engine/provider-credentials.js';
+} from '../engine/provider/credentials.js';
 import type { LlmProvider } from '../engine/types.js';
 
 // ---------------------------------------------------------------------------

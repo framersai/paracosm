@@ -119,8 +119,8 @@ export { marsScenario, lunarScenario } from './scenarios/index.js';
 // missing-key failure mode by class instead of string-matching, and
 // lets tools/tests drive the resolver without importing from internal
 // paths.
-export { ProviderKeyMissingError, resolveProviderWithFallback } from './provider-resolver.js';
-export type { ResolvedProviderChoice, ResolveProviderOptions } from './provider-resolver.js';
+export { ProviderKeyMissingError, resolveProviderWithFallback } from './provider/resolver.js';
+export type { ResolvedProviderChoice, ResolveProviderOptions } from './provider/resolver.js';
 
 // Top-level client re-export so `import { createParacosmClient } from
 // 'paracosm'` works. Keeps the discoverability bar low for new users:

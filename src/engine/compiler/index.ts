@@ -25,11 +25,11 @@
 
 import type { ScenarioPackage, ScenarioHooks, LlmProvider } from '../types.js';
 import type { CompileOptions, GenerateTextFn } from './types.js';
-import { resolveProviderWithFallback } from '../provider-resolver.js';
+import { resolveProviderWithFallback } from '../provider/resolver.js';
 import {
   apiKeyForProvider,
   resolveProviderFromCredentials,
-} from '../provider-credentials.js';
+} from '../provider/credentials.js';
 import { readCache, writeCache, readSeedBundleCache, writeSeedBundleCache, seedSignature } from './cache.js';
 import { generateProgressionHook, parseResponse as parseProgression } from './generate-progression.js';
 import { generateDirectorInstructions } from './generate-director.js';

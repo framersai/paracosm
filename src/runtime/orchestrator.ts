@@ -58,12 +58,12 @@ import {
   type StartingPolitics,
   type StartingResources,
 } from '../cli/sim-config.js';
-import { resolveProviderWithFallback } from '../engine/provider-resolver.js';
+import { resolveProviderWithFallback } from '../engine/provider/resolver.js';
 import {
   apiKeyForProvider,
   resolveProviderFromCredentials,
   type RuntimeCredentialOptions,
-} from '../engine/provider-credentials.js';
+} from '../engine/provider/credentials.js';
 import { applyCustomEventToCrisis, buildTimeSchedule } from './runtime-helpers.js';
 import { classifyProviderError, shouldAbortRun, type ClassifiedProviderError } from './provider-errors.js';
 import { EffectRegistry } from '../engine/effect-registry.js';

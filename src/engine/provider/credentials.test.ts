@@ -9,7 +9,7 @@ import {
   normalizeCredential,
   resolveProviderFromCredentials,
   searchCredential,
-} from './provider-credentials.js';
+} from './credentials.js';
 
 test('normalizeCredential drops empty and masked placeholders', () => {
   assert.equal(normalizeCredential(''), undefined);

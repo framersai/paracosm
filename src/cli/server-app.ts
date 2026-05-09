@@ -19,7 +19,7 @@ import {
   hasProviderCredentials,
   normalizeCredential,
   resolveProviderFromCredentials,
-} from '../engine/provider-credentials.js';
+} from '../engine/provider/credentials.js';
 import {
   describeCustomScenarioSource,
   isRunnableScenarioPackage,

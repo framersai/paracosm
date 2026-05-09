@@ -20,9 +20,9 @@
  * is guarded so browser bundles degrade to "requested provider" without
  * inspecting globals.
  *
- * @module paracosm/engine/provider-resolver
+ * @module paracosm/engine/provider/resolver
  */
-import type { LlmProvider } from './types.js';
+import type { LlmProvider } from '../types.js';
 
 const ENV_KEYS: Record<LlmProvider, string> = {
   openai: 'OPENAI_API_KEY',

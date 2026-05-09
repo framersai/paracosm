@@ -19,7 +19,7 @@ import {
   apiKeyForProvider,
   credentialFingerprint,
   resolveProviderFromCredentials,
-} from '../engine/provider-credentials.js';
+} from '../engine/provider/credentials.js';
 
 // ============================================================================
 // Types

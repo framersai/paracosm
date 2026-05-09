@@ -14,7 +14,7 @@ import { z } from 'zod';
 import { compileScenario } from './index.js';
 import type { CompileOptions } from './types.js';
 import type { ScenarioPackage } from '../types.js';
-import { apiKeyForProvider, resolveProviderFromCredentials } from '../provider-credentials.js';
+import { apiKeyForProvider, resolveProviderFromCredentials } from '../provider/credentials.js';
 import { generateValidatedObject } from '../../runtime/llm-invocations/generateValidatedObject.js';
 
 /**

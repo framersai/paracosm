@@ -3,7 +3,7 @@
  */
 
 import type { LlmProvider } from '../types.js';
-import type { RuntimeCredentialOptions } from '../provider-credentials.js';
+import type { RuntimeCredentialOptions } from '../provider/credentials.js';
 import type { CompilerTelemetry } from './telemetry.js';
 
 /**

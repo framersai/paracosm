@@ -49,7 +49,7 @@ export {
 } from './engine/traits/normalize-leader.js';
 export { createParacosmClient } from './runtime/client.js';
 export type { ParacosmClient, ParacosmClientOptions } from './runtime/client.js';
-export { ProviderKeyMissingError, resolveProviderWithFallback } from './engine/provider-resolver.js';
+export { ProviderKeyMissingError, resolveProviderWithFallback } from './engine/provider/resolver.js';
 
 // ─── Public types from the engine ───────────────────────────────────
 export type {

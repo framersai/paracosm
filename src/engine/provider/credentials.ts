@@ -1,4 +1,4 @@
-import type { LlmProvider } from './types.js';
+import type { LlmProvider } from '../types.js';
 
 /** Provider credentials accepted by hosted routes and runtime calls. */
 export interface ProviderCredentialOptions {

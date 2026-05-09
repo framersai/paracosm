@@ -24,7 +24,7 @@ import {
   normalizeCredential,
   resolveProviderFromCredentials,
   type ProviderCredentialOptions,
-} from '../engine/provider-credentials.js';
+} from '../engine/provider/credentials.js';
 
 const LeaderSchema = z.object({
   name: z.string().min(1).max(80),

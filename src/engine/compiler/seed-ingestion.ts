@@ -19,7 +19,7 @@ import type { GenerateTextFn } from './types.js';
 import {
   searchCredential,
   type SearchCredentialOptions,
-} from '../provider-credentials.js';
+} from '../provider/credentials.js';
 
 export interface SeedIngestionOptions extends SearchCredentialOptions {
   /** LLM generateText function */
