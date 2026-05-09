@@ -7,66 +7,94 @@ Disallow: /api/
 # Each platform ships a training-data crawler AND a search-result
 # crawler — the search-result bots pull live citations into AI
 # answers, so both must be allowed for full GEO + AI search coverage.
+#
+# Robots.txt user-agent matching is "best match wins" — when a
+# specific User-agent block matches, the wildcard (*) directives
+# DO NOT carry over. Every block below repeats `Disallow: /api/`
+# so the SSE / runtime / admin endpoints stay off-limits to AI
+# crawlers; only the public, indexable surface (`/`, `/sim`,
+# `/docs`, `/llms*.txt`, etc.) is opened.
 
 # OpenAI / ChatGPT
 User-agent: GPTBot
 Allow: /
+Disallow: /api/
 
 User-agent: OAI-SearchBot
 Allow: /
+Disallow: /api/
 
 User-agent: ChatGPT-User
 Allow: /
+Disallow: /api/
 
 # Anthropic / Claude
 User-agent: ClaudeBot
 Allow: /
+Disallow: /api/
 
 User-agent: Claude-SearchBot
 Allow: /
+Disallow: /api/
+
+User-agent: Claude-User
+Allow: /
+Disallow: /api/
 
 User-agent: anthropic-ai
 Allow: /
+Disallow: /api/
 
 User-agent: Anthropic-AI
 Allow: /
+Disallow: /api/
 
 # Perplexity
 User-agent: PerplexityBot
 Allow: /
+Disallow: /api/
 
 User-agent: Perplexity-User
 Allow: /
+Disallow: /api/
 
 # Google Gemini training opt-in
 User-agent: Google-Extended
 Allow: /
+Disallow: /api/
 
 # Common Crawl (training-data substrate for many LLMs)
 User-agent: CCBot
 Allow: /
+Disallow: /api/
 
 # Apple Intelligence
 User-agent: Applebot-Extended
 Allow: /
+Disallow: /api/
 
 # Meta Llama
 User-agent: FacebookBot
 Allow: /
+Disallow: /api/
 
 User-agent: meta-externalagent
 Allow: /
+Disallow: /api/
 
 # DuckDuckGo (DuckAssist)
 User-agent: DuckAssistBot
 Allow: /
+Disallow: /api/
 
 # Mistral
 User-agent: MistralAI-User
 Allow: /
+Disallow: /api/
 
 # Cohere
 User-agent: cohere-ai
 Allow: /
+Disallow: /api/
 
 Sitemap: https://paracosm.agentos.sh/sitemap.xml

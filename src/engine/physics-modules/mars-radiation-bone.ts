@@ -54,7 +54,11 @@ export function marsRadiationBoneProgression(ctx: ProgressionHookContext): void 
     const baseline = c.health.boneDensityBase as number;
 
     const lossRate = c.core.marsborn ? 0.003 : 0.005;
-    const yearsOnMars = time - (c.core.marsborn ? c.core.birthTime : startTime);
+    // Clamp elapsed time at zero — fork-from-artifact replays can
+    // briefly produce time < startTime during snapshot rehydration,
+    // which would otherwise yield a targetRatio > 1 and push bone
+    // density above the immutable baseline.
+    const yearsOnMars = Math.max(0, time - (c.core.marsborn ? c.core.birthTime : startTime));
     const targetRatio = Math.max(0.5, 1 - lossRate * Math.min(yearsOnMars, 20));
     c.health.boneDensityPct = Math.max(50, baseline * targetRatio);
   }

@@ -3,9 +3,10 @@
  *
  * Walks the agent population each between-turn tick and applies
  * cumulative regolith dust exposure plus muscle/bone atrophy under
- * 1/6g. The atrophy curve is steeper than Mars (0.008/yr vs 0.005/yr)
- * to reflect the lower partial gravity, saturates after 15 years, and
- * floors at 40% bone density.
+ * 1/6g. The atrophy curve is steeper than Mars (0.04/yr vs 0.005/yr)
+ * to reflect the lower partial gravity, saturates after 15 years at
+ * 40% bone density (the floor), and is calibrated so the curve hits
+ * the floor exactly at the saturation horizon.
  *
  * Generic and reusable — any scenario set on the lunar surface can
  * opt into it via `dataDrivenHooks.progressionPhysics:
@@ -59,7 +60,13 @@ export function lunarRegolithAtrophyProgression(ctx: ProgressionHookContext): vo
     // physics far gentler than the documented "1/6g atrophy is steeper
     // than Mars 0.38g" intent.
     const lossRate = 0.04;
-    const yearsOnMoon = time - startTime;
+    // Clamp elapsed time at zero — replays from a captured snapshot
+    // can produce time < startTime briefly during fork setup, which
+    // would otherwise produce a targetRatio > 1 and drive bone density
+    // above baseline. The min(yearsOnMoon, 15) handles the upper end
+    // (saturation); Math.max(0, ...) handles the lower end (no-op
+    // before crew lands).
+    const yearsOnMoon = Math.max(0, time - startTime);
     const targetRatio = Math.max(0.4, 1 - lossRate * Math.min(yearsOnMoon, 15));
     c.health.boneDensityPct = Math.max(40, baseline * targetRatio);
   }
