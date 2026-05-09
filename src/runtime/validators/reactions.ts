@@ -9,7 +9,7 @@
  * changing the downstream consumer (which already destructured `.reactions`
  * from the parsed result in some code paths).
  *
- * @module paracosm/runtime/schemas/reactions
+ * @module paracosm/runtime/validators/reactions
  */
 import { z } from 'zod';
 

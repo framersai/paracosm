@@ -21,8 +21,8 @@ import {
   decisionToPolicy,
 } from './parsers.js';
 import { sendAndValidate } from './llm-invocations/sendAndValidate.js';
-import { DepartmentReportSchema } from './schemas/department.js';
-import { CommanderDecisionSchema } from './schemas/commander.js';
+import { DepartmentReportSchema } from './validators/department.js';
+import { CommanderDecisionSchema } from './validators/commander.js';
 import { createCostTracker } from './cost-tracker.js';
 import {
   buildPersonalityCue,

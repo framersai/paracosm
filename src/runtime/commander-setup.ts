@@ -26,7 +26,7 @@ import type { ScenarioPackage, ActorConfig } from '../engine/types.js';
 import type { CallUsage } from './cost-tracker.js';
 import { buildPromotionPrompt } from './runtime-helpers.js';
 import { sendAndValidate } from './llm-invocations/sendAndValidate.js';
-import { PromotionsSchema } from './schemas/commander.js';
+import { PromotionsSchema } from './validators/commander.js';
 
 /**
  * Build a "Your decision style" block from the leader's HEXACO profile.

@@ -6,7 +6,7 @@
  * current typings. The schema adds structural defaults — the old
  * `emptyReport()` skeleton disappears once every caller migrates.
  *
- * @module paracosm/runtime/schemas/department
+ * @module paracosm/runtime/validators/department
  */
 import { z } from 'zod';
 

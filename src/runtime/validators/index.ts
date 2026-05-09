@@ -7,7 +7,7 @@
  * interfaces in contracts.ts for new code; legacy interfaces stay for
  * backward compat until every consumer migrates.
  *
- * @module paracosm/runtime/schemas
+ * @module paracosm/runtime/validators
  */
 
 export * from './director.js';

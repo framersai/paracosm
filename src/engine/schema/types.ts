@@ -4,7 +4,7 @@
  * `import type { RunArtifact } from 'paracosm/schema'` and get full
  * type safety with zero runtime cost.
  *
- * Public types drop the `Z` suffix that the internal `src/runtime/schemas/`
+ * Public types drop the `Z` suffix that the internal `src/runtime/validators/`
  * Zod schemas use. `DepartmentReportZ` stays internal; `RunArtifact`,
  * `Timepoint`, `SpecialistNote` are the public names.
  *

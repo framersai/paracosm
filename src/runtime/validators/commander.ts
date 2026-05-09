@@ -7,7 +7,7 @@
  * the commander session so its conversation memory survives validation
  * retries.
  *
- * @module paracosm/runtime/schemas/commander
+ * @module paracosm/runtime/validators/commander
  */
 import { z } from 'zod';
 

@@ -6,7 +6,7 @@
  * in the `reasoning` field. The schema enforces 0-10 score bounds per
  * axis — the old parser silently accepted any number.
  *
- * @module paracosm/runtime/schemas/verdict
+ * @module paracosm/runtime/validators/verdict
  */
 import { z } from 'zod';
 

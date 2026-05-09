@@ -19,7 +19,7 @@
 import type { Agent, TurnOutcome } from '../engine/core/state.js';
 import { buildMemoryContext } from './agent-memory.js';
 import { generateValidatedObject } from './llm-invocations/generateValidatedObject.js';
-import { ReactionBatchSchema } from './schemas/reactions.js';
+import { ReactionBatchSchema } from './validators/reactions.js';
 import { buildReactionCues } from './hexaco-cues/translation.js';
 
 export interface AgentReaction {

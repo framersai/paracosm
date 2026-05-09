@@ -6,7 +6,7 @@
  * that the old parser silently accepted when the LLM pointed riskyOptionId
  * at a non-risky option.
  *
- * @module paracosm/runtime/schemas/director
+ * @module paracosm/runtime/validators/director
  */
 import { z } from 'zod';
 
