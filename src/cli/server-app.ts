@@ -15,6 +15,7 @@ import { compileScenario as compileScenarioReal } from '../engine/compiler/index
 import { marsScenario } from '../engine/mars/index.js';
 import { lunarScenario } from '../engine/lunar/index.js';
 import { atlasLabScenario } from '../engine/atlas-lab/index.js';
+import { dualSuperintelligenceCouncilScenario } from '../engine/dual-superintelligence-council/index.js';
 import type { ScenarioPackage } from '../engine/types.js';
 import {
   hasProviderCredentials,
@@ -462,6 +463,7 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
   customScenarioCatalog.set(marsScenario.id, { scenario: marsScenario, source: 'builtin' });
   customScenarioCatalog.set(lunarScenario.id, { scenario: lunarScenario, source: 'builtin' });
   customScenarioCatalog.set(atlasLabScenario.id, { scenario: atlasLabScenario, source: 'builtin' });
+  customScenarioCatalog.set(dualSuperintelligenceCouncilScenario.id, { scenario: dualSuperintelligenceCouncilScenario, source: 'builtin' });
 
   // Persistence metadata for compile-from-seed scenarios — keyed by
   // scenario id. Carries `compiledAt` + truncated `seedText` so the
