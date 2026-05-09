@@ -15,7 +15,7 @@ import type { Department, HexacoProfile, HexacoSnapshot, TurnOutcome } from '../
 import type { CrisisOption } from './contracts.js';
 import type { LlmProvider } from '../engine/types.js';
 import { SCENARIOS } from './research/scenarios.js';
-import { generateValidatedObject } from './llm-invocations/generateValidatedObject.js';
+import { generateValidatedObject } from '../llm/generateValidatedObject.js';
 import { DirectorEventBatchSchema } from './validators/director.js';
 import { buildTrajectoryCue } from './hexaco-cues/trajectory.js';
 

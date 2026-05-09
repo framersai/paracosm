@@ -48,7 +48,7 @@ import {
 } from '../swarm/index.js';
 import type { KernelSnapshot } from '../../engine/core/snapshot.js';
 import { z } from 'zod';
-import { generateValidatedObject } from '../llm-invocations/generateValidatedObject.js';
+import { generateValidatedObject } from '../../llm/generateValidatedObject.js';
 
 /**
  * Options accepted by {@link WorldModel.simulate}. Identical to

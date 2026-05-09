@@ -7,7 +7,7 @@
  * reactions, verdict. Session-based call sites (commander, departments)
  * use sendAndValidate instead.
  *
- * @module paracosm/runtime/llm-invocations/generateValidatedObject
+ * @module paracosm/llm/generateValidatedObject
  */
 import {
   generateObject as agentosGenerateObject,

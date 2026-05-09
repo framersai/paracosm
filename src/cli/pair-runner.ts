@@ -1,7 +1,7 @@
 import { DEFAULT_KEY_PERSONNEL, type NormalizedSimulationConfig } from './sim-config.js';
 import { marsScenario } from '../engine/scenarios/index.js';
 import { apiKeyForProvider } from '../engine/provider/credentials.js';
-import { generateValidatedObject } from '../runtime/llm-invocations/generateValidatedObject.js';
+import { generateValidatedObject } from '../llm/generateValidatedObject.js';
 import { VerdictSchema } from '../runtime/validators/verdict.js';
 import type { ScenarioPackage } from '../engine/types.js';
 import type { ResolvedEconomicsProfile } from '../runtime/economics-profile.js';
