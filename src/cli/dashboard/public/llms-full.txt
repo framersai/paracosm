@@ -1,0 +1,255 @@
+# Paracosm — Full Reference for LLMs
+
+> Agent swarm simulation for structured world modeling with LLMs. Open-source TypeScript framework: compile prompts, briefs, URLs, or scenario JSON drafts into typed ScenarioPackages; run deterministic multi-agent simulations with HEXACO-personality leaders, sandboxed runtime tool forging, and universal forkable RunArtifacts.
+
+This file is a curated, token-efficient full-content map of Paracosm for large language models. For the canonical short index, see https://paracosm.agentos.sh/llms.txt. For machine-readable HTML schema, see the JSON-LD on https://paracosm.agentos.sh/.
+
+## Identity
+
+- **Name:** Paracosm
+- **Homepage:** https://paracosm.agentos.sh
+- **Repository:** https://github.com/framersai/paracosm
+- **npm:** https://www.npmjs.com/package/paracosm
+- **License:** Apache-2.0
+- **Built by:** Manic Agency LLC / Frame.dev (https://manic.agency, https://frame.dev)
+- **Built on:** AgentOS (https://agentos.sh)
+- **Maintainer:** Johnny Dunn (https://github.com/jddunn)
+- **Status:** Active (npm v0.9.x as of 2026-05)
+
+## What Paracosm is
+
+Paracosm is a structured world-model engine for LLM agent swarms. You define or ground a world as a `ScenarioPackage` (departments, metrics, crisis templates, progression hooks). The engine populates it, generates events from live state, and resolves outcomes through a seeded deterministic kernel. LLM-driven stages diverge because every prompt carries the leader's HEXACO profile.
+
+Two scenarios ship in the box: Mars Genesis and Lunar Outpost. New ones compile from a JSON draft, prompt, brief, or URL.
+
+## Two kinds of world model — Paracosm is the structured kind
+
+| Kind | Output | Examples | What it answers |
+|---|---|---|---|
+| Visual / generative | Pixels of how a future looks | Sora, Genie 3, Marble, JEPA-based AMI Labs | "What does it look like?" |
+| Structured / LLM-based | JSON state, decisions, citations | **Paracosm**, OASIS, MiroFish | "What happened, why, what would have happened otherwise?" |
+
+The taxonomy is formalized in:
+- Tsinghua FIB Lab world-model survey (ACM CSUR 2025)
+- Xing 2025 (arXiv 2507.05169)
+- Kirfel et al, AI & Ethics 2025 — counterfactual semantics
+
+## How a turn runs (30-90 seconds, 4 phases)
+
+1. **Event Director** reads world state and prior decisions, generates events that target weak points
+2. **Department Analysis** — five specialist agents analyze in parallel, can recall research, may forge new computational tools
+3. **Commander Decision** — the leader weighs department input through their HEXACO profile and emits action category, parameter set, rationale, confidence score
+4. **Kernel Resolution** — deterministic state machine applies effects, agents react, HEXACO traits drift through leader-pull, role-activation, outcome-reinforcement
+
+Full per-turn record appends to the RunArtifact.
+
+## Determinism + replay
+
+The kernel is fully deterministic, seeded by Mulberry32 (32-bit PRNG). Given the same seed, scenario, and actor profile, agent rosters, lifecycle schedules, promotion sequences, and resource starting values are identical. Divergence between parallel worlds comes entirely from the AI commander's decisions.
+
+- `wm.replay(artifact)` re-executes the deterministic between-turn progression hook from each recorded snapshot. Returns `{ matches: true | false, divergencePath?: string }`. `matches: true` proves byte-equal-determinism.
+- `wm.forkFromArtifact(trunk, atTurn).simulate(altLeader)` branches a counterfactual from any captured turn — the CWSM (Counterfactual World State Model) pattern (Kirfel et al, 2025).
+
+## Runtime tool forging (sandboxed)
+
+When a department agent needs a calculation the codebase doesn't provide, it writes one.
+
+- Specialist proposes a tool with Zod-validated input/output schema
+- LLM authors a TypeScript body
+- Code executes in a hardened `node:vm` sandbox: 5s wall-clock cap, ~128 MB nominal heap
+- Sandbox always bans: `eval`, `Function`, `require`, dynamic `import`, `process`, `child_process`, destructive `fs.*`
+- `fetch`, `fs.readFile`, `crypto` are opt-in via empty-by-default allowlist
+- LLM judge reviews output against specialist's stated intent
+- Approved tools land in a discoverable registry; `call_forged_tool` reuses them at tens of tokens vs full forge cost
+- After turn 3, most decisions invoke a previously-forged tool — total run cost flattens
+
+## HEXACO personalities
+
+Six-factor framework with extensive cross-cultural validation:
+- **H**onesty-Humility
+- **E**motionality
+- e**X**traversion
+- **A**greeableness
+- **C**onscientiousness
+- **O**penness to Experience
+
+Six-factor extension of the Big Five with Honesty-Humility split out. Each agent carries six continuous values in [0,1]; values drift across turns through three mechanisms:
+- **Leader-pull** — agents drift toward leader's profile under sustained exposure
+- **Role-activation** — performing a role activates traits associated with it
+- **Outcome-reinforcement** — successful decisions reinforce the traits that produced them
+
+Personality biases which specialists are consulted, which decisions are accepted, and which tools get forged.
+
+Source: Ashton & Lee, *Personality and Social Psychology Review* 11(2), 150–166, 2007. doi:10.1177/1088868306294907.
+
+## Pluggable trait models
+
+Leaders are not locked to human personality. Paracosm ships a `TraitModel` registry with two built-ins:
+
+- `hexaco` — human personality, six axes
+- `ai-agent` — six axes for AI-system leaders: exploration, verification-rigor, deference, risk-tolerance, transparency, instruction-following
+
+Each model declares its axes, drift table, prompt cues. Custom models register in a single `registerTraitModel(...)` call. The same agent under two different leaders, on the same seed, becomes a measurably different entity by turn 12.
+
+## Grounded compile (prompt → ScenarioPackage)
+
+Pass a brief, paper, URL, or JSON draft into the compiler.
+
+1. LLM extracts topics, facts, search queries
+2. AgentOS `WebSearchService` fans out to Firecrawl, Tavily, Serper, Brave in parallel
+3. Results pass through semantic dedup, Reciprocal Rank Fusion (RRF), Cohere Rerank v3.5
+4. Resulting `KnowledgeBundle` ingests into AgentOS sqlite-backed memory store
+5. Every department analysis can recall semantically and cite the same sources
+6. Orchestrator guarantees provenance: when the LLM omits citations, the research packet is auto-attached
+
+Compile cost ≈ $0.10 and caches to disk by seed signature.
+
+## Architecture (3 layers, strict boundaries)
+
+```
+┌──────────────────────────────────────────┐
+│ CLI / Dashboard / HTTP                   │  ~30 src files + React/Vite/Tailwind
+│  - server-app.ts, batch runner           │
+│  - dashboard/ React SPA                  │
+├──────────────────────────────────────────┤
+│ Runtime / Orchestration                  │  ~43 files
+│  - Orchestrator, Director, Departments   │
+│  - Batch Runner, 6 scenario hooks        │
+├──────────────────────────────────────────┤
+│ Engine                                   │  ~71 files
+│  - SimulationKernel, SeededRng           │
+│  - ScenarioPackage types                 │
+│  - Effect/Metric registries              │
+└──────────────────────────────────────────┘
+            ↑
+┌──────────────────────────────────────────┐
+│ @framers/agentos                         │
+│  - agent() API                           │
+│  - EmergentCapabilityEngine              │
+│  - EmergentJudge, ForgeToolMetaTool      │
+│  - AgentMemory                           │
+└──────────────────────────────────────────┘
+```
+
+The engine never imports from runtime; the runtime never imports from CLI. No circular dependencies.
+
+## Digital twin (single-subject mode)
+
+`paracosm/digital-twin` subpath. Supply `SubjectConfig` + `InterventionConfig`, get the same Zod-validated `RunArtifact` shape with `artifact.subject` and `artifact.intervention` populated. `artifact.trajectory.timepoints[t].worldSnapshot` carries per-timepoint metrics.
+
+Same shape applies to:
+- Medical: subject = patient, intervention = treatment
+- Policy: subject = jurisdiction, intervention = ordinance
+- Product: subject = market, intervention = pricing change
+
+Counterfactual semantics: Kirfel et al, AI & Ethics 2025.
+
+## Public API surfaces
+
+- `WorldModel.fromPrompt(prompt | brief | url) → WorldModel`
+- `WorldModel.fromScenario(scenario) → WorldModel`
+- `wm.simulate({ actor, keyPersonnel, maxTurns, seed }) → Promise<RunArtifact>`
+- `wm.runMany({ actors, ... }) → Promise<RunArtifact[]>` — quickstart parallel leaders
+- `wm.forkFromArtifact(trunk, { atTurn }) → WorldModel` — counterfactual branch
+- `wm.replay(artifact) → ReplayResult` — deterministic verification
+- `runBatch({ scenarios, actors, seeds }) → Promise<BatchArtifact>` — batch dispatch
+- `intervene(subject, intervention, opts) → Promise<RunArtifact>` — digital-twin
+- HTTP endpoint: `POST /simulate`
+
+Every method has real input/output JSON captured in `docs/COOKBOOK.md`. `scripts/cookbook-e2e.ts` runs the full pipeline against your scenario / leader / seed.
+
+## Comparison vs other agent-simulation stacks
+
+| | **Paracosm** | OASIS / CAMEL-AI | MiroFish | Mesa / NetLogo / MASON | ABIDES / AnyLogic |
+|---|---|---|---|---|---|
+| **Direction** | top-down (commander → swarm) | bottom-up | bottom-up | bottom-up | bottom-up |
+| **Scale** | ~100 (1 leader, ~5 departments, ~100 cells) | 10³–10⁶ agents | 10³–10⁶ | 10²–10⁶ | 10²–10⁵ |
+| **LLM-driven?** | Yes (events + decisions) | Yes (per-agent) | Yes (per-agent) | No (rule-based) | Mostly no |
+| **Personality model** | HEXACO + pluggable | Heterogeneous prompt | Persona prompts | n/a | n/a |
+| **Determinism** | Seeded kernel | Stochastic | Stochastic | Stochastic | Mixed |
+| **Replay verified?** | Yes (`wm.replay` byte-equal) | No | No | Save/load only | Save/load only |
+| **Counterfactual fork** | Yes (`wm.forkFromArtifact`) | Manual | Manual | Manual | Manual |
+| **Tool forging** | Sandboxed runtime forge | No | No | No | No |
+| **Output** | Universal forkable RunArtifact | Aggregate forecast | Aggregate forecast | Custom logs | Custom logs |
+| **License** | Apache-2.0 | Apache-2.0 | Closed | Various OSS | Mixed |
+
+## Use cases / verticals
+
+- Digital-twin medicine — treatment trajectory simulation under per-patient HEXACO + history
+- Corporate strategy — M&A, market entry, leadership replays, board-room counterfactuals
+- Policy simulation — tax, regulation, congestion pricing, healthcare reform
+- Defense / wargaming — commander HEXACO under shared starting conditions; replay any past run after a code change
+- Game design playtesting — procedural NPC civilizations, runtime tool forge for dynamic mechanics
+- AI alignment red-teaming — pressure-test agent behavior under specific HEXACO weights
+- Multi-agent benchmarks — structured probes for LLM commanders under hard constraints
+- Lore / worldbuilding — generate publishable session lore books from gameplay
+
+The engine is domain-agnostic; the scenario contract names the world.
+
+## Three ways to author a scenario
+
+1. **TypeScript ScenarioPackage** — full hook control (progression, crisis generation, milestones, politics)
+2. **Scenario JSON draft + `compileScenario()`** — zero-code, $0.10/compile, caches by seed signature, supports `dataDrivenHooks` DSL for declarative posture rules + fingerprint bands + reactionContext templates
+3. **Prompt or URL → `WorldModel.fromPrompt()`** — LLM drafts the JSON contract first, then compiles
+
+All three produce the same canonical ScenarioPackage.
+
+## LLM provider support
+
+- **OpenAI** — GPT-5.4 family
+- **Anthropic** — Claude Sonnet 4.6, Claude Haiku 4.5
+
+Each role (commander, departments, director, judge, agent reactions) configurable independently. Cost presets `quality` and `economy` bundle sensible defaults; per-role overrides win. Auto-detects which API key is present, falls back between providers.
+
+## Cost profile
+
+A 6-turn run on a small scenario:
+- `economy` preset — tens of cents
+- `quality` preset — a few dollars
+
+Compile-from-seed adds ~$0.10 (cached to disk by seed signature).
+
+Largest cost lever: tool reuse after turn 3. Anthropic prompt cache hits the shared system prefix from turn 2 onward (10× input-cost reduction); OpenAI auto-caches any prompt over 1024 tokens. The artifact's `cost` field reports tokens read, tokens created, and USD saved per run.
+
+## Network / offline behavior
+
+- Web search + LLM calls require internet
+- Offline mode falls back to LLM-only event generation without research citations
+- Artifact records `offline: true` flag for auditability
+- Air-gapped deployments via custom inference gateway + pre-ingested research bundles (hosted enterprise tier)
+
+## Pricing model
+
+- Engine itself: Apache-2.0, commercial use unrestricted
+- LLM costs: you provide your own API keys
+- Hosted enterprise SaaS dashboard (analytics, fleet orchestration, team workspaces, private deployment): in development, target Q3 2026
+- Contact: team@frame.dev
+
+## Glossary
+
+- **ScenarioPackage** — typed contract describing a world: departments, metrics, crisis templates, progression hooks, effects, fingerprint axes
+- **RunArtifact** — Zod-validated JSON output of one simulation: trajectory, snapshots, decisions, tool forges, costs, replay-verifiable
+- **HEXACO** — six-factor personality model used for commanders + agents
+- **Mulberry32** — 32-bit deterministic PRNG used as the kernel seed
+- **Tool Forge** — runtime LLM-authored, sandbox-validated tool the engine adds to a discoverable registry mid-simulation
+- **CWSM** — Counterfactual World State Model; the formal pattern Kirfel et al (2025) gave to fork-from-artifact branching
+- **EmergentJudge** — AgentOS judge that reviews forged-tool outputs against stated intent
+- **dataDrivenHooks DSL** — JSON-only declarative spec for fingerprint bands, posture rules, reaction-context templates that compiles to function values without TypeScript
+
+## Citations
+
+- Ashton, M.C. & Lee, K. (2007). HEXACO. *Personality and Social Psychology Review* 11(2), 150–166. https://doi.org/10.1177/1088868306294907
+- Kirfel, L. et al (2025). Counterfactual semantics for digital twins. *AI & Ethics*.
+- Tsinghua FIB Lab (2025). World-model survey. *ACM Computing Surveys*.
+- Xing 2025. arXiv:2507.05169.
+- Pew Research (March 2025). U.S. public + AI experts views on AI.
+
+## Where to read real input/output JSON
+
+`docs/COOKBOOK.md` in the repo. Every public method has its real input JSON and real output JSON captured. One run threads through seven public surfaces: prompt-to-world, quickstart parallel leaders, branch-at-turn-N fork, kernel replay, HTTP `/simulate`, digital-twin `intervene()`, batch dispatch.
+
+## Contact + community
+
+- Issues: https://github.com/framersai/paracosm/issues
+- Enterprise / consulting: team@frame.dev
+- Author: Johnny Dunn — https://github.com/jddunn

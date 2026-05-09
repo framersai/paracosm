@@ -4,22 +4,69 @@ Disallow: /api/
 
 # Allow LLM/AI crawlers explicitly so paracosm shows up in
 # answer-engine results (ChatGPT, Perplexity, Claude etc.).
+# Each platform ships a training-data crawler AND a search-result
+# crawler — the search-result bots pull live citations into AI
+# answers, so both must be allowed for full GEO coverage.
+
+# OpenAI / ChatGPT
 User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
 Allow: /
 
 User-agent: ChatGPT-User
 Allow: /
 
-User-agent: PerplexityBot
+# Anthropic / Claude
+User-agent: ClaudeBot
 Allow: /
 
-User-agent: ClaudeBot
+User-agent: Claude-SearchBot
+Allow: /
+
+User-agent: anthropic-ai
 Allow: /
 
 User-agent: Anthropic-AI
 Allow: /
 
+# Perplexity
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Perplexity-User
+Allow: /
+
+# Google Gemini training opt-in
 User-agent: Google-Extended
+Allow: /
+
+# Common Crawl (training-data substrate for many LLMs)
+User-agent: CCBot
+Allow: /
+
+# Apple Intelligence
+User-agent: Applebot-Extended
+Allow: /
+
+# Meta Llama
+User-agent: FacebookBot
+Allow: /
+
+User-agent: meta-externalagent
+Allow: /
+
+# DuckDuckGo (DuckAssist)
+User-agent: DuckAssistBot
+Allow: /
+
+# Mistral
+User-agent: MistralAI-User
+Allow: /
+
+# Cohere
+User-agent: cohere-ai
 Allow: /
 
 Sitemap: https://paracosm.agentos.sh/sitemap.xml

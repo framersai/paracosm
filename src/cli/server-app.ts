@@ -2904,17 +2904,25 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       }
     }
 
-    // SEO + AI-crawler assets — sitemap.xml, robots.txt, and llms.txt
-    // live in the dashboard's public/ tree (Vite copies them to dist/
-    // on build) but Vite only mounts that tree under its own asset
-    // routes. Serve them explicitly from the root so
-    // paracosm.agentos.sh/sitemap.xml + /robots.txt + /llms.txt resolve
-    // cleanly. Without these handlers Cloudflare returns 404 and Search
-    // Console / GPTBot / Perplexity can't crawl the site.
-    if (req.url === '/sitemap.xml' || req.url === '/robots.txt' || req.url === '/llms.txt') {
+    // SEO + AI-crawler assets — sitemap.xml, robots.txt, llms.txt, and
+    // llms-full.txt live in the dashboard's public/ tree (Vite copies
+    // them to dist/ on build) but Vite only mounts that tree under its
+    // own asset routes. Serve them explicitly from the root so
+    // paracosm.agentos.sh/sitemap.xml + /robots.txt + /llms.txt +
+    // /llms-full.txt resolve cleanly. Without these handlers Cloudflare
+    // returns 404 and Search Console / GPTBot / Perplexity can't crawl.
+    // /.well-known/llms.txt mirrors /llms.txt for forward-compatibility
+    // with the proposed RFC location.
+    if (
+      req.url === '/sitemap.xml' ||
+      req.url === '/robots.txt' ||
+      req.url === '/llms.txt' ||
+      req.url === '/llms-full.txt' ||
+      req.url === '/.well-known/llms.txt'
+    ) {
       try {
         const distDir = resolve(__dirname, 'dashboard/dist');
-        const fileName = req.url.slice(1);
+        const fileName = req.url === '/.well-known/llms.txt' ? 'llms.txt' : req.url.slice(1);
         const filePath = resolve(distDir, fileName);
         if (existsSync(filePath)) {
           const contentType = req.url === '/sitemap.xml' ? 'application/xml' : 'text/plain';
