@@ -185,10 +185,10 @@ Each turn follows a fixed pipeline:
 
 Every structured LLM call in paracosm routes through one of two schema-validated wrappers:
 
-- **[`generateValidatedObject`](../src/runtime/llm-invocations/generateValidatedObject.ts)**: one-shot calls over AgentOS `generateObject`. Used for director event batches, reaction batches, verdict.
-- **[`sendAndValidate`](../src/runtime/llm-invocations/sendAndValidate.ts)**: session-aware wrapper over AgentOS `session.send()`. Preserves conversation memory (commander remembers prior events, dept heads remember prior analyses) while adding Zod retry-with-feedback. Used for commander decisions, department reports, and promotions.
+- **[`generateValidatedObject`](../src/llm/generateValidatedObject.ts)**: one-shot calls over AgentOS `generateObject`. Used for director event batches, reaction batches, verdict.
+- **[`sendAndValidate`](../src/llm/sendAndValidate.ts)**: session-aware wrapper over AgentOS `session.send()`. Preserves conversation memory (commander remembers prior events, dept heads remember prior analyses) while adding Zod retry-with-feedback. Used for commander decisions, department reports, and promotions.
 
-Both wrappers return the fully-validated object matching a Zod schema in [`src/runtime/schemas/`](../src/runtime/schemas/). Validation failures trigger up to 2 retries with the Zod error appended to the retry prompt so the model self-corrects. If retries exhaust, the wrapper returns a caller-provided fallback skeleton and emits a `validation_fallback` SSE event so the dashboard can surface the degradation.
+Both wrappers return the fully-validated object matching a Zod schema in [`src/runtime/validators/`](../src/runtime/validators/). Validation failures trigger up to 2 retries with the Zod error appended to the retry prompt so the model self-corrects. If retries exhaust, the wrapper returns a caller-provided fallback skeleton and emits a `validation_fallback` SSE event so the dashboard can surface the degradation.
 
 | Call site | Schema | Wrapper |
 |-----------|--------|---------|
@@ -241,7 +241,7 @@ EmergentJudge        LLM-as-judge safety + correctness review
    │
    ▼
 capture callback     feeds CapturedForge into paracosm's per-dept bucket
-   │                 (paracosm/src/runtime/orchestrator.ts)
+   │                 (paracosm/src/runtime/orchestrator/index.ts)
    ▼
 ForgeStatsAggregator aggregates attempts + classifies rejection reasons
    │                 (source: @framers/agentos/emergent; composed into CostTracker)
@@ -595,7 +595,7 @@ Scope note: v1 replay re-runs `advanceTurn` only. Re-applying recorded decisions
 
 #### HTTP surface
 
-The HTTP surface for replay is `POST /api/v1/runs/:runId/replay` on the dashboard server. The endpoint loads the stored artifact via `record.artifactPath`, looks up the original scenario via the in-memory catalog, constructs a `WorldModel`, calls `WorldModel.replay(artifact)`, and persists the outcome via `runHistoryStore.recordReplayResult(runId, matches)`. Returns `{ matches: boolean, divergence: string }` on 200, structured errors on 404 / 410 / 422. The client-side hook is `src/cli/dashboard/src/components/library/hooks/useReplayRun.ts`.
+The HTTP surface for replay is `POST /api/v1/runs/:runId/replay` on the dashboard server. The endpoint loads the stored artifact via `record.artifactPath`, looks up the original scenario via the in-memory catalog, constructs a `WorldModel`, calls `WorldModel.replay(artifact)`, and persists the outcome via `runHistoryStore.recordReplayResult(runId, matches)`. Returns `{ matches: boolean, divergence: string }` on 200, structured errors on 404 / 410 / 422. The client-side hook is `src/dashboard/src/components/library/hooks/useReplayRun.ts`.
 
 ### Digital-twin subpath (T5.4)
 
@@ -640,31 +640,59 @@ Paracosm uses AgentOS for all agent orchestration, LLM calls, tool forging, and 
 | `AgentMemory.sqlite()` | Colonist chat memory with episodic storage and RAG |
 | HEXACO personality | Trait-modulated decision making, memory retrieval, mood adaptation |
 
-## Source Structure
+## Top-level `src/` layout
 
 ```
 src/
-  engine/           the npm package (exported)
-    core/           deterministic kernel (RNG, state, progression, personality drift)
-    compiler/       JSON → ScenarioPackage compiler
-    mars/           Mars Genesis scenario
-    lunar/          Lunar Outpost scenario
-
-  runtime/          orchestration (not exported)
-    orchestrator              turn pipeline: director → kernel → departments → commander
-    director                  emergent crisis generation from simulation state
-    departments               parallel department analysis agents
-    chat-agents               post-simulation colonist chat with AgentOS memory
-    schemas/                  Zod schemas for every structured LLM call
-    llm-invocations/          generateValidatedObject + sendAndValidate wrappers
-    hexaco-cues/              trajectory + reaction cue translation helpers
-
-  cli/              server + dashboard (not exported)
-    serve.ts        HTTP + SSE server
-    pair-runner.ts  parallel leader execution + verdict
-    server-app.ts   all HTTP endpoints
-    dashboard/      React/Vite live visualization
+├── engine/      Scenario kernel + compile-time. Compiler runs ONCE; kernel is deterministic.
+│   ├── core/        deterministic kernel (RNG, state, progression, personality drift)
+│   ├── compiler/    JSON → ScenarioPackage compiler (LLM-driven, runs once)
+│   ├── schema/      foundational types and Zod validators
+│   ├── scenarios/   built-in scenario loaders (mars, lunar)
+│   ├── physics/     physics modules registry
+│   ├── traits/      HEXACO + AI-agent trait registries
+│   ├── presets/     actor presets
+│   ├── provider/    provider key resolution + credentials
+│   ├── digital-twin/  public-API alias barrel for WorldModel as DigitalTwin
+│   ├── data-driven-hooks/
+│   └── registries/  effects, events, metrics
+│
+├── runtime/     Per-turn simulation execution. LLM-driven orchestration.
+│   ├── orchestrator/  turn pipeline (director → kernel → departments → commander → reactions)
+│   ├── agents/        chat-agents, agent-memory, agent-reactions, cues/
+│   ├── world-model/   WorldModel façade (replay, fork, snapshot)
+│   ├── swarm/         pure projections over RunArtifact swarm view
+│   ├── research/      citation/research memory
+│   ├── validators/    Zod validators for LLM responses (commander, department, director, verdict)
+│   ├── economics/     cost-tracker, pricing, economics-profile
+│   ├── io/            output-writer, build-artifact, sse-envelope, citations-catalog, canonical-json, world-snapshot
+│   └── util/          parsers, runtime-helpers, provider-errors, generic-fingerprint
+│
+├── llm/         Shared LLM helpers (generateValidatedObject, sendAndValidate). Imported by engine/compiler and runtime.
+├── api/         Public run/runMany surface. The 90% case for paracosm consumers.
+├── cli/         CLI entry points (run, run-a, run-b, compile, init, serve, help) + scenario-config helpers.
+├── server/      HTTP server. Subdivided into routes/, stores/, services/.
+└── dashboard/   Vite/React UI. Talks to server/ via fetch.
 ```
+
+`engine/` does NOT import `runtime/` (enforced by `scripts/check-engine-runtime-boundary.mjs`, which runs as part of `npm test`). One barrel file is exempt: `src/engine/digital-twin/index.ts`, the public-API alias for `WorldModel as DigitalTwin`.
+
+For the contributor reference (where new code goes, naming conventions, public-export-to-internal-path mapping), see [`architecture/INTERNAL_LAYOUT.md`](architecture/INTERNAL_LAYOUT.md).
+
+## AgentOS API surface used by paracosm
+
+Paracosm depends on a small surface of `@framers/agentos`. Six distinct symbols across eight files:
+
+| Symbol | Used in |
+|---|---|
+| `ITool` (type) | `runtime/orchestrator/index.ts`, `runtime/orchestrator/emergent-setup.ts` |
+| `AgentMemory` (class) | `runtime/agents/chat-agents.ts` |
+| `agent` (factory) | `runtime/agents/chat-agents.ts` |
+| `generateObject` | `llm/generateValidatedObject.ts` |
+| `ObjectGenerationError` | `llm/generateValidatedObject.ts`, `llm/sendAndValidate.ts` |
+| `extractJson` | `llm/sendAndValidate.ts` |
+
+The shared LLM primitives (`generateValidatedObject`, `sendAndValidate`) own four of the six symbols and live in `src/llm/`. Higher-level callers (`runtime/orchestrator/`, `runtime/agents/chat-agents.ts`) import the remaining symbols directly. No paracosm-side adapter layer; the surface is small enough that direct imports are clearer than indirection.
 
 ## References
 
