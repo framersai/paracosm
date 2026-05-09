@@ -9,8 +9,8 @@ import type { EventDefinition } from './types.js';
 /**
  * Backwards-compatible alias. Earlier versions called this type
  * `ScenarioEventDef`; current code prefers `EventDefinition` from
- * `types.ts`. The alias is exported so external consumers that pinned
- * the old name keep compiling.
+ * `./types.js`. The alias is exported so external consumers that
+ * pinned the old name keep compiling.
  */
 export type ScenarioEventDef = EventDefinition;
 
