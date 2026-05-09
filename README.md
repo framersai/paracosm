@@ -403,7 +403,7 @@ Numbers assume 6 turns, 5 departments, 100 agents, up to 3 events per turn. Forg
 
 Director event → Kernel advance (deterministic, seeded) → Department analysis in parallel (with optional runtime tool forging in a hardened `node:vm` sandbox; an LLM judge approves each forge) → Commander decision (HEXACO-weighted) → Outcome classification → Kernel effects → Agent reactions → Memory consolidation → Personality drift.
 
-Every structured LLM call (director, departments, commander, reactions, verdict) is Zod-validated with retry-with-feedback. Schemas under [`src/runtime/schemas/`](src/runtime/schemas/). Full per-stage breakdown in [docs/architecture.md](docs/architecture.md).
+Every structured LLM call (director, departments, commander, reactions, verdict) is Zod-validated with retry-with-feedback. Schemas under [`src/runtime/validators/`](src/runtime/validators/). Full per-stage breakdown in [docs/architecture.md](docs/architecture.md).
 
 ---
 

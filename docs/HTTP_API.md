@@ -2,7 +2,7 @@
 
 The dashboard server (`paracosm dashboard`) exposes a versioned HTTP surface under `/api/v1/*`. The same routes power the React dashboard and any external client. This page documents every endpoint, its request shape, response shape, and status codes.
 
-Source of truth: [`src/cli/server/routes/platform-api.ts`](../src/cli/server/routes/platform-api.ts), [`src/cli/server/routes/public-demo.ts`](../src/cli/server/routes/public-demo.ts), [`src/cli/bundle-routes.ts`](../src/cli/bundle-routes.ts), and [`src/cli/server/library-import-route.ts`](../src/cli/server/library-import-route.ts).
+Source of truth: [`src/server/routes/platform-api.ts`](../src/server/routes/platform-api.ts), [`src/server/routes/public-demo.ts`](../src/server/routes/public-demo.ts), [`src/server/routes/bundle.ts`](../src/server/routes/bundle.ts), and [`src/server/routes/library-import.ts`](../src/server/routes/library-import.ts).
 
 For the SDK (`WorldModel.simulate()`, `WorldModel.batch()`, `WorldModel.intervene()`, etc.) see the [Cookbook](./COOKBOOK.md). This page is the wire-level reference for the HTTP surface only.
 

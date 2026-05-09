@@ -164,3 +164,23 @@ The v0.8 line accumulated three competing shapes (functional `runSimulation`, OO
 The reviewer flagged the npm download stats (~25k/month at v0.8.719) and recommended a soft break. The maintainer chose a hard break to avoid carrying compatibility shims through what should be a clean v1.0 trajectory. v0.8 stays installable indefinitely; new development happens on v0.9.
 
 If you hit a migration footgun this guide doesn't cover, file an issue at https://github.com/framersai/paracosm/issues — we'll add it to the table above.
+
+## v0.10: internal layout reorganization
+
+The `apps/paracosm/src/` tree was reorganized into seven top-level directories: `engine`, `runtime`, `llm`, `api`, `cli`, `server`, `dashboard`. The published public API (the six subpath exports `paracosm`, `paracosm/core`, `paracosm/compiler`, `paracosm/schema`, `paracosm/swarm`, `paracosm/digital-twin`) is bit-stable. No consumer code changes required.
+
+Internal callers performing deep imports (not supported, but not technically forbidden) may need to adjust:
+
+| Old path | New path |
+|---|---|
+| `paracosm/runtime/llm-invocations/generateValidatedObject` | `paracosm/llm/generateValidatedObject` |
+| `paracosm/runtime/llm-invocations/sendAndValidate` | `paracosm/llm/sendAndValidate` |
+| `paracosm/runtime/schemas/<name>` | `paracosm/runtime/validators/<name>` |
+| `paracosm/runtime/orchestrator` (file) | `paracosm/runtime/orchestrator` (folder; same import name) |
+| `paracosm/cli/dashboard/...` | `paracosm/dashboard/...` |
+| `paracosm/cli/server/...`, `paracosm/cli/*-route` | `paracosm/server/{routes,stores,services}/...` |
+| `paracosm/engine/trait-models` | `paracosm/engine/traits` |
+| `paracosm/engine/physics-modules` | `paracosm/engine/physics` |
+| `paracosm/engine/builtin-scenarios` | `paracosm/engine/scenarios` |
+
+If you import only from the documented public subpaths (six entry points), no change is needed.
