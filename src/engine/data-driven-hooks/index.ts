@@ -448,8 +448,14 @@ function evaluateAggChip(
   chip: DataDrivenAggChip,
   agents: readonly Agent[],
 ): number {
-  const filter = chip.agg.where ? compileAgentPredicate(chip.agg.where) : null;
-  const pool = filter ? agents.filter(filter) : agents;
+  // Doc'd default: when `where` is omitted, restrict the pool to alive
+  // agents — that's the common case for medical / psychology chips and
+  // skipping it produces misleading averages once the population starts
+  // taking casualties.
+  const filter = chip.agg.where
+    ? compileAgentPredicate(chip.agg.where)
+    : (a: Agent) => Boolean(a.health?.alive);
+  const pool = agents.filter(filter);
   if (chip.agg.fn === 'count') return pool.length;
 
   const field = chip.agg.field;
@@ -483,7 +489,16 @@ function renderFeaturedRoster(
   const filter = spec.filter
     ? compileAgentPredicate(spec.filter)
     : (a: Agent) => Boolean(a.health.alive && a.narrative?.featured);
-  const filtered = agents.filter(filter).slice(0, spec.limit);
+  // Featured-first sort: when a custom filter is supplied that doesn't
+  // already restrict to featured, push featured agents to the front so
+  // the LLM dept prompt gets the named characters first instead of an
+  // unsorted slice. Stable across calls — sort key is just the boolean
+  // featured flag, so non-featured order matches scenario.agents order.
+  const filtered = agents
+    .filter(filter)
+    .slice()
+    .sort((a, b) => Number(Boolean(b.narrative?.featured)) - Number(Boolean(a.narrative?.featured)))
+    .slice(0, spec.limit);
   if (filtered.length === 0) return [];
   const lines = [spec.header];
   for (const agent of filtered) {

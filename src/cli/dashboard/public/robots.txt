@@ -6,7 +6,7 @@ Disallow: /api/
 # answer-engine results (ChatGPT, Perplexity, Claude etc.).
 # Each platform ships a training-data crawler AND a search-result
 # crawler — the search-result bots pull live citations into AI
-# answers, so both must be allowed for full GEO coverage.
+# answers, so both must be allowed for full GEO + AI search coverage.
 
 # OpenAI / ChatGPT
 User-agent: GPTBot
