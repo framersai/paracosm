@@ -25,8 +25,8 @@
  *
  * @module paracosm/engine/atlas-lab/hooks
  */
-import type { SimulationState } from '../core/state.js';
-import type { Agent, ActorConfig } from '../types.js';
+import type { Agent, SimulationState } from '../core/state.js';
+import type { ActorConfig } from '../types.js';
 
 /**
  * Per-department context lines that get injected into the LLM prompt
@@ -55,7 +55,6 @@ export function atlasLabDepartmentPromptLines(dept: string, state: SimulationSta
       lines.push(
         'CAPABILITY METRICS:',
         `CapabilityIndex: ${(m.capabilityIndex ?? 0).toFixed(3)} | CompetitorGap: ${((env.competitorCapabilityGap ?? 0)).toFixed(3)} | ReleaseReadiness: ${((m.releaseReadiness ?? 0) * 100).toFixed(0)}%`,
-        `Training-runs/month capacity: ${(state.capacities as Record<string, number> | undefined)?.trainingRunsPerMonth ?? '?'}`,
         '',
       );
       break;
@@ -183,7 +182,7 @@ export function atlasLabPoliticsHook(category: string, outcome: string): Record<
  * the capability gap" instead of generic settler reactions.
  */
 export function atlasLabReactionContext(agent: Agent, _ctx: { time: number; turn: number }): string {
-  const role = agent.role || 'researcher';
-  const dept = agent.department || 'engineering';
+  const role = agent.core?.role || 'researcher';
+  const dept = agent.core?.department || 'engineering';
   return `You are a ${role} on the ${dept} team at Atlas Lab. You speak from inside the lab — not as a public commentator. Your reactions are about evals, training runs, model behaviour, deployment readiness, board pressure, the competitor gap, or the next RSP review. Anchor your quote to ONE concrete observation about the current state.`;
 }

@@ -52,6 +52,7 @@
     { "id": "capabilityIndex",  "label": "Capability Index", "source": "metrics.capabilityIndex",  "format": "number"  },
     { "id": "releaseReadiness", "label": "Release Readiness","source": "metrics.releaseReadiness", "format": "percent" },
     { "id": "redTeamCoverage",  "label": "Red-team Coverage","source": "metrics.redTeamCoverage",  "format": "percent" },
+    { "id": "burnRate",         "label": "Monthly Burn",     "source": "metrics.burnRate",         "format": "number"  },
     { "id": "runwayMonths",     "label": "Runway",           "source": "metrics.runwayMonths",     "format": "number"  }
   ],
 
