@@ -52,7 +52,13 @@ export function lunarRegolithAtrophyProgression(ctx: ProgressionHookContext): vo
     }
     const baseline = c.health.boneDensityBase as number;
 
-    const lossRate = 0.008;
+    // 1/6g atrophy rate calibrated so the curve reaches the documented
+    // 40% floor exactly at the 15-year saturation horizon: 1 - 0.04 *
+    // 15 = 0.4. The earlier value 0.008 only decayed to 88% over 15
+    // years, leaving the floor mathematically unreachable and the
+    // physics far gentler than the documented "1/6g atrophy is steeper
+    // than Mars 0.38g" intent.
+    const lossRate = 0.04;
     const yearsOnMoon = time - startTime;
     const targetRatio = Math.max(0.4, 1 - lossRate * Math.min(yearsOnMoon, 15));
     c.health.boneDensityPct = Math.max(40, baseline * targetRatio);
