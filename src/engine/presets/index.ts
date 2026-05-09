@@ -14,7 +14,7 @@
  *
  * @module paracosm
  */
-import type { HexacoProfile } from './core/state.js';
+import type { HexacoProfile } from '../core/state.js';
 
 /**
  * One preset entry. `hexaco` must have all six traits in [0, 1].

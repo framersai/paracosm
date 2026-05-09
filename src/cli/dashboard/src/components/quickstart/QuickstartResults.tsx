@@ -18,7 +18,7 @@ import { formatDelta } from '../branches/BranchesTab.helpers';
 import { ActorPresetPicker } from './ActorPresetPicker';
 import type { RunArtifact } from '../../../../../engine/schema/index.js';
 import type { ActorConfig } from '../../../../../engine/types.js';
-import type { LeaderPreset } from '../../../../../engine/leader-presets.js';
+import type { LeaderPreset } from '../../../../../engine/presets/index.js';
 import styles from './QuickstartResults.module.scss';
 
 export interface QuickstartResultsProps {

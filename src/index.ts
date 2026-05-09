@@ -34,7 +34,7 @@ export { compileScenario, ingestFromUrl, ingestSeed } from './engine/compiler/in
 export { marsScenario, lunarScenario } from './engine/scenarios/index.js';
 
 // ─── Actor presets (promoted from /leader-presets) ──────────────────
-export { ACTOR_PRESETS, getPresetById, listPresetsByTrait } from './engine/leader-presets.js';
+export { ACTOR_PRESETS, getPresetById, listPresetsByTrait } from './engine/presets/index.js';
 
 // ─── Trait models + factories ───────────────────────────────────────
 export {

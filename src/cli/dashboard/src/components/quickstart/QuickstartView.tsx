@@ -13,7 +13,7 @@ import { QuickstartProgress, type Stage, type ActorProgress } from './Quickstart
 import { QuickstartResults } from './QuickstartResults';
 import type { ActorConfig, ScenarioPackage } from '../../../../../engine/types.js';
 import type { RunArtifact } from '../../../../../engine/schema/index.js';
-import type { LeaderPreset } from '../../../../../engine/leader-presets.js';
+import type { LeaderPreset } from '../../../../../engine/presets/index.js';
 import type { SimEvent } from '../../hooks/useSSE';
 import { useScenarioContext } from '../../App';
 import { readKeyOverrides, readLastLaunchConfig, writeActiveRunActors } from '../../hooks/useLastLaunchConfig';

@@ -5,7 +5,7 @@
  * @module paracosm/dashboard/quickstart/ActorPresetPicker
  */
 import { useFocusTrap } from '../../hooks/useFocusTrap';
-import { ACTOR_PRESETS, type LeaderPreset } from '../../../../../engine/leader-presets.js';
+import { ACTOR_PRESETS, type LeaderPreset } from '../../../../../engine/presets/index.js';
 import styles from './ActorPresetPicker.module.scss';
 
 export interface ActorPresetPickerProps {

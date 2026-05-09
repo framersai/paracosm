@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { ACTOR_PRESETS, getPresetById, listPresetsByTrait } from './leader-presets.js';
+import { ACTOR_PRESETS, getPresetById, listPresetsByTrait } from './index.js';
 
 test('ACTOR_PRESETS: exports exactly 10 archetypes', () => {
   assert.equal(Object.keys(ACTOR_PRESETS).length, 10);
