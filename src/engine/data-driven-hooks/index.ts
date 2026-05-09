@@ -194,7 +194,11 @@ function flattenState(state: SimulationState): Record<string, number | string | 
     if (typeof v === 'number' || typeof v === 'string' || typeof v === 'boolean') out[k] = v;
   }
   for (const [k, v] of Object.entries(state.statuses)) {
-    out[k] = v;
+    // Same primitive-only filter as the other bags. SimulationState
+    // types statuses as `Record<string, string | boolean>` so this
+    // is defense-in-depth against future scenario configs adding
+    // exotic state values that the rule lambdas can't reason about.
+    if (typeof v === 'number' || typeof v === 'string' || typeof v === 'boolean') out[k] = v;
   }
   return out;
 }
@@ -253,7 +257,12 @@ export function buildDataDrivenHooks(config: DataDrivenScenarioConfig): Scenario
     politicsHook: (category, outcome) => {
       const entry = config.politics[category];
       if (!entry) return null;
-      return outcome.endsWith('success')
+      // Defensive string-check: orchestrator typing says `outcome` is
+      // a string, but a stray null/undefined from a malformed runtime
+      // event would otherwise throw inside endsWith. Treat anything
+      // non-string as a failure so the failure-side deltas apply.
+      const isSuccess = typeof outcome === 'string' && outcome.endsWith('success');
+      return isSuccess
         ? entry.onSuccess ?? null
         : entry.onFailure ?? null;
     },
