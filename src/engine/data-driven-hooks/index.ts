@@ -203,6 +203,159 @@ function flattenState(state: SimulationState): Record<string, number | string | 
   return out;
 }
 
+// ─── JSON-DSL config shape ────────────────────────────────────────────
+//
+// Everything below this line is the JSON-only equivalent of the
+// function-typed config above. Lets a scenario.json carry its full
+// hooks config as data — no sibling TypeScript wrapper needed. The
+// loader compiles the DSL into the function-typed config the factory
+// already consumes; the function-typed path stays available for any
+// caller that wants to embed arbitrary closures.
+
+/** A field reference inside the flattened state. Reads from the
+ *  metric / politic / environment / status leaf names. */
+export interface FieldRef { field: string }
+
+/** Numeric / string / boolean comparison against a constant. */
+export interface JsonPredicate extends FieldRef {
+  op: '==' | '!=' | '>=' | '>' | '<=' | '<';
+  value: number | string | boolean;
+}
+
+/** Logical compound: all sub-predicates must be true. */
+export interface JsonAllPredicate { all: JsonPredicateNode[] }
+/** Logical compound: any sub-predicate must be true. */
+export interface JsonAnyPredicate { any: JsonPredicateNode[] }
+
+export type JsonPredicateNode = JsonPredicate | JsonAllPredicate | JsonAnyPredicate;
+
+/** A posture rule expressed in the JSON DSL. */
+export interface JsonPostureRule {
+  posture: string;
+  when: JsonPredicateNode;
+}
+
+/** A fingerprint axis band. First matching band wins. The optional
+ *  `default` key flags the fallback band when no `when` matches. */
+export interface JsonFingerprintBand {
+  label: string;
+  when?: JsonPredicateNode;
+  default?: boolean;
+}
+
+/** A fingerprint axis: name + ordered band list. */
+export interface JsonFingerprintAxis {
+  name: string;
+  bands: JsonFingerprintBand[];
+}
+
+/** Full JSON-DSL config, equivalent to {@link DataDrivenScenarioConfig}
+ *  but with all function values replaced by JSON-shaped DSL.
+ *
+ * `reactionTemplate` is a plain string with `{{role}}` and `{{department}}`
+ * placeholders the factory substitutes at runtime — no JS eval, no
+ * arbitrary template language.
+ */
+export interface JsonDataDrivenScenarioConfig {
+  directorInstructions: string;
+  departments: Record<string, DataDrivenDepartmentSpec>;
+  postureRules: JsonPostureRule[];
+  fingerprintAxes: JsonFingerprintAxis[];
+  politics: Record<string, DataDrivenCategoryPolitics>;
+  reactionTemplate: string;
+}
+
+/** Compile a single JSON-DSL predicate node to a `(state) => boolean`. */
+function compilePredicate(node: JsonPredicateNode): (state: Record<string, number | string | boolean>) => boolean {
+  if ('all' in node) {
+    const subs = node.all.map(compilePredicate);
+    return (state) => subs.every((s) => s(state));
+  }
+  if ('any' in node) {
+    const subs = node.any.map(compilePredicate);
+    return (state) => subs.some((s) => s(state));
+  }
+  // Leaf comparison.
+  const { field, op, value } = node;
+  return (state) => {
+    const left = state[field];
+    switch (op) {
+      case '==': return left === value;
+      case '!=': return left !== value;
+      case '>=': return Number(left ?? 0) >= Number(value);
+      case '>':  return Number(left ?? 0) >  Number(value);
+      case '<=': return Number(left ?? 0) <= Number(value);
+      case '<':  return Number(left ?? 0) <  Number(value);
+      default: return false;
+    }
+  };
+}
+
+/** Substitute `{{key}}` placeholders in a template against a value
+ *  bag. Missing keys fall through to a sensible default rather than
+ *  rendering literal `{{role}}` into the agent's quote prompt. */
+function substituteTemplate(template: string, values: Record<string, string>): string {
+  return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => values[key] ?? '');
+}
+
+/**
+ * Compile a {@link JsonDataDrivenScenarioConfig} into the function-
+ * typed {@link DataDrivenScenarioConfig} the original factory
+ * consumes. Lets scenarios/*.json carry the full config without a
+ * sibling TypeScript wrapper.
+ */
+export function compileJsonDataDrivenConfig(json: JsonDataDrivenScenarioConfig): DataDrivenScenarioConfig {
+  const compiledPostureRules: DataDrivenPostureRule[] = json.postureRules.map((rule) => ({
+    posture: rule.posture,
+    when: compilePredicate(rule.when),
+  }));
+
+  const compiledAxes: DataDrivenFingerprintAxis[] = json.fingerprintAxes.map((axis) => {
+    const bandFns = axis.bands.map((band) => ({
+      label: band.label,
+      // Default band: returns its label when nothing else matched.
+      // The axis evaluator below treats `default: true` as a final
+      // fallback — the wrap function handles ordering.
+      isDefault: band.default === true,
+      when: band.when ? compilePredicate(band.when) : null,
+    }));
+    return {
+      name: axis.name,
+      when: (state) => {
+        for (const b of bandFns) {
+          if (b.isDefault) continue;
+          if (b.when && b.when(state)) return b.label;
+        }
+        const fallback = bandFns.find((b) => b.isDefault);
+        return fallback ? fallback.label : 'unknown';
+      },
+    };
+  });
+
+  return {
+    directorInstructions: json.directorInstructions,
+    departments: json.departments,
+    postureRules: compiledPostureRules,
+    fingerprintAxes: compiledAxes,
+    politics: json.politics,
+    reactionTemplate: (agent) => {
+      const role = agent.core?.role || 'researcher';
+      const dept = agent.core?.department || 'engineering';
+      return substituteTemplate(json.reactionTemplate, { role, department: dept });
+    },
+  };
+}
+
+/**
+ * Convenience: build hooks straight from a JSON-DSL config without
+ * the caller having to compile it first. The disk-loader uses this
+ * path for scenarios/*.json files that carry a `dataDrivenHooks`
+ * field.
+ */
+export function buildDataDrivenHooksFromJson(json: JsonDataDrivenScenarioConfig): ScenarioHooks {
+  return buildDataDrivenHooks(compileJsonDataDrivenConfig(json));
+}
+
 /**
  * Build a {@link ScenarioHooks} record from a {@link DataDrivenScenarioConfig}.
  * Wrappers like atlas-lab/index.ts and dual-superintelligence-council/

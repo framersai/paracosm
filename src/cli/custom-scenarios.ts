@@ -1,6 +1,10 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { ScenarioPackage } from '../engine/types.js';
+import {
+  buildDataDrivenHooksFromJson,
+  type JsonDataDrivenScenarioConfig,
+} from '../engine/data-driven-hooks/index.js';
 
 export type CustomScenarioSource = 'memory' | 'disk' | 'compiled' | 'builtin';
 
@@ -63,6 +67,55 @@ export function isRunnableScenarioPackage(value: unknown): value is ScenarioPack
   return true;
 }
 
+/**
+ * Lift a "draft-shaped" JSON scenario (effects-as-object, no
+ * eventRenderers, no hooks, plus a `dataDrivenHooks` field) into a
+ * fully runnable {@link ScenarioPackage}. The draft shape is what
+ * scenarios/*.json files ship with — the loader now does what the
+ * mars/lunar TypeScript wrappers do (transform effects into the
+ * array shape, compute eventRenderers from the events list) plus
+ * compiles the JSON-DSL hooks into function values via the data-
+ * driven-hooks factory. Returns null when the JSON doesn't carry
+ * the data-driven shape — the caller falls back to the existing
+ * runnable-package path or skips the file.
+ */
+function liftDataDrivenDraft(parsed: unknown): ScenarioPackage | null {
+  if (!isRecord(parsed)) return null;
+  const ddh = parsed.dataDrivenHooks;
+  if (!isRecord(ddh)) return null;
+  const events = Array.isArray(parsed.events) ? parsed.events : [];
+  const effectsRaw = parsed.effects;
+  const ui = isRecord(parsed.ui) ? parsed.ui : {};
+  const liftedEffects = isRecord(effectsRaw)
+    ? [{
+        id: 'category_effects',
+        type: 'category_outcome',
+        label: 'Category Outcome Effects',
+        categoryDefaults: effectsRaw,
+      }]
+    : Array.isArray(effectsRaw) ? effectsRaw : [];
+  const liftedUi = {
+    ...ui,
+    eventRenderers: isRecord(ui.eventRenderers)
+      ? ui.eventRenderers
+      : Object.fromEntries(events
+          .filter((e: unknown): e is { id: string; icon?: string; color?: string } =>
+            isRecord(e) && typeof e.id === 'string')
+          .map((e) => [e.id, { icon: e.icon, color: e.color }])),
+  };
+  const lifted = {
+    ...parsed,
+    ui: liftedUi,
+    effects: liftedEffects,
+    hooks: buildDataDrivenHooksFromJson(ddh as unknown as JsonDataDrivenScenarioConfig),
+  };
+  // Strip the side-channel field so the runnable package matches the
+  // engine's expected shape — the dataDrivenHooks block has done its
+  // job at load time.
+  delete (lifted as Record<string, unknown>).dataDrivenHooks;
+  return lifted as unknown as ScenarioPackage;
+}
+
 export function loadDiskCustomScenarios(scenarioDir: string): Map<string, CustomScenarioEntry> {
   const catalog = new Map<string, CustomScenarioEntry>();
   if (!existsSync(scenarioDir)) return catalog;
@@ -74,8 +127,31 @@ export function loadDiskCustomScenarios(scenarioDir: string): Map<string, Custom
 
     try {
       const parsed = JSON.parse(readFileSync(filePath, 'utf-8'));
-      if (!isRunnableScenarioPackage(parsed)) continue;
-      catalog.set(parsed.id, { scenario: parsed, source: 'disk' });
+      // Two acceptance paths:
+      //   1. JSON already in fully runnable shape — register as-is.
+      //      This is what compile-from-seed produces, what the digital-
+      //      twin compiler emits, and what hand-curated drafts COULD be
+      //      after a manual TS wrapper. Rare in practice; here for
+      //      forward-compat.
+      //   2. JSON in draft shape with a `dataDrivenHooks` block —
+      //      lift via the data-driven-hooks factory. This is the
+      //      canonical path for scenarios that ship as data only
+      //      (atlas-lab, dual-superintelligence-council, future AI/
+      //      SaaS/governance scenarios). The loader does the same
+      //      effects+eventRenderers transformation the mars/lunar TS
+      //      wrappers do, plus compiles the JSON-DSL predicates.
+      if (isRunnableScenarioPackage(parsed)) {
+        catalog.set(parsed.id, { scenario: parsed, source: 'disk' });
+        continue;
+      }
+      const lifted = liftDataDrivenDraft(parsed);
+      if (lifted) {
+        catalog.set(lifted.id, { scenario: lifted, source: 'disk' });
+        continue;
+      }
+      // Neither path matched — skip silently. Hand-curated drafts
+      // without a `dataDrivenHooks` field stay drafts; they'd need
+      // either a TS wrapper or a dataDrivenHooks block to load.
     } catch {
       // Ignore unreadable or invalid custom scenario files at boot.
     }

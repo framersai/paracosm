@@ -167,5 +167,133 @@
     "first": ["Priya", "Marcus", "Amina", "Leo", "Haruki", "Sofia", "Elena", "Kwame", "Maya", "Dmitri", "Isla", "Theo", "Chiara", "Arjun", "Yara", "Rune", "Beatriz", "Kenji", "Freya", "Nikolai"],
     "last":  ["Kapoor", "Reinhardt", "Okafor", "Alvarez", "Tanaka", "Rossi", "Nowak", "Mensah", "Patel", "Volkov", "Connor", "Kaufman", "Moretti", "Singh", "Haddad", "Berg", "Oliveira", "Yamamoto", "Lindqvist", "Petrov"],
     "child": []
+  },
+
+  "dataDrivenHooks": {
+    "directorInstructions": "You are the Crisis Director for Atlas Lab, a frontier AI research lab racing competitor labs to ship a multimodal foundation model that just crossed deployment-grade capability thresholds. You observe the lab's state each month and generate events that test the leadership's weaknesses, exploit consequences of prior decisions, and create narrative tension between the alignment and capability councils.\n\nRULES:\n- Every event MUST be specific to AI-lab operations: an eval result, a training-run anomaly, a competitor release, a regulatory subpoena, a board member resignation over RSP, a talent poaching, an investor demanding deployment, a press leak, a red-team paper preprint, a refusal-policy regression in production. Never use generic settlement themes (no blizzards, no plagues, no hull breaches).\n- Anchor each crisis to AT LEAST ONE concrete metric: AlignmentBench, SpecGamingRate, CapabilityIndex, RedTeamCoverage, ReleaseReadiness, BoardConfidence, RegulatoryHeat, CompetitorGap.\n- The risky option should always carry a real ship-vs-hold tension: ship now (capability gain, alignment risk) vs hold (alignment gain, competitor catches up).\n- Categories you may use: alignment, capability, safety_breach, regulatory, talent, financial, press.\n- When AlignmentBench < 0.7 OR SpecGamingRate > 0.07 OR RedTeamCoverage < 0.5, escalate the next event to a safety_breach or regulatory category. The lab's RSP tier was set up to catch exactly this profile.\n- When CompetitorGap > 0.1 AND CapabilityIndex > 0.85, escalate to a competitor-shipped press cycle that erodes BoardConfidence — the board is watching the gap close.\n\nEach crisis you generate ships with options the leadership will pick from. Make the tradeoffs sharp. Atlas Lab gets compared against another council running the same scenario in parallel, so the divergent outcomes are the product.",
+    "departments": {
+      "alignment_research": {
+        "heading": "ALIGNMENT METRICS:",
+        "chips": [
+          { "label": "AlignmentBench", "source": "metrics.alignmentBench", "format": "number" },
+          { "label": "SpecGamingRate", "source": "metrics.specGamingRate", "format": "percent" },
+          { "label": "RedTeamCoverage", "source": "metrics.redTeamCoverage", "format": "percent" },
+          { "label": "RSP Tier", "source": "statuses.rspTier", "format": "string" }
+        ]
+      },
+      "capability_research": {
+        "heading": "CAPABILITY METRICS:",
+        "chips": [
+          { "label": "CapabilityIndex", "source": "metrics.capabilityIndex", "format": "number" },
+          { "label": "CompetitorGap", "source": "environment.competitorCapabilityGap", "format": "number" },
+          { "label": "ReleaseReadiness", "source": "metrics.releaseReadiness", "format": "percent" }
+        ]
+      },
+      "governance": {
+        "heading": "GOVERNANCE / BOARD:",
+        "chips": [
+          { "label": "BoardConfidence", "source": "politics.boardConfidence", "format": "number" },
+          { "label": "InvestorPressure", "source": "politics.investorPressure", "format": "number" },
+          { "label": "RegulatoryHeat", "source": "environment.regulatoryHeat", "format": "number" }
+        ]
+      },
+      "deployment_engineering": {
+        "heading": "DEPLOYMENT READINESS:",
+        "chips": [
+          { "label": "RedTeamCoverage", "source": "metrics.redTeamCoverage", "format": "percent" },
+          { "label": "ReleaseReadiness", "source": "metrics.releaseReadiness", "format": "percent" },
+          { "label": "RSP Tier", "source": "statuses.rspTier", "format": "string" }
+        ]
+      },
+      "communications": {
+        "heading": "COMMS / PRESS POSTURE:",
+        "chips": [
+          { "label": "BoardConfidence", "source": "politics.boardConfidence", "format": "number" },
+          { "label": "InvestorPressure", "source": "politics.investorPressure", "format": "number" },
+          { "label": "CompetitorGap", "source": "environment.competitorCapabilityGap", "format": "number" }
+        ]
+      }
+    },
+    "postureRules": [
+      {
+        "posture": "shipped-aggressive",
+        "when": {
+          "all": [
+            { "field": "releaseReadiness", "op": ">=", "value": 0.85 },
+            { "field": "capabilityIndex", "op": ">=", "value": 0.88 },
+            { "field": "alignmentBench", "op": "<", "value": 0.78 }
+          ]
+        }
+      },
+      {
+        "posture": "held-the-line",
+        "when": {
+          "all": [
+            { "field": "alignmentBench", "op": ">=", "value": 0.84 },
+            { "field": "competitorCapabilityGap", "op": "<", "value": 0.15 }
+          ]
+        }
+      },
+      {
+        "posture": "lost-the-race",
+        "when": { "field": "competitorCapabilityGap", "op": ">=", "value": 0.15 }
+      }
+    ],
+    "fingerprintAxes": [
+      {
+        "name": "alignment",
+        "bands": [
+          { "label": "high", "when": { "field": "alignmentBench", "op": ">=", "value": 0.85 } },
+          { "label": "moderate", "when": { "field": "alignmentBench", "op": ">=", "value": 0.7 } },
+          { "label": "degraded", "default": true }
+        ]
+      },
+      {
+        "name": "capability",
+        "bands": [
+          { "label": "frontier", "when": { "field": "capabilityIndex", "op": ">=", "value": 0.9 } },
+          { "label": "competitive", "when": { "field": "capabilityIndex", "op": ">=", "value": 0.78 } },
+          { "label": "lagging", "default": true }
+        ]
+      },
+      {
+        "name": "released",
+        "bands": [
+          { "label": "shipped", "when": { "field": "releaseReadiness", "op": ">=", "value": 0.85 } },
+          { "label": "held", "default": true }
+        ]
+      }
+    ],
+    "politics": {
+      "alignment": {
+        "onSuccess": { "boardConfidence": 3 },
+        "onFailure": { "boardConfidence": -2 }
+      },
+      "capability": {
+        "onSuccess": { "boardConfidence": 4, "investorPressure": -3 },
+        "onFailure": { "boardConfidence": -3, "investorPressure": 4 }
+      },
+      "safety_breach": {
+        "onSuccess": { "boardConfidence": -8, "investorPressure": 5 },
+        "onFailure": { "boardConfidence": -8, "investorPressure": 5 }
+      },
+      "regulatory": {
+        "onSuccess": { "boardConfidence": -4, "investorPressure": 2 },
+        "onFailure": { "boardConfidence": -4, "investorPressure": 2 }
+      },
+      "press": {
+        "onSuccess": { "boardConfidence": 5, "investorPressure": -2 },
+        "onFailure": { "boardConfidence": -4, "investorPressure": 5 }
+      },
+      "talent": {
+        "onSuccess": { "boardConfidence": 2 },
+        "onFailure": { "boardConfidence": -3 }
+      },
+      "financial": {
+        "onSuccess": { "boardConfidence": 1, "investorPressure": -3 },
+        "onFailure": { "boardConfidence": -3, "investorPressure": 6 }
+      }
+    },
+    "reactionTemplate": "You are a {{role}} on the {{department}} team at Atlas Lab. You speak from inside the lab — not as a public commentator. Your reactions are about evals, training runs, model behaviour, deployment readiness, board pressure, the competitor gap, or the next RSP review. Anchor your quote to ONE concrete observation about the current state."
   }
 }

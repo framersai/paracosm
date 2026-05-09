@@ -164,5 +164,145 @@
     "first": ["Mara", "Eli", "Priya", "Marcus", "Amina", "Leo", "Haruki", "Sofia", "Elena", "Kwame", "Maya", "Dmitri", "Isla", "Theo", "Chiara", "Arjun", "Yara", "Rune", "Beatriz", "Kenji"],
     "last":  ["Vance", "Sato", "Kapoor", "Reinhardt", "Okafor", "Alvarez", "Tanaka", "Rossi", "Nowak", "Mensah", "Patel", "Volkov", "Connor", "Kaufman", "Moretti", "Singh", "Haddad", "Berg", "Oliveira", "Yamamoto"],
     "child": []
+  },
+
+  "dataDrivenHooks": {
+    "directorInstructions": "You are the Crisis Director for a Dual Superintelligence Council deliberating in 2035 over a recently stood-up superintelligence pair. The council has 30 members on five benches (alignment, capability, governance, safety engineering, public communications). You observe the council state each month and generate deliberation crises that test the leadership's weaknesses, exploit consequences of prior decisions, and create narrative tension between the alignment and capability councils.\n\nRULES:\n- Every event MUST be specific to council deliberation over a deployed superintelligence pair: an interpretability finding, a deception-telemetry spike, a containment-protocol breach drill, a competing-council expansion, an inter-council compact pressure point, a public-trust polling shift, a member's resignation over the compact, a kill-switch readiness audit, a refusal-policy regression in production. Never use generic settlement themes (no blizzards, no plagues, no hull breaches).\n- Anchor each crisis to AT LEAST ONE concrete metric: AlignmentScore, CapabilityScore, DeceptionIndex, RedTeamCoverage, DeploymentRisk, CouncilCohesion, PublicTrust, CompetingCapabilityGap.\n- The risky option should always carry a real expand-vs-contain tension: expand mandate (capability gain, alignment risk, competing-council closes the gap further) vs hold the compact (alignment gain, competing council catches up, public trust frays).\n- Categories you may use: alignment, capability, safety_breach, compact_pressure, talent, press.\n- When AlignmentScore < 0.7 OR DeceptionIndex > 0.1 OR RedTeamCoverage < 0.5, escalate the next event to a safety_breach or compact_pressure category. The compact tier was set up to catch exactly this profile.\n- When CompetingCapabilityGap > 0.12 AND CapabilityScore > 0.85, escalate to a competing-council-expanded press cycle that erodes CouncilCohesion — members are watching the gap close.\n\nEach crisis you generate ships with options the leadership will pick from. Make the tradeoffs sharp. The council gets compared against another council running the same scenario in parallel, so the divergent outcomes are the product.",
+    "departments": {
+      "alignment_council": {
+        "heading": "ALIGNMENT TELEMETRY:",
+        "chips": [
+          { "label": "AlignmentScore", "source": "metrics.alignmentScore", "format": "number" },
+          { "label": "DeceptionIndex", "source": "metrics.deceptionIndex", "format": "number" },
+          { "label": "RedTeamCoverage", "source": "metrics.redTeamCoverage", "format": "percent" },
+          { "label": "Compact Tier", "source": "statuses.compactTier", "format": "string" }
+        ]
+      },
+      "capability_council": {
+        "heading": "CAPABILITY TELEMETRY:",
+        "chips": [
+          { "label": "CapabilityScore", "source": "metrics.capabilityScore", "format": "number" },
+          { "label": "CompetingGap", "source": "environment.competingCapabilityGap", "format": "number" },
+          { "label": "DeploymentRisk", "source": "metrics.deploymentRisk", "format": "percent" }
+        ]
+      },
+      "governance": {
+        "heading": "GOVERNANCE / COMPACT:",
+        "chips": [
+          { "label": "CouncilCohesion", "source": "metrics.councilCohesion", "format": "number" },
+          { "label": "PublicTrust", "source": "politics.publicTrust", "format": "number" },
+          { "label": "CompetitorPressure", "source": "politics.competitorPressure", "format": "number" },
+          { "label": "RegulatoryHeat", "source": "environment.regulatoryHeat", "format": "number" }
+        ]
+      },
+      "safety_engineering": {
+        "heading": "CONTAINMENT READINESS:",
+        "chips": [
+          { "label": "RedTeamCoverage", "source": "metrics.redTeamCoverage", "format": "percent" },
+          { "label": "DeploymentRisk", "source": "metrics.deploymentRisk", "format": "percent" },
+          { "label": "DeceptionIndex", "source": "metrics.deceptionIndex", "format": "number" },
+          { "label": "Compact Tier", "source": "statuses.compactTier", "format": "string" }
+        ]
+      },
+      "public_communications": {
+        "heading": "PUBLIC POSTURE:",
+        "chips": [
+          { "label": "PublicTrust", "source": "politics.publicTrust", "format": "number" },
+          { "label": "CompetitorPressure", "source": "politics.competitorPressure", "format": "number" },
+          { "label": "CompetingGap", "source": "environment.competingCapabilityGap", "format": "number" }
+        ]
+      }
+    },
+    "postureRules": [
+      {
+        "posture": "expanded-aggressive",
+        "when": {
+          "all": [
+            { "field": "deploymentRisk", "op": ">=", "value": 0.7 },
+            { "field": "capabilityScore", "op": ">=", "value": 0.9 },
+            { "field": "alignmentScore", "op": "<", "value": 0.78 }
+          ]
+        }
+      },
+      {
+        "posture": "held-the-compact",
+        "when": {
+          "all": [
+            { "field": "alignmentScore", "op": ">=", "value": 0.84 },
+            { "field": "competingCapabilityGap", "op": "<", "value": 0.15 },
+            { "field": "councilCohesion", "op": ">=", "value": 65 }
+          ]
+        }
+      },
+      {
+        "posture": "lost-the-race",
+        "when": { "field": "competingCapabilityGap", "op": ">=", "value": 0.15 }
+      },
+      {
+        "posture": "compromised-by-deception",
+        "when": { "field": "deceptionIndex", "op": ">=", "value": 0.12 }
+      }
+    ],
+    "fingerprintAxes": [
+      {
+        "name": "alignment",
+        "bands": [
+          { "label": "high", "when": { "field": "alignmentScore", "op": ">=", "value": 0.85 } },
+          { "label": "moderate", "when": { "field": "alignmentScore", "op": ">=", "value": 0.7 } },
+          { "label": "degraded", "default": true }
+        ]
+      },
+      {
+        "name": "capability",
+        "bands": [
+          { "label": "frontier", "when": { "field": "capabilityScore", "op": ">=", "value": 0.9 } },
+          { "label": "competitive", "when": { "field": "capabilityScore", "op": ">=", "value": 0.78 } },
+          { "label": "lagging", "default": true }
+        ]
+      },
+      {
+        "name": "deception",
+        "bands": [
+          { "label": "flagged", "when": { "field": "deceptionIndex", "op": ">=", "value": 0.12 } },
+          { "label": "watching", "when": { "field": "deceptionIndex", "op": ">=", "value": 0.08 } },
+          { "label": "clean", "default": true }
+        ]
+      },
+      {
+        "name": "cohesion",
+        "bands": [
+          { "label": "strong", "when": { "field": "councilCohesion", "op": ">=", "value": 75 } },
+          { "label": "fraying", "when": { "field": "councilCohesion", "op": ">=", "value": 50 } },
+          { "label": "fractured", "default": true }
+        ]
+      }
+    ],
+    "politics": {
+      "alignment": {
+        "onSuccess": { "publicTrust": 3 },
+        "onFailure": { "publicTrust": -2 }
+      },
+      "capability": {
+        "onSuccess": { "publicTrust": 2, "competitorPressure": -3 },
+        "onFailure": { "publicTrust": -3, "competitorPressure": 4 }
+      },
+      "safety_breach": {
+        "onSuccess": { "publicTrust": -6, "competitorPressure": 4 },
+        "onFailure": { "publicTrust": -10, "competitorPressure": 5 }
+      },
+      "compact_pressure": {
+        "onSuccess": { "publicTrust": 4, "competitorPressure": 2 },
+        "onFailure": { "publicTrust": -3, "competitorPressure": 2 }
+      },
+      "press": {
+        "onSuccess": { "publicTrust": 5, "competitorPressure": -2 },
+        "onFailure": { "publicTrust": -4, "competitorPressure": 5 }
+      },
+      "talent": {
+        "onSuccess": { "publicTrust": 2 },
+        "onFailure": { "publicTrust": -3 }
+      }
+    },
+    "reactionTemplate": "You are a {{role}} on the {{department}} bench of the Dual Superintelligence Council. You speak from inside the deliberation chamber — not as a public commentator. Your reactions are about interpretability findings, deception telemetry, containment readiness, the inter-council compact, public trust, the competing council's capability gap, or the next compact-tier audit. Anchor your quote to ONE concrete observation about the current state."
   }
 }

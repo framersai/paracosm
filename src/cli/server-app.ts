@@ -14,8 +14,6 @@ import { handleSimulate, type SimulateDeps } from './simulate-route.js';
 import { compileScenario as compileScenarioReal } from '../engine/compiler/index.js';
 import { marsScenario } from '../engine/mars/index.js';
 import { lunarScenario } from '../engine/lunar/index.js';
-import { atlasLabScenario } from '../engine/atlas-lab/index.js';
-import { dualSuperintelligenceCouncilScenario } from '../engine/dual-superintelligence-council/index.js';
 import type { ScenarioPackage } from '../engine/types.js';
 import {
   hasProviderCredentials,
@@ -460,10 +458,17 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
   // for specific IDs. New builtins ship by adding one more
   // customScenarioCatalog.set(id, { scenario, source: 'builtin' }) here.
   const customScenarioCatalog = loadDiskCustomScenarios(scenarioDir);
+  // Hand-coded TypeScript builtins. Mars + Lunar have genuine domain
+  // hooks (bone density decay, regolith exposure curves, lunar gravity
+  // multiplier) that don't fit the data-driven-hooks DSL — they stay
+  // as engine modules. Every other scenario lives in `scenarios/*.json`
+  // with a `dataDrivenHooks` block and gets lifted at boot via
+  // `loadDiskCustomScenarios` → `liftDataDrivenDraft` →
+  // `buildDataDrivenHooksFromJson`. Adding a 4th, 5th, Nth AI / SaaS
+  // / governance scenario is now just a JSON file checked into
+  // `scenarios/` — no engine module per scenario.
   customScenarioCatalog.set(marsScenario.id, { scenario: marsScenario, source: 'builtin' });
   customScenarioCatalog.set(lunarScenario.id, { scenario: lunarScenario, source: 'builtin' });
-  customScenarioCatalog.set(atlasLabScenario.id, { scenario: atlasLabScenario, source: 'builtin' });
-  customScenarioCatalog.set(dualSuperintelligenceCouncilScenario.id, { scenario: dualSuperintelligenceCouncilScenario, source: 'builtin' });
 
   // Persistence metadata for compile-from-seed scenarios — keyed by
   // scenario id. Carries `compiledAt` + truncated `seedText` so the
