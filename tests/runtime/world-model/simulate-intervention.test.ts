@@ -7,7 +7,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { WorldModel } from '../../../src/runtime/world-model/index.js';
-import { marsScenario } from '../../../src/engine/builtin-scenarios/index.js';
+import { marsScenario } from '../../../src/engine/scenarios/index.js';
 import type { ActorConfig } from '../../../src/runtime/orchestrator.js';
 import type { SubjectConfig, InterventionConfig, RunArtifact } from '../../../src/engine/schema/index.js';
 import type { SimulateOptions } from '../../../src/api/types.js';

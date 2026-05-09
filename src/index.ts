@@ -31,7 +31,7 @@ export { compileScenario, ingestFromUrl, ingestSeed } from './engine/compiler/in
 // runnable ScenarioPackage values at module init by composing JSON +
 // the engine's physics-modules registry + the data-driven-hooks
 // factory. No scenario-specific source files exist.
-export { marsScenario, lunarScenario } from './engine/builtin-scenarios/index.js';
+export { marsScenario, lunarScenario } from './engine/scenarios/index.js';
 
 // ─── Actor presets (promoted from /leader-presets) ──────────────────
 export { ACTOR_PRESETS, getPresetById, listPresetsByTrait } from './engine/leader-presets.js';

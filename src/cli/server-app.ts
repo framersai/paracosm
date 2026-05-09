@@ -12,8 +12,8 @@ import {
 import { WorldModel } from '../runtime/world-model/index.js';
 import { handleSimulate, type SimulateDeps } from './simulate-route.js';
 import { compileScenario as compileScenarioReal } from '../engine/compiler/index.js';
-import { marsScenario } from '../engine/builtin-scenarios/index.js';
-import { lunarScenario } from '../engine/builtin-scenarios/index.js';
+import { marsScenario } from '../engine/scenarios/index.js';
+import { lunarScenario } from '../engine/scenarios/index.js';
 import type { ScenarioPackage } from '../engine/types.js';
 import {
   hasProviderCredentials,

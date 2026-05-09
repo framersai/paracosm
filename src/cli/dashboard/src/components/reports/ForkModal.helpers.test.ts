@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { resolveLeaderPresets, estimateForkCost, parseCustomEvents } from './ForkModal.helpers.js';
-import { marsScenario } from '../../../../../engine/builtin-scenarios/index.js';
+import { marsScenario } from '../../../../../engine/scenarios/index.js';
 import type { ActorConfig } from '../../../../../engine/types.js';
 
 function fakeCustom(name: string): ActorConfig {

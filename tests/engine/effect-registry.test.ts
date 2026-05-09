@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EffectRegistry } from '../../src/engine/effect-registry.js';
-import { marsScenario } from '../../src/engine/builtin-scenarios/index.js';
+import { marsScenario } from '../../src/engine/scenarios/index.js';
 
 // Pull Mars category effects out of the loaded scenario as a fixture
 // — the wrapped effects array carries them under categoryDefaults.

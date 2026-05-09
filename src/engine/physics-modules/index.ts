@@ -7,7 +7,7 @@
  * iteration, conditional decay rates, asymptotic clamping).
  *
  * Scenarios opt into a physics module by name via the JSON DSL field
- * `dataDrivenHooks.progressionPhysics: '<id>'`. The builtin-scenarios
+ * `dataDrivenHooks.progressionPhysics: '<id>'`. The scenarios
  * loader looks up the function in this registry and wires it into
  * `ScenarioPackage.hooks.progressionHook`.
  *

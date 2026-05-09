@@ -67,7 +67,7 @@ import {
 import { applyCustomEventToCrisis, buildTimeSchedule } from './runtime-helpers.js';
 import { classifyProviderError, shouldAbortRun, type ClassifiedProviderError } from './provider-errors.js';
 import { EffectRegistry } from '../engine/effect-registry.js';
-import { marsScenario } from '../engine/builtin-scenarios/index.js';
+import { marsScenario } from '../engine/scenarios/index.js';
 import type { ActorConfig } from '../engine/types.js';
 import type { ResolvedEconomicsProfile } from './economics-profile.js';
 import { projectSystemBags } from './world-snapshot.js';

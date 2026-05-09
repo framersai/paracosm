@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { marsScenario } from '../../src/engine/builtin-scenarios/index.js';
+import { marsScenario } from '../../src/engine/scenarios/index.js';
 import { EffectRegistry } from '../../src/engine/effect-registry.js';
 import { MetricRegistry } from '../../src/engine/metric-registry.js';
 import { EventTaxonomy } from '../../src/engine/event-taxonomy.js';

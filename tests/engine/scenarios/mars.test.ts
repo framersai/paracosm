@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { marsScenario } from '../../../src/engine/builtin-scenarios/index.js';
+import { marsScenario } from '../../../src/engine/scenarios/index.js';
 import type { ScenarioPackage } from '../../../src/engine/types.js';
 
 test('marsScenario satisfies ScenarioPackage interface', () => {

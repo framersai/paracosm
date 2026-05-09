@@ -19,7 +19,7 @@
  * the CLI server, and the cookbook scripts all consume directly. No
  * scenario data lives in TypeScript; all of it is in `scenarios/`.
  *
- * @module paracosm/engine/builtin-scenarios
+ * @module paracosm/engine/scenarios
  */
 import type {
   ScenarioPackage,

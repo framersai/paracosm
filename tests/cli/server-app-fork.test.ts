@@ -24,8 +24,8 @@ import assert from 'node:assert/strict';
 
 import { normalizeSimulationConfig } from '../../src/cli/sim-config.js';
 import { validateForkSetupPreconditions } from '../../src/cli/fork-preconditions.js';
-import { marsScenario } from '../../src/engine/builtin-scenarios/index.js';
-import { lunarScenario } from '../../src/engine/builtin-scenarios/index.js';
+import { marsScenario } from '../../src/engine/scenarios/index.js';
+import { lunarScenario } from '../../src/engine/scenarios/index.js';
 import type { RunArtifact } from '../../src/engine/schema/index.js';
 
 function fakeParentArtifact(overrides: {

@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { compileScenario } from '../../../src/engine/compiler/index.js';
-import { marsScenario } from '../../../src/engine/builtin-scenarios/index.js';
+import { marsScenario } from '../../../src/engine/scenarios/index.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const submarineJson = JSON.parse(readFileSync(resolve(__dirname, '../../../scenarios/submarine.json'), 'utf-8'));

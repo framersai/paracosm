@@ -8,7 +8,7 @@ import {
   _resetCompileJobsForTest,
   type QuickstartDeps,
 } from '../../src/cli/quickstart-routes.js';
-import { marsScenario } from '../../src/engine/builtin-scenarios/index.js';
+import { marsScenario } from '../../src/engine/scenarios/index.js';
 import type { ScenarioPackage } from '../../src/engine/types.js';
 
 function fakeRes() {

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { getResearchFromBundle } from '../../../src/runtime/research/scenario-research.js';
-import { marsScenario, lunarScenario } from '../../../src/engine/builtin-scenarios/index.js';
+import { marsScenario, lunarScenario } from '../../../src/engine/scenarios/index.js';
 
 const MARS_KNOWLEDGE_BUNDLE = marsScenario.knowledge!;
 const LUNAR_KNOWLEDGE_BUNDLE = lunarScenario.knowledge!;
