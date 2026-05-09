@@ -20,7 +20,7 @@ import {
   emptyDecision,
   decisionToPolicy,
 } from './parsers.js';
-import { sendAndValidate } from './llm-invocations/sendAndValidate.js';
+import { sendAndValidate } from '../llm/sendAndValidate.js';
 import { DepartmentReportSchema } from './validators/department.js';
 import { CommanderDecisionSchema } from './validators/commander.js';
 import { createCostTracker } from './cost-tracker.js';

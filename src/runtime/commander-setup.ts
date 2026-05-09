@@ -25,7 +25,7 @@ import type { SimulationKernel } from '../engine/core/kernel.js';
 import type { ScenarioPackage, ActorConfig } from '../engine/types.js';
 import type { CallUsage } from './cost-tracker.js';
 import { buildPromotionPrompt } from './runtime-helpers.js';
-import { sendAndValidate } from './llm-invocations/sendAndValidate.js';
+import { sendAndValidate } from '../llm/sendAndValidate.js';
 import { PromotionsSchema } from './validators/commander.js';
 
 /**

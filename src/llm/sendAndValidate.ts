@@ -15,7 +15,7 @@
  * context when it receives the corrective message. That is what makes
  * the retry self-correcting rather than blind.
  *
- * @module paracosm/runtime/llm-invocations/sendAndValidate
+ * @module paracosm/llm/sendAndValidate
  */
 import { extractJson, ObjectGenerationError } from '@framers/agentos';
 import type { ZodType, ZodError, z } from 'zod';
