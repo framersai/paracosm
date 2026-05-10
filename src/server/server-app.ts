@@ -2933,6 +2933,9 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
       req.url === '/.well-known/llms.txt'
     ) {
       try {
+        // server-app.ts now lives at src/server/, dashboard at src/dashboard/.
+        // Resolve relative to the parent (`..`) so the path lands on the
+        // sibling dashboard tree rather than `src/server/dashboard/...`.
         const distDir = resolve(__dirname, '../dashboard/dist');
         const fileName = req.url === '/.well-known/llms.txt' ? 'llms.txt' : req.url.slice(1);
         const filePath = resolve(distDir, fileName);
@@ -2985,6 +2988,8 @@ export function createMarsServer(options: CreateMarsServerOptions = {}): MarsSer
     // ---------------------------------------------------------------------------
     // Static file serving
     // ---------------------------------------------------------------------------
+    // server-app.ts is at src/server/, dashboard build at src/dashboard/dist/.
+    // The leading `..` walks up to src/ before descending into dashboard.
     const distDir = resolve(__dirname, '../dashboard/dist');
     const hasViteBuild = existsSync(resolve(distDir, 'index.html'));
     const pathname = (req.url || '/').split('?')[0];
