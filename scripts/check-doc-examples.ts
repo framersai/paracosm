@@ -24,7 +24,7 @@ mkdirSync(SANDBOX, { recursive: true });
 mkdirSync(`${SANDBOX}/wrapped`, { recursive: true });
 
 // ── Step 1: pull every code-body from landing.html ────────────────────
-const landingHtml = readFileSync(`${REPO_ROOT}/src/cli/dashboard/landing.html`, 'utf8');
+const landingHtml = readFileSync(`${REPO_ROOT}/src/dashboard/landing.html`, 'utf8');
 const landingRe = /<div[^>]*class="code-body"[^>]*id="([a-z0-9-]+-code)"[^>]*>([\s\S]*?)<\/div>/g;
 const blocks: { id: string; text: string }[] = [];
 let m: RegExpExecArray | null;
