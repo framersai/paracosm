@@ -14,6 +14,7 @@ import { TurnGrid } from './TurnGrid';
 import { MultiActorTurnGrid } from './MultiActorTurnGrid';
 import { SimFooterBar } from './SimFooterBar';
 import { RerunPanel } from './RerunPanel';
+import { VerdictPanel } from './VerdictCard';
 import { LoadPriorRunsCTA } from '../settings/LoadPriorRunsCTA';
 import { SimLayoutToggle, type SimLayout } from './SimLayoutToggle';
 import { ConstellationView } from './ConstellationView';
@@ -302,6 +303,16 @@ export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: l
             outside the scroll context are not.
       */}
       <div className={styles.scrollableBody}>
+      {/* Inline verdict panel — appears at the top of the SIM body
+          when the run completes and the LLM verdict is in. Persistent
+          (not dismissable) so the winner + reasoning stays in place
+          while the user scrolls through the run details below. The
+          global VerdictBanner at the top of every tab remains the
+          dismissable surface; this panel is the always-visible
+          counterpart pinned to the SIM tab. */}
+      {state.isComplete && verdict && (verdict as Record<string, unknown>).winner ? (
+        <VerdictPanel verdict={verdict} />
+      ) : null}
       {layout === 'constellation' ? (
         <>
           <ConstellationView

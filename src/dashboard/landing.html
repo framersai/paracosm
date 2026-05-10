@@ -733,22 +733,65 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
 <!-- SCENARIOS -->
 <section class="sec sec-alt" id="scenarios">
   <div class="sec-inner">
-    <h2 class="sec-title rv">Two ScenarioPackages ship with the engine</h2>
-    <p class="sec-desc rv">A ScenarioPackage is a JSON file plus runtime hooks. It defines departments, metrics, crisis templates, progression rules, and milestone conditions. The engine reads the package, populates the world, and runs the simulation. No engine code changes required between scenarios.</p>
+    <h2 class="sec-title rv">Seven ScenarioPackages ship with the engine</h2>
+    <p class="sec-desc rv">A ScenarioPackage is a JSON file. It declares departments, metrics, crisis templates, progression rules, and milestone events; the engine reads the package, populates the world, and runs the simulation. No engine code changes required between scenarios — every scenario below loads dynamically from JSON. Compile your own from a brief, URL, or seed prompt with <code>compileScenario()</code>.</p>
 
-    <div class="scenarios">
-      <div class="sc-card rv rv-d1">
-        <span class="sc-badge" style="background:rgba(224,101,48,.1);color:var(--rust);border:1px solid var(--rust-d)">Flagship</span>
-        <h3>Mars Genesis</h3>
-        <p>100-person Mars colony across 50 simulated years. Five departments (Medical, Engineering, Agriculture, Psychology, Governance) analyze each event. Agents track bone density, radiation exposure, food reserves, morale, and political faction alignment. The Event Director uses all of this to generate events that target the colony's weakest points.</p>
-        <div class="sc-stats"><span><b>100</b> colonists</span><span><b>5</b> depts</span><span><b>12</b> turns</span><span><b>50</b> years</span></div>
-      </div>
-      <div class="sc-card rv rv-d2">
-        <span class="sc-badge" style="background:rgba(76,168,168,.1);color:var(--teal);border:1px solid var(--teal-d)">Proven</span>
-        <h3>Lunar Outpost</h3>
-        <p>50-person crew at the lunar south pole. Four departments handle mining, life-support, communications, and research. The scenario models regolith toxicity, 1/6g bone atrophy, Earth-relay communication delays, and crew rotation logistics. Proves the engine works across scenario boundaries without engine code changes.</p>
-        <div class="sc-stats"><span><b>50</b> crew</span><span><b>4</b> depts</span><span><b>8</b> turns</span><span><b>10</b> years</span></div>
-      </div>
+    <div class="faq-list rv">
+      <details class="faq-item">
+        <summary>Mars Genesis · 100 colonists · Flagship</summary>
+        <div class="faq-body">
+          100-person Mars colony across 50 simulated years. Five departments (Medical, Engineering, Agriculture, Psychology, Governance) analyze each event. Agents track bone density, radiation exposure, food reserves, morale, and political faction alignment. The Event Director uses all of this to generate events that target the colony's weakest points.
+          <div class="faq-cite">100 colonists · 5 depts · 6 turns · 50 simulated years · landing 2035</div>
+        </div>
+      </details>
+
+      <details class="faq-item">
+        <summary>Lunar Outpost · 50 crew · Proven</summary>
+        <div class="faq-body">
+          50-person crew at the lunar south pole. Five departments handle medical, engineering, mining, life-support, and communications. The scenario models regolith toxicity, 1/6g muscle and bone atrophy, Earth-relay communication delays, and crew rotation logistics. Proves the engine works across scenario boundaries with zero engine code changes.
+          <div class="faq-cite">50 crew · 5 depts · 8 turns · 10 simulated years · arrival 2030</div>
+        </div>
+      </details>
+
+      <details class="faq-item">
+        <summary>Atlas Lab · 480 researchers · Frontier AI</summary>
+        <div class="faq-body">
+          A frontier AI research lab racing competitor labs to ship a model that just crossed capability thresholds. Five departments (Alignment Research, Capability Research, Governance, Deployment Engineering, Communications) weigh release-readiness against deception index, alignment score, deployment risk, and competitor capability gap. The Visionary commander pushes ship-fast; the Engineer commander holds for safety review — same world, divergent decisions.
+          <div class="faq-cite">480 researchers · 5 depts · 6 turns · alignment vs capability arc</div>
+        </div>
+      </details>
+
+      <details class="faq-item">
+        <summary>Dual Superintelligence Council · 30 council members · AI governance</summary>
+        <div class="faq-body">
+          Year 2035. A deliberative council of 30 members weighs civilization-scale deployment decisions for two recently-stood-up superintelligence systems. Five departments (Alignment Council, Capability Council, Governance, Safety Engineering, Public Communications) test the council's ability to coordinate under deception risk, public scrutiny, and competing incentive structures. Pressure-tests how a single commander's HEXACO profile shifts collective decision-making.
+          <div class="faq-cite">30 council members · 5 depts · 6 turns · civilization-scale deployment</div>
+        </div>
+      </details>
+
+      <details class="faq-item">
+        <summary>Q-Scope Corp · 40 employees · Corporate strategy</summary>
+        <div class="faq-body">
+          A 40-person developer observability SaaS facing quarterly board pressure. Five departments (Sales, Engineering, Finance, HR, Operations) field events targeting churn risk, runway, hiring velocity, and product reliability. Use this for M&A simulation, market-entry plays, leadership replays — the canonical corporate-strategy scenario. Twelve quarter-turns of decisions across the same starting cap table.
+          <div class="faq-cite">40 employees · 5 depts · 12 turns · quarterly cadence</div>
+        </div>
+      </details>
+
+      <details class="faq-item">
+        <summary>Deep Ocean Station · 50 crew · Closed habitat</summary>
+        <div class="faq-body">
+          50-person crew aboard a deep-ocean research station, 2038 onwards. Five departments (Medical, Engineering, Marine Science, Life Support, Communications) field hull-pressure events, atmospheric balance, surface-link blackouts, and crew morale under prolonged isolation. A pressure-vessel analog to Lunar Outpost — same closed-system shape, different physics.
+          <div class="faq-cite">50 crew · 5 depts · 8 turns · 2038 launch · sealed habitat</div>
+        </div>
+      </details>
+
+      <details class="faq-item">
+        <summary>T2D + GLP-1 Care · 1 patient · Digital-twin medicine</summary>
+        <div class="faq-body">
+          Single-patient digital twin tracking a Type-2 diabetes patient on a GLP-1 protocol across six clinical timepoints. Five care-team departments (Endocrinology, Nutrition, Behavioral Psych, Cardiology, Lifestyle Coach) read the same chart and propose interventions. The scenario uses <code>paracosm/digital-twin</code>: subject + intervention configs feed the same kernel, and the artifact carries the per-timepoint chart so a different physician HEXACO profile produces a measurably different trajectory.
+          <div class="faq-cite">1 patient · 5 depts · 6 timepoints · GLP-1 protocol arc</div>
+        </div>
+      </details>
     </div>
   </div>
 </section>
@@ -1292,8 +1335,8 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
 
 <!-- CTA BANNER -->
 <section class="banner">
-  <h2 class="rv">Same seed. Different leader. Different world.</h2>
-  <p class="rv">Compile a brief. Generate three HEXACO leaders. Watch the trajectories diverge.</p>
+  <h2 class="rv">Same world, same kernel, same seed, divergent events and futures.</h2>
+  <p class="rv">Compile a brief. Generate three actors — each with their own goals, instructions, and HEXACO trait profile. Watch the trajectories diverge.</p>
   <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap" class="rv">
     <a href="/sim" class="cta cta-pulse">Launch Simulation <svg><use href="#i-arrow"/></svg></a>
     <a href="https://github.com/framersai/paracosm/blob/master/docs/COOKBOOK.md" class="btn-ghost" target="_blank" rel="noopener">Read the Cookbook</a>
@@ -1317,6 +1360,7 @@ npm run dashboard     <span class="cm"># opens http://localhost:3456</span>
       <a href="https://wilds.ai/discord">Discord</a>
       <a href="mailto:team@frame.dev">team@frame.dev</a>
     </nav>
+    <p class="ft-tagline" style="font-size:var(--font-2xs);color:var(--t3);text-align:center;max-width:620px;margin:14px auto 6px;line-height:1.6">Every actor carries its own goals, instructions, and HEXACO trait profile — not just personality. Same world, same kernel, same seed, divergent events and futures.</p>
     <span class="ft-copy"><span style="font-weight:700;letter-spacing:.08em">PARA<span style="color:var(--amber)">COSM</span></span> &middot; Apache-2.0 &middot; Manic Agency LLC / Frame.dev</span>
   </div>
 </footer>
