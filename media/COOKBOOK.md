@@ -870,7 +870,7 @@ Router unit tests live at [`tests/cli/router.test.ts`](../tests/cli/router.test.
 
 ## Pluggable trait models: `ai-agent` end-to-end
 
-paracosm@0.8+ ships a `TraitModel` registry alongside the historical HEXACO. Two built-ins land in v1: `hexaco` (the canonical Ashton-Lee shape, the existing default) and `ai-agent` (a six-axis model designed for AI-system leaders). The registry lives at [`src/engine/trait-models/`](../src/engine/trait-models/) and is demonstrated below with a captured end-to-end run.
+paracosm@0.8+ ships a `TraitModel` registry alongside the historical HEXACO. Two built-ins land in v1: `hexaco` (the canonical Ashton-Lee shape, the existing default) and `ai-agent` (a six-axis model designed for AI-system leaders). The registry lives at [`src/engine/traits/`](../src/engine/traits/) and is demonstrated below with a captured end-to-end run.
 
 ### `ai-agent` axes
 
