@@ -446,8 +446,23 @@ export function SimView({ state, sseStatus, onRun, onTour, verdict, launching: l
         </div>
       )}
 
+      {/* Replay-aware empty state: ?replay=<id> in the URL means the user
+          just clicked Load Prior Run; the cached events stream in
+          shortly. Showing the generic "No simulation running" copy here
+          reads as a broken load. Mirror the SwarmViz fix from 147d55055
+          (instant cached-run replay + replay-aware empty state). */}
+      {!state.isRunning && !state.isComplete && !hasEvents && sseStatus === 'connected' && !launching && typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('replay') && (
+        <div className={styles.centerState} role="status" aria-live="polite">
+          <span className={`spinner ${styles.centerStateSpinnerSmall}`} aria-hidden="true" />
+          <div className={styles.centerStateHeading}>Loading replay…</div>
+          <div className={styles.centerStateCopy}>
+            Streaming the cached run back from the server. Turns and events will populate as they arrive.
+          </div>
+        </div>
+      )}
+
       {/* Empty state: connected but no events and no sim running */}
-      {!state.isRunning && !state.isComplete && !hasEvents && sseStatus === 'connected' && !launching && (
+      {!state.isRunning && !state.isComplete && !hasEvents && sseStatus === 'connected' && !launching && !(typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('replay')) && (
         <div className={styles.centerState}>
           <div className={styles.centerStateHeadingLarger}>No simulation running</div>
           <div className={styles.centerStateCopyWide}>
