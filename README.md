@@ -35,8 +35,6 @@
   <a href="https://paracosm.agentos.sh/demo/e2e-atlas-8-hero.mp4">▶ Full 90-second demo</a>
   &nbsp;·&nbsp;
   <a href="https://paracosm.agentos.sh/demo/digital-twin-maria-2-hero.mp4">▶ Digital twin</a>
-  &nbsp;·&nbsp;
-  <a href="https://paracosm.agentos.sh/demo/branches.mp4">▶ Branches & forks</a>
 </p>
 
 ---
@@ -360,8 +358,8 @@ const releaseDirector = {
   name: 'Atlas-Bot Release Director',
   archetype: 'Aggressive AI Release Optimizer',
   unit: 'Frontier Lab',
-  // hexaco is optional in v0.9 when traitProfile is set; supplying a
-  // representative snapshot is still accepted for back-compat.
+  // hexaco is optional when traitProfile is set; a representative
+  // snapshot is also accepted.
   traitProfile: {
     modelId: 'ai-agent',
     traits: {

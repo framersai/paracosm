@@ -24,9 +24,15 @@ interface VerdictCardProps {
 }
 
 function ScoreBar({ label, a, b }: { label: string; a: number; b: number }) {
-  const max = Math.max(a, b, 1);
-  const aPct = `${(a / max) * 100}%`;
-  const bPct = `${(b / max) * 100}%`;
+  // VerdictScoresSchema clamps to 0-10. Using the score-ceiling (10)
+  // as the bar denominator means equal scores render equal-length bars
+  // proportional to the absolute scale: 9 vs 9 fills 90%, 5 vs 5 fills
+  // 50%. Previously max=Math.max(a,b,1) made every tied row render
+  // both bars at 100% regardless of absolute score, which read as a
+  // visual bug whenever both colonies hit similar numbers.
+  const SCORE_CEILING = 10;
+  const aPct = `${Math.min(100, (a / SCORE_CEILING) * 100)}%`;
+  const bPct = `${Math.min(100, (b / SCORE_CEILING) * 100)}%`;
   return (
     <div className={styles.scoreBar}>
       <div className={styles.scoreBarLegend}>
@@ -227,6 +233,12 @@ export function VerdictDetails({ v, onExport, copied }: { v: VerdictData; onExpo
 export function VerdictPanel({ verdict: raw }: VerdictCardProps) {
   const v = raw as unknown as VerdictData;
   const [copied, setCopied] = useState(false);
+  // Collapsible: clicking the close button shrinks the panel to a
+  // single-line summary so the SIM area is not dominated by the
+  // verdict block when reviewing turns. Clicking the collapsed bar
+  // re-expands. State is per-session in-memory; remounting (page
+  // reload, replay change) restores the expanded default.
+  const [expanded, setExpanded] = useState(true);
   const handleExport = useCallback(() => {
     const md = buildMarkdownExport(v);
     navigator.clipboard.writeText(md).then(
@@ -236,11 +248,36 @@ export function VerdictPanel({ verdict: raw }: VerdictCardProps) {
   }, [v]);
   if (!v.winner || !v.scores) return null;
   const winColor = winColorFor(v.winner);
+  if (!expanded) {
+    const headline = v.headline ?? `${v.winner === 'tie' ? 'Tied' : `${v.winner.toUpperCase()} wins`}`;
+    return (
+      <button
+        type="button"
+        className={styles.panelCollapsed}
+        style={{ '--win-color': winColor } as CSSProperties}
+        onClick={() => setExpanded(true)}
+        aria-label="Expand verdict"
+      >
+        <span className={styles.panelCollapsedDot} aria-hidden="true" />
+        <span className={styles.panelCollapsedText}>Verdict: {headline}</span>
+        <span className={styles.panelCollapsedHint}>(click to expand)</span>
+      </button>
+    );
+  }
   return (
     <div
       className={styles.panel}
       style={{ '--win-color': winColor } as CSSProperties}
     >
+      <button
+        type="button"
+        className={styles.panelClose}
+        onClick={() => setExpanded(false)}
+        aria-label="Collapse verdict"
+        title="Collapse verdict"
+      >
+        ×
+      </button>
       <VerdictDetails v={v} onExport={handleExport} copied={copied} />
     </div>
   );

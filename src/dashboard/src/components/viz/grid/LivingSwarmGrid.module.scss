@@ -29,13 +29,11 @@
   position: relative;
   min-height: 0;
   overflow: hidden;
-  // Soft morale-tinted radial wash. --tint-color from React (resolved hex).
-  background: radial-gradient(
-    ellipse at 50% 55%,
-    color-mix(in srgb, var(--tint-color, var(--amber)) 9%, transparent) 0%,
-    color-mix(in srgb, var(--tint-color, var(--amber)) 3%, transparent) 45%,
-    var(--bg-deep) 85%
-  );
+  // Soft morale-tinted wash. Flat (not radial) — the prior `bg-deep`
+  // outer stop produced a vignette read on wide viewports where the
+  // canvas filled the panel. Keep the morale tint intact at uniform
+  // low opacity so the corners read as the same surface as the center.
+  background: color-mix(in srgb, var(--tint-color, var(--amber)) 5%, transparent);
   // --wrap-border + --wrap-glow vary by morale / chronicle hover; pre-baked
   // by the parent so the hot loop on this canvas never reflows.
   border: 2px solid var(--wrap-border, color-mix(in srgb, var(--amber) 33%, transparent));

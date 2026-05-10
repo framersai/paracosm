@@ -224,6 +224,77 @@
   padding: 20px 24px;
   margin-bottom: 20px;
   box-shadow: var(--card-shadow);
+  position: relative;
+}
+
+.panelClose {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text-3);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+
+  &:hover, &:focus-visible {
+    background: var(--bg-elevated);
+    border-color: var(--border);
+    color: var(--text-1);
+    outline: none;
+  }
+}
+
+.panelCollapsed {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--win-color, var(--amber));
+  border-radius: 6px;
+  padding: 8px 14px;
+  margin-bottom: 16px;
+  font-family: inherit;
+  font-size: var(--font-sm);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+
+  &:hover, &:focus-visible {
+    background: var(--bg-elevated);
+    border-color: var(--win-color, var(--amber));
+    outline: none;
+  }
+}
+
+.panelCollapsedDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--win-color, var(--amber));
+  flex-shrink: 0;
+}
+
+.panelCollapsedText {
+  flex: 1;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.panelCollapsedHint {
+  font-size: var(--font-2xs);
+  color: var(--text-3);
 }
 
 .banner {
