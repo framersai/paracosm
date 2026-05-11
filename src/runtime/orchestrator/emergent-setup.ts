@@ -68,7 +68,7 @@ export function createWebSearchTool(
       const braveKey = searchCredential(credentials.braveKey, 'BRAVE_API_KEY', env);
       const cohereKey = searchCredential(credentials.cohereKey, 'COHERE_API_KEY', env);
       try {
-        const { WebSearchService, FirecrawlProvider, TavilyProvider, SerperProvider, BraveProvider } = await import('@framers/agentos/web-search');
+        const { WebSearchService, FirecrawlProvider, TavilyProvider, SerperProvider, BraveProvider } = await import('@framers/agentos/cognition/web-search');
         const service = new WebSearchService();
         if (firecrawlKey) service.registerProvider(new FirecrawlProvider(firecrawlKey));
         if (tavilyKey) service.registerProvider(new TavilyProvider(tavilyKey));

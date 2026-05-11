@@ -88,7 +88,7 @@ async function searchForCitations(
   const braveKey = searchCredential(credentials.braveKey, 'BRAVE_API_KEY');
 
   try {
-    const { WebSearchService, FirecrawlProvider, TavilyProvider, SerperProvider, BraveProvider } = await import('@framers/agentos/web-search');
+    const { WebSearchService, FirecrawlProvider, TavilyProvider, SerperProvider, BraveProvider } = await import('@framers/agentos/cognition/web-search');
     const service = new WebSearchService();
 
     if (firecrawlKey) service.registerProvider(new FirecrawlProvider(firecrawlKey));

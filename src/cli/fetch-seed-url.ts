@@ -1,7 +1,7 @@
 /**
  * Shared URL fetcher for CLI init + dashboard quickstart flows.
  *
- * AgentOS exposes WebSearchService from the `@framers/agentos/web-search`
+ * AgentOS exposes WebSearchService from the `@framers/agentos/cognition/web-search`
  * subpath. The package root does not export it, and the service is a
  * search API rather than a single-URL scraper. This helper uses the real
  * search API when provider keys are configured, then falls back to direct
@@ -52,7 +52,7 @@ export interface FetchSeedFromUrlOptions {
 }
 
 export async function loadWebSearchModule(
-  importWebSearch: WebSearchImporter = () => import('@framers/agentos/web-search'),
+  importWebSearch: WebSearchImporter = () => import('@framers/agentos/cognition/web-search'),
 ): Promise<WebSearchModule> {
   return importWebSearch();
 }
