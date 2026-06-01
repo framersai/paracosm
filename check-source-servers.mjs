@@ -25,7 +25,7 @@ const SERVERS = [
 ];
 
 const QUERIES = [
-  'wilds.ai', 'wilds', 'agentos', 'framers', 'framersai', 'rabbithole',
+  'wilds.ai', 'wilds', 'agentos', 'framers', 'framerslab', 'rabbithole',
   'trojanos', 'johnny dunn', 'johnnyddunn', 'ayeeye', 'aye eye',
   'scammer', 'scam', 'fucking scammer', 'jddunn',
 ];

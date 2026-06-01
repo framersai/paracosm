@@ -41,7 +41,7 @@ const SERVERS = [
 ];
 
 const QUERIES = [
-  'wilds.ai', 'wilds', 'agentos', 'framers', 'framersai', 'rabbithole',
+  'wilds.ai', 'wilds', 'agentos', 'framers', 'framerslab', 'rabbithole',
   'rabbithole.inc', 'trojanos', 'johnny dunn', 'johnnyddunn', 'jddunn',
   'ayeeye', 'aye eye',
   'scammer community', 'fucking scammer', 'paid for stars',
